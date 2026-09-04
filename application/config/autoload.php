@@ -5,4 +5,5 @@ $autoload['libraries'] = array();
 $autoload['drivers'] = array();
 $autoload['config'] = array();
 $autoload['language'] = array();
+$autoload['helper'] = array('url', 'form');
 $autoload['model'] = array();

@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>nexam — Reset Password</title>
-    <meta name="theme-color" content="#1B3A5B">
+    <meta name="theme-color" content="#1A2942">
     <link href="<?php echo base_url('assets/css/fonts.css'); ?>" rel="stylesheet" type="text/css">
     <link href="<?php echo base_url('assets/css/auth.css'); ?>" rel="stylesheet" type="text/css">
     <link href="<?php echo base_url('assets/css/toast.css'); ?>" rel="stylesheet" type="text/css">
@@ -16,19 +16,32 @@
     <div class="auth-wrap">
         <!-- Left brand panel -->
         <div class="auth-panel">
-            <div class="panel-icon">
-                <i data-lucide="lock-keyhole"></i>
+            <div class="panel-badge">Account Recovery</div>
+            <div class="panel-title">Set a new <em>password</em></div>
+            <p class="panel-tagline">Enter the code we emailed you, then choose a new password.</p>
+
+            <div class="panel-footer">
+                <div class="panel-icon">
+                    <i data-lucide="lock-keyhole"></i>
+                </div>
+                <div class="panel-org">
+                    nexam
+                    <small>TOS-aligned examination builder</small>
+                </div>
             </div>
-            <div>
-                <div class="panel-badge">Recovery</div>
-                <div class="panel-title">Reset <em>Password</em></div>
-                <p class="panel-tagline">Enter the code and your new password.</p>
-            </div>
-            <div class="panel-footer">Table of Specifications</div>
         </div>
 
         <!-- Right form panel -->
         <div class="auth-form-wrap">
+            <div class="auth-heading">
+                <span class="auth-logo">
+                    <span class="logo-mark"><i data-lucide="graduation-cap"></i></span>
+                    <span>nexam</span>
+                </span>
+                <h1 class="gradient-text">Set a new password</h1>
+                <p>Enter the code we emailed you.</p>
+            </div>
+
             <p style="font-size:13px;color:#64748b;margin-bottom:1.5rem;text-align:center">
                 A reset code was sent to <strong><?php echo htmlspecialchars($email); ?></strong>
             </p>
@@ -38,8 +51,7 @@
                 <div class="form-group">
                     <label class="form-label" for="code">Verification Code</label>
                     <div class="input-wrap">
-                        <span class="input-icon"><i data-lucide="key-round"></i></span>
-                        <input type="text" id="code" name="code" class="form-input" placeholder="000000" maxlength="6" pattern="[0-9]{6}" required autofocus style="text-align:center;letter-spacing:4px;font-size:1.2rem">
+                        <input type="text" id="code" name="code" class="form-input code-input" placeholder="000000" maxlength="6" pattern="[0-9]{6}" inputmode="numeric" required autofocus>
                     </div>
                 </div>
 
@@ -65,7 +77,10 @@
                     </div>
                 </div>
 
-                <button type="submit" class="btn-login">Reset Password</button>
+                <button type="submit" class="btn-login">
+                    <span class="btn-spinner"></span>
+                    <span class="btn-label">Reset Password</span>
+                </button>
                 <a href="<?php echo site_url('login'); ?>" class="btn-register">
                     <i data-lucide="arrow-left"></i>
                     Back to Login

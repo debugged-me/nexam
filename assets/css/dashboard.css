@@ -22,7 +22,6 @@
     box-shadow: var(--shadow-sm);
     overflow: hidden;
     color: inherit;
-    transition: border-color .18s ease, transform .18s ease, box-shadow .18s ease;
 }
 
 /* Top accent stripe, coloured per variant */
@@ -33,12 +32,6 @@
     left: 0;
     width: 100%;
     height: 3px;
-}
-
-.kpi-card:hover {
-    border-color: var(--blue-600);
-    transform: translateY(-3px);
-    box-shadow: var(--shadow-md);
 }
 
 .kpi-card--info::before    { background: var(--blue-600); }
@@ -69,8 +62,18 @@
 .kpi-icon--warning { background: var(--amber-50); color: var(--amber-600); }
 .kpi-icon--purple  { background: var(--purple-50); color: var(--purple-600); }
 
-.kpi-open { color: var(--ink-faint); display: flex; }
+.kpi-open {
+    color: var(--ink-faint);
+    display: flex;
+    transition: transform .22s cubic-bezier(.4, 0, .2, 1), color .22s ease;
+}
 .kpi-open svg { width: 15px !important; height: 15px !important; display: block; }
+
+/* Animate the arrow inside the card on hover (replaces the card lift) */
+.kpi-card:hover .kpi-open {
+    transform: translate(3px, -3px);
+    color: var(--blue-600);
+}
 
 .kpi-num {
     font-family: var(--font-display, "Google Sans", sans-serif);

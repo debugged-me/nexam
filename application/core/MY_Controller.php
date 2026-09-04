@@ -17,7 +17,7 @@ class MY_Controller extends CI_Controller
     {
         parent::__construct();
         $this->load->library(['session', 'form_validation']);
-        $this->load->helper(['url', 'form', 'string']);
+        $this->load->helper(['url', 'form', 'string', 'name']);
 
         // Enforce auth on every subclass
         if (!$this->session->userdata('logged_in')) {
@@ -32,6 +32,14 @@ class MY_Controller extends CI_Controller
         $this->role      = $this->session->userdata('role');
 
         $this->load->database();
+
+        // Cache the avatar path in the session so the shell can render the
+        // photo without hitting the database on every page load.
+        if ($this->session->userdata('avatar_path') === null) {
+            $this->load->model('User_model');
+            $user = $this->User_model->find_by_id($this->user_id);
+            $this->session->set_userdata('avatar_path', $user ? $user->avatar_path : '');
+        }
     }
 
     /**
@@ -48,6 +56,7 @@ class MY_Controller extends CI_Controller
         $data['email']       = $this->session->userdata('email');
         $data['role']        = $this->session->userdata('role');
         $data['user_id']     = $this->session->userdata('user_id');
+        $data['avatar_path'] = $this->session->userdata('avatar_path');
         $data['csrf_name']   = $this->security->get_csrf_token_name();
         $data['csrf_hash']   = $this->security->get_csrf_hash();
 

@@ -26,14 +26,19 @@ class User_model extends CI_Model
     }
 
     /** Create a new user. Returns the UUID id or false on failure. */
-    public function create_user($email, $password, $full_name)
+    public function create_user($email, $password, $first_name, $middle_name, $last_name, $name_ext)
     {
-        $id = $this->_generate_uuid();
+        $id       = $this->_generate_uuid();
+        $full_name = $this->compose_full_name($first_name, $middle_name, $last_name, $name_ext);
 
         $this->db->insert('users', [
             'id'            => $id,
             'email'         => $email,
             'password_hash' => password_hash($password, PASSWORD_DEFAULT),
+            'first_name'    => $first_name,
+            'middle_name'   => $middle_name,
+            'last_name'     => $last_name,
+            'name_ext'      => $name_ext,
             'full_name'     => $full_name,
             'role'          => 'instructor',
             'email_verified' => 0,
@@ -42,12 +47,63 @@ class User_model extends CI_Model
         return $this->db->affected_rows() > 0 ? $id : false;
     }
 
+    /**
+     * Build a single display string from the name parts.
+     * Middle name is abbreviated (first letter + '.'); extension is appended.
+     * Example: Juan / Reyes / Dela Cruz / Jr.  ->  "Juan R. Dela Cruz Jr."
+     */
+    public function compose_full_name($first_name, $middle_name, $last_name, $name_ext)
+    {
+        $parts = [trim($first_name)];
+
+        $middle = trim($middle_name);
+        if ($middle !== '') {
+            $parts[] = strtoupper(substr($middle, 0, 1)) . '.';
+        }
+
+        $parts[] = trim($last_name);
+
+        $ext = trim($name_ext);
+        if ($ext !== '') {
+            $parts[] = $ext;
+        }
+
+        return implode(' ', array_filter($parts, fn ($p) => $p !== ''));
+    }
+
     /** Update a user's password. */
     public function update_password($user_id, $password)
     {
         return $this->db->where('id', $user_id)->update('users', [
             'password_hash' => password_hash($password, PASSWORD_DEFAULT),
         ]);
+    }
+
+    /** Update a user's display name. */
+    /**
+     * Update a user's name parts and keep the composed display name in step.
+     * Returns the composed full name, or false if the write failed.
+     */
+    public function update_name_parts($user_id, $first_name, $middle_name, $last_name, $name_ext)
+    {
+        $full_name = $this->compose_full_name($first_name, $middle_name, $last_name, $name_ext);
+
+        $this->db->where('id', $user_id)->update('users', [
+            'first_name'  => $first_name,
+            'middle_name' => $middle_name,
+            'last_name'   => $last_name,
+            'name_ext'    => $name_ext,
+            'full_name'   => $full_name,
+        ]);
+
+        return $this->db->affected_rows() >= 0 ? $full_name : false;
+    }
+
+    /** Point a user at a stored avatar file (or clear it with ''). */
+    public function update_avatar($user_id, $path)
+    {
+        $this->db->where('id', $user_id)->update('users', ['avatar_path' => $path]);
+        return $this->db->affected_rows() >= 0;
     }
 
     /** Mark email as verified. */

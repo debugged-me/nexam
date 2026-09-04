@@ -1,365 +1,552 @@
 /* ==========================================================================
-   auth.css — Shared styles for login / register / forgot-password pages
-   Responsive: mobile-first breakpoints, works on any screen size.
-   Icons: Lucide only (https://lucide.dev/icons/)
+   auth.css — login, register, verify, forgot and reset screens
+   --------------------------------------------------------------------------
+   Layout follows the DOrSU student portal: one centred card floating on a soft
+   tinted background, split into an image-style brand panel (institution mark
+   pinned to the bottom) and a form panel led by a centred logo and a
+   gradient-text welcome line.
+
+   Type stays Google Sans + Inter from assets/fonts — the reference uses
+   Poppins from a CDN, which this project does not load.
+
+   Self-contained: these pages do not include layout.css.
    ========================================================================== */
 
 :root {
-    --auth-bg: #F4F6FA;
-    --navy: #1B3A5B;
-    --navy-light: #2C5478;
-    --blue: #3E6B96;
-    --blue-soft: #6B95B8;
-    --text: #1E293B;
-    --text-muted: #64748B;
-    --text-light: #94A3B8;
-    --border: rgba(27, 58, 91, 0.16);
-    --white: #FFFFFF;
-    --input-bg: #F8FAFC;
-    --error: #DC2626;
+    /* Brand */
+    --auth-navy:      #1A2942;
+    --auth-navy-deep: #101B2D;
+    --auth-navy-soft: #1E3A5F;
+    --auth-accent:    #3BC0C3;
+
+    --auth-blue:      #2563EB;
+    --auth-blue-dark: #1D4ED8;
+
+    /* Surfaces and ink */
+    --auth-bg:      #F4F7FC;
+    --auth-surface: #FFFFFF;
+    --auth-line:    #E2E8F0;
+    --auth-line-2:  #CBD5E1;
+    --auth-ink:     #0F172A;
+    --auth-ink-2:   #475569;
+    --auth-ink-3:   #64748B;
+    --auth-faint:   #94A3B8;
+    --auth-error:   #DC2626;
+
+    --auth-card-shadow: 0 30px 70px -20px rgba(15, 23, 42, .28), 0 8px 20px -8px rgba(15, 23, 42, .12);
+    --auth-ease: cubic-bezier(.16, 1, .3, 1);
 }
 
-/* ---- Base ---- */
-*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+* { margin: 0; padding: 0; box-sizing: border-box; }
 
 body.auth-page {
-    font-family: var(--font-body, "Inter", sans-serif);
+    position: relative;
+    font-family: var(--font-body, "Inter", -apple-system, sans-serif);
     background: var(--auth-bg);
-    color: var(--text);
-    line-height: 1.65;
+    color: var(--auth-ink);
     min-height: 100vh;
+    min-height: 100dvh;
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: 1rem;
+    padding: 32px 24px;
+    font-size: 14px;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+    overflow-x: hidden;
 }
 
-body.auth-page a { text-decoration: none; color: inherit; }
+/* Soft tinted wash behind the card, in place of the reference's wave asset. */
+body.auth-page::before,
+body.auth-page::after {
+    content: "";
+    position: fixed;
+    border-radius: 50%;
+    z-index: 0;
+    pointer-events: none;
+    filter: blur(10px);
+}
 
-/* ---- Card wrapper ---- */
+body.auth-page::before {
+    width: 46vw;
+    height: 46vw;
+    min-width: 420px;
+    min-height: 420px;
+    top: -14vw;
+    left: -10vw;
+    background: radial-gradient(circle, rgba(37, 99, 235, .13) 0%, rgba(37, 99, 235, 0) 68%);
+}
+
+body.auth-page::after {
+    width: 42vw;
+    height: 42vw;
+    min-width: 380px;
+    min-height: 380px;
+    bottom: -16vw;
+    right: -10vw;
+    background: radial-gradient(circle, rgba(255, 176, 102, .16) 0%, rgba(255, 176, 102, 0) 68%);
+}
+
+a { color: inherit; text-decoration: none; }
+
+/* ==========================================================================
+   Card
+   ========================================================================== */
+
 .auth-wrap {
+    position: relative;
+    z-index: 1;
     width: 100%;
-    max-width: 780px;
-    background: var(--white);
-    border-radius: 16px;
-    overflow: hidden;
+    max-width: 940px;
     display: grid;
     grid-template-columns: 1fr 1fr;
-    box-shadow: 0 24px 80px rgba(0, 0, 0, 0.08);
-    animation: authCardIn 0.6s ease forwards;
-    min-height: 560px;
-}
-
-@keyframes authCardIn {
-    from { opacity: 0; transform: translateY(20px); }
-    to   { opacity: 1; transform: translateY(0); }
-}
-
-/* ---- Left brand panel ---- */
-.auth-panel {
-    background: linear-gradient(160deg, #1B3A5B 0%, #2C5478 100%);
-    color: var(--white);
-    padding: 3.5rem 2.5rem;
-    display: flex;
-    flex-direction: column;
-    justify-content: space-between;
-    position: relative;
+    background: var(--auth-surface);
+    border-radius: 16px;
+    box-shadow: var(--auth-card-shadow);
     overflow: hidden;
 }
 
+/* The register form carries paired name rows and needs the extra width. */
+.auth-page-register .auth-wrap { max-width: 1060px; }
+
+/* ==========================================================================
+   Brand panel
+   ========================================================================== */
+
+.auth-panel {
+    position: relative;
+    background:
+        radial-gradient(120% 80% at 15% 0%, rgba(59, 192, 195, .16) 0%, transparent 55%),
+        linear-gradient(155deg, var(--auth-navy-soft) 0%, var(--auth-navy) 45%, var(--auth-navy-deep) 100%);
+    color: #fff;
+    padding: 36px 34px;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    min-height: 480px;
+    overflow: hidden;
+}
+
+/* Fine dot grid — texture without needing a photograph. */
 .auth-panel::before {
     content: "";
     position: absolute;
-    top: -40%;
-    right: -30%;
-    width: 280px;
-    height: 280px;
-    background: radial-gradient(circle, rgba(107, 149, 184, 0.18) 0%, transparent 70%);
+    inset: 0;
+    background-image: radial-gradient(rgba(255, 255, 255, .14) 1px, transparent 1px);
+    background-size: 22px 22px;
+    opacity: .5;
     pointer-events: none;
 }
 
-.panel-icon { margin-bottom: 1.2rem; opacity: 0.55; display: flex; }
-.panel-icon svg { width: 42px; height: 42px; display: block; }
-
+/* Headline block, sitting above the pinned brand mark. */
 .panel-badge {
-    font-size: 0.65rem;
-    font-weight: 500;
-    letter-spacing: 0.25em;
+    position: relative;
+    display: inline-block;
+    align-self: flex-start;
+    font-size: .62rem;
+    font-weight: 600;
+    letter-spacing: .14em;
     text-transform: uppercase;
-    color: var(--blue-soft);
-    opacity: 0.85;
-    margin-bottom: 0.6rem;
+    color: var(--auth-accent);
+    background: rgba(59, 192, 195, .1);
+    border: 1px solid rgba(59, 192, 195, .26);
+    border-radius: 999px;
+    padding: 5px 11px;
+    margin-bottom: 16px;
 }
 
 .panel-title {
+    position: relative;
     font-family: var(--font-display, "Google Sans", sans-serif);
-    font-size: 1.6rem;
-    font-weight: 600;
-    line-height: 1.25;
-    margin-bottom: 0.4rem;
+    font-size: 1.85rem;
+    font-weight: 700;
+    letter-spacing: -.03em;
+    line-height: 1.15;
+    color: #fff;
 }
 
 .panel-title em {
-    font-style: italic;
-    color: var(--blue-soft);
     display: block;
-    margin-top: 0.1rem;
+    font-style: normal;
+    color: rgba(255, 255, 255, .55);
 }
 
-.panel-tagline { font-size: 0.8rem; opacity: 0.7; line-height: 1.6; }
-.panel-footer  { font-size: 0.68rem; opacity: 0.45; letter-spacing: 0.05em; }
+.panel-tagline {
+    position: relative;
+    font-size: .86rem;
+    line-height: 1.65;
+    color: rgba(255, 255, 255, .6);
+    margin-top: 12px;
+    max-width: 34ch;
+}
 
-/* ---- Right form panel ---- */
+/* Institution mark pinned to the bottom, as on the reference. */
+.panel-footer {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-top: 32px;
+    padding-top: 22px;
+    border-top: 1px solid rgba(148, 163, 184, .2);
+}
+
+.panel-icon {
+    width: 42px;
+    height: 42px;
+    flex-shrink: 0;
+    border-radius: 11px;
+    background: rgba(59, 192, 195, .13);
+    border: 1px solid rgba(59, 192, 195, .3);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.panel-icon svg { width: 21px !important; height: 21px !important; display: block; color: var(--auth-accent); }
+
+.panel-org {
+    font-family: var(--font-display, "Google Sans", sans-serif);
+    font-size: .9rem;
+    font-weight: 600;
+    color: #fff;
+    line-height: 1.3;
+}
+
+.panel-org small {
+    display: block;
+    font-family: var(--font-body, "Inter", sans-serif);
+    font-style: italic;
+    font-size: .72rem;
+    font-weight: 400;
+    color: rgba(255, 255, 255, .5);
+    margin-top: 2px;
+}
+
+/* ==========================================================================
+   Form panel
+   ========================================================================== */
+
 .auth-form-wrap {
-    padding: 3.5rem;
+    padding: 44px 46px 38px;
     display: flex;
     flex-direction: column;
     justify-content: center;
 }
 
-.form-group { margin-bottom: 1.4rem; }
+.auth-form-wrap > form { width: 100%; }
+
+.auth-heading { text-align: center; margin-bottom: 26px; }
+
+.auth-logo {
+    display: inline-flex;
+    align-items: center;
+    gap: 9px;
+    margin-bottom: 18px;
+}
+
+.auth-logo span {
+    font-family: var(--font-display, "Google Sans", sans-serif);
+    font-size: 1.28rem;
+    font-weight: 700;
+    letter-spacing: -.02em;
+    color: var(--auth-navy);
+}
+
+.auth-logo .logo-mark {
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+    background: var(--auth-navy);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.auth-logo .logo-mark svg { width: 19px !important; height: 19px !important; display: block; color: var(--auth-accent); }
+
+.auth-heading h1 {
+    font-family: var(--font-display, "Google Sans", sans-serif);
+    font-size: 1.4rem;
+    font-weight: 700;
+    letter-spacing: -.025em;
+    line-height: 1.25;
+    color: var(--auth-navy);
+}
+
+/* Gradient wordmark, as on the reference. Falls back to the solid colour
+   above wherever background-clip:text is unsupported. */
+@supports (-webkit-background-clip: text) or (background-clip: text) {
+    .auth-heading h1.gradient-text {
+        background: linear-gradient(to right, var(--auth-navy), var(--auth-blue));
+        -webkit-background-clip: text;
+        background-clip: text;
+        -webkit-text-fill-color: transparent;
+        color: transparent;
+    }
+}
+
+.auth-heading p {
+    font-size: .84rem;
+    color: var(--auth-ink-3);
+    margin-top: 7px;
+}
+
+/* ==========================================================================
+   Fields
+   ========================================================================== */
+
+.form-group { margin-bottom: 15px; }
 
 .form-label {
     display: block;
-    font-size: 0.75rem;
-    font-weight: 500;
-    color: var(--text);
-    margin-bottom: 0.4rem;
+    font-family: var(--font-display, "Google Sans", sans-serif);
+    font-size: .78rem;
+    font-weight: 600;
+    color: var(--auth-ink-2);
+    margin-bottom: 6px;
 }
 
-/* ---- Input with icon ---- */
-.input-wrap {
-    position: relative;
-    display: flex;
-    align-items: center;
-}
+.form-label .req { color: var(--auth-error); }
+.form-label .field-optional { color: var(--auth-faint); font-weight: 400; font-size: .72rem; }
 
-.input-wrap .input-icon {
+.input-wrap { position: relative; }
+
+.input-icon {
     position: absolute;
-    left: 0.9rem;
+    left: 14px;
     top: 50%;
     transform: translateY(-50%);
-    color: var(--text-light);
-    pointer-events: none;
-    z-index: 1;
-    display: inline-flex;
+    display: flex;
     align-items: center;
-    justify-content: center;
-    line-height: 0;
+    color: var(--auth-faint);
+    pointer-events: none;
+    transition: color .15s ease;
 }
 
-.input-wrap .input-icon svg {
-    width: 18px !important;
-    height: 18px !important;
-    display: block;
-}
+.input-icon svg { width: 17px !important; height: 17px !important; display: block; }
 
-.form-input {
+.form-input,
+.form-select {
     width: 100%;
-    padding: 0.9rem 1.1rem 0.9rem 2.6rem;
-    background: var(--input-bg);
-    border: 1.5px solid var(--border);
-    border-radius: 8px;
-    font-family: inherit;
-    font-size: 0.9rem;
-    color: var(--text);
-    transition: 0.2s ease;
+    height: 48px;
+    padding: 0 16px 0 42px;
+    font-family: var(--font-body, "Inter", sans-serif);
+    font-size: .88rem;
+    color: var(--auth-ink);
+    background: var(--auth-surface);
+    border: 1px solid var(--auth-line);
+    border-radius: 10px;
     outline: none;
+    transition: border-color .15s ease, box-shadow .15s ease;
 }
 
-.form-input:focus {
-    border-color: var(--blue);
-    background: var(--white);
-    box-shadow: 0 0 0 3px rgba(62, 107, 150, 0.10);
+.form-input::placeholder { color: var(--auth-faint); }
+
+/* Chrome paints autofilled fields pale blue and drops our border treatment. */
+.form-input:-webkit-autofill,
+.form-input:-webkit-autofill:hover,
+.form-input:-webkit-autofill:focus,
+.form-select:-webkit-autofill {
+    -webkit-text-fill-color: var(--auth-ink);
+    -webkit-box-shadow: 0 0 0 100px var(--auth-surface) inset;
+    box-shadow: 0 0 0 100px var(--auth-surface) inset;
+    caret-color: var(--auth-ink);
+}
+.form-input:hover, .form-select:hover { border-color: var(--auth-line-2); }
+
+.form-input:focus,
+.form-select:focus {
+    border-color: var(--auth-faint);
+    box-shadow: 0 0 0 3px rgba(100, 116, 139, .12);
 }
 
-.form-input::placeholder { color: var(--text-light); }
+.input-wrap:focus-within .input-icon { color: var(--auth-ink-2); }
 
-/* ---- Password eye toggle ---- */
-.password-wrap { position: relative; }
-.password-wrap .form-input { padding-right: 2.6rem; }
+.form-select {
+    appearance: none;
+    cursor: pointer;
+    padding-right: 38px;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2394A3B8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 13px center;
+}
+
+.password-wrap .form-input { padding-right: 46px; }
 
 .password-toggle {
     position: absolute;
-    right: 0.6rem;
+    right: 7px;
     top: 50%;
     transform: translateY(-50%);
-    background: none;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     border: none;
-    color: var(--text-light);
+    border-radius: 8px;
+    background: transparent;
+    color: var(--auth-faint);
     cursor: pointer;
-    padding: 0;
+    transition: background-color .14s ease, color .14s ease;
+}
+
+.password-toggle svg { width: 17px !important; height: 17px !important; display: block; }
+.password-toggle:hover { background: #F1F5F9; color: var(--auth-ink-2); }
+.password-toggle:focus-visible { outline: 2px solid var(--auth-blue); outline-offset: 1px; }
+
+/* One-time codes read better spaced out and centred. */
+.form-input.code-input {
+    padding-left: 16px;
+    text-align: center;
+    font-family: var(--font-display, "Google Sans", sans-serif);
+    font-size: 1.3rem;
+    font-weight: 600;
+    letter-spacing: .5em;
+    text-indent: .5em;
+}
+
+/* ---- Multi-column rows ---- */
+
+.form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0 12px;
+}
+
+.form-row-ext {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 132px;
+    gap: 0 12px;
+}
+
+.form-group-ext { min-width: 0; }
+
+/* The select carries its own chevron on the right, so it takes no left icon
+   and reclaims that padding for the option text. */
+.input-wrap-select .form-select { padding-left: 16px; }
+
+/* ==========================================================================
+   Buttons
+   ========================================================================== */
+
+.btn-login {
+    position: relative;
+    width: 100%;
+    height: 48px;
+    margin-top: 8px;
+    border: none;
+    border-radius: 10px;
+    background: var(--auth-blue);
+    color: #fff;
+    font-family: var(--font-display, "Google Sans", sans-serif);
+    font-size: .82rem;
+    font-weight: 600;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    cursor: pointer;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 32px;
-    height: 32px;
-    border-radius: 6px;
-    transition: 0.2s ease;
-    z-index: 1;
-    line-height: 0;
+    gap: 9px;
+    transition: background-color .15s ease, box-shadow .15s ease;
 }
 
-.password-toggle:hover {
-    color: var(--blue);
-    background: rgba(62, 107, 150, 0.08);
+.btn-login:hover { background: var(--auth-blue-dark); box-shadow: 0 8px 20px -8px rgba(37, 99, 235, .7); }
+.btn-login:focus-visible { outline: 2px solid var(--auth-blue); outline-offset: 2px; }
+.btn-login.is-loading { pointer-events: none; background: var(--auth-blue-dark); }
+
+.btn-spinner {
+    display: none;
+    width: 15px;
+    height: 15px;
+    border: 2px solid rgba(255, 255, 255, .35);
+    border-top-color: #fff;
+    border-radius: 50%;
+    animation: authSpin .7s linear infinite;
 }
 
-.password-toggle svg {
-    width: 18px !important;
-    height: 18px !important;
-    display: block;
-}
+.btn-login.is-loading .btn-spinner { display: block; }
 
-/* ---- Buttons ---- */
-.btn-login {
-    width: 100%;
-    padding: 0.95rem;
-    background: linear-gradient(135deg, var(--navy-light), var(--navy));
-    color: var(--white);
-    font-family: var(--font-display, "Google Sans", sans-serif);
-    font-size: 0.78rem;
-    font-weight: 600;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-    border: none;
-    border-radius: 8px;
-    cursor: pointer;
-    transition: 0.3s ease;
-    box-shadow: 0 4px 16px rgba(27, 58, 91, 0.22);
-    margin-top: 0.4rem;
-    min-height: 48px;
-}
-
-.btn-login:hover,
-.btn-login:active {
-    transform: translateY(-1px);
-    box-shadow: 0 6px 24px rgba(27, 58, 91, 0.32);
-}
+@keyframes authSpin { to { transform: rotate(360deg); } }
 
 .btn-register {
     width: 100%;
-    padding: 0.95rem;
-    background: transparent;
-    color: var(--navy);
+    height: 46px;
+    margin-top: 10px;
+    border: 1px solid var(--auth-line);
+    border-radius: 10px;
+    background: var(--auth-surface);
+    color: var(--auth-ink-2);
     font-family: var(--font-display, "Google Sans", sans-serif);
-    font-size: 0.78rem;
+    font-size: .82rem;
     font-weight: 600;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-    border: 1.5px solid var(--navy);
-    border-radius: 8px;
+    letter-spacing: .04em;
     cursor: pointer;
-    transition: 0.3s ease;
-    margin-top: 0.8rem;
-    min-height: 48px;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    gap: 6px;
-    text-decoration: none;
+    gap: 8px;
+    transition: background-color .15s ease, border-color .15s ease, color .15s ease;
 }
 
-.btn-register:hover,
-.btn-register:active {
-    background: var(--navy);
-    color: var(--white);
-}
+.btn-register svg { width: 16px !important; height: 16px !important; display: block; }
+.btn-register:hover { background: #F8FAFC; border-color: var(--auth-line-2); color: var(--auth-ink); }
 
-.btn-register svg {
-    width: 15px !important;
-    height: 15px !important;
-    display: block;
-    flex-shrink: 0;
-}
+/* ==========================================================================
+   Footer links
+   ========================================================================== */
 
-/* ---- Links ---- */
 .form-links {
-    margin-top: 1.5rem;
+    margin-top: 22px;
+    padding-top: 18px;
+    border-top: 1px solid var(--auth-line);
     display: flex;
+    flex-wrap: wrap;
     justify-content: center;
-    align-items: center;
+    gap: 6px 14px;
+    font-size: .82rem;
+    color: var(--auth-ink-3);
 }
 
-.form-links a {
-    font-size: 0.82rem;
-    color: var(--text-muted);
-    transition: 0.2s ease;
-}
+.form-links a { color: var(--auth-blue); font-weight: 500; }
+.form-links a:hover { color: var(--auth-blue-dark); text-decoration: underline; }
 
-.form-links a:hover { color: var(--blue); }
+/* ==========================================================================
+   Responsive — the brand panel drops away, matching the reference
+   ========================================================================== */
 
-/* ---- Error message ---- */
-.error-msg {
-    background: rgba(220, 38, 38, 0.06);
-    border: 1px solid rgba(220, 38, 38, 0.15);
-    border-radius: 8px;
-    padding: 0.6rem 1rem;
-    font-size: 0.82rem;
-    color: var(--error);
-    margin-bottom: 1rem;
-    text-align: center;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 6px;
-}
+@media (max-width: 860px) {
+    body.auth-page { padding: 0; align-items: stretch; }
 
-.error-msg svg {
-    width: 15px !important;
-    height: 15px !important;
-    flex-shrink: 0;
-    display: block;
-}
-
-/* ---- Responsive: tablet & mobile ---- */
-@media (max-width: 768px) {
-    body.auth-page {
-        padding: 0;
-        align-items: flex-start;
-    }
-
-    .auth-wrap {
+    .auth-wrap,
+    .auth-page-register .auth-wrap {
         grid-template-columns: 1fr;
-        max-width: 100%;
-        border-radius: 0;
-        min-height: 100vh;
+        max-width: 520px;
+        margin: auto;
         box-shadow: none;
+        background: transparent;
     }
 
-    .auth-panel {
-        padding: 1.2rem 1.5rem;
-        min-height: auto;
-        flex-direction: row;
-        align-items: center;
-        gap: 0.8rem;
-        justify-content: flex-start;
-    }
-
-    .panel-icon { margin-bottom: 0; }
-    .panel-icon svg { width: 28px !important; height: 28px !important; }
-
-    .panel-title { font-size: 1.15rem; margin-bottom: 0; }
-    .panel-title em { display: inline; margin-top: 0; margin-left: 0.35rem; }
-    .panel-tagline { display: none; }
-    .panel-footer { display: none; }
+    .auth-panel { display: none; }
 
     .auth-form-wrap {
-        padding: 2rem 1.5rem 2.5rem;
+        padding: 36px 26px 30px;
+        background: transparent;
     }
 
-    .form-group { margin-bottom: 1.1rem; }
-    .form-input { padding: 1rem 1.1rem 1rem 2.6rem; border-radius: 10px; font-size: 1rem; }
-    .btn-login, .btn-register { padding: 1rem; min-height: 52px; }
+    .form-row-ext { grid-template-columns: minmax(0, 1fr) 132px; }
 }
 
-/* ---- Responsive: small phones ---- */
-@media (max-width: 380px) {
-    .auth-form-wrap { padding: 1.5rem 1.2rem 2rem; }
-    .auth-panel { padding: 1rem 1.2rem; }
-    .panel-title { font-size: 1rem; }
+@media (max-width: 520px) {
+    .form-row { grid-template-columns: 1fr; }
+    .form-row-ext { grid-template-columns: minmax(0, 1fr) 104px; }
+
+    .auth-form-wrap { padding: 30px 18px 26px; }
+    .auth-heading h1 { font-size: 1.25rem; }
 }
 
 @media (prefers-reduced-motion: reduce) {
-    .auth-wrap { animation: none; opacity: 1; }
+    .btn-spinner { animation-duration: 1.4s; }
 }

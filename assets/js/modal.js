@@ -19,7 +19,7 @@
 
 var NexamModal = (function () {
     var icons = {
-        default: "layout-grid",
+        default: "info",
         danger: "trash-2",
         delete: "trash-2",
         success: "circle-check",
@@ -120,12 +120,15 @@ var NexamModal = (function () {
             }
         });
 
-        // ESC to close
-        document.addEventListener("keydown", function (e) {
+        // ESC to close. The listener is torn down with the modal — leaving it
+        // attached would leak one handler per dialog opened.
+        var onKeydown = function (e) {
             if (e.key === "Escape" && overlay.parentNode) {
                 close(overlay);
             }
-        });
+        };
+        document.addEventListener("keydown", onKeydown);
+        overlay._nexamKeydown = onKeydown;
 
         // Animate in
         requestAnimationFrame(function () {
@@ -137,6 +140,12 @@ var NexamModal = (function () {
 
     function close(overlay) {
         if (!overlay || !overlay.parentNode) return;
+
+        if (overlay._nexamKeydown) {
+            document.removeEventListener("keydown", overlay._nexamKeydown);
+            overlay._nexamKeydown = null;
+        }
+
         overlay.classList.remove("show");
         setTimeout(function () {
             if (overlay.parentNode) {

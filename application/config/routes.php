@@ -28,6 +28,16 @@ $route['reset/submit']       = 'login/reset_submit';
 // Dashboard
 $route['dashboard']          = 'dashboard';
 
+// Account (topbar user menu — JSON endpoints)
+$route['account/me']         = 'account/me';
+$route['account/profile']    = 'account/profile';
+$route['account/password']   = 'account/password';
+$route['account/avatar']     = 'account/avatar';
+$route['account/avatar/remove'] = 'account/avatar_remove';
+
+// Topbar notification bell (derived, read-only)
+$route['alerts']             = 'notifications/index';
+
 // Subjects
 $route['subjects']                = 'subjects';
 $route['subjects/create']         = 'subjects/create';

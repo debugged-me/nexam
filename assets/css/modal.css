@@ -1,243 +1,237 @@
 /* ==========================================================================
-   modal.css — Reusable modal / confirmation dialog system
-   Types: default, danger (delete), success, warning, info
-   Usage:
-     NexamModal.confirm("Delete item?", "This cannot be undone.", "delete", function() { ... });
-     NexamModal.alert("Saved!", "Your changes have been saved.", "success");
-     NexamModal.open({ title: "...", body: "...", buttons: [...] });
+   modal.css — dialogs that require a decision
+   --------------------------------------------------------------------------
+   Reserved for choices that must be made before continuing (confirm, destroy,
+   edit-in-place). Passive feedback belongs in toast.css.
+
+   Self-contained on purpose — the auth pages load this without layout.css.
+   Class names are the contract modal.js renders against; keep them stable.
    ========================================================================== */
+
+:root {
+    --mdl-surface: #FFFFFF;
+    --mdl-line:    #E2E8F0;
+    --mdl-line-2:  #F1F5F9;
+    --mdl-ink:     #0F172A;
+    --mdl-ink-2:   #475569;
+    --mdl-ink-3:   #64748B;
+    --mdl-faint:   #94A3B8;
+
+    --mdl-blue:    #2563EB;
+    --mdl-blue-d:  #1D4ED8;
+    --mdl-blue-bg: #EFF6FF;
+    --mdl-green:   #059669;
+    --mdl-green-d: #047857;
+    --mdl-green-bg:#ECFDF5;
+    --mdl-red:     #DC2626;
+    --mdl-red-d:   #B91C1C;
+    --mdl-red-bg:  #FEF2F2;
+    --mdl-amber:   #D97706;
+    --mdl-amber-bg:#FFFBEB;
+
+    --mdl-ease: cubic-bezier(.16, 1, .3, 1);
+}
+
+/* ---- Backdrop ---- */
 
 .nexam-modal-overlay {
     position: fixed;
     inset: 0;
-    z-index: 100000;
-    background: rgba(15, 23, 42, 0.55);
+    z-index: 99990;
     display: flex;
     align-items: center;
     justify-content: center;
     padding: 24px;
-    opacity: 0;
-    transition: opacity 0.25s ease;
-    backdrop-filter: blur(2px);
-    -webkit-backdrop-filter: blur(2px);
+    background: rgba(15, 23, 42, 0);
+    backdrop-filter: blur(0px);
+    -webkit-backdrop-filter: blur(0px);
+    transition: background-color .22s ease, backdrop-filter .22s ease;
 }
 
 .nexam-modal-overlay.show {
-    opacity: 1;
+    background: rgba(15, 23, 42, .42);
+    backdrop-filter: blur(3px);
+    -webkit-backdrop-filter: blur(3px);
 }
 
+/* ---- Panel ---- */
+
 .nexam-modal {
-    background: #fff;
-    border-radius: 16px;
-    box-shadow: 0 24px 70px rgba(0, 0, 0, 0.25);
     width: 100%;
     max-width: 460px;
     max-height: calc(100vh - 48px);
-    overflow: hidden;
+    background: var(--mdl-surface);
+    border-radius: 16px;
+    box-shadow: 0 24px 60px rgba(15, 23, 42, .28), 0 2px 8px rgba(15, 23, 42, .12);
+    font-family: var(--font-body, "Inter", -apple-system, sans-serif);
     display: flex;
     flex-direction: column;
-    transform: scale(0.94) translateY(12px);
-    transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+    overflow: hidden;
+    opacity: 0;
+    transform: translateY(10px) scale(.985);
+    transition: opacity .22s var(--mdl-ease), transform .22s var(--mdl-ease);
 }
 
-.nexam-modal-overlay.show .nexam-modal {
-    transform: scale(1) translateY(0);
-}
+.nexam-modal-overlay.show .nexam-modal { opacity: 1; transform: none; }
 
 /* ---- Header ---- */
+
 .nexam-modal-header {
     display: flex;
     align-items: flex-start;
-    gap: 14px;
-    padding: 24px 24px 0;
+    gap: 12px;
+    padding: 20px 20px 16px;
+    border-bottom: 1px solid var(--mdl-line-2);
 }
 
 .nexam-modal-icon {
+    width: 36px;
+    height: 36px;
     flex-shrink: 0;
-    width: 44px;
-    height: 44px;
-    border-radius: 12px;
+    border-radius: 10px;
     display: flex;
     align-items: center;
     justify-content: center;
-    background: #eff6ff;
-    color: #2563eb;
+    background: #F1F5F9;
+    color: var(--mdl-ink-2);
 }
 
-.nexam-modal-icon svg {
-    width: 22px !important;
-    height: 22px !important;
-    display: block;
-}
+.nexam-modal-icon svg { width: 18px !important; height: 18px !important; display: block; }
 
-.nexam-modal-title-wrap {
-    flex: 1;
-    min-width: 0;
-}
+.nexam-modal-title-wrap { flex: 1; min-width: 0; padding-top: 1px; }
 
 .nexam-modal-title {
     font-family: var(--font-display, "Google Sans", sans-serif);
-    font-size: 18px;
+    font-size: 1rem;
     font-weight: 600;
-    color: #1e293b;
-    line-height: 1.3;
+    letter-spacing: -.01em;
+    color: var(--mdl-ink);
+    line-height: 1.35;
 }
 
 .nexam-modal-subtitle {
-    font-size: 13px;
-    color: #64748b;
+    font-size: .78rem;
+    color: var(--mdl-ink-3);
+    line-height: 1.5;
     margin-top: 2px;
 }
 
 .nexam-modal-close {
     flex-shrink: 0;
-    background: none;
+    width: 28px;
+    height: 28px;
+    margin: -2px -2px 0 0;
+    padding: 0;
     border: none;
+    border-radius: 7px;
+    background: transparent;
+    color: var(--mdl-faint);
     cursor: pointer;
-    color: #94a3b8;
-    padding: 4px;
-    width: 30px;
-    height: 30px;
-    border-radius: 8px;
     display: flex;
     align-items: center;
     justify-content: center;
-    transition: 0.15s ease;
+    transition: background-color .14s ease, color .14s ease;
 }
 
-.nexam-modal-close:hover {
-    color: #475569;
-    background: rgba(0, 0, 0, 0.06);
-}
-
-.nexam-modal-close svg {
-    width: 18px !important;
-    height: 18px !important;
-    display: block;
-}
+.nexam-modal-close svg { width: 16px !important; height: 16px !important; display: block; }
+.nexam-modal-close:hover { background: #F1F5F9; color: var(--mdl-ink-2); }
+.nexam-modal-close:focus-visible { outline: 2px solid var(--mdl-blue); outline-offset: 1px; }
 
 /* ---- Body ---- */
+
 .nexam-modal-body {
-    padding: 16px 24px 24px;
-    font-family: var(--font-body, "Inter", sans-serif);
-    font-size: 14px;
-    color: #475569;
+    padding: 18px 20px;
+    font-size: .85rem;
+    color: var(--mdl-ink-2);
     line-height: 1.6;
     overflow-y: auto;
 }
 
-/* ---- Footer / buttons ---- */
+.nexam-modal-body p { margin: 0; }
+.nexam-modal-body p + p { margin-top: .6rem; }
+
+/* ---- Footer ---- */
+
 .nexam-modal-footer {
-    padding: 0 24px 24px;
     display: flex;
     justify-content: flex-end;
-    gap: 10px;
+    gap: 8px;
+    padding: 14px 20px;
+    border-top: 1px solid var(--mdl-line-2);
+    background: #F8FAFC;
 }
 
 .nexam-btn {
-    padding: 10px 22px;
-    border: none;
-    border-radius: 10px;
-    font-family: var(--font-display, "Google Sans", sans-serif);
-    font-size: 14px;
-    font-weight: 500;
-    cursor: pointer;
-    transition: 0.15s ease;
-    min-height: 42px;
     display: inline-flex;
     align-items: center;
     justify-content: center;
     gap: 6px;
+    height: 38px;
+    padding: 0 16px;
+    border: 1px solid transparent;
+    border-radius: 8px;
+    font-family: var(--font-display, "Google Sans", sans-serif);
+    font-size: .82rem;
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background-color .15s ease, border-color .15s ease, color .15s ease;
 }
 
-.nexam-btn svg {
-    width: 16px !important;
-    height: 16px !important;
-    display: block;
-}
+.nexam-btn svg { width: 15px !important; height: 15px !important; display: block; }
+.nexam-btn:disabled { opacity: .55; pointer-events: none; }
+.nexam-btn:focus-visible { outline: 2px solid var(--mdl-blue); outline-offset: 2px; }
 
 .nexam-btn-cancel {
-    background: #f1f5f9;
-    color: #475569;
+    background: var(--mdl-surface);
+    color: var(--mdl-ink-2);
+    border-color: var(--mdl-line);
 }
 
-.nexam-btn-cancel:hover {
-    background: #e2e8f0;
-}
+.nexam-btn-cancel:hover { background: #F1F5F9; border-color: #CBD5E1; color: var(--mdl-ink); }
 
-.nexam-btn-primary {
-    background: #1B3A5B;
-    color: #fff;
-}
+.nexam-btn-primary { background: var(--mdl-blue); color: #fff; }
+.nexam-btn-primary:hover { background: var(--mdl-blue-d); }
 
-.nexam-btn-primary:hover {
-    background: #15406a;
-}
+.nexam-btn-danger { background: var(--mdl-red); color: #fff; }
+.nexam-btn-danger:hover { background: var(--mdl-red-d); }
 
-.nexam-btn-danger {
-    background: #dc2626;
-    color: #fff;
-}
+.nexam-btn-success { background: var(--mdl-green); color: #fff; }
+.nexam-btn-success:hover { background: var(--mdl-green-d); }
 
-.nexam-btn-danger:hover {
-    background: #b91c1c;
-}
+/* ---- Type accents (icon only — the panel itself stays neutral) ---- */
 
-.nexam-btn-success {
-    background: #16a34a;
-    color: #fff;
-}
+.nexam-modal.type-danger .nexam-modal-icon,
+.nexam-modal.type-delete .nexam-modal-icon { background: var(--mdl-red-bg); color: var(--mdl-red); }
 
-.nexam-btn-success:hover {
-    background: #15803d;
-}
-
-/* ---- Type variants for icon ---- */
-.nexam-modal.type-danger .nexam-modal-icon {
-    background: #fef2f2;
-    color: #dc2626;
-}
-
-.nexam-modal.type-success .nexam-modal-icon {
-    background: #f0fdf4;
-    color: #16a34a;
-}
-
-.nexam-modal.type-warning .nexam-modal-icon {
-    background: #fffbeb;
-    color: #d97706;
-}
-
-.nexam-modal.type-info .nexam-modal-icon {
-    background: #eff6ff;
-    color: #2563eb;
-}
+.nexam-modal.type-success .nexam-modal-icon { background: var(--mdl-green-bg); color: var(--mdl-green); }
+.nexam-modal.type-warning .nexam-modal-icon { background: var(--mdl-amber-bg); color: var(--mdl-amber); }
+.nexam-modal.type-info .nexam-modal-icon    { background: var(--mdl-blue-bg); color: var(--mdl-blue); }
 
 /* ---- Responsive ---- */
-@media (max-width: 480px) {
-    .nexam-modal-overlay {
-        padding: 12px;
-    }
+
+@media (max-width: 520px) {
+    .nexam-modal-overlay { padding: 12px; align-items: flex-end; }
 
     .nexam-modal {
         max-width: 100%;
+        max-height: calc(100vh - 24px);
+        border-radius: 16px;
     }
 
-    .nexam-modal-header {
-        padding: 20px 20px 0;
-    }
-
-    .nexam-modal-body {
-        padding: 14px 20px 20px;
-        font-size: 13px;
-    }
+    .nexam-modal-header { padding: 16px 16px 14px; }
+    .nexam-modal-body { padding: 16px; }
 
     .nexam-modal-footer {
-        padding: 0 20px 20px;
+        padding: 12px 16px;
         flex-direction: column-reverse;
     }
 
-    .nexam-btn {
-        width: 100%;
-    }
+    .nexam-modal-footer .nexam-btn { width: 100%; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .nexam-modal-overlay,
+    .nexam-modal { transition: opacity .12s linear; }
+    .nexam-modal { transform: none; }
 }

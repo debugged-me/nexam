@@ -76,7 +76,10 @@ class Login extends CI_Controller
     /** Process registration form submission. */
     public function register_submit()
     {
-        $this->form_validation->set_rules('full_name', 'Full Name', 'required|trim|max_length[255]');
+        $this->form_validation->set_rules('first_name', 'First Name', 'required|trim|max_length[100]');
+        $this->form_validation->set_rules('middle_name', 'Middle Name', 'trim|max_length[100]');
+        $this->form_validation->set_rules('last_name', 'Last Name', 'required|trim|max_length[100]');
+        $this->form_validation->set_rules('name_ext', 'Extension', 'trim|max_length[20]');
         $this->form_validation->set_rules('email', 'Email', 'required|trim|valid_email|max_length[255]');
         $this->form_validation->set_rules('password', 'Password', 'required|min_length[8]');
         $this->form_validation->set_rules('confirm_password', 'Confirm Password', 'required|matches[password]');
@@ -93,10 +96,13 @@ class Login extends CI_Controller
             redirect('register');
         }
 
-        $full_name = trim($this->input->post('full_name', true));
-        $password  = $this->input->post('password', true);
+        $first_name  = trim($this->input->post('first_name', true));
+        $middle_name = trim($this->input->post('middle_name', true));
+        $last_name   = trim($this->input->post('last_name', true));
+        $name_ext    = trim($this->input->post('name_ext', true));
+        $password    = $this->input->post('password', true);
 
-        $user_id = $this->User_model->create_user($email, $password, $full_name);
+        $user_id = $this->User_model->create_user($email, $password, $first_name, $middle_name, $last_name, $name_ext);
 
         if (!$user_id) {
             $this->session->set_flashdata('toast', ['type' => 'error', 'message' => 'Failed to create account. Please try again.']);
@@ -104,15 +110,21 @@ class Login extends CI_Controller
         }
 
         // Generate and send OTP
-        $otp = $this->User_model->generate_otp($user_id);
-        $this->_send_otp_email($email, $full_name, $otp);
+        $full_name = $this->User_model->compose_full_name($first_name, $middle_name, $last_name, $name_ext);
+        $otp  = $this->User_model->generate_otp($user_id);
+        $sent = $this->_send_otp_email($email, $full_name, $otp);
 
         $this->session->set_userdata([
             'pending_otp_user_id' => $user_id,
             'pending_otp_email'   => $email,
         ]);
 
-        $this->session->set_flashdata('toast', ['type' => 'success', 'message' => 'Account created! Check your email for the verification code.']);
+        // The account exists either way; only the delivery can fail, and the
+        // verify page offers a resend, so say what actually happened.
+        $this->session->set_flashdata('toast', $sent
+            ? ['type' => 'success', 'message' => 'Account created! Check your email for the verification code.']
+            : ['type' => 'warning', 'message' => 'Account created, but we could not send the verification email. Use "Resend code" below, or contact your administrator.']);
+
         redirect('verify');
     }
 
@@ -167,10 +179,13 @@ class Login extends CI_Controller
         $email = $this->session->userdata('pending_otp_email');
         $user  = $this->User_model->find_by_id($user_id);
 
-        $otp = $this->User_model->generate_otp($user_id);
-        $this->_send_otp_email($email, $user->full_name, $otp);
+        $otp  = $this->User_model->generate_otp($user_id);
+        $sent = $this->_send_otp_email($email, $user->full_name, $otp);
 
-        $this->session->set_flashdata('toast', ['type' => 'info', 'message' => 'A new verification code has been sent.']);
+        $this->session->set_flashdata('toast', $sent
+            ? ['type' => 'info', 'message' => 'A new verification code has been sent.']
+            : ['type' => 'error', 'message' => 'We could not send the email right now. Please try again shortly.']);
+
         redirect('verify');
     }
 
@@ -192,26 +207,38 @@ class Login extends CI_Controller
 
         $user = $this->User_model->find_by_email($email);
 
-        // Always show success to prevent email enumeration
+        // Always show the same message to prevent email enumeration.
         if ($user) {
-            $otp = $this->User_model->generate_otp($user->id);
-            $this->_send_otp_email($user->email, $user->full_name, $otp, true);
+            $otp  = $this->User_model->generate_otp($user->id);
+            $sent = $this->_send_otp_email($user->email, $user->full_name, $otp, true);
+
+            // A delivery failure is about our mail server, not about whether
+            // the account exists, so reporting it leaks nothing.
+            if (!$sent) {
+                $this->session->set_flashdata('toast', ['type' => 'error', 'message' => 'We could not send the email right now. Please try again shortly.']);
+                redirect('forgot');
+            }
 
             $this->session->set_userdata([
                 'reset_user_id' => $user->id,
                 'reset_email'   => $user->email,
             ]);
+
+            $this->session->set_flashdata('toast', ['type' => 'info', 'message' => 'If an account exists for that email, a reset code has been sent.']);
+            redirect('reset');
         }
 
+        // No account found — redirect back to forgot so the message survives.
         $this->session->set_flashdata('toast', ['type' => 'info', 'message' => 'If an account exists for that email, a reset code has been sent.']);
-        redirect('reset');
+        redirect('forgot');
     }
 
     /** Show reset password (OTP entry + new password) form. */
     public function reset()
     {
         if (!$this->session->userdata('reset_user_id')) {
-            redirect('login');
+            $this->session->set_flashdata('toast', ['type' => 'warning', 'message' => 'Your reset session has expired. Please request a new code.']);
+            redirect('forgot');
         }
 
         $data['email'] = $this->session->userdata('reset_email');
@@ -223,7 +250,8 @@ class Login extends CI_Controller
     {
         $user_id = $this->session->userdata('reset_user_id');
         if (!$user_id) {
-            redirect('login');
+            $this->session->set_flashdata('toast', ['type' => 'warning', 'message' => 'Your reset session has expired. Please request a new code.']);
+            redirect('forgot');
         }
 
         $this->form_validation->set_rules('code', 'Verification Code', 'required|trim');
@@ -247,8 +275,9 @@ class Login extends CI_Controller
 
         $this->User_model->update_password($user_id, $password);
 
-        $this->session->unset_userdata(['reset_user_id', 'reset_email']);
+        // Set flashdata BEFORE clearing session vars so the toast survives the redirect.
         $this->session->set_flashdata('toast', ['type' => 'success', 'message' => 'Password reset successfully! You can now log in.']);
+        $this->session->unset_userdata(['reset_user_id', 'reset_email']);
         redirect('login');
     }
 
@@ -259,7 +288,11 @@ class Login extends CI_Controller
         redirect('login');
     }
 
-    /** Send OTP email via SMTP. */
+    /**
+     * Send an OTP email via SMTP.
+     *
+     * @return bool TRUE when the mail server accepted the message.
+     */
     private function _send_otp_email($email, $name, $otp, $is_reset = false)
     {
         $subject = $is_reset ? 'nexam — Password Reset Code' : 'nexam — Email Verification Code';
@@ -277,10 +310,22 @@ class Login extends CI_Controller
         $message .= '<p style="color:#94a3b8;font-size:12px">nexam — TOS-aligned Exam Builder</p>';
         $message .= '</body></html>';
 
-        $this->email->from('noreply@nexam.app', 'nexam');
+        $this->email->clear(true);
+        $this->email->from(
+            $this->config->item('from_email') ?: 'noreply@nexam.app',
+            $this->config->item('from_name') ?: 'nexam'
+        );
         $this->email->to($email);
         $this->email->subject($subject);
         $this->email->message($message);
-        $this->email->send();
+
+        if ($this->email->send(false)) {
+            return true;
+        }
+
+        // Log headers only — the body carries the OTP and must never be logged.
+        log_message('error', 'OTP email failed for ' . $email . ' — ' . $this->email->print_debugger(array('headers')));
+
+        return false;
     }
 }

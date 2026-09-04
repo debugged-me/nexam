@@ -31,17 +31,14 @@ $nav_groups = [
         <?php foreach ($nav_groups as $group => $items): ?>
             <div class="nav-section"><?= htmlspecialchars($group) ?></div>
             <?php foreach ($items as $item): ?>
-                <a href="<?= site_url($item['url']) ?>" class="nav-item <?= $currentPage === $item['key'] ? 'active' : '' ?>">
+                <a href="<?= site_url($item['url']) ?>"
+                   class="nav-item <?= $currentPage === $item['key'] ? 'active' : '' ?>"
+                   data-label="<?= htmlspecialchars($item['label']) ?>">
                     <i data-lucide="<?= $item['icon'] ?>"></i>
                     <span><?= $item['label'] ?></span>
                 </a>
             <?php endforeach; ?>
         <?php endforeach; ?>
-
-        <a href="<?= site_url('logout') ?>" class="nav-item logout">
-            <i data-lucide="log-out"></i>
-            <span>Logout</span>
-        </a>
     </nav>
 
     <div class="sidebar-footer">

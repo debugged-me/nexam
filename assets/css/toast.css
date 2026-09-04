@@ -1,178 +1,223 @@
 /* ==========================================================================
-   toast.css — Reusable toast notification system
-   Types: success, error, warning, info, delete
-   Usage: NexamToast.success("Saved!"); NexamToast.error("Failed!");
+   toast.css — transient notifications
+   --------------------------------------------------------------------------
+   A corner stack rather than a centred dialog: feedback like "Saved" should
+   not dim the page or need dismissing before work continues. Modal confirmation
+   is modal.css's job.
+
+   Self-contained on purpose — the auth pages load this without layout.css, so
+   every value resolves here.
    ========================================================================== */
 
 :root {
-    --toast-success: #16a34a;
-    --toast-success-bg: #f0fdf4;
-    --toast-success-border: #bbf7d0;
-    --toast-error: #dc2626;
-    --toast-error-bg: #fef2f2;
-    --toast-error-border: #fecaca;
-    --toast-warning: #d97706;
-    --toast-warning-bg: #fffbeb;
-    --toast-warning-border: #fde68a;
-    --toast-info: #2563eb;
-    --toast-info-bg: #eff6ff;
-    --toast-info-border: #bfdbfe;
-    --toast-delete: #b91c1c;
-    --toast-delete-bg: #fef2f2;
-    --toast-delete-border: #fecaca;
+    --tst-surface: #FFFFFF;
+    --tst-line:    #E2E8F0;
+    --tst-ink:     #0F172A;
+    --tst-ink-2:   #475569;
+    --tst-ink-3:   #64748B;
+    --tst-faint:   #94A3B8;
+
+    --tst-success: #059669;
+    --tst-success-bg: #ECFDF5;
+    --tst-error:   #DC2626;
+    --tst-error-bg: #FEF2F2;
+    --tst-warning: #D97706;
+    --tst-warning-bg: #FFFBEB;
+    --tst-info:    #2563EB;
+    --tst-info-bg: #EFF6FF;
+
+    --tst-shadow: 0 10px 30px rgba(15, 23, 42, .12), 0 4px 12px rgba(15, 23, 42, .06);
+    --tst-ease: cubic-bezier(.16, 1, .3, 1);
 }
 
-#nexam-toast-container {
+/* ---- Stack ---- */
+
+#nexam-toasts {
     position: fixed;
-    top: 24px;
-    right: 24px;
+    top: 16px;
+    right: 16px;
     z-index: 99999;
     display: flex;
     flex-direction: column;
     gap: 10px;
+    width: 360px;
+    max-width: calc(100vw - 32px);
     pointer-events: none;
-    max-width: 400px;
-    width: calc(100vw - 48px);
 }
+
+/* Clear the sticky topbar on application pages. */
+body.app-body #nexam-toasts { top: 74px; }
+
+/* ---- Toast ---- */
 
 .nexam-toast {
-    pointer-events: auto;
+    position: relative;
     display: flex;
     align-items: flex-start;
-    gap: 12px;
-    padding: 14px 16px;
-    background: #fff;
+    gap: 11px;
+    padding: 13px 14px;
+    background: var(--tst-surface);
+    border: 1px solid var(--tst-line);
     border-radius: 12px;
-    border: 1px solid #e2e8f0;
-    border-left: 4px solid var(--toast-info);
-    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12);
-    font-family: var(--font-body, "Inter", sans-serif);
-    font-size: 14px;
-    color: #1e293b;
-    line-height: 1.5;
-    opacity: 0;
-    transform: translateX(100%);
-    transition: opacity 0.3s ease, transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    box-shadow: var(--tst-shadow);
+    font-family: var(--font-body, "Inter", -apple-system, sans-serif);
     overflow: hidden;
+    pointer-events: auto;
+    opacity: 0;
+    transform: translateX(16px) scale(.98);
+    transition: opacity .22s var(--tst-ease), transform .22s var(--tst-ease),
+                margin .22s var(--tst-ease), max-height .22s var(--tst-ease);
+    max-height: 220px;
 }
 
-.nexam-toast.show {
-    opacity: 1;
-    transform: translateX(0);
-}
+.nexam-toast.show { opacity: 1; transform: none; }
 
 .nexam-toast.hide {
     opacity: 0;
-    transform: translateX(100%);
+    transform: translateX(16px) scale(.98);
+    max-height: 0;
+    margin-bottom: -10px;
+    padding-top: 0;
+    padding-bottom: 0;
+    border-width: 0;
 }
 
-/* ---- Type variants ---- */
-.nexam-toast.type-success {
-    border-left-color: var(--toast-success);
-    background: var(--toast-success-bg);
+/* Type is carried by a left rail rather than by tinting the whole card. */
+.nexam-toast::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 3px;
+    background: var(--tst-info);
 }
 
-.nexam-toast.type-error {
-    border-left-color: var(--toast-error);
-    background: var(--toast-error-bg);
-}
-
-.nexam-toast.type-warning {
-    border-left-color: var(--toast-warning);
-    background: var(--toast-warning-bg);
-}
-
-.nexam-toast.type-info {
-    border-left-color: var(--toast-info);
-    background: var(--toast-info-bg);
-}
-
-.nexam-toast.type-delete {
-    border-left-color: var(--toast-delete);
-    background: var(--toast-delete-bg);
-}
+.nexam-toast.type-success::before { background: var(--tst-success); }
+.nexam-toast.type-error::before,
+.nexam-toast.type-delete::before  { background: var(--tst-error); }
+.nexam-toast.type-warning::before { background: var(--tst-warning); }
+.nexam-toast.type-info::before    { background: var(--tst-info); }
 
 /* ---- Icon ---- */
+
 .nexam-toast .toast-icon {
+    width: 30px;
+    height: 30px;
     flex-shrink: 0;
+    border-radius: 8px;
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 22px;
-    height: 22px;
-    margin-top: 1px;
+    background: var(--tst-info-bg);
+    color: var(--tst-info);
 }
 
-.nexam-toast .toast-icon svg {
-    width: 20px !important;
-    height: 20px !important;
-    display: block;
-}
+.nexam-toast .toast-icon svg { width: 16px !important; height: 16px !important; display: block; }
 
-.nexam-toast.type-success .toast-icon { color: var(--toast-success); }
-.nexam-toast.type-error   .toast-icon { color: var(--toast-error); }
-.nexam-toast.type-warning .toast-icon { color: var(--toast-warning); }
-.nexam-toast.type-info    .toast-icon { color: var(--toast-info); }
-.nexam-toast.type-delete  .toast-icon { color: var(--toast-delete); }
+.nexam-toast.type-success .toast-icon { background: var(--tst-success-bg); color: var(--tst-success); }
+.nexam-toast.type-error .toast-icon,
+.nexam-toast.type-delete .toast-icon  { background: var(--tst-error-bg); color: var(--tst-error); }
+.nexam-toast.type-warning .toast-icon { background: var(--tst-warning-bg); color: var(--tst-warning); }
 
-/* ---- Content ---- */
-.nexam-toast .toast-content {
-    flex: 1;
-    min-width: 0;
-}
+/* ---- Text ---- */
+
+.nexam-toast .toast-body { flex: 1; min-width: 0; padding-top: 1px; }
 
 .nexam-toast .toast-title {
     font-family: var(--font-display, "Google Sans", sans-serif);
+    font-size: .82rem;
     font-weight: 600;
-    font-size: 14px;
-    margin-bottom: 2px;
+    color: var(--tst-ink);
+    line-height: 1.35;
+    margin: 0;
 }
 
 .nexam-toast .toast-message {
-    font-size: 13px;
-    color: #64748b;
+    font-size: .78rem;
+    color: var(--tst-ink-3);
+    line-height: 1.5;
+    margin-top: 2px;
+    overflow-wrap: anywhere;
 }
 
-/* ---- Close button ---- */
+/* A message with no title carries the weight itself. */
+.nexam-toast .toast-message.solo {
+    color: var(--tst-ink-2);
+    font-size: .8rem;
+    margin-top: 0;
+}
+
+/* ---- Close ---- */
+
 .nexam-toast .toast-close {
     flex-shrink: 0;
-    background: none;
+    width: 24px;
+    height: 24px;
+    margin: -2px -2px 0 0;
+    padding: 0;
     border: none;
+    border-radius: 6px;
+    background: transparent;
+    color: var(--tst-faint);
     cursor: pointer;
-    color: #94a3b8;
-    padding: 2px;
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 22px;
-    height: 22px;
-    border-radius: 6px;
-    transition: 0.15s ease;
+    transition: background-color .14s ease, color .14s ease;
 }
 
-.nexam-toast .toast-close:hover {
-    color: #475569;
-    background: rgba(0, 0, 0, 0.06);
+.nexam-toast .toast-close svg { width: 14px !important; height: 14px !important; display: block; }
+.nexam-toast .toast-close:hover { background: #F1F5F9; color: var(--tst-ink-2); }
+
+/* ---- Auto-dismiss progress ---- */
+
+.nexam-toast .toast-progress {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 2px;
+    background: transparent;
 }
 
-.nexam-toast .toast-close svg {
-    width: 16px !important;
-    height: 16px !important;
+.nexam-toast .toast-progress span {
     display: block;
+    height: 100%;
+    width: 100%;
+    transform-origin: left center;
+    background: var(--tst-info);
+    opacity: .35;
+    transform: scaleX(1);
+    transition-property: transform;
+    transition-timing-function: linear;
 }
+
+.nexam-toast.type-success .toast-progress span { background: var(--tst-success); }
+.nexam-toast.type-error .toast-progress span,
+.nexam-toast.type-delete .toast-progress span  { background: var(--tst-error); }
+.nexam-toast.type-warning .toast-progress span { background: var(--tst-warning); }
+
+/* Hovering holds the toast open — the pause is applied in JS. */
+.nexam-toast:hover { box-shadow: 0 14px 36px rgba(15, 23, 42, .16); }
 
 /* ---- Responsive ---- */
-@media (max-width: 480px) {
-    #nexam-toast-container {
+
+@media (max-width: 640px) {
+    #nexam-toasts,
+    body.app-body #nexam-toasts {
         top: 12px;
-        right: 12px;
         left: 12px;
-        max-width: none;
+        right: 12px;
         width: auto;
+        max-width: none;
     }
 
-    .nexam-toast {
-        padding: 12px 14px;
-        font-size: 13px;
-    }
+    .nexam-toast { padding: 12px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .nexam-toast { transition: opacity .12s linear; transform: none; }
+    .nexam-toast.hide { transform: none; }
+    .nexam-toast .toast-progress span { transition: none; }
 }

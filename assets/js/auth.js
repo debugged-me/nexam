@@ -30,4 +30,32 @@ document.addEventListener("DOMContentLoaded", function () {
             }
         });
     });
+
+    // Show spinner + "Verifying..." toast on the submit button when a form is sent
+    document.querySelectorAll(".auth-form-wrap form").forEach(function (form) {
+        form.addEventListener("submit", function (e) {
+            var btn = form.querySelector(".btn-login");
+            if (btn) btn.classList.add("is-loading");
+
+            // Show a sticky toast based on which form was submitted
+            var action = form.getAttribute("action") || "";
+            var msg = "Please wait...";
+
+            if (action.indexOf("authenticate") !== -1) {
+                msg = "Verifying your credentials...";
+            } else if (action.indexOf("register/submit") !== -1) {
+                msg = "Creating your account...";
+            } else if (action.indexOf("forgot/submit") !== -1) {
+                msg = "Sending reset code...";
+            } else if (action.indexOf("reset/submit") !== -1) {
+                msg = "Resetting your password...";
+            } else if (action.indexOf("verify/submit") !== -1) {
+                msg = "Verifying your code...";
+            }
+
+            if (typeof NexamToast !== "undefined") {
+                NexamToast.show("", msg, "info", 0); // 0 = sticky (won't auto-dismiss)
+            }
+        });
+    });
 });

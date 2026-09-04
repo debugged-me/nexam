@@ -19,3 +19,7 @@ application/logs/*
 !application/logs/index.html
 !application/logs/.htaccess
 /vendor/
+
+# Uploaded avatars are user data, not source
+upload/avatars/*
+!upload/avatars/.htaccess

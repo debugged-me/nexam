@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>nexam — Forgot Password</title>
-    <meta name="theme-color" content="#1B3A5B">
+    <meta name="theme-color" content="#1A2942">
     <link href="<?php echo base_url('assets/css/fonts.css'); ?>" rel="stylesheet" type="text/css">
     <link href="<?php echo base_url('assets/css/auth.css'); ?>" rel="stylesheet" type="text/css">
     <link href="<?php echo base_url('assets/css/toast.css'); ?>" rel="stylesheet" type="text/css">
@@ -16,30 +16,46 @@
     <div class="auth-wrap">
         <!-- Left brand panel -->
         <div class="auth-panel">
-            <div class="panel-icon">
-                <i data-lucide="key-round"></i>
+            <div class="panel-badge">Account Recovery</div>
+            <div class="panel-title">Forgot your <em>password?</em></div>
+            <p class="panel-tagline">We will email you a one-time code so you can set a new password.</p>
+
+            <div class="panel-footer">
+                <div class="panel-icon">
+                    <i data-lucide="key-round"></i>
+                </div>
+                <div class="panel-org">
+                    nexam
+                    <small>TOS-aligned examination builder</small>
+                </div>
             </div>
-            <div>
-                <div class="panel-badge">Recovery</div>
-                <div class="panel-title">Forgot <em>Password</em></div>
-                <p class="panel-tagline">Enter your email to receive a reset code.</p>
-            </div>
-            <div class="panel-footer">Table of Specifications</div>
         </div>
 
         <!-- Right form panel -->
         <div class="auth-form-wrap">
+            <div class="auth-heading">
+                <span class="auth-logo">
+                    <span class="logo-mark"><i data-lucide="graduation-cap"></i></span>
+                    <span>nexam</span>
+                </span>
+                <h1 class="gradient-text">Forgot password?</h1>
+                <p>Enter your email and we will send a reset code.</p>
+            </div>
+
             <form action="<?php echo site_url('forgot/submit'); ?>" method="post" autocomplete="off">
                 <input type="hidden" name="<?php echo $this->security->get_csrf_token_name(); ?>" value="<?php echo $this->security->get_csrf_hash(); ?>">
                 <div class="form-group">
-                    <label class="form-label" for="email">E-mail Address</label>
+                    <label class="form-label" for="email">E-mail Address <span class="req">*</span></label>
                     <div class="input-wrap">
                         <span class="input-icon"><i data-lucide="mail"></i></span>
                         <input type="email" id="email" name="email" class="form-input" placeholder="you@example.com" required autofocus>
                     </div>
                 </div>
 
-                <button type="submit" class="btn-login">Send Reset Code</button>
+                <button type="submit" class="btn-login">
+                    <span class="btn-spinner"></span>
+                    <span class="btn-label">Send Reset Code</span>
+                </button>
                 <a href="<?php echo site_url('login'); ?>" class="btn-register">
                     <i data-lucide="arrow-left"></i>
                     Back to Login

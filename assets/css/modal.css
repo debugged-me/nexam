@@ -1,0 +1,243 @@
+/* ==========================================================================
+   modal.css — Reusable modal / confirmation dialog system
+   Types: default, danger (delete), success, warning, info
+   Usage:
+     NexamModal.confirm("Delete item?", "This cannot be undone.", "delete", function() { ... });
+     NexamModal.alert("Saved!", "Your changes have been saved.", "success");
+     NexamModal.open({ title: "...", body: "...", buttons: [...] });
+   ========================================================================== */
+
+.nexam-modal-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 100000;
+    background: rgba(15, 23, 42, 0.55);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    opacity: 0;
+    transition: opacity 0.25s ease;
+    backdrop-filter: blur(2px);
+    -webkit-backdrop-filter: blur(2px);
+}
+
+.nexam-modal-overlay.show {
+    opacity: 1;
+}
+
+.nexam-modal {
+    background: #fff;
+    border-radius: 16px;
+    box-shadow: 0 24px 70px rgba(0, 0, 0, 0.25);
+    width: 100%;
+    max-width: 460px;
+    max-height: calc(100vh - 48px);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    transform: scale(0.94) translateY(12px);
+    transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.nexam-modal-overlay.show .nexam-modal {
+    transform: scale(1) translateY(0);
+}
+
+/* ---- Header ---- */
+.nexam-modal-header {
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+    padding: 24px 24px 0;
+}
+
+.nexam-modal-icon {
+    flex-shrink: 0;
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #eff6ff;
+    color: #2563eb;
+}
+
+.nexam-modal-icon svg {
+    width: 22px !important;
+    height: 22px !important;
+    display: block;
+}
+
+.nexam-modal-title-wrap {
+    flex: 1;
+    min-width: 0;
+}
+
+.nexam-modal-title {
+    font-family: var(--font-display, "Google Sans", sans-serif);
+    font-size: 18px;
+    font-weight: 600;
+    color: #1e293b;
+    line-height: 1.3;
+}
+
+.nexam-modal-subtitle {
+    font-size: 13px;
+    color: #64748b;
+    margin-top: 2px;
+}
+
+.nexam-modal-close {
+    flex-shrink: 0;
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: #94a3b8;
+    padding: 4px;
+    width: 30px;
+    height: 30px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: 0.15s ease;
+}
+
+.nexam-modal-close:hover {
+    color: #475569;
+    background: rgba(0, 0, 0, 0.06);
+}
+
+.nexam-modal-close svg {
+    width: 18px !important;
+    height: 18px !important;
+    display: block;
+}
+
+/* ---- Body ---- */
+.nexam-modal-body {
+    padding: 16px 24px 24px;
+    font-family: var(--font-body, "Inter", sans-serif);
+    font-size: 14px;
+    color: #475569;
+    line-height: 1.6;
+    overflow-y: auto;
+}
+
+/* ---- Footer / buttons ---- */
+.nexam-modal-footer {
+    padding: 0 24px 24px;
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+}
+
+.nexam-btn {
+    padding: 10px 22px;
+    border: none;
+    border-radius: 10px;
+    font-family: var(--font-display, "Google Sans", sans-serif);
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: 0.15s ease;
+    min-height: 42px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+}
+
+.nexam-btn svg {
+    width: 16px !important;
+    height: 16px !important;
+    display: block;
+}
+
+.nexam-btn-cancel {
+    background: #f1f5f9;
+    color: #475569;
+}
+
+.nexam-btn-cancel:hover {
+    background: #e2e8f0;
+}
+
+.nexam-btn-primary {
+    background: #1B3A5B;
+    color: #fff;
+}
+
+.nexam-btn-primary:hover {
+    background: #15406a;
+}
+
+.nexam-btn-danger {
+    background: #dc2626;
+    color: #fff;
+}
+
+.nexam-btn-danger:hover {
+    background: #b91c1c;
+}
+
+.nexam-btn-success {
+    background: #16a34a;
+    color: #fff;
+}
+
+.nexam-btn-success:hover {
+    background: #15803d;
+}
+
+/* ---- Type variants for icon ---- */
+.nexam-modal.type-danger .nexam-modal-icon {
+    background: #fef2f2;
+    color: #dc2626;
+}
+
+.nexam-modal.type-success .nexam-modal-icon {
+    background: #f0fdf4;
+    color: #16a34a;
+}
+
+.nexam-modal.type-warning .nexam-modal-icon {
+    background: #fffbeb;
+    color: #d97706;
+}
+
+.nexam-modal.type-info .nexam-modal-icon {
+    background: #eff6ff;
+    color: #2563eb;
+}
+
+/* ---- Responsive ---- */
+@media (max-width: 480px) {
+    .nexam-modal-overlay {
+        padding: 12px;
+    }
+
+    .nexam-modal {
+        max-width: 100%;
+    }
+
+    .nexam-modal-header {
+        padding: 20px 20px 0;
+    }
+
+    .nexam-modal-body {
+        padding: 14px 20px 20px;
+        font-size: 13px;
+    }
+
+    .nexam-modal-footer {
+        padding: 0 20px 20px;
+        flex-direction: column-reverse;
+    }
+
+    .nexam-btn {
+        width: 100%;
+    }
+}

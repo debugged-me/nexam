@@ -4,9 +4,10 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>nexam — Dashboard</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="<?php echo base_url('assets/css/fonts.css'); ?>" rel="stylesheet" type="text/css">
     <link href="<?php echo base_url('assets/css/dashboard.css'); ?>" rel="stylesheet" type="text/css">
+    <link href="<?php echo base_url('assets/css/toast.css'); ?>" rel="stylesheet" type="text/css">
+    <link href="<?php echo base_url('assets/css/modal.css'); ?>" rel="stylesheet" type="text/css">
     <script src="https://unpkg.com/lucide@latest"></script>
 </head>
 <body>
@@ -30,6 +31,8 @@
             <p class="placeholder">Subjects, Questions, TOS, and Exams modules coming next.</p>
         </div>
     </div>
+    <script src="<?php echo base_url('assets/js/toast.js'); ?>"></script>
+    <script src="<?php echo base_url('assets/js/modal.js'); ?>"></script>
     <script>lucide.createIcons();</script>
 </body>
 </html>

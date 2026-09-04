@@ -1,0 +1,75 @@
+<?php
+defined('BASEPATH') or exit('No direct script access allowed');
+
+class Question_model extends CI_Model
+{
+    private $table = 'questions';
+
+    public function count_by_user($user_id)
+    {
+        return $this->db->where('created_by', $user_id)->count_all_results($this->table);
+    }
+
+    public function get_by_user($user_id, $filters = [])
+    {
+        $this->db->where('created_by', $user_id);
+        if (!empty($filters['subject_id'])) $this->db->where('subject_id', $filters['subject_id']);
+        if (!empty($filters['bloom']))      $this->db->where('bloom', $filters['bloom']);
+        if (!empty($filters['type']))       $this->db->where('type', $filters['type']);
+        if (!empty($filters['topic']))      $this->db->like('topic', $filters['topic']);
+        return $this->db->order_by('created_at', 'DESC')->get($this->table)->result();
+    }
+
+    public function get_by_id($id)
+    {
+        return $this->db->where('id', $id)->get($this->table)->row();
+    }
+
+    public function get_owned($id, $user_id)
+    {
+        return $this->db->where('id', $id)->where('created_by', $user_id)->get($this->table)->row();
+    }
+
+    public function create($data)
+    {
+        $data['id'] = $this->_uuid();
+        $this->db->insert($this->table, $data);
+        return $this->db->affected_rows() > 0 ? $data['id'] : false;
+    }
+
+    public function update($id, $data)
+    {
+        return $this->db->where('id', $id)->update($this->table, $data);
+    }
+
+    public function delete($id)
+    {
+        return $this->db->where('id', $id)->delete($this->table);
+    }
+
+    /** Get questions by subject and bloom level (for exam generation). */
+    public function get_by_subject_bloom($subject_id, $bloom, $limit)
+    {
+        return $this->db->where('subject_id', $subject_id)
+            ->where('bloom', $bloom)
+            ->where('status', 'active')
+            ->order_by('RAND()')
+            ->limit($limit)
+            ->get($this->table)->result();
+    }
+
+    public function get_topics_by_user($user_id)
+    {
+        return $this->db->distinct()->select('topic')
+            ->where('created_by', $user_id)->where('topic IS NOT NULL')
+            ->order_by('topic')->get($this->table)->result();
+    }
+
+    private function _uuid()
+    {
+        $data = random_bytes(16);
+        $data[6] = chr(ord($data[6]) & 0x0f | 0x40);
+        $data[8] = chr(ord($data[8]) & 0x3f | 0x80);
+        return vsprintf('%s%s-%s-%s-%s-%s%s%s', str_split(bin2hex($data), 4));
+    }
+}

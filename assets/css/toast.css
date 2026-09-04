@@ -1,0 +1,178 @@
+/* ==========================================================================
+   toast.css — Reusable toast notification system
+   Types: success, error, warning, info, delete
+   Usage: NexamToast.success("Saved!"); NexamToast.error("Failed!");
+   ========================================================================== */
+
+:root {
+    --toast-success: #16a34a;
+    --toast-success-bg: #f0fdf4;
+    --toast-success-border: #bbf7d0;
+    --toast-error: #dc2626;
+    --toast-error-bg: #fef2f2;
+    --toast-error-border: #fecaca;
+    --toast-warning: #d97706;
+    --toast-warning-bg: #fffbeb;
+    --toast-warning-border: #fde68a;
+    --toast-info: #2563eb;
+    --toast-info-bg: #eff6ff;
+    --toast-info-border: #bfdbfe;
+    --toast-delete: #b91c1c;
+    --toast-delete-bg: #fef2f2;
+    --toast-delete-border: #fecaca;
+}
+
+#nexam-toast-container {
+    position: fixed;
+    top: 24px;
+    right: 24px;
+    z-index: 99999;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    pointer-events: none;
+    max-width: 400px;
+    width: calc(100vw - 48px);
+}
+
+.nexam-toast {
+    pointer-events: auto;
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 14px 16px;
+    background: #fff;
+    border-radius: 12px;
+    border: 1px solid #e2e8f0;
+    border-left: 4px solid var(--toast-info);
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12);
+    font-family: var(--font-body, "Inter", sans-serif);
+    font-size: 14px;
+    color: #1e293b;
+    line-height: 1.5;
+    opacity: 0;
+    transform: translateX(100%);
+    transition: opacity 0.3s ease, transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    overflow: hidden;
+}
+
+.nexam-toast.show {
+    opacity: 1;
+    transform: translateX(0);
+}
+
+.nexam-toast.hide {
+    opacity: 0;
+    transform: translateX(100%);
+}
+
+/* ---- Type variants ---- */
+.nexam-toast.type-success {
+    border-left-color: var(--toast-success);
+    background: var(--toast-success-bg);
+}
+
+.nexam-toast.type-error {
+    border-left-color: var(--toast-error);
+    background: var(--toast-error-bg);
+}
+
+.nexam-toast.type-warning {
+    border-left-color: var(--toast-warning);
+    background: var(--toast-warning-bg);
+}
+
+.nexam-toast.type-info {
+    border-left-color: var(--toast-info);
+    background: var(--toast-info-bg);
+}
+
+.nexam-toast.type-delete {
+    border-left-color: var(--toast-delete);
+    background: var(--toast-delete-bg);
+}
+
+/* ---- Icon ---- */
+.nexam-toast .toast-icon {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    margin-top: 1px;
+}
+
+.nexam-toast .toast-icon svg {
+    width: 20px !important;
+    height: 20px !important;
+    display: block;
+}
+
+.nexam-toast.type-success .toast-icon { color: var(--toast-success); }
+.nexam-toast.type-error   .toast-icon { color: var(--toast-error); }
+.nexam-toast.type-warning .toast-icon { color: var(--toast-warning); }
+.nexam-toast.type-info    .toast-icon { color: var(--toast-info); }
+.nexam-toast.type-delete  .toast-icon { color: var(--toast-delete); }
+
+/* ---- Content ---- */
+.nexam-toast .toast-content {
+    flex: 1;
+    min-width: 0;
+}
+
+.nexam-toast .toast-title {
+    font-family: var(--font-display, "Google Sans", sans-serif);
+    font-weight: 600;
+    font-size: 14px;
+    margin-bottom: 2px;
+}
+
+.nexam-toast .toast-message {
+    font-size: 13px;
+    color: #64748b;
+}
+
+/* ---- Close button ---- */
+.nexam-toast .toast-close {
+    flex-shrink: 0;
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: #94a3b8;
+    padding: 2px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    border-radius: 6px;
+    transition: 0.15s ease;
+}
+
+.nexam-toast .toast-close:hover {
+    color: #475569;
+    background: rgba(0, 0, 0, 0.06);
+}
+
+.nexam-toast .toast-close svg {
+    width: 16px !important;
+    height: 16px !important;
+    display: block;
+}
+
+/* ---- Responsive ---- */
+@media (max-width: 480px) {
+    #nexam-toast-container {
+        top: 12px;
+        right: 12px;
+        left: 12px;
+        max-width: none;
+        width: auto;
+    }
+
+    .nexam-toast {
+        padding: 12px 14px;
+        font-size: 13px;
+    }
+}

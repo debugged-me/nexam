@@ -5,9 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>nexam — Login</title>
     <meta name="theme-color" content="#1B3A5B">
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="<?php echo base_url('assets/css/fonts.css'); ?>" rel="stylesheet" type="text/css">
     <link href="<?php echo base_url('assets/css/auth.css'); ?>" rel="stylesheet" type="text/css">
+    <link href="<?php echo base_url('assets/css/toast.css'); ?>" rel="stylesheet" type="text/css">
+    <link href="<?php echo base_url('assets/css/modal.css'); ?>" rel="stylesheet" type="text/css">
     <script src="https://unpkg.com/lucide@latest"></script>
 </head>
 <body class="auth-page">
@@ -28,14 +29,8 @@
 
         <!-- Right form panel -->
         <div class="auth-form-wrap">
-            <?php if ($this->session->flashdata('error')): ?>
-                <div class="error-msg">
-                    <i data-lucide="alert-circle"></i>
-                    <?php echo htmlspecialchars($this->session->flashdata('error')); ?>
-                </div>
-            <?php endif; ?>
-
             <form action="<?php echo site_url('login/authenticate'); ?>" method="post" autocomplete="off">
+                <input type="hidden" name="<?php echo $this->security->get_csrf_token_name(); ?>" value="<?php echo $this->security->get_csrf_hash(); ?>">
                 <div class="form-group">
                     <label class="form-label" for="email">E-mail Address</label>
                     <div class="input-wrap">
@@ -56,18 +51,29 @@
                 </div>
 
                 <button type="submit" class="btn-login">Log In</button>
-                <a href="#" class="btn-register">
+                <a href="<?php echo site_url('register'); ?>" class="btn-register">
                     <i data-lucide="user-plus"></i>
                     Register
                 </a>
             </form>
 
             <div class="form-links">
-                <a href="#">Forgot password?</a>
+                <a href="<?php echo site_url('forgot'); ?>">Forgot password?</a>
             </div>
         </div>
     </div>
 
+    <script src="<?php echo base_url('assets/js/toast.js'); ?>"></script>
+    <script src="<?php echo base_url('assets/js/modal.js'); ?>"></script>
     <script src="<?php echo base_url('assets/js/auth.js'); ?>"></script>
+    <?php $toast = $this->session->flashdata('toast'); ?>
+    <?php if ($toast): ?>
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            NexamToast.show("", <?php echo json_encode($toast['message']); ?>, <?php echo json_encode($toast['type']); ?>, 5000);
+        });
+    </script>
+    <?php endif; ?>
+
 </body>
 </html>

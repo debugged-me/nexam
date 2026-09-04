@@ -11,7 +11,7 @@ $db['default'] = array(
 	'username' => 'root',
 	'password' => '',
 
-	'database' => 'binibining_mat',
+	'database' => 'nexam',
 
 	'dbdriver' => 'mysqli',
 	'dbprefix' => '',

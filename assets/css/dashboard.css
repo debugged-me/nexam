@@ -1,0 +1,110 @@
+/* ==========================================================================
+   dashboard.css — Dashboard layout and components
+   Responsive: mobile-first breakpoints, works on any screen size.
+   ========================================================================== */
+
+:root {
+    --navy: #1B3A5B;
+    --navy-light: #2C5478;
+    --blue: #3E6B96;
+    --text: #1E293B;
+    --text-muted: #64748B;
+    --bg: #F4F6FA;
+    --white: #FFFFFF;
+    --border: #E2E8F0;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+    font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+}
+
+/* ---- Top bar ---- */
+.topbar {
+    background: var(--navy);
+    color: var(--white);
+    padding: 14px 32px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 12px;
+}
+
+.topbar .logo { font-size: 20px; font-weight: 700; }
+
+.topbar .user-area {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    font-size: 14px;
+}
+
+.topbar .user-area strong { font-weight: 600; }
+.topbar .user-area .role { opacity: 0.8; }
+.topbar .user-area .sep { opacity: 0.5; }
+
+.logout-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--white);
+    text-decoration: none;
+    font-size: 13px;
+    background: rgba(255, 255, 255, 0.12);
+    padding: 7px 14px;
+    border-radius: 8px;
+    transition: background 0.15s;
+}
+
+.logout-btn:hover { background: rgba(255, 255, 255, 0.20); }
+.logout-btn svg { width: 15px !important; height: 15px !important; display: block; }
+
+/* ---- Content ---- */
+.container {
+    max-width: 800px;
+    margin: 48px auto;
+    padding: 0 24px;
+}
+
+.welcome-card {
+    background: var(--white);
+    border-radius: 14px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06);
+    padding: 40px;
+    text-align: center;
+}
+
+.welcome-card h1 { font-size: 24px; margin-bottom: 8px; }
+.welcome-card p { color: var(--text-muted); font-size: 14px; line-height: 1.6; }
+
+.badge {
+    display: inline-block;
+    background: #E8EDF3;
+    color: var(--navy);
+    font-size: 12px;
+    font-weight: 600;
+    padding: 5px 16px;
+    border-radius: 999px;
+    margin-top: 16px;
+}
+
+.placeholder { margin-top: 20px; color: #94A3B8; font-size: 13px; }
+
+/* ---- Responsive ---- */
+@media (max-width: 768px) {
+    .topbar { padding: 12px 16px; }
+    .topbar .logo { font-size: 18px; }
+    .topbar .user-area { font-size: 13px; gap: 10px; }
+    .container { margin: 24px auto; padding: 0 16px; }
+    .welcome-card { padding: 28px 20px; }
+    .welcome-card h1 { font-size: 20px; }
+}
+
+@media (max-width: 480px) {
+    .topbar .user-area .role,
+    .topbar .user-area .sep { display: none; }
+}

@@ -25,7 +25,13 @@ class Tos extends MY_Controller
     /** List all TOS owned by the logged-in user. */
     public function index()
     {
-        $data['tos_list'] = $this->Tos_model->get_by_user($this->user_id);
+        $per_page = 10;
+        $total = $this->Tos_model->count_by_user($this->user_id);
+        $pagination = $this->paginate($total, $per_page);
+
+        $data['tos_list']   = $this->Tos_model->get_by_user($this->user_id, $per_page, $pagination['offset']);
+        $data['pagination'] = $pagination;
+        $data['total']      = $total;
         $this->render('tos/index', $data);
     }
 

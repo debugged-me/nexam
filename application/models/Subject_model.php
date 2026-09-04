@@ -10,11 +10,12 @@ class Subject_model extends CI_Model
         return $this->db->where('instructor_id', $user_id)->count_all_results($this->table);
     }
 
-    public function get_by_user($user_id)
+    public function get_by_user($user_id, $limit = null, $offset = null)
     {
-        return $this->db->where('instructor_id', $user_id)
-            ->order_by('created_at', 'DESC')
-            ->get($this->table)->result();
+        $this->db->where('instructor_id', $user_id)
+            ->order_by('created_at', 'DESC');
+        if ($limit !== null) $this->db->limit($limit, (int) $offset);
+        return $this->db->get($this->table)->result();
     }
 
     public function get_recent_by_user($user_id, $limit = 5)

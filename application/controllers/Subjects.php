@@ -13,7 +13,13 @@ class Subjects extends MY_Controller
 
     public function index()
     {
-        $data['subjects'] = $this->Subject_model->get_by_user($this->user_id);
+        $per_page = 10;
+        $total = $this->Subject_model->count_by_user($this->user_id);
+        $pagination = $this->paginate($total, $per_page);
+
+        $data['subjects']    = $this->Subject_model->get_by_user($this->user_id, $per_page, $pagination['offset']);
+        $data['pagination']  = $pagination;
+        $data['total']       = $total;
         $this->render('subjects/index', $data);
     }
 

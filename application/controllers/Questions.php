@@ -42,7 +42,12 @@ class Questions extends MY_Controller
 
         $data['filters']   = $filters;
         $data['subjects']  = $this->Subject_model->get_by_user($this->user_id);
-        $data['questions'] = $this->Question_model->get_by_user($this->user_id, $filters);
+
+        $per_page = 10;
+        $total = $this->Question_model->count_by_user_filtered($this->user_id, $filters);
+        $pagination = $this->paginate($total, $per_page);
+
+        $data['questions'] = $this->Question_model->get_by_user($this->user_id, $filters, $per_page, $pagination['offset']);
 
         // Build a subject lookup map so the view can show subject names
         $subject_map = [];
@@ -51,7 +56,80 @@ class Questions extends MY_Controller
         }
         $data['subject_map'] = $subject_map;
 
+        $data['pagination'] = $pagination;
+        $data['total']      = $total;
+
+        // Whitelists for the client-side modal forms
+        $data['bloom_levels']   = $this->bloom_levels;
+        $data['question_types'] = $this->question_types;
+        $data['statuses']       = $this->statuses;
+
+        $data['page_css'] = ['questions.css'];
+        $data['page_js']  = ['questions.js'];
+
         $this->render('questions/index', $data);
+    }
+
+    /**
+     * AJAX endpoint: create a question from a modal form submission.
+     * Returns JSON with a fresh CSRF hash so the dialog can be reused.
+     */
+    public function store()
+    {
+        if (!$this->_guard()) return;
+
+        $subjects = $this->Subject_model->get_by_user($this->user_id);
+        if (empty($subjects)) {
+            return $this->_json(422, ['message' => 'Create a subject first before adding questions.']);
+        }
+
+        $this->_set_validation_rules();
+
+        if ($this->form_validation->run() === false) {
+            return $this->_json(422, ['message' => trim(validation_errors(' ', ' '))]);
+        }
+
+        $data = $this->_collect_post();
+        $data['created_by'] = $this->user_id;
+
+        $id = $this->Question_model->create($data);
+        if (!$id) {
+            return $this->_json(500, ['message' => 'Failed to create question.']);
+        }
+
+        return $this->_json(200, ['message' => 'Question created successfully.']);
+    }
+
+    /* ------------------------------------------------------------------
+       AJAX helpers
+       ------------------------------------------------------------------ */
+
+    /** Require an authenticated POST — writes the error JSON on failure. */
+    private function _guard()
+    {
+        if (!$this->session->userdata('logged_in')) {
+            $this->_json(403, ['message' => 'Your session has expired. Please sign in again.']);
+            return false;
+        }
+
+        if ($this->input->method(true) !== 'POST') {
+            $this->_json(405, ['message' => 'Method not allowed.']);
+            return false;
+        }
+
+        return true;
+    }
+
+    /** Emit a JSON response carrying a fresh CSRF hash for the next request. */
+    private function _json($status, $payload)
+    {
+        $payload['csrf_name'] = $this->security->get_csrf_token_name();
+        $payload['csrf_hash'] = $this->security->get_csrf_hash();
+
+        $this->output
+            ->set_status_header($status)
+            ->set_content_type('application/json')
+            ->set_output(json_encode($payload));
     }
 
     /**

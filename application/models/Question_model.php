@@ -10,14 +10,26 @@ class Question_model extends CI_Model
         return $this->db->where('created_by', $user_id)->count_all_results($this->table);
     }
 
-    public function get_by_user($user_id, $filters = [])
+    public function count_by_user_filtered($user_id, $filters = [])
     {
         $this->db->where('created_by', $user_id);
         if (!empty($filters['subject_id'])) $this->db->where('subject_id', $filters['subject_id']);
         if (!empty($filters['bloom']))      $this->db->where('bloom', $filters['bloom']);
         if (!empty($filters['type']))       $this->db->where('type', $filters['type']);
         if (!empty($filters['topic']))      $this->db->like('topic', $filters['topic']);
-        return $this->db->order_by('created_at', 'DESC')->get($this->table)->result();
+        return $this->db->count_all_results($this->table);
+    }
+
+    public function get_by_user($user_id, $filters = [], $limit = null, $offset = null)
+    {
+        $this->db->where('created_by', $user_id);
+        if (!empty($filters['subject_id'])) $this->db->where('subject_id', $filters['subject_id']);
+        if (!empty($filters['bloom']))      $this->db->where('bloom', $filters['bloom']);
+        if (!empty($filters['type']))       $this->db->where('type', $filters['type']);
+        if (!empty($filters['topic']))      $this->db->like('topic', $filters['topic']);
+        $this->db->order_by('created_at', 'DESC');
+        if ($limit !== null) $this->db->limit($limit, (int) $offset);
+        return $this->db->get($this->table)->result();
     }
 
     public function get_by_id($id)

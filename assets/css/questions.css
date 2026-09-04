@@ -1,0 +1,52 @@
+/* ==========================================================================
+   questions.css — question bank page styles
+   ========================================================================== */
+
+/* ---- Filter button badge -------------------------------------------- */
+
+.filter-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 18px;
+    height: 18px;
+    padding: 0 5px;
+    margin-left: 2px;
+    border-radius: 9px;
+    background: var(--blue-600);
+    color: #fff;
+    font-size: .68rem;
+    font-weight: 700;
+    line-height: 1;
+}
+
+/* ---- Modal form layout ---------------------------------------------- */
+
+.qf-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+}
+
+/* Inline hint inside a label (e.g. "Options (MCQ — one per line)") */
+.form-hint-inline {
+    font-weight: 400;
+    font-size: .72rem;
+    color: var(--ink-3);
+    margin-left: 4px;
+}
+
+/* Required asterisk */
+.req {
+    color: #dc2626;
+}
+
+/* Form groups inside modals — tighten the spacing slightly */
+.nexam-modal-body .form-group { margin-bottom: 14px; }
+.nexam-modal-body .form-group:last-child { margin-bottom: 0; }
+
+/* ---- Responsive ------------------------------------------------------ */
+
+@media (max-width: 520px) {
+    .qf-grid { grid-template-columns: 1fr; gap: 0; }
+}

@@ -17,11 +17,13 @@ class Exams extends MY_Controller
     /** List exams owned by the logged-in user. */
     public function index()
     {
-        $exams = $this->Exam_model->get_by_user($this->user_id);
-        foreach ($exams as $e) {
-            $e->question_count = count($this->Exam_model->get_questions($e->id));
-        }
-        $data['exams'] = $exams;
+        $per_page = 10;
+        $total = $this->Exam_model->count_by_user($this->user_id);
+        $pagination = $this->paginate($total, $per_page);
+
+        $data['exams']      = $this->Exam_model->get_with_counts($this->user_id, $per_page, $pagination['offset']);
+        $data['pagination'] = $pagination;
+        $data['total']      = $total;
         $this->render('exams/index', $data);
     }
 

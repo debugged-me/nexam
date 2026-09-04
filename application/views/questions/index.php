@@ -2,61 +2,17 @@
 
     <div class="page-header">
         <p class="page-sub">Every item you have written. Filter by subject, Bloom level or type.</p>
-        <a href="<?php echo site_url('questions/create'); ?>" class="btn btn-primary">
-            <i data-lucide="plus"></i> New Question
-        </a>
-    </div>
-
-    <!-- Filter bar -->
-    <div class="card mb-2">
-        <div class="card-body" style="padding:16px 20px">
-            <form action="<?php echo site_url('questions'); ?>" method="get" style="display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end">
-                <div class="form-group" style="margin-bottom:0;flex:1;min-width:180px">
-                    <label class="form-label" for="filter_subject">Subject</label>
-                    <select id="filter_subject" name="subject_id" class="form-control form-select">
-                        <option value="">All subjects</option>
-                        <?php foreach ($subjects as $s): ?>
-                            <option value="<?php echo htmlspecialchars($s->id); ?>"
-                                <?php echo ($filters['subject_id'] === $s->id) ? 'selected' : ''; ?>>
-                                <?php echo htmlspecialchars($s->name); ?>
-                            </option>
-                        <?php endforeach; ?>
-                    </select>
-                </div>
-
-                <div class="form-group" style="margin-bottom:0;flex:1;min-width:160px">
-                    <label class="form-label" for="filter_bloom">Bloom Level</label>
-                    <select id="filter_bloom" name="bloom" class="form-control form-select">
-                        <option value="">All levels</option>
-                        <?php foreach (['remember', 'understand', 'apply', 'analyze', 'evaluate', 'create'] as $b): ?>
-                            <option value="<?php echo $b; ?>" <?php echo ($filters['bloom'] === $b) ? 'selected' : ''; ?>>
-                                <?php echo ucfirst($b); ?>
-                            </option>
-                        <?php endforeach; ?>
-                    </select>
-                </div>
-
-                <div class="form-group" style="margin-bottom:0;flex:1;min-width:160px">
-                    <label class="form-label" for="filter_type">Type</label>
-                    <select id="filter_type" name="type" class="form-control form-select">
-                        <option value="">All types</option>
-                        <?php foreach (['mcq' => 'Multiple Choice', 'true_false' => 'True / False', 'identification' => 'Identification', 'essay' => 'Essay'] as $t_val => $t_label): ?>
-                            <option value="<?php echo $t_val; ?>" <?php echo ($filters['type'] === $t_val) ? 'selected' : ''; ?>>
-                                <?php echo $t_label; ?>
-                            </option>
-                        <?php endforeach; ?>
-                    </select>
-                </div>
-
-                <div style="display:flex;gap:8px">
-                    <button type="submit" class="btn btn-primary">
-                        <i data-lucide="filter"></i> Filter
-                    </button>
-                    <a href="<?php echo site_url('questions'); ?>" class="btn btn-outline">
-                        Clear
-                    </a>
-                </div>
-            </form>
+        <div class="page-header-actions">
+            <button type="button" class="btn btn-outline" id="filter-btn">
+                <i data-lucide="sliders-horizontal"></i> Filter
+                <?php $active_count = (int) !empty($filters['subject_id']) + (int) !empty($filters['bloom']) + (int) !empty($filters['type']); ?>
+                <?php if ($active_count > 0): ?>
+                    <span class="filter-badge"><?php echo $active_count; ?></span>
+                <?php endif; ?>
+            </button>
+            <button type="button" class="btn btn-primary" id="new-question-btn">
+                <i data-lucide="plus"></i> New Question
+            </button>
         </div>
     </div>
 
@@ -66,93 +22,116 @@
             <div class="empty-state">
                 <i data-lucide="help-circle"></i>
                 <p>No questions found. Create your first question to start building your bank.</p>
-                <a href="<?php echo site_url('questions/create'); ?>" class="btn btn-primary">
+                <button type="button" class="btn btn-primary" id="new-question-btn-empty">
                     <i data-lucide="plus"></i> New Question
-                </a>
+                </button>
             </div>
         </div>
     <?php else: ?>
         <div class="table-wrap">
-            <table class="data-table">
-                <thead>
-                    <tr>
-                        <th>Question</th>
-                        <th>Subject</th>
-                        <th>Topic</th>
-                        <th>Bloom</th>
-                        <th>Type</th>
-                        <th>Status</th>
-                        <th style="text-align:right">Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <?php
-                    $bloom_badge = [
-                        'remember'    => 'badge-gray',
-                        'understand'  => 'badge-blue',
-                        'apply'       => 'badge-green',
-                        'analyze'     => 'badge-amber',
-                        'evaluate'    => 'badge-purple',
-                        'create'      => 'badge-red',
-                    ];
-                    $type_label = [
-                        'mcq'           => 'Multiple Choice',
-                        'true_false'    => 'True / False',
-                        'identification'=> 'Identification',
-                        'essay'         => 'Essay',
-                    ];
-                    ?>
-                    <?php foreach ($questions as $q): ?>
+            <div class="table-scroll">
+                <table class="data-table">
+                    <thead>
                         <tr>
-                            <td style="max-width:320px">
-                                <span style="font-weight:500"><?php echo htmlspecialchars(mb_strimwidth($q->stem, 0, 80, '...')); ?></span>
-                            </td>
-                            <td>
-                                <?php if (!empty($subject_map[$q->subject_id])): ?>
-                                    <a href="<?php echo site_url('subjects/view/' . $q->subject_id); ?>" style="color:var(--navy);font-weight:500">
-                                        <?php echo htmlspecialchars($subject_map[$q->subject_id]); ?>
-                                    </a>
-                                <?php else: ?>
-                                    <span class="text-muted">—</span>
-                                <?php endif; ?>
-                            </td>
-                            <td><?php echo $q->topic ? htmlspecialchars($q->topic) : '<span class="text-muted">—</span>'; ?></td>
-                            <td>
-                                <?php if ($q->bloom): ?>
-                                    <span class="badge <?php echo isset($bloom_badge[$q->bloom]) ? $bloom_badge[$q->bloom] : 'badge-gray'; ?>">
-                                        <?php echo ucfirst(htmlspecialchars($q->bloom)); ?>
-                                    </span>
-                                <?php else: ?>
-                                    <span class="text-muted">—</span>
-                                <?php endif; ?>
-                            </td>
-                            <td>
-                                <span class="badge badge-blue">
-                                    <?php echo isset($type_label[$q->type]) ? $type_label[$q->type] : htmlspecialchars($q->type); ?>
-                                </span>
-                            </td>
-                            <td>
-                                <?php if ($q->status === 'active'): ?>
-                                    <span class="badge badge-green">Active</span>
-                                <?php else: ?>
-                                    <span class="badge badge-gray">Draft</span>
-                                <?php endif; ?>
-                            </td>
-                            <td>
-                                <div class="action-icons" style="justify-content:flex-end">
-                                    <a href="<?php echo site_url('questions/edit/' . $q->id); ?>" class="action-icon" title="Edit"><i data-lucide="pencil"></i></a>
-                                    <a href="<?php echo site_url('questions/delete/' . $q->id); ?>" class="action-icon danger" title="Delete"
-                                       onclick="return confirmDelete(event, '<?php echo htmlspecialchars(mb_strimwidth($q->stem, 0, 60, '...'), ENT_QUOTES); ?>')"><i data-lucide="trash-2"></i></a>
-                                </div>
-                            </td>
+                            <th class="col-wide">Question</th>
+                            <th class="col-medium">Subject</th>
+                            <th class="col-medium">Topic</th>
+                            <th class="col-shrink">Bloom</th>
+                            <th class="col-shrink">Type</th>
+                            <th class="col-shrink">Status</th>
+                            <th class="col-shrink" style="text-align:right">Actions</th>
                         </tr>
-                    <?php endforeach; ?>
-                </tbody>
-            </table>
+                    </thead>
+                    <tbody>
+                        <?php
+                        $bloom_badge = [
+                            'remember'    => 'badge-gray',
+                            'understand'  => 'badge-blue',
+                            'apply'       => 'badge-green',
+                            'analyze'     => 'badge-amber',
+                            'evaluate'    => 'badge-purple',
+                            'create'      => 'badge-red',
+                        ];
+                        $type_label = [
+                            'mcq'           => 'Multiple Choice',
+                            'true_false'    => 'True / False',
+                            'identification'=> 'Identification',
+                            'essay'         => 'Essay',
+                        ];
+                        ?>
+                        <?php foreach ($questions as $q): ?>
+                            <tr>
+                                <td>
+                                    <a href="<?php echo site_url('questions/edit/' . $q->id); ?>" class="cell-primary"
+                                       title="<?php echo htmlspecialchars($q->stem); ?>">
+                                        <?php echo htmlspecialchars(mb_strimwidth($q->stem, 0, 100, '…')); ?>
+                                    </a>
+                                </td>
+                                <td class="cell-truncate">
+                                    <?php if (!empty($subject_map[$q->subject_id])): ?>
+                                        <a href="<?php echo site_url('subjects/view/' . $q->subject_id); ?>"
+                                           style="color:var(--ink-2);font-weight:500"
+                                           title="<?php echo htmlspecialchars($subject_map[$q->subject_id]); ?>">
+                                            <?php echo htmlspecialchars($subject_map[$q->subject_id]); ?>
+                                        </a>
+                                    <?php else: ?>
+                                        <span class="text-muted">—</span>
+                                    <?php endif; ?>
+                                </td>
+                                <td class="cell-truncate"><?php echo $q->topic ? htmlspecialchars($q->topic) : '<span class="text-muted">—</span>'; ?></td>
+                                <td>
+                                    <?php if ($q->bloom): ?>
+                                        <span class="badge <?php echo isset($bloom_badge[$q->bloom]) ? $bloom_badge[$q->bloom] : 'badge-gray'; ?>">
+                                            <?php echo ucfirst(htmlspecialchars($q->bloom)); ?>
+                                        </span>
+                                    <?php else: ?>
+                                        <span class="text-muted">—</span>
+                                    <?php endif; ?>
+                                </td>
+                                <td>
+                                    <span class="badge badge-blue">
+                                        <?php echo isset($type_label[$q->type]) ? $type_label[$q->type] : htmlspecialchars($q->type); ?>
+                                    </span>
+                                </td>
+                                <td>
+                                    <?php if ($q->status === 'active'): ?>
+                                        <span class="badge badge-green">Active</span>
+                                    <?php else: ?>
+                                        <span class="badge badge-gray">Draft</span>
+                                    <?php endif; ?>
+                                </td>
+                                <td>
+                                    <div class="action-icons" style="justify-content:flex-end">
+                                        <a href="<?php echo site_url('questions/edit/' . $q->id); ?>" class="action-icon" title="Edit"><i data-lucide="pencil"></i></a>
+                                        <a href="<?php echo site_url('questions/delete/' . $q->id); ?>" class="action-icon danger" title="Delete"
+                                           onclick="return confirmDelete(event, '<?php echo htmlspecialchars(mb_strimwidth($q->stem, 0, 60, '...'), ENT_QUOTES); ?>')"><i data-lucide="trash-2"></i></a>
+                                    </div>
+                                </td>
+                            </tr>
+                        <?php endforeach; ?>
+                    </tbody>
+                </table>
+            </div>
+            <?php $this->load->view('partials/pagination', ['pagination' => $pagination]); ?>
         </div>
     <?php endif; ?>
 
 </div>
+
+<!-- Data for client-side modals -->
+<script id="questions-config" type="application/json"><?php
+    echo json_encode([
+        'storeUrl'   => site_url('questions/store'),
+        'filterUrl'  => site_url('questions'),
+        'subjects'   => array_map(function ($s) {
+            return ['id' => $s->id, 'name' => $s->name, 'code' => $s->code];
+        }, $subjects),
+        'bloomLevels'   => $bloom_levels,
+        'questionTypes' => $question_types,
+        'statuses'      => $statuses,
+        'filters'       => $filters,
+    ]);
+?></script>
 
 <script>
 function confirmDelete(e, stem) {

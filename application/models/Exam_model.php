@@ -11,14 +11,28 @@ class Exam_model extends CI_Model
         return $this->db->where('created_by', $user_id)->count_all_results($this->table);
     }
 
-    public function get_by_user($user_id)
+    public function get_by_user($user_id, $limit = null, $offset = null)
     {
-        return $this->db->select('e.*, s.name as subject_name')
+        $this->db->select('e.*, s.name as subject_name')
             ->from($this->table . ' e')
             ->join('subjects s', 's.id = e.subject_id', 'left')
             ->where('e.created_by', $user_id)
-            ->order_by('e.created_at', 'DESC')
-            ->get()->result();
+            ->order_by('e.created_at', 'DESC');
+        if ($limit !== null) $this->db->limit($limit, (int) $offset);
+        return $this->db->get()->result();
+    }
+
+    /** Get exams with question counts — paginated. */
+    public function get_with_counts($user_id, $limit = null, $offset = null)
+    {
+        $rows = $this->db->select('e.*, s.name AS subject_name,
+                (SELECT COUNT(*) FROM ' . $this->eq_table . ' eq WHERE eq.exam_id = e.id) AS question_count', FALSE)
+            ->from($this->table . ' e')
+            ->join('subjects s', 's.id = e.subject_id', 'left')
+            ->where('e.created_by', $user_id)
+            ->order_by('e.created_at', 'DESC');
+        if ($limit !== null) $this->db->limit($limit, (int) $offset);
+        return $this->db->get()->result();
     }
 
     public function get_recent_by_user($user_id, $limit = 5)

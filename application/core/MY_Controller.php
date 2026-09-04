@@ -75,4 +75,78 @@ class MY_Controller extends CI_Controller
         $data[8] = chr(ord($data[8]) & 0x3f | 0x80);
         return vsprintf('%s%s-%s-%s-%s-%s%s%s', str_split(bin2hex($data), 4));
     }
+
+    /* ------------------------------------------------------------------
+       Pagination helper
+       ------------------------------------------------------------------ */
+
+    /**
+     * Build pagination data from the current request.
+     *
+     * Reads `page` from the query string (1-based), clamps it to valid
+     * bounds, and returns the offset + a render-ready array for the
+     * pagination partial. Existing query params (e.g. filters) are
+     * preserved in every page link.
+     *
+     * @param int    $total     Total row count.
+     * @param int    $per_page  Rows per page (default 10).
+     * @return array  ['page','per_page','offset','total_pages','total','from','to','links','has_prev','has_next','prev_url','next_url']
+     */
+    protected function paginate($total, $per_page = 10)
+    {
+        $per_page  = max(1, (int) $per_page);
+        $total     = max(0, (int) $total);
+        $total_pages = $total > 0 ? (int) ceil($total / $per_page) : 1;
+
+        $page = (int) $this->input->get('page', true);
+        if ($page < 1) $page = 1;
+        if ($page > $total_pages) $page = $total_pages;
+
+        $offset = ($page - 1) * $per_page;
+
+        $from = $total > 0 ? $offset + 1 : 0;
+        $to   = min($offset + $per_page, $total);
+
+        // Preserve existing query params (filters etc.) in pagination links
+        $query = $this->input->get(NULL, true);
+        if (isset($query['page'])) unset($query['page']);
+
+        $build_url = function ($p) use ($query) {
+            $query['page'] = $p;
+            return current_url() . '?' . http_build_query($query);
+        };
+
+        // Build a window of page numbers around the current page
+        $links = [];
+        $window = 2; // pages either side of current
+        $start = max(1, $page - $window);
+        $end   = min($total_pages, $page + $window);
+
+        for ($i = $start; $i <= $end; $i++) {
+            $links[] = [
+                'page'      => $i,
+                'url'       => $build_url($i),
+                'is_active' => $i === $page,
+            ];
+        }
+
+        return [
+            'page'        => $page,
+            'per_page'    => $per_page,
+            'offset'      => $offset,
+            'total'       => $total,
+            'total_pages' => $total_pages,
+            'from'        => $from,
+            'to'          => $to,
+            'links'       => $links,
+            'has_prev'    => $page > 1,
+            'has_next'    => $page < $total_pages,
+            'prev_url'    => $page > 1 ? $build_url($page - 1) : null,
+            'next_url'    => $page < $total_pages ? $build_url($page + 1) : null,
+            'show_first'  => $start > 1,
+            'show_last'   => $end < $total_pages,
+            'first_url'   => $build_url(1),
+            'last_url'    => $build_url($total_pages),
+        ];
+    }
 }

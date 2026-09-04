@@ -870,6 +870,9 @@ body.rail-collapsed .nav-item:hover::after { opacity: 1; }
     border-radius: var(--radius-lg);
     box-shadow: var(--shadow-sm);
     overflow: hidden;
+}
+
+.table-scroll {
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
 }
@@ -878,6 +881,7 @@ body.rail-collapsed .nav-item:hover::after { opacity: 1; }
     width: 100%;
     border-collapse: collapse;
     font-size: .85rem;
+    table-layout: fixed;
 }
 
 .data-table thead th {
@@ -893,16 +897,127 @@ body.rail-collapsed .nav-item:hover::after { opacity: 1; }
     white-space: nowrap;
 }
 
+/* Column width helpers — use on <th> to control widths */
+.col-shrink { width: 1%; white-space: nowrap; }
+.col-medium { width: 140px; }
+.col-wide   { width: auto; }
+
 .data-table tbody td {
     padding: 12px 18px;
     border-bottom: 1px solid var(--line);
     vertical-align: middle;
     color: var(--ink-2);
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Truncation: add .cell-truncate to <td> for single-line ellipsis */
+.cell-truncate {
+    max-width: 0; /* needed inside table-layout:fixed for ellipsis to work */
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Allow wrapping for cells that need it (e.g. multi-word titles) */
+.cell-wrap {
+    word-break: break-word;
+    overflow-wrap: anywhere;
 }
 
 .data-table tbody td strong, .data-table tbody td b { color: var(--ink); font-weight: 600; }
 .data-table tbody tr:last-child td { border-bottom: none; }
 .data-table tbody tr:hover { background: var(--surface-2); }
+
+/* Primary cell — the main clickable title/link in each row */
+.cell-primary {
+    color: var(--ink);
+    font-weight: 600;
+    text-decoration: none;
+    display: inline-block;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    vertical-align: middle;
+}
+.cell-primary:hover { color: var(--blue-600); }
+
+/* ---- Table footer / pagination ------------------------------------- */
+
+.table-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+    padding: 12px 18px;
+    border-top: 1px solid var(--line);
+    background: var(--surface-2);
+}
+
+.pagination-info {
+    font-size: .76rem;
+    color: var(--ink-3);
+    white-space: nowrap;
+}
+
+.pagination-controls {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.page-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 32px;
+    height: 32px;
+    padding: 0 8px;
+    border: 1px solid var(--line);
+    border-radius: var(--radius-xs);
+    background: var(--surface);
+    color: var(--ink-2);
+    font-family: var(--font-display, "Google Sans", sans-serif);
+    font-size: .78rem;
+    font-weight: 600;
+    text-decoration: none;
+    cursor: pointer;
+    transition: background-color .15s ease, border-color .15s ease, color .15s ease;
+}
+
+.page-btn svg { width: 16px !important; height: 16px !important; display: block; }
+
+.page-btn:hover:not(.disabled):not(.active) {
+    background: var(--surface-2);
+    border-color: var(--line-strong);
+    color: var(--ink);
+}
+
+.page-btn.active {
+    background: var(--blue-600);
+    border-color: var(--blue-600);
+    color: #fff;
+    cursor: default;
+}
+
+.page-btn.disabled {
+    opacity: .4;
+    cursor: default;
+    pointer-events: none;
+}
+
+.page-ellipsis {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 28px;
+    height: 32px;
+    color: var(--ink-3);
+    font-size: .78rem;
+    user-select: none;
+}
 
 /* ==========================================================================
    Badges
@@ -1206,6 +1321,9 @@ textarea.form-control { resize: vertical; min-height: 92px; height: auto; paddin
     .btn { height: 36px; font-size: .78rem; }
     .page-header-actions { width: 100%; }
     .page-header-actions .btn { flex: 1; }
+    .table-footer { flex-direction: column; align-items: stretch; gap: 10px; }
+    .pagination-controls { justify-content: center; flex-wrap: wrap; }
+    .pagination-info { text-align: center; }
 }
 
 /* ==========================================================================

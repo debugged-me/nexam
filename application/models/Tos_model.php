@@ -14,14 +14,15 @@ class Tos_model extends CI_Model
         return $this->db->count_all_results();
     }
 
-    public function get_by_user($user_id)
+    public function get_by_user($user_id, $limit = null, $offset = null)
     {
-        return $this->db->select('t.*, s.name as subject_name, s.code as subject_code')
+        $this->db->select('t.*, s.name as subject_name, s.code as subject_code')
             ->from($this->table . ' t')
             ->join('subjects s', 's.id = t.subject_id')
             ->where('s.instructor_id', $user_id)
-            ->order_by('t.created_at', 'DESC')
-            ->get()->result();
+            ->order_by('t.created_at', 'DESC');
+        if ($limit !== null) $this->db->limit($limit, (int) $offset);
+        return $this->db->get()->result();
     }
 
     public function get_by_id($id)

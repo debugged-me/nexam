@@ -1,0 +1,77 @@
+.req-badge {
+  min-width: 18px;
+  height: 18px;
+  line-height: 18px;
+  font-size: 10px;
+  padding: 0 6px;
+}
+
+.dropdown-menu.dropdown-lg {
+  width: 360px;
+  max-width: 90vw;
+  border-radius: 12px;
+  border: 1px solid #e5e7eb;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.1);
+}
+
+.noti-title {
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid #eef2f6;
+}
+.noti-title h5 {
+  font-weight: 700;
+  color: #1f2937;
+}
+.noti-title a {
+  text-decoration: none;
+}
+
+.noti-scroll {
+  max-height: 320px;
+  overflow: auto;
+}
+
+.req-item {
+  display: block;
+  padding: 0.7rem 1rem;
+  text-decoration: none;
+  border-bottom: 1px solid #f3f4f6;
+  transition: background 0.15s ease;
+}
+.req-item:last-child {
+  border-bottom: 0;
+}
+.req-item:hover {
+  background: #f9fafb;
+}
+
+.req-title {
+  font-weight: 600;
+  color: #111827;
+  line-height: 1.2;
+  margin: 0 0 0.2rem;
+  display: -webkit-box;
+  -webkit-line-clamp: 1;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.req-meta {
+  font-size: 0.82rem;
+  color: #6b7280;
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+.req-meta .dot {
+  width: 4px;
+  height: 4px;
+  background: #9ca3af;
+  border-radius: 999px;
+  align-self: center;
+}
+
+.req-empty {
+  padding: 1.25rem 1rem;
+  color: #6b7280;
+  font-size: 0.9rem;
+}

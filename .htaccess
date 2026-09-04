@@ -1,0 +1,14 @@
+# Portable across root-domain (production) and subfolder (local XAMPP /pageant/)
+# installs: no hardcoded RewriteBase. mod_rewrite resolves it from the
+# directory containing this file.
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteCond %{REQUEST_FILENAME} !-d
+    RewriteRule ^(.*)$ index.php/$1 [L]
+</IfModule>
+
+# If mod_rewrite is unavailable, fall back to index.php instead of 500-ing.
+<IfModule !mod_rewrite.c>
+    ErrorDocument 404 /index.php
+</IfModule>

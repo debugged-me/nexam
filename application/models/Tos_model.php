@@ -73,6 +73,34 @@ class Tos_model extends CI_Model
         return $this->db->where('id', $topic_id)->delete($this->topics_table);
     }
 
+    /* ------------------------------------------------------------------
+       Dashboard analytics
+       ------------------------------------------------------------------ */
+
+    /** Number of TOS blueprints created under the user's subjects in a range. */
+    public function count_created_between($user_id, $from, $to)
+    {
+        $this->db->from($this->table . ' t')
+            ->join('subjects s', 's.id = t.subject_id')
+            ->where('s.instructor_id', $user_id)
+            ->where('t.created_at >=', $from)
+            ->where('t.created_at <', $to);
+        return $this->db->count_all_results();
+    }
+
+    /** Total planned items across all of the user's blueprints. */
+    public function total_items_by_user($user_id)
+    {
+        $row = $this->db->select('COALESCE(SUM(t.total_items), 0) AS total', FALSE)
+            ->from($this->table . ' t')
+            ->join('subjects s', 's.id = t.subject_id')
+            ->where('s.instructor_id', $user_id)
+            ->get()->row();
+
+        return $row ? (int) $row->total : 0;
+    }
+
+
     private function _uuid()
     {
         $data = random_bytes(16);

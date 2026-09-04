@@ -65,6 +65,78 @@ class Question_model extends CI_Model
             ->order_by('topic')->get($this->table)->result();
     }
 
+    /* ------------------------------------------------------------------
+       Dashboard analytics
+       ------------------------------------------------------------------ */
+
+    /** Number of questions created by the user within a datetime range. */
+    public function count_created_between($user_id, $from, $to)
+    {
+        return $this->db->where('created_by', $user_id)
+            ->where('created_at >=', $from)
+            ->where('created_at <', $to)
+            ->count_all_results($this->table);
+    }
+
+    /** Daily created counts keyed by Y-m-d, for the given window. */
+    public function daily_counts($user_id, $from, $to)
+    {
+        $rows = $this->db->select('DATE(created_at) AS d, COUNT(*) AS c', FALSE)
+            ->from($this->table)
+            ->where('created_by', $user_id)
+            ->where('created_at >=', $from)
+            ->where('created_at <', $to)
+            ->group_by('d')
+            ->get()->result();
+
+        $out = [];
+        foreach ($rows as $r) $out[$r->d] = (int) $r->c;
+        return $out;
+    }
+
+    /** Question counts grouped by Bloom level. */
+    public function bloom_distribution($user_id)
+    {
+        $rows = $this->db->select('bloom, COUNT(*) AS c', FALSE)
+            ->from($this->table)
+            ->where('created_by', $user_id)
+            ->group_by('bloom')
+            ->get()->result();
+
+        $out = [];
+        foreach ($rows as $r) $out[$r->bloom ? $r->bloom : 'unclassified'] = (int) $r->c;
+        return $out;
+    }
+
+    /** Question counts grouped by workflow status (draft / approved / ...). */
+    public function status_distribution($user_id)
+    {
+        $rows = $this->db->select('status, COUNT(*) AS c', FALSE)
+            ->from($this->table)
+            ->where('created_by', $user_id)
+            ->group_by('status')
+            ->get()->result();
+
+        $out = [];
+        foreach ($rows as $r) $out[$r->status] = (int) $r->c;
+        return $out;
+    }
+
+    /** Question counts per subject id. */
+    public function counts_by_subject($user_id)
+    {
+        $rows = $this->db->select('subject_id, COUNT(*) AS c', FALSE)
+            ->from($this->table)
+            ->where('created_by', $user_id)
+            ->group_by('subject_id')
+            ->get()->result();
+
+        $out = [];
+        foreach ($rows as $r) $out[$r->subject_id] = (int) $r->c;
+        return $out;
+    }
+
+
     private function _uuid()
     {
         $data = random_bytes(16);

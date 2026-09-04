@@ -54,6 +54,20 @@ class Subject_model extends CI_Model
         return $this->db->where('id', $id)->delete($this->table);
     }
 
+    /* ------------------------------------------------------------------
+       Dashboard analytics
+       ------------------------------------------------------------------ */
+
+    /** Number of subjects created by the user within a datetime range. */
+    public function count_created_between($user_id, $from, $to)
+    {
+        return $this->db->where('instructor_id', $user_id)
+            ->where('created_at >=', $from)
+            ->where('created_at <', $to)
+            ->count_all_results($this->table);
+    }
+
+
     private function _uuid()
     {
         $data = random_bytes(16);

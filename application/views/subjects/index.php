@@ -1,7 +1,7 @@
 <div class="page-content">
 
     <div class="page-header">
-        <h2>Subjects</h2>
+        <p class="page-sub">Courses you teach. Each subject groups its own questions, blueprints and exams.</p>
         <a href="<?php echo site_url('subjects/create'); ?>" class="btn btn-primary">
             <i data-lucide="plus"></i> New Subject
         </a>

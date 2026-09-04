@@ -2,7 +2,7 @@
     <div style="max-width:640px;margin:0 auto">
 
         <div class="page-header">
-            <h2><?php echo isset($subject) ? 'Edit Subject' : 'New Subject'; ?></h2>
+            <p class="page-sub"><?php echo isset($subject) ? 'Update the course details.' : 'Add a course to group your questions, blueprints and exams.'; ?></p>
             <a href="<?php echo site_url('subjects'); ?>" class="btn btn-outline btn-sm">
                 <i data-lucide="arrow-left"></i> Back
             </a>

@@ -2,9 +2,7 @@
     <div style="max-width:800px;margin:0 auto">
 
         <div class="page-header">
-            <h2>
-                <?php echo isset($question) ? 'Edit Question' : 'New Question'; ?>
-            </h2>
+            <p class="page-sub"><?php echo isset($question) ? 'Update this item.' : 'Write the stem, options and answer, then tag it so you can find it later.'; ?></p>
             <a href="<?php echo site_url('questions'); ?>" class="btn btn-outline btn-sm">
                 <i data-lucide="arrow-left"></i> Back
             </a>

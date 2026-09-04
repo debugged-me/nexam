@@ -2,9 +2,7 @@
     <div style="max-width:800px;margin:0 auto">
 
         <div class="page-header">
-            <h2>
-                <?php echo isset($tos) ? 'Edit TOS' : 'New TOS'; ?>
-            </h2>
+            <p class="page-sub"><?php echo isset($tos) ? 'Update this blueprint.' : 'Set the total items and how they spread across Bloom levels.'; ?></p>
             <a href="<?php echo site_url('tos'); ?>" class="btn btn-outline btn-sm">
                 <i data-lucide="arrow-left"></i> Back
             </a>

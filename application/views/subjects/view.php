@@ -2,7 +2,6 @@
 
     <div class="page-header">
         <div>
-            <h2><?php echo htmlspecialchars($subject->name); ?></h2>
             <?php if ($subject->code): ?><span class="badge badge-gray"><?php echo htmlspecialchars($subject->code); ?></span><?php endif; ?>
         </div>
         <div style="display:flex;gap:8px">

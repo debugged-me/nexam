@@ -2,7 +2,6 @@
 
     <div class="page-header">
         <div>
-            <h2><?php echo htmlspecialchars($exam->title); ?></h2>
             <?php if (!empty($subject)): ?>
                 <span class="badge badge-gray"><?php echo htmlspecialchars($subject->name); ?></span>
             <?php endif; ?>

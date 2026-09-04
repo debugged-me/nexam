@@ -1,7 +1,7 @@
 <div class="page-content">
 
     <div class="page-header">
-        <h2>TOS Builder</h2>
+        <p class="page-sub">Blueprints that decide how many items each topic and Bloom level gets.</p>
         <a href="<?php echo site_url('tos/create'); ?>" class="btn btn-primary">
             <i data-lucide="plus"></i> New TOS
         </a>

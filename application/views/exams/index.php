@@ -1,7 +1,7 @@
 <div class="page-content">
 
     <div class="page-header">
-        <h2>Exams</h2>
+        <p class="page-sub">Papers generated from your blueprints and question bank.</p>
         <a href="<?php echo site_url('exams/create'); ?>" class="btn btn-primary">
             <i data-lucide="sparkles"></i> Generate Exam
         </a>

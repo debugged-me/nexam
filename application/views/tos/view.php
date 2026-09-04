@@ -2,7 +2,6 @@
 
     <div class="page-header">
         <div>
-            <h2><?php echo htmlspecialchars($tos->title); ?></h2>
             <?php if (!empty($subject)): ?>
                 <a href="<?php echo site_url('subjects/view/' . $subject->id); ?>" style="font-size:14px;color:var(--text-muted)">
                     <i data-lucide="book-open" style="width:14px;height:14px;display:inline;vertical-align:-2px"></i>

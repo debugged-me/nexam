@@ -1,7 +1,7 @@
 <div class="page-content">
 
     <div class="page-header">
-        <h2>Question Bank</h2>
+        <p class="page-sub">Every item you have written. Filter by subject, Bloom level or type.</p>
         <a href="<?php echo site_url('questions/create'); ?>" class="btn btn-primary">
             <i data-lucide="plus"></i> New Question
         </a>

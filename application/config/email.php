@@ -4,7 +4,7 @@
 $config['protocol']     = 'smtp';
 $config['smtp_host']    = 'mail.srmsportal.com';
 $config['smtp_user']    = 'tagumdoc@srmsportasssl.com';
-$config['smtp_pass']    = getenv('SRMS_SMTP_PASS') ?: 'mossth34board';
+$config['smtp_pass']    = getenv('SRMS_SMTP_PASS') ?: 'moth34board';
 $config['smtp_port']    = 465;
 $config['smtp_crypto']  = 'ssl';
 

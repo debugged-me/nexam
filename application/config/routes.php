@@ -44,12 +44,14 @@ $route['subjects/create']         = 'subjects/create';
 $route['subjects/edit/(:any)']    = 'subjects/edit/$1';
 $route['subjects/delete/(:any)']  = 'subjects/delete/$1';
 $route['subjects/view/(:any)']    = 'subjects/view/$1';
+$route['subjects/bulk-delete']    = 'subjects/bulk_delete';
 
 // Questions
 $route['questions']                = 'questions';
 $route['questions/create']         = 'questions/create';
 $route['questions/edit/(:any)']    = 'questions/edit/$1';
 $route['questions/delete/(:any)']  = 'questions/delete/$1';
+$route['questions/bulk-delete']    = 'questions/bulk_delete';
 
 // TOS Builder
 $route['tos']                     = 'tos';
@@ -57,6 +59,7 @@ $route['tos/create']              = 'tos/create';
 $route['tos/edit/(:any)']         = 'tos/edit/$1';
 $route['tos/view/(:any)']         = 'tos/view/$1';
 $route['tos/delete/(:any)']       = 'tos/delete/$1';
+$route['tos/bulk-delete']         = 'tos/bulk_delete';
 $route['tos/(:any)/add-topic']    = 'tos/add_topic/$1';
 $route['tos/(:any)/delete-topic/(:any)'] = 'tos/delete_topic/$1/$2';
 
@@ -66,4 +69,5 @@ $route['exams/create']            = 'exams/create';
 $route['exams/view/(:any)']       = 'exams/view/$1';
 $route['exams/edit/(:any)']       = 'exams/edit/$1';
 $route['exams/delete/(:any)']     = 'exams/delete/$1';
+$route['exams/bulk-delete']       = 'exams/bulk_delete';
 $route['exams/publish/(:any)']    = 'exams/publish/$1';

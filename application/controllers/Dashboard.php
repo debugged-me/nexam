@@ -75,7 +75,7 @@ class Dashboard extends MY_Controller
 
         /* ---- Question bank readiness ---- */
         $q_status = $this->Question_model->status_distribution($user_id);
-        $approved = isset($q_status['approved']) ? $q_status['approved'] : 0;
+        $approved = isset($q_status['active']) ? $q_status['active'] : 0;
         $draft    = isset($q_status['draft']) ? $q_status['draft'] : 0;
         $other    = max(0, $data['stats']['questions'] - $approved - $draft);
 

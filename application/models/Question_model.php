@@ -59,15 +59,41 @@ class Question_model extends CI_Model
         return $this->db->where('id', $id)->delete($this->table);
     }
 
+    /**
+     * Delete several questions at once, scoped to the creator. Ids the user
+     * does not own are silently skipped.
+     *
+     * @return int  number of questions actually removed
+     */
+    public function delete_many(array $ids, $user_id)
+    {
+        $ids = array_values(array_filter(array_unique($ids), 'strlen'));
+        if (empty($ids)) return 0;
+
+        $this->db->where('created_by', $user_id)->where_in('id', $ids)->delete($this->table);
+        return $this->db->affected_rows();
+    }
+
     /** Get questions by subject and bloom level (for exam generation). */
-    public function get_by_subject_bloom($subject_id, $bloom, $limit)
+    public function get_by_subject_bloom($subject_id, $bloom, $limit, $user_id)
     {
         return $this->db->where('subject_id', $subject_id)
+            ->where('created_by', $user_id)
             ->where('bloom', $bloom)
             ->where('status', 'active')
             ->order_by('RAND()')
             ->limit($limit)
             ->get($this->table)->result();
+    }
+
+    /** Count active questions in one owned subject/Bloom bucket. */
+    public function count_active_by_subject_bloom($subject_id, $bloom, $user_id)
+    {
+        return $this->db->where('subject_id', $subject_id)
+            ->where('created_by', $user_id)
+            ->where('bloom', $bloom)
+            ->where('status', 'active')
+            ->count_all_results($this->table);
     }
 
     public function get_topics_by_user($user_id)

@@ -1,12 +1,14 @@
 <div class="page-content">
 
+    <?php $this->load->view('partials/subject_nav'); ?>
+
     <div class="page-header">
         <div>
+            <h1><?php echo htmlspecialchars($subject->name); ?></h1>
             <?php if ($subject->code): ?><span class="badge badge-gray"><?php echo htmlspecialchars($subject->code); ?></span><?php endif; ?>
         </div>
         <div class="header-actions">
             <a href="<?php echo site_url('subjects/edit/' . $subject->id); ?>" class="btn btn-outline btn-sm"><i data-lucide="pencil"></i> Edit</a>
-            <a href="<?php echo site_url('subjects'); ?>" class="btn btn-outline btn-sm"><i data-lucide="arrow-left"></i> Back</a>
         </div>
     </div>
 
@@ -36,6 +38,7 @@
             <?php else: ?>
                 <div class="table-wrap table-bare">
                     <table class="data-table">
+                        <caption class="sr-only">Recent questions for <?php echo htmlspecialchars($subject->name); ?></caption>
                         <?php foreach (array_slice($questions, 0, 5) as $q): ?>
                             <tr><td class="meta-sm"><?php echo htmlspecialchars(mb_strimwidth($q->stem, 0, 60, '...')); ?></td></tr>
                         <?php endforeach; ?>
@@ -54,6 +57,7 @@
             <?php else: ?>
                 <div class="table-wrap table-bare">
                     <table class="data-table">
+                        <caption class="sr-only">Recent TOS blueprints for <?php echo htmlspecialchars($subject->name); ?></caption>
                         <?php foreach ($tos_list as $t): ?>
                             <tr><td><a href="<?php echo site_url('tos/view/' . $t->id); ?>" class="cell-title"><?php echo htmlspecialchars($t->title); ?></a></td></tr>
                         <?php endforeach; ?>

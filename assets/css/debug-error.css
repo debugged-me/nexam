@@ -1,0 +1,33 @@
+.ci-err {
+    margin: 1rem 0;
+    padding: 1.125rem 1.375rem;
+    border: 1px solid #fecaca;
+    border-left: 4px solid #dc2626;
+    border-radius: 12px;
+    background: #fff;
+    color: #0f172a;
+    box-shadow: 0 6px 20px -12px rgba(15, 23, 42, .15);
+    font: 14px/1.55 Inter, system-ui, sans-serif;
+}
+
+.ci-err__title {
+    display: inline-flex;
+    align-items: center;
+    margin-bottom: .75rem;
+    padding: .25rem .625rem;
+    border: 1px solid #fee2e2;
+    border-radius: 999px;
+    background: #fef2f2;
+    color: #b91c1c;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+}
+
+.ci-err h4 { margin: 0 0 .75rem; color: #0f172a; font-size: 17px; }
+.ci-err p { margin: .25rem 0; color: #334155; }
+.ci-err b { color: #0f172a; font-weight: 600; }
+.ci-err .ci-trace { margin-top: .625rem; padding-left: .875rem; border-left: 2px solid #e2e8f0; }
+.ci-err .ci-trace-title { margin-top: .875rem; }
+.ci-err code, .ci-err .mono { color: #1e293b; font: 13px ui-monospace, SFMono-Regular, Consolas, monospace; }

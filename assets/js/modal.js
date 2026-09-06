@@ -18,6 +18,7 @@
    ========================================================================== */
 
 var NexamModal = (function () {
+    var modalCounter = 0;
     var icons = {
         default: "info",
         danger: "trash-2",
@@ -42,18 +43,28 @@ var NexamModal = (function () {
         var buttons = options.buttons || [];
         var showClose = options.showClose !== false;
         var iconName = icons[type] || icons.default;
+        var modalId = "nexam-modal-" + (++modalCounter);
+        var titleId = modalId + "-title";
+        var descriptionId = subtitle || body ? modalId + "-description" : "";
+        var previouslyFocused = document.activeElement;
 
         var overlay = createOverlay();
 
         var modal = document.createElement("div");
         modal.className = "nexam-modal type-" + type;
+        modal.id = modalId;
+        modal.setAttribute("role", options.alert ? "alertdialog" : "dialog");
+        modal.setAttribute("aria-modal", "true");
+        modal.setAttribute("aria-labelledby", titleId);
+        if (descriptionId) modal.setAttribute("aria-describedby", descriptionId);
+        modal.setAttribute("tabindex", "-1");
 
         var html = '<div class="nexam-modal-header">';
         html += '<div class="nexam-modal-icon"><i data-lucide="' + iconName + '"></i></div>';
         html += '<div class="nexam-modal-title-wrap">';
-        html += '<div class="nexam-modal-title">' + escapeHtml(title) + "</div>";
+        html += '<div class="nexam-modal-title" id="' + titleId + '">' + escapeHtml(title) + "</div>";
         if (subtitle) {
-            html += '<div class="nexam-modal-subtitle">' + escapeHtml(subtitle) + "</div>";
+            html += '<div class="nexam-modal-subtitle" id="' + descriptionId + '">' + escapeHtml(subtitle) + "</div>";
         }
         html += "</div>";
         if (showClose) {
@@ -62,7 +73,7 @@ var NexamModal = (function () {
         html += "</div>";
 
         if (body) {
-            html += '<div class="nexam-modal-body">' + body + "</div>";
+            html += '<div class="nexam-modal-body"' + (!subtitle && descriptionId ? ' id="' + descriptionId + '"' : "") + '>' + body + "</div>";
         }
 
         if (buttons.length > 0) {
@@ -83,6 +94,9 @@ var NexamModal = (function () {
         modal.innerHTML = html;
         overlay.appendChild(modal);
         document.body.appendChild(overlay);
+        overlay._nexamPreviouslyFocused = previouslyFocused;
+        overlay._nexamPreviousOverflow = document.body.style.overflow;
+        document.body.style.overflow = "hidden";
 
         if (typeof lucide !== "undefined") {
             lucide.createIcons();
@@ -124,7 +138,29 @@ var NexamModal = (function () {
         // attached would leak one handler per dialog opened.
         var onKeydown = function (e) {
             if (e.key === "Escape" && overlay.parentNode) {
-                close(overlay);
+                if (options.closeOnEscape !== false) close(overlay);
+                return;
+            }
+
+            if (e.key === "Tab" && overlay.parentNode) {
+                var focusable = modal.querySelectorAll(
+                    'a[href], button:not([disabled]), input:not([disabled]):not([type="hidden"]), ' +
+                    'select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+                );
+                if (!focusable.length) {
+                    e.preventDefault();
+                    modal.focus();
+                    return;
+                }
+                var first = focusable[0];
+                var last = focusable[focusable.length - 1];
+                if (e.shiftKey && document.activeElement === first) {
+                    e.preventDefault();
+                    last.focus();
+                } else if (!e.shiftKey && document.activeElement === last) {
+                    e.preventDefault();
+                    first.focus();
+                }
             }
         };
         document.addEventListener("keydown", onKeydown);
@@ -133,6 +169,10 @@ var NexamModal = (function () {
         // Animate in
         requestAnimationFrame(function () {
             overlay.classList.add("show");
+            var initial = modal.querySelector("[autofocus]") ||
+                modal.querySelector(".nexam-btn-cancel") ||
+                modal.querySelector('input:not([type="hidden"]), select, textarea, button');
+            (initial || modal).focus();
         });
 
         return overlay;
@@ -150,6 +190,12 @@ var NexamModal = (function () {
         setTimeout(function () {
             if (overlay.parentNode) {
                 overlay.parentNode.removeChild(overlay);
+            }
+            if (!document.querySelector(".nexam-modal-overlay")) {
+                document.body.style.overflow = overlay._nexamPreviousOverflow || "";
+            }
+            if (overlay._nexamPreviouslyFocused && document.contains(overlay._nexamPreviouslyFocused)) {
+                overlay._nexamPreviouslyFocused.focus();
             }
         }, 250);
     }
@@ -172,6 +218,7 @@ var NexamModal = (function () {
             title: title,
             body: message ? "<p>" + escapeHtml(message) + "</p>" : "",
             type: type,
+            alert: true,
             buttons: [
                 { text: "Cancel", style: "cancel", dismiss: true, onClick: onCancel },
                 {
@@ -191,6 +238,7 @@ var NexamModal = (function () {
             title: title,
             body: message ? "<p>" + escapeHtml(message) + "</p>" : "",
             type: type,
+            alert: true,
             buttons: [
                 { text: "OK", style: type === "success" ? "success" : "primary", dismiss: true, onClick: onOk }
             ]

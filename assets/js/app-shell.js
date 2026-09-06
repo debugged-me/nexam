@@ -9,6 +9,7 @@
 
     var DESKTOP = "(min-width: 992px)";
     var STORAGE_KEY = "nexam:rail-collapsed";
+    var railToggle = document.getElementById("rail-toggle");
 
     /* ------------------------------------------------------------------
        Nav rail
@@ -26,12 +27,27 @@
         if (!sidebar) return;
         sidebar.classList.toggle("mobile-open", open);
         if (overlay) overlay.classList.toggle("show", open);
+        sidebar.setAttribute("aria-hidden", open || isDesktop() ? "false" : "true");
+        if (railToggle) {
+            railToggle.setAttribute("aria-expanded", open ? "true" : "false");
+            railToggle.setAttribute("aria-label", open ? "Close navigation" : "Open navigation");
+        }
         document.body.style.overflow = open ? "hidden" : "";
+        if (open) {
+            var activeLink = sidebar.querySelector(".nav-item.active") || sidebar.querySelector(".nav-item");
+            if (activeLink) requestAnimationFrame(function () { activeLink.focus(); });
+        } else if (!isDesktop() && document.activeElement && sidebar.contains(document.activeElement) && railToggle) {
+            railToggle.focus();
+        }
     }
 
     /** Desktop: shrink the rail to icons only, and remember the choice. */
     function setCollapsed(collapsed) {
         document.body.classList.toggle("rail-collapsed", collapsed);
+        if (railToggle) {
+            railToggle.setAttribute("aria-expanded", collapsed ? "false" : "true");
+            railToggle.setAttribute("aria-label", collapsed ? "Expand navigation" : "Collapse navigation");
+        }
         try {
             localStorage.setItem(STORAGE_KEY, collapsed ? "1" : "0");
         } catch (err) {
@@ -50,7 +66,6 @@
     // Kept global so any page can reach the drawer without importing this file.
     window.toggleMobileSidebar = function () { setDrawer(!sidebar.classList.contains("mobile-open")); };
 
-    var railToggle = document.getElementById("rail-toggle");
     if (railToggle) railToggle.addEventListener("click", toggleRail);
 
     document.querySelectorAll("[data-sidebar-toggle]").forEach(function (el) {
@@ -69,7 +84,35 @@
     }
 
     // Leaving mobile width should never strand an open drawer.
-    window.matchMedia(DESKTOP).addEventListener("change", function () { setDrawer(false); });
+    var desktopQuery = window.matchMedia(DESKTOP);
+    function syncLayoutMode() {
+        setDrawer(false);
+        if (sidebar) sidebar.setAttribute("aria-hidden", isDesktop() ? "false" : "true");
+        if (isDesktop()) {
+            setCollapsed(document.body.classList.contains("rail-collapsed"));
+        } else if (railToggle) {
+            railToggle.setAttribute("aria-expanded", "false");
+            railToggle.setAttribute("aria-label", "Open navigation");
+        }
+    }
+    if (desktopQuery.addEventListener) desktopQuery.addEventListener("change", syncLayoutMode);
+    else desktopQuery.addListener(syncLayoutMode);
+    syncLayoutMode();
+
+    document.addEventListener("keydown", function (ev) {
+        if (ev.key !== "Tab" || isDesktop() || !sidebar || !sidebar.classList.contains("mobile-open")) return;
+        var focusable = sidebar.querySelectorAll('a[href], button:not([disabled])');
+        if (!focusable.length) return;
+        var first = focusable[0];
+        var last = focusable[focusable.length - 1];
+        if (ev.shiftKey && document.activeElement === first) {
+            ev.preventDefault();
+            last.focus();
+        } else if (!ev.shiftKey && document.activeElement === last) {
+            ev.preventDefault();
+            first.focus();
+        }
+    });
 
     /* ------------------------------------------------------------------
        Topbar account menu
@@ -85,10 +128,42 @@
         trigger.classList.toggle("is-open", open);
     }
 
+    function menuItems() {
+        return dropdown ? Array.prototype.slice.call(dropdown.querySelectorAll('[role="menuitem"]')) : [];
+    }
+
     if (trigger && dropdown) {
         trigger.addEventListener("click", function (ev) {
             ev.stopPropagation();
             setMenu(dropdown.hidden);
+        });
+
+        trigger.addEventListener("keydown", function (ev) {
+            if (ev.key !== "ArrowDown" && ev.key !== "ArrowUp") return;
+            ev.preventDefault();
+            setMenu(true);
+            var items = menuItems();
+            if (items.length) items[ev.key === "ArrowUp" ? items.length - 1 : 0].focus();
+        });
+
+        dropdown.addEventListener("keydown", function (ev) {
+            var items = menuItems();
+            var index = items.indexOf(document.activeElement);
+            if (ev.key === "Escape") {
+                ev.preventDefault();
+                setMenu(false);
+                trigger.focus();
+            } else if ((ev.key === "ArrowDown" || ev.key === "ArrowUp") && items.length) {
+                ev.preventDefault();
+                var direction = ev.key === "ArrowDown" ? 1 : -1;
+                items[(index + direction + items.length) % items.length].focus();
+            } else if (ev.key === "Home" && items.length) {
+                ev.preventDefault();
+                items[0].focus();
+            } else if (ev.key === "End" && items.length) {
+                ev.preventDefault();
+                items[items.length - 1].focus();
+            }
         });
 
         document.addEventListener("click", function (ev) {
@@ -98,9 +173,13 @@
 
     document.addEventListener("keydown", function (ev) {
         if (ev.key !== "Escape") return;
+        var restoreUser = dropdown && !dropdown.hidden;
+        var restoreBell = bellPanel && !bellPanel.hidden;
         setDrawer(false);
         setMenu(false);
         setBell(false);
+        if (restoreUser && trigger) trigger.focus();
+        else if (restoreBell && bellTrigger) bellTrigger.focus();
     });
 
     /* ------------------------------------------------------------------
@@ -199,6 +278,72 @@
         loadAlerts();
     }
 
+    /* Keep row action menus mutually exclusive and dismissible. */
+    var ROW_MENUS = ".g-menu";
+    var OPEN_ROW_MENUS = ".g-menu[open]";
+
+    document.addEventListener("click", function (ev) {
+        var activeMenu = ev.target.closest(ROW_MENUS);
+        document.querySelectorAll(OPEN_ROW_MENUS).forEach(function (menu) {
+            if (menu !== activeMenu) menu.removeAttribute("open");
+        });
+    });
+
+    document.addEventListener("keydown", function (ev) {
+        if (ev.key !== "Escape") return;
+        document.querySelectorAll(OPEN_ROW_MENUS).forEach(function (menu) {
+            menu.removeAttribute("open");
+            var summary = menu.querySelector("summary");
+            if (summary) summary.focus();
+        });
+    });
+
+    /* Dialog-safe confirmation links and simple page actions. */
+    document.addEventListener("click", function (ev) {
+        var confirmLink = ev.target.closest("[data-confirm]");
+        if (confirmLink) {
+            ev.preventDefault();
+            NexamModal.confirm(
+                confirmLink.dataset.confirmTitle || "Are you sure?",
+                confirmLink.dataset.confirmMessage || "This action cannot be undone.",
+                confirmLink.dataset.confirmType || "warning",
+                function () {
+                    var formId = confirmLink.dataset.confirmForm;
+                    if (formId) {
+                        var form = document.getElementById(formId);
+                        if (form) form.submit();
+                    } else if (confirmLink.closest("form")) {
+                        confirmLink.closest("form").submit();
+                    } else if (confirmLink.href) {
+                        window.location.href = confirmLink.href;
+                    }
+                }
+            );
+            return;
+        }
+
+        if (ev.target.closest("[data-print-page]")) window.print();
+    });
+
+    /* Warn when a long authoring form is abandoned after being changed. */
+    document.querySelectorAll("form[data-dirty-guard]").forEach(function (form) {
+        var dirty = false;
+        form.addEventListener("input", function () { dirty = true; });
+        form.addEventListener("change", function () { dirty = true; });
+        form.addEventListener("submit", function () { dirty = false; });
+        window.addEventListener("beforeunload", function (ev) {
+            if (!dirty) return;
+            ev.preventDefault();
+            ev.returnValue = "";
+        });
+    });
+
+    var formAlert = document.querySelector(".form-alert[role='alert']");
+    if (formAlert) {
+        formAlert.setAttribute("tabindex", "-1");
+        requestAnimationFrame(function () { formAlert.focus(); });
+    }
+
     /* ------------------------------------------------------------------
        Account dialogs
        ------------------------------------------------------------------ */
@@ -217,10 +362,11 @@
 
     /** A password input paired with a show/hide button. */
     function passwordField(id, label, hint) {
+        var autocomplete = id === "current_password" ? "current-password" : "new-password";
         return '<div class="form-group">' +
                 '<label class="form-label" for="' + id + '">' + label + "</label>" +
                 '<div class="field-reveal">' +
-                    '<input type="password" id="' + id + '" class="form-control" autocomplete="new-password">' +
+                    '<input type="password" id="' + id + '" class="form-control" autocomplete="' + autocomplete + '" maxlength="128">' +
                     '<button type="button" data-reveal="' + id + '" aria-label="Show password">' +
                         '<i data-lucide="eye"></i>' +
                     "</button>" +
@@ -594,5 +740,13 @@
             if (btn.dataset.accountAction === "profile") loadProfileDialog();
             else openPasswordDialog();
         });
+    });
+
+    document.addEventListener("DOMContentLoaded", function () {
+        if (window.lucide) lucide.createIcons();
+        var flash = document.getElementById("nexam-flash-toast");
+        if (flash && window.NexamToast) {
+            NexamToast.show("", flash.dataset.message || "", flash.dataset.type || "info", 5000);
+        }
     });
 })();

@@ -17,12 +17,17 @@ $kpis = [
 $bloom_total = array_sum($bloom) + $bloom_unclassified;
 $bloom_max   = max(array_merge(array_values($bloom), [$bloom_unclassified, 1]));
 $bloom_index = 0;
+$initial_activity = array_slice($series, -30);
+$initial_activity_total = 0;
+foreach ($initial_activity as $day) {
+    $initial_activity_total += (int) $day['q'] + (int) $day['e'];
+}
 ?>
-<div class="page-content">
+<div class="page-content page-content--dashboard">
 
     <div class="page-header">
         <div>
-            <h2><?= htmlspecialchars($greeting) ?>, <?= htmlspecialchars($first_name) ?></h2>
+            <h1><?= htmlspecialchars($greeting) ?>, <?= htmlspecialchars($first_name) ?></h1>
             <p class="page-sub">
                 <?php if ($stats['questions'] === 0): ?>
                     Start by adding a subject, then build out your question bank.
@@ -38,7 +43,7 @@ $bloom_index = 0;
                 <i data-lucide="plus"></i> New Question
             </a>
             <a href="<?= site_url('exams/create') ?>" class="btn btn-accent">
-                <i data-lucide="sparkles"></i> Generate Exam
+                <i data-lucide="file-plus-2"></i> New Exam
             </a>
         </div>
     </div>
@@ -51,7 +56,7 @@ $bloom_index = 0;
                     <span class="kpi-icon kpi-icon--<?= $kpi['variant'] ?>"><i data-lucide="<?= $kpi['icon'] ?>"></i></span>
                     <span class="kpi-open"><i data-lucide="arrow-up-right"></i></span>
                 </div>
-                <div class="kpi-num" data-count="<?= (int) $kpi['value'] ?>">0</div>
+                <div class="kpi-num" data-count="<?= (int) $kpi['value'] ?>"><?= number_format($kpi['value']) ?></div>
                 <div class="kpi-label"><?= htmlspecialchars($kpi['label']) ?></div>
                 <div class="kpi-foot">
                     <?php if ($d['dir'] === 'flat'): ?>
@@ -78,20 +83,21 @@ $bloom_index = 0;
                     <div class="card-sub">Questions and exams you created over time</div>
                 </div>
                 <div class="segmented" id="range-switch">
-                    <button type="button" data-range="7">7D</button>
-                    <button type="button" data-range="30" class="active">30D</button>
-                    <button type="button" data-range="90">90D</button>
+                    <button type="button" data-range="7" aria-pressed="false">7D</button>
+                    <button type="button" data-range="30" class="active" aria-pressed="true">30D</button>
+                    <button type="button" data-range="90" aria-pressed="false">90D</button>
                 </div>
             </div>
 
             <div class="chart-summary">
-                <span class="cs-value" id="chart-total">0</span>
+                <span class="cs-value" id="chart-total"><?= number_format($initial_activity_total) ?></span>
                 <span class="cs-note" id="chart-note">items created</span>
                 <span class="delta flat" id="chart-delta"></span>
             </div>
 
-            <div class="chart-plot" id="activity-chart">
-                <div class="chart-tip" id="chart-tip"></div>
+            <div class="chart-plot" id="activity-chart" tabindex="0" role="img"
+                 aria-label="Activity chart for the last 30 days. Use left and right arrow keys to inspect each day.">
+                <div class="chart-tip" id="chart-tip" role="status" aria-live="polite"></div>
             </div>
 
             <div class="chart-axis" id="chart-axis"></div>
@@ -109,14 +115,14 @@ $bloom_index = 0;
             <div class="card-header">
                 <div>
                     <span class="card-title">Bank Readiness</span>
-                    <div class="card-sub">Share of questions approved for use</div>
+                    <div class="card-sub">Share of questions active and ready for use</div>
                 </div>
             </div>
 
             <div class="gauge-wrap">
                 <div class="gauge" id="readiness-gauge" data-value="<?= (int) $bank['ready_pct'] ?>">
                     <svg viewBox="0 0 200 120" role="img"
-                         aria-label="<?= (int) $bank['ready_pct'] ?> percent of questions approved">
+                         aria-label="<?= (int) $bank['ready_pct'] ?> percent of questions active">
                         <path d="M18 108 A82 82 0 0 1 182 108" fill="none"
                               stroke="#F1F5F9" stroke-width="14" stroke-linecap="round"/>
                         <path d="M18 108 A82 82 0 0 1 182 108" fill="none"
@@ -124,14 +130,14 @@ $bloom_index = 0;
                               id="gauge-arc" stroke-dasharray="258" stroke-dashoffset="258"/>
                     </svg>
                     <div class="gauge-center">
-                        <div class="gauge-value" data-count="<?= (int) $bank['ready_pct'] ?>" data-suffix="%">0%</div>
+                        <div class="gauge-value" data-count="<?= (int) $bank['ready_pct'] ?>" data-suffix="%"><?= (int) $bank['ready_pct'] ?>%</div>
                         <div class="gauge-caption">
-                            <?= number_format($bank['approved']) ?> of <?= number_format($bank['total']) ?> approved
+                            <?= number_format($bank['approved']) ?> of <?= number_format($bank['total']) ?> active
                         </div>
                     </div>
                 </div>
                 <div class="gauge-legend">
-                    <span class="gl"><i class="green"></i> Approved <b><?= number_format($bank['approved']) ?></b></span>
+                    <span class="gl"><i class="green"></i> Active <b><?= number_format($bank['approved']) ?></b></span>
                     <span class="gl"><i class="amber"></i> Draft <b><?= number_format($bank['draft']) ?></b></span>
                     <?php if ($bank['other'] > 0): ?>
                         <span class="gl"><i class="slate"></i> Other <b><?= number_format($bank['other']) ?></b></span>
@@ -172,32 +178,40 @@ $bloom_index = 0;
                     </a>
                 </div>
             <?php else: ?>
-                <div class="bloom-list">
+                <?php
+                // Each bar uses one comparable scale: count relative to the largest group.
+                ?>
+                <div class="bloom-pyramid">
                     <?php foreach ($bloom as $level => $count): $bloom_index++; ?>
-                        <div class="bloom-row">
-                            <div class="bloom-head">
-                                <span class="bloom-name"><?= htmlspecialchars($level) ?></span>
-                                <span class="bloom-meta">
-                                    <b><?= number_format($count) ?></b> · <?= round($count / $bloom_total * 100) ?>%
-                                </span>
+                        <?php
+                        $fill_pct = $bloom_max > 0 ? round(($count / $bloom_max) * 100, 1) : 0;
+                        $pct_of_total = $bloom_total > 0 ? round($count / $bloom_total * 100) : 0;
+                        $is_empty = $count === 0;
+                        ?>
+                        <div class="bloom-tier t<?= $bloom_index ?><?= $is_empty ? ' empty' : '' ?>">
+                            <span class="bloom-tier-label"><?= htmlspecialchars($level) ?></span>
+                            <div class="bloom-tier-track">
+                                <div class="bloom-tier-bar" style="width: <?= max($fill_pct, 6) ?>%">
+                                    <?= number_format($count) ?>
+                                </div>
                             </div>
-                            <div class="bloom-track">
-                                <div class="bloom-fill b<?= $bloom_index ?>"
-                                     data-width="<?= round($count / $bloom_max * 100, 1) ?>"></div>
-                            </div>
+                            <span class="bloom-tier-pct"><?= $pct_of_total ?>%</span>
                         </div>
                     <?php endforeach; ?>
 
                     <?php if ($bloom_unclassified > 0): ?>
-                        <div class="bloom-row">
-                            <div class="bloom-head">
-                                <span class="bloom-name">Unclassified</span>
-                                <span class="bloom-meta"><b><?= number_format($bloom_unclassified) ?></b></span>
+                        <?php
+                        $uncls_pct = $bloom_total > 0 ? round($bloom_unclassified / $bloom_total * 100) : 0;
+                        $uncls_fill = $bloom_max > 0 ? round(($bloom_unclassified / $bloom_max) * 100, 1) : 0;
+                        ?>
+                        <div class="bloom-unclassified">
+                            <span class="bloom-tier-label">Unclassified</span>
+                            <div class="bloom-tier-track">
+                                <div class="bloom-tier-bar" style="width: <?= max($uncls_fill, 6) ?>%">
+                                    <?= number_format($bloom_unclassified) ?>
+                                </div>
                             </div>
-                            <div class="bloom-track">
-                                <div class="bloom-fill muted"
-                                     data-width="<?= round($bloom_unclassified / $bloom_max * 100, 1) ?>"></div>
-                            </div>
+                            <span class="bloom-tier-pct"><?= $uncls_pct ?>%</span>
                         </div>
                     <?php endif; ?>
                 </div>
@@ -252,7 +266,7 @@ $bloom_index = 0;
                     <h4>No exams generated yet</h4>
                     <p>Build a blueprint, then generate a paper from your bank.</p>
                     <a href="<?= site_url('exams/create') ?>" class="btn btn-accent btn-sm">
-                        <i data-lucide="sparkles"></i> Generate Exam
+                        <i data-lucide="file-plus-2"></i> New Exam
                     </a>
                 </div>
             <?php else: ?>
@@ -278,4 +292,4 @@ $bloom_index = 0;
 
 </div>
 
-<script id="dashboard-series" type="application/json"><?= json_encode($series) ?></script>
+<script id="dashboard-series" type="application/json"><?= json_encode($series, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?></script>

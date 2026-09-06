@@ -1,7 +1,10 @@
 <div class="page-content">
 
+    <?php $this->load->view('partials/subject_nav'); ?>
+
     <div class="page-header">
         <div>
+            <h1><?php echo htmlspecialchars($exam->title); ?></h1>
             <?php if (!empty($subject)): ?>
                 <span class="badge badge-gray"><?php echo htmlspecialchars($subject->name); ?></span>
             <?php endif; ?>
@@ -13,18 +16,21 @@
         </div>
         <div class="header-actions">
             <?php if ($exam->status === 'draft'): ?>
-                <a href="<?php echo site_url('exams/publish/' . $exam->id); ?>" class="btn btn-primary btn-sm"
-                   onclick="return confirmPublish(event)">
-                    <i data-lucide="send"></i> Publish
-                </a>
+                <form action="<?php echo site_url('exams/publish/' . $exam->id); ?>" method="post" class="inline-action-form">
+                    <input type="hidden" name="<?php echo $csrf_name; ?>" value="<?php echo $csrf_hash; ?>">
+                    <button type="button" class="btn btn-primary btn-sm" data-confirm
+                            data-confirm-title="Publish exam?" data-confirm-type="warning"
+                            data-confirm-message="The exam will be marked as published and ready for use.">
+                        <i data-lucide="send"></i> Publish
+                    </button>
+                </form>
             <?php endif; ?>
             <?php if ($exam->format === 'print'): ?>
-                <button type="button" class="btn btn-outline btn-sm" onclick="window.print()">
+                <button type="button" class="btn btn-outline btn-sm" data-print-page>
                     <i data-lucide="printer"></i> Print
                 </button>
             <?php endif; ?>
             <a href="<?php echo site_url('exams/edit/' . $exam->id); ?>" class="btn btn-outline btn-sm"><i data-lucide="pencil"></i> Edit</a>
-            <a href="<?php echo site_url('exams'); ?>" class="btn btn-outline btn-sm"><i data-lucide="arrow-left"></i> Back</a>
         </div>
     </div>
 
@@ -63,15 +69,17 @@
         </div>
         <?php if (empty($questions)): ?>
             <div class="empty-state empty-state-lg">
-                <i data-lucide="help-circle"></i>
-                <p>This exam has no questions yet.</p>
-                <a href="<?php echo site_url('exams/create?tos='); ?>" class="btn btn-primary btn-sm">
+                <div class="empty-icon"><i data-lucide="help-circle"></i></div>
+                <h4>No questions in this exam</h4>
+                <p>Generate a new exam from a TOS blueprint to populate it.</p>
+                <a href="<?php echo site_url('tos'); ?>" class="btn btn-accent btn-sm">
                     <i data-lucide="sparkles"></i> Generate from TOS
                 </a>
             </div>
         <?php else: ?>
             <div class="table-wrap table-bare">
                 <table class="data-table">
+                    <caption class="sr-only">Questions included in <?php echo htmlspecialchars($exam->title); ?></caption>
                     <thead>
                         <tr>
                             <th class="col-num">#</th>
@@ -96,16 +104,3 @@
     </div>
 
 </div>
-
-<script>
-function confirmPublish(e) {
-    e.preventDefault();
-    NexamModal.confirm(
-        "Publish exam?",
-        "Once published, the exam will be finalized. You can still edit it later.",
-        "warning",
-        function () { window.location.href = e.currentTarget.href; }
-    );
-    return false;
-}
-</script>

@@ -63,95 +63,6 @@
     }
 
     /* ------------------------------------------------------------------
-       Filter dialog
-       ------------------------------------------------------------------ */
-
-    function openFilterDialog() {
-        var filters = config.filters || {};
-        var subjects = config.subjects || [];
-        var bloomLevels = config.bloomLevels || [];
-        var questionTypes = config.questionTypes || [];
-
-        var typeLabels = {
-            mcq: "Multiple Choice",
-            true_false: "True / False",
-            identification: "Identification",
-            essay: "Essay"
-        };
-
-        var subjectOptions = '<option value="">All subjects</option>' +
-            subjects.map(function (s) {
-                var sel = filters.subject_id === s.id ? " selected" : "";
-                return '<option value="' + esc(s.id) + '"' + sel + '>' +
-                    esc(s.name) + (s.code ? " (" + esc(s.code) + ")" : "") +
-                    "</option>";
-            }).join("");
-
-        var bloomOptions = '<option value="">All levels</option>' +
-            bloomLevels.map(function (b) {
-                var sel = filters.bloom === b ? " selected" : "";
-                return '<option value="' + esc(b) + '"' + sel + ">" + esc(capitalize(b)) + "</option>";
-            }).join("");
-
-        var typeOptions = '<option value="">All types</option>' +
-            questionTypes.map(function (t) {
-                var sel = filters.type === t ? " selected" : "";
-                return '<option value="' + esc(t) + '"' + sel + ">" +
-                    esc(typeLabels[t] || capitalize(t)) + "</option>";
-            }).join("");
-
-        var modal = NexamModal.open({
-            title: "Filter Questions",
-            subtitle: "Narrow the list by subject, Bloom level or type",
-            type: "info",
-            buttons: [
-                { text: "Clear", style: "cancel", dismiss: true },
-                { text: "Apply Filters", style: "primary", icon: "filter", dismiss: false }
-            ],
-            body:
-                '<div class="form-group">' +
-                    '<label class="form-label" for="m_filter_subject">Subject</label>' +
-                    '<select id="m_filter_subject" class="form-control form-select">' + subjectOptions + "</select>" +
-                "</div>" +
-                '<div class="form-group">' +
-                    '<label class="form-label" for="m_filter_bloom">Bloom Level</label>' +
-                    '<select id="m_filter_bloom" class="form-control form-select">' + bloomOptions + "</select>" +
-                "</div>" +
-                '<div class="form-group mb-0">' +
-                    '<label class="form-label" for="m_filter_type">Type</label>' +
-                    '<select id="m_filter_type" class="form-control form-select">' + typeOptions + "</select>" +
-                "</div>"
-        });
-
-        // Widen the modal slightly for the form fields
-        var panel = modal.querySelector(".nexam-modal");
-        if (panel) panel.style.maxWidth = "480px";
-
-        var applyBtn = modal.querySelector('[data-btn-index="1"]');
-        var clearBtn = modal.querySelector('[data-btn-index="0"]');
-
-        clearBtn.addEventListener("click", function () {
-            window.location.href = config.filterUrl || (meta("base-url") || "") + "questions";
-        });
-
-        applyBtn.addEventListener("click", function () {
-            var params = [];
-            var subject = modal.querySelector("#m_filter_subject").value;
-            var bloom = modal.querySelector("#m_filter_bloom").value;
-            var type = modal.querySelector("#m_filter_type").value;
-
-            if (subject) params.push("subject_id=" + encodeURIComponent(subject));
-            if (bloom) params.push("bloom=" + encodeURIComponent(bloom));
-            if (type) params.push("type=" + encodeURIComponent(type));
-
-            var url = config.filterUrl || "questions";
-            if (params.length) url += "?" + params.join("&");
-
-            window.location.href = url;
-        });
-    }
-
-    /* ------------------------------------------------------------------
        New Question dialog
        ------------------------------------------------------------------ */
 
@@ -248,7 +159,7 @@
 
         // Widen for the two-column form layout
         var panel = modal.querySelector(".nexam-modal");
-        if (panel) panel.style.maxWidth = "560px";
+        if (panel) panel.classList.add("nexam-modal--question");
 
         var saveBtn = modal.querySelector('[data-btn-index="1"]');
         var subjectEl = modal.querySelector("#q_subject");
@@ -325,13 +236,132 @@
     }
 
     /* ------------------------------------------------------------------
+       Structured multiple-choice option editor
+       ------------------------------------------------------------------ */
+
+    function initOptionEditor() {
+        var form = document.getElementById("question-form");
+        var source = document.getElementById("options");
+        var answer = document.getElementById("answer");
+        var type = document.getElementById("type");
+        var optionsGroup = document.getElementById("options-group");
+        var answerGroup = document.getElementById("answer-group");
+        var trueFalseAnswer = document.getElementById("true-false-answer");
+        if (!form || !source || !answer || !type || !optionsGroup || !answerGroup || !trueFalseAnswer) return;
+
+        var editor = document.createElement("div");
+        editor.className = "option-editor";
+        editor.innerHTML = '<div class="option-list" id="option-list"></div>' +
+            '<button type="button" class="btn btn-outline btn-sm option-add"><i data-lucide="plus"></i> Add option</button>' +
+            '<p class="form-hint option-help" aria-live="polite">Select the radio button beside the correct answer.</p>';
+        source.classList.add("js-source-field");
+        source.insertAdjacentElement("beforebegin", editor);
+
+        var list = editor.querySelector(".option-list");
+        var addButton = editor.querySelector(".option-add");
+        var initial = source.value.split(/\r?\n/).map(function (item) { return item.trim(); }).filter(Boolean);
+        while (initial.length < 4) initial.push("");
+
+        function sync() {
+            var values = Array.prototype.map.call(list.querySelectorAll(".option-text"), function (input) {
+                return input.value.trim();
+            });
+            source.value = values.filter(Boolean).join("\n");
+            var selected = list.querySelector('input[type="radio"]:checked');
+            if (selected) {
+                var selectedInput = selected.closest(".option-row").querySelector(".option-text");
+                answer.value = selectedInput.value.trim();
+            }
+            list.querySelectorAll(".option-remove").forEach(function (button) {
+                button.disabled = list.children.length <= 2;
+            });
+        }
+
+        function renumber() {
+            list.querySelectorAll(".option-row").forEach(function (row, index) {
+                var letter = String.fromCharCode(65 + index);
+                row.querySelector(".option-letter").textContent = letter;
+                row.querySelector('input[type="radio"]').setAttribute("aria-label", "Mark option " + letter + " as correct");
+                row.querySelector(".option-text").setAttribute("aria-label", "Option " + letter);
+            });
+        }
+
+        function addRow(value) {
+            if (list.children.length >= 8) {
+                NexamToast.info("A question can have up to eight options.");
+                return;
+            }
+            var row = document.createElement("div");
+            row.className = "option-row";
+            row.innerHTML = '<span class="option-letter"></span>' +
+                '<label class="option-correct-wrap"><input type="radio" name="correct-option" class="option-correct"><span class="sr-only">Mark as correct</span></label>' +
+                '<input type="text" class="form-control option-text" maxlength="500" placeholder="Enter an answer option">' +
+                '<button type="button" class="option-remove" aria-label="Remove option"><i data-lucide="trash-2"></i></button>';
+            row.querySelector(".option-text").value = value || "";
+            row.querySelector(".option-text").addEventListener("input", sync);
+            row.querySelector(".option-correct").addEventListener("change", sync);
+            row.querySelector(".option-remove").addEventListener("click", function () {
+                row.remove();
+                renumber();
+                sync();
+            });
+            list.appendChild(row);
+            if (value && value === answer.value) row.querySelector(".option-correct").checked = true;
+            renumber();
+            sync();
+            refreshIcons(editor);
+        }
+
+        initial.forEach(addRow);
+        addButton.addEventListener("click", function () {
+            addRow("");
+            list.lastElementChild.querySelector(".option-text").focus();
+        });
+
+        function syncType() {
+            var isMcq = type.value === "mcq";
+            var isTrueFalse = type.value === "true_false";
+            optionsGroup.hidden = !isMcq;
+            answerGroup.hidden = isMcq;
+            answer.hidden = isTrueFalse;
+            trueFalseAnswer.hidden = !isTrueFalse;
+            if (isTrueFalse) {
+                var normalized = answer.value.toLowerCase();
+                trueFalseAnswer.value = normalized === "true" ? "True" : (normalized === "false" ? "False" : "");
+                answer.value = trueFalseAnswer.value;
+            } else {
+                answer.placeholder = "Enter the expected answer";
+            }
+        }
+        trueFalseAnswer.addEventListener("change", function () { answer.value = trueFalseAnswer.value; });
+        type.addEventListener("change", syncType);
+        syncType();
+
+        form.addEventListener("submit", function (event) {
+            if (type.value !== "mcq") return;
+            sync();
+            var filled = list.querySelectorAll(".option-text");
+            var values = Array.prototype.filter.call(filled, function (input) { return input.value.trim() !== ""; });
+            if (values.length < 2) {
+                event.preventDefault();
+                NexamToast.warning("Add at least two answer options.");
+                filled[0].focus();
+                return;
+            }
+            if (!list.querySelector('input[type="radio"]:checked') || answer.value.trim() === "") {
+                event.preventDefault();
+                NexamToast.warning("Select the correct answer before saving.");
+                list.querySelector('input[type="radio"]').focus();
+            }
+        });
+    }
+
+    /* ------------------------------------------------------------------
        Wire up buttons
        ------------------------------------------------------------------ */
 
     document.addEventListener("DOMContentLoaded", function () {
-        var filterBtn = document.getElementById("filter-btn");
-        if (filterBtn) filterBtn.addEventListener("click", openFilterDialog);
-
+        initOptionEditor();
         var newBtn = document.getElementById("new-question-btn");
         if (newBtn) newBtn.addEventListener("click", openNewQuestionDialog);
 

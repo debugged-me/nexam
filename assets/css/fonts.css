@@ -8,7 +8,7 @@
 /* ---- Google Sans (display: headings, titles, buttons) ---- */
 @font-face {
     font-family: "Google Sans";
-    src: url("../fonts/Google_Sans/static/GoogleSans-Regular.ttf") format("truetype");
+    src: url("../fonts/Google_Sans/static/GoogleSans-Regular.subset.ttf") format("truetype");
     font-weight: 400;
     font-style: normal;
     font-display: swap;
@@ -16,7 +16,7 @@
 
 @font-face {
     font-family: "Google Sans";
-    src: url("../fonts/Google_Sans/static/GoogleSans-Italic.ttf") format("truetype");
+    src: url("../fonts/Google_Sans/static/GoogleSans-Italic.subset.ttf") format("truetype");
     font-weight: 400;
     font-style: italic;
     font-display: swap;
@@ -24,7 +24,7 @@
 
 @font-face {
     font-family: "Google Sans";
-    src: url("../fonts/Google_Sans/static/GoogleSans-Medium.ttf") format("truetype");
+    src: url("../fonts/Google_Sans/static/GoogleSans-Medium.subset.ttf") format("truetype");
     font-weight: 500;
     font-style: normal;
     font-display: swap;
@@ -32,7 +32,7 @@
 
 @font-face {
     font-family: "Google Sans";
-    src: url("../fonts/Google_Sans/static/GoogleSans-SemiBold.ttf") format("truetype");
+    src: url("../fonts/Google_Sans/static/GoogleSans-SemiBold.subset.ttf") format("truetype");
     font-weight: 600;
     font-style: normal;
     font-display: swap;
@@ -40,7 +40,7 @@
 
 @font-face {
     font-family: "Google Sans";
-    src: url("../fonts/Google_Sans/static/GoogleSans-Bold.ttf") format("truetype");
+    src: url("../fonts/Google_Sans/static/GoogleSans-Bold.subset.ttf") format("truetype");
     font-weight: 700;
     font-style: normal;
     font-display: swap;
@@ -49,7 +49,7 @@
 /* ---- Inter (body: paragraphs, inputs, general text) ---- */
 @font-face {
     font-family: "Inter";
-    src: url("../fonts/Inter/static/Inter_18pt-Regular.ttf") format("truetype");
+    src: url("../fonts/Inter/static/Inter_18pt-Regular.subset.ttf") format("truetype");
     font-weight: 400;
     font-style: normal;
     font-display: swap;
@@ -57,7 +57,7 @@
 
 @font-face {
     font-family: "Inter";
-    src: url("../fonts/Inter/static/Inter_18pt-Medium.ttf") format("truetype");
+    src: url("../fonts/Inter/static/Inter_18pt-Medium.subset.ttf") format("truetype");
     font-weight: 500;
     font-style: normal;
     font-display: swap;
@@ -65,7 +65,7 @@
 
 @font-face {
     font-family: "Inter";
-    src: url("../fonts/Inter/static/Inter_18pt-SemiBold.ttf") format("truetype");
+    src: url("../fonts/Inter/static/Inter_18pt-SemiBold.subset.ttf") format("truetype");
     font-weight: 600;
     font-style: normal;
     font-display: swap;
@@ -73,7 +73,7 @@
 
 @font-face {
     font-family: "Inter";
-    src: url("../fonts/Inter/static/Inter_18pt-Bold.ttf") format("truetype");
+    src: url("../fonts/Inter/static/Inter_18pt-Bold.subset.ttf") format("truetype");
     font-weight: 700;
     font-style: normal;
     font-display: swap;
@@ -93,17 +93,27 @@
     --font-display: "Google Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
     --font-body: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 
-    /* ---- Brand (navy + teal signature, used across chrome AND accents) ---- */
-    --brand:        #1A2942;
-    --brand-deep:   #101B2D;
-    --brand-soft:   #1E3A5F;
-    --brand-accent: #3BC0C3;   /* teal — the unifying accent */
+    /* ---- Brand -------------------------------------------------------
+       #2383E2 is the identity blue. It carries fills, dots, rails and focus
+       rings; where the same blue has to be *text on white* it steps down to
+       --blue-700, which clears WCAG AA. The nav rail is a deep shade of the
+       same hue so the chrome and the accent read as one family. */
+    --brand:        #123E68;   /* nav rail */
+    --brand-deep:   #0D2E4E;   /* nav rail, sunken */
+    --brand-soft:   #1B5A94;
+    --brand-accent: #63B3F5;   /* active nav, focus outlines */
 
-    /* ---- Action colour ---- */
-    --blue-50:  #EFF6FF;
-    --blue-100: #DBEAFE;
-    --blue-600: #2563EB;
-    --blue-700: #1D4ED8;
+    /* Primary actions */
+    --action-50:   #EDF6FD;
+    --action-100:  #CFE6FA;
+    --action-600:  #2383E2;
+    --action-700:  #1A6CBD;
+
+    /* ---- Blue scale (600 = fills, 700 = the same blue as text) ---- */
+    --blue-50:  #EDF6FD;
+    --blue-100: #CFE6FA;
+    --blue-600: #2383E2;
+    --blue-700: #1A6CBD;
 
     /* ---- Status ---- */
     --green-50:  #ECFDF5;
@@ -125,41 +135,49 @@
     --purple-600: #7C3AED;
     --purple-700: #6D28D9;
 
-    --teal-50:  #F0FDFA;
-    --teal-600: #0D9488;
+    /* Legacy alias — kept so older markup resolves, pointed into the blue
+       family so nothing lands off-palette. */
+    --teal-50:  #EDF6FD;
+    --teal-600: #1A6CBD;
 
-    /* ---- Ink (faint raised to meet WCAG AA 4.5:1 on white) ---- */
-    --ink:       #0F172A;
-    --ink-2:     #475569;
-    --ink-3:     #64748B;
-    --ink-faint: #64748B;
+    /* ---- Focus and wash, tokenised so no rule hardcodes an accent rgba ---- */
+    --ring:        rgba(35, 131, 226, .20);
+    --ring-soft:   rgba(35, 131, 226, .10);
+    --accent-wash: rgba(99, 179, 245, .14);
+    --accent-line: rgba(99, 179, 245, .30);
+
+    /* ---- Ink: cool greys, ink-3 meets AA 4.5:1 on white ---- */
+    --ink:       #0F1B2D;
+    --ink-2:     #33445C;
+    --ink-3:     #5A6B85;
+    --ink-faint: #7A8AA3;
 
     /* ---- Surfaces ---- */
     --surface:   #FFFFFF;
-    --surface-2: #F8FAFC;
-    --surface-3: #F1F5F9;
-    --line:        #E2E8F0;
-    --line-strong: #CBD5E1;
+    --surface-2: #F5F8FC;
+    --surface-3: #E9F0F8;
+    --line:        #DCE5F0;
+    --line-strong: #C2D0E2;
 
     /* ---- Shape ---- */
-    --radius-xs: 6px;
-    --radius-sm: 8px;
-    --radius: 12px;
-    --radius-lg: 14px;
+    --radius-xs: 4px;
+    --radius-sm: 5px;
+    --radius: 6px;
+    --radius-lg: 7px;
 
     /* ---- Elevation: layered, low-alpha, never coloured ---- */
-    --shadow-sm: 0 1px 3px rgba(15, 23, 42, .07), 0 1px 2px rgba(15, 23, 42, .05);
-    --shadow-md: 0 4px 12px rgba(15, 23, 42, .08), 0 2px 6px rgba(15, 23, 42, .05);
-    --shadow-lg: 0 10px 30px rgba(15, 23, 42, .10), 0 4px 12px rgba(15, 23, 42, .06);
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, .04);
+    --shadow-md: 0 4px 10px rgba(0, 0, 0, .07);
+    --shadow-lg: 0 12px 28px rgba(0, 0, 0, .12);
 
     /* ---- Type scale (nothing below --text-xs = 12px) ---- */
-    --text-xs:   .75rem;   /* 12px — badges, meta, captions */
+    --text-xs:   .75rem;   /* 12px — badges, micro-meta */
     --text-sm:   .8125rem; /* 13px — table cells, secondary text */
-    --text-base: .875rem;  /* 14px — body, inputs */
+    --text-base: .9375rem; /* 15px — body, inputs (raised from 14px) */
     --text-md:   1rem;     /* 16px — card titles, form labels */
     --text-lg:   1.25rem;  /* 20px — page headers */
     --text-xl:   1.75rem;  /* 28px — KPI numbers */
-    --text-2xl:  2.25rem;  /* 36px — dashboard hero numbers */
+    --text-2xl:  2.5rem;   /* 40px — dashboard hero numbers */
 
     /* ---- Spacing scale ---- */
     --space-1: 4px;

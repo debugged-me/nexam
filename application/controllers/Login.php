@@ -30,17 +30,30 @@ class Login extends CI_Controller
         $email    = trim($this->input->post('email', true));
         $password = $this->input->post('password', true);
 
-        if ($email === '' || $password === '') {
-            $this->session->set_flashdata('toast', ['type' => 'warning', 'message' => 'Please enter both email and password.']);
+        $login_key = $this->_rate_key('login', $email);
+        if ($this->_rate_limit_exceeded($login_key, 5, 900)) {
+            $this->session->set_flashdata('old_email', $email);
+            $this->session->set_flashdata('toast', ['type' => 'warning', 'message' => 'Too many failed sign-in attempts. Please wait 15 minutes and try again.']);
+            redirect('login');
+        }
+
+        if ($email === '' || !filter_var($email, FILTER_VALIDATE_EMAIL) || $password === '' || strlen($password) > 128) {
+            $this->_record_rate_attempt($login_key, 900);
+            $this->session->set_flashdata('old_email', $email);
+            $this->session->set_flashdata('toast', ['type' => 'warning', 'message' => 'Enter a valid email address and password.']);
             redirect('login');
         }
 
         $user = $this->User_model->verify_credentials($email, $password);
 
         if (!$user) {
+            $this->_record_rate_attempt($login_key, 900);
+            $this->session->set_flashdata('old_email', $email);
             $this->session->set_flashdata('toast', ['type' => 'error', 'message' => 'Invalid email or password.']);
             redirect('login');
         }
+
+        $this->_clear_rate_attempts($login_key);
 
         // Block login until email is verified
         if ((int) $user->email_verified !== 1) {
@@ -59,6 +72,7 @@ class Login extends CI_Controller
             'role'      => $user->role,
             'logged_in' => true,
         ]);
+        $this->session->sess_regenerate(true);
 
         redirect('dashboard');
     }
@@ -81,19 +95,19 @@ class Login extends CI_Controller
         $this->form_validation->set_rules('last_name', 'Last Name', 'required|trim|max_length[100]');
         $this->form_validation->set_rules('name_ext', 'Extension', 'trim|max_length[20]');
         $this->form_validation->set_rules('email', 'Email', 'required|trim|valid_email|max_length[255]');
-        $this->form_validation->set_rules('password', 'Password', 'required|min_length[8]');
-        $this->form_validation->set_rules('confirm_password', 'Confirm Password', 'required|matches[password]');
+        $this->form_validation->set_rules('password', 'Password', 'required|min_length[8]|max_length[128]');
+        $this->form_validation->set_rules('confirm_password', 'Confirm Password', 'required|max_length[128]|matches[password]');
 
         if ($this->form_validation->run() === false) {
-            $this->session->set_flashdata('toast', ['type' => 'error', 'message' => validation_errors(' ', ' ')]);
-            redirect('register');
+            $this->load->view('register', ['form_errors' => trim(validation_errors(' ', ' '))]);
+            return;
         }
 
         $email = trim($this->input->post('email', true));
 
         if ($this->User_model->find_by_email($email)) {
-            $this->session->set_flashdata('toast', ['type' => 'error', 'message' => 'An account with that email already exists.']);
-            redirect('register');
+            $this->load->view('register', ['form_errors' => 'An account with that email already exists.']);
+            return;
         }
 
         $first_name  = trim($this->input->post('first_name', true));
@@ -148,8 +162,15 @@ class Login extends CI_Controller
         }
 
         $code = trim($this->input->post('code', true));
+        $verify_key = $this->_rate_key('verify_code', $user_id);
 
-        if ($code === '') {
+        if ($this->_rate_limit_exceeded($verify_key, 5, 900)) {
+            $this->session->set_flashdata('toast', ['type' => 'warning', 'message' => 'Too many invalid code attempts. Please wait 15 minutes and try again.']);
+            redirect('verify');
+        }
+
+        if (!preg_match('/^\d{6}$/', $code)) {
+            $this->_record_rate_attempt($verify_key, 900);
             $this->session->set_flashdata('toast', ['type' => 'warning', 'message' => 'Please enter the verification code.']);
             redirect('verify');
         }
@@ -157,9 +178,12 @@ class Login extends CI_Controller
         $valid = $this->User_model->verify_otp($user_id, $code);
 
         if (!$valid) {
+            $this->_record_rate_attempt($verify_key, 900);
             $this->session->set_flashdata('toast', ['type' => 'error', 'message' => 'Invalid or expired verification code.']);
             redirect('verify');
         }
+
+        $this->_clear_rate_attempts($verify_key);
 
         $this->User_model->mark_email_verified($user_id);
 
@@ -171,6 +195,11 @@ class Login extends CI_Controller
     /** Resend OTP code. */
     public function resend_otp()
     {
+        if ($this->input->method() !== 'post') {
+            show_error('Method Not Allowed', 405);
+            return;
+        }
+
         $user_id = $this->session->userdata('pending_otp_user_id');
         if (!$user_id) {
             redirect('login');
@@ -178,6 +207,18 @@ class Login extends CI_Controller
 
         $email = $this->session->userdata('pending_otp_email');
         $user  = $this->User_model->find_by_id($user_id);
+        if (!$user) {
+            $this->session->unset_userdata(['pending_otp_user_id', 'pending_otp_email']);
+            $this->session->set_flashdata('toast', ['type' => 'error', 'message' => 'That verification session is no longer valid.']);
+            redirect('login');
+        }
+
+        $resend_key = $this->_rate_key('verify_resend', $email);
+        if ($this->_rate_limit_exceeded($resend_key, 1, 60)) {
+            $this->session->set_flashdata('toast', ['type' => 'warning', 'message' => 'Please wait 60 seconds before requesting another code.']);
+            redirect('verify');
+        }
+        $this->_record_rate_attempt($resend_key, 60);
 
         $otp  = $this->User_model->generate_otp($user_id);
         $sent = $this->_send_otp_email($email, $user->full_name, $otp);
@@ -200,10 +241,18 @@ class Login extends CI_Controller
     {
         $email = trim($this->input->post('email', true));
 
-        if ($email === '') {
+        if ($email === '' || strlen($email) > 255 || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
             $this->session->set_flashdata('toast', ['type' => 'warning', 'message' => 'Please enter your email address.']);
             redirect('forgot');
         }
+
+        $forgot_key = $this->_rate_key('forgot', $email);
+        if ($this->_rate_limit_exceeded($forgot_key, 3, 3600)) {
+            $this->session->set_flashdata('old_email', $email);
+            $this->session->set_flashdata('toast', ['type' => 'warning', 'message' => 'Too many reset requests. Please try again later.']);
+            redirect('forgot');
+        }
+        $this->_record_rate_attempt($forgot_key, 3600);
 
         $user = $this->User_model->find_by_email($email);
 
@@ -215,6 +264,7 @@ class Login extends CI_Controller
             // A delivery failure is about our mail server, not about whether
             // the account exists, so reporting it leaks nothing.
             if (!$sent) {
+                $this->session->set_flashdata('old_email', $email);
                 $this->session->set_flashdata('toast', ['type' => 'error', 'message' => 'We could not send the email right now. Please try again shortly.']);
                 redirect('forgot');
             }
@@ -230,6 +280,7 @@ class Login extends CI_Controller
 
         // No account found — redirect back to forgot so the message survives.
         $this->session->set_flashdata('toast', ['type' => 'info', 'message' => 'If an account exists for that email, a reset code has been sent.']);
+        $this->session->set_flashdata('old_email', $email);
         redirect('forgot');
     }
 
@@ -255,23 +306,35 @@ class Login extends CI_Controller
         }
 
         $this->form_validation->set_rules('code', 'Verification Code', 'required|trim');
-        $this->form_validation->set_rules('password', 'New Password', 'required|min_length[8]');
-        $this->form_validation->set_rules('confirm_password', 'Confirm Password', 'required|matches[password]');
+        $this->form_validation->set_rules('password', 'New Password', 'required|min_length[8]|max_length[128]');
+        $this->form_validation->set_rules('confirm_password', 'Confirm Password', 'required|max_length[128]|matches[password]');
 
         if ($this->form_validation->run() === false) {
-            $this->session->set_flashdata('toast', ['type' => 'error', 'message' => validation_errors(' ', ' ')]);
-            redirect('reset');
+            $this->load->view('reset', [
+                'email' => $this->session->userdata('reset_email'),
+                'form_errors' => trim(validation_errors(' ', ' ')),
+            ]);
+            return;
         }
 
         $code     = trim($this->input->post('code', true));
         $password = $this->input->post('password', true);
 
+        $reset_key = $this->_rate_key('reset_code', $user_id);
+        if ($this->_rate_limit_exceeded($reset_key, 5, 900)) {
+            $this->session->set_flashdata('toast', ['type' => 'warning', 'message' => 'Too many invalid code attempts. Please wait 15 minutes and try again.']);
+            redirect('reset');
+        }
+
         $valid = $this->User_model->verify_otp($user_id, $code);
 
         if (!$valid) {
+            $this->_record_rate_attempt($reset_key, 900);
             $this->session->set_flashdata('toast', ['type' => 'error', 'message' => 'Invalid or expired verification code.']);
             redirect('reset');
         }
+
+        $this->_clear_rate_attempts($reset_key);
 
         $this->User_model->update_password($user_id, $password);
 
@@ -284,8 +347,51 @@ class Login extends CI_Controller
     /** Destroy the session and return to the login page. */
     public function logout()
     {
+        if ($this->input->method() !== 'post') {
+            show_error('Method Not Allowed', 405);
+            return;
+        }
         $this->session->sess_destroy();
         redirect('login');
+    }
+
+    /** Session-backed rate key scoped to action, normalized identity and IP. */
+    private function _rate_key($action, $identity)
+    {
+        return hash('sha256', $action . '|' . strtolower(trim((string) $identity)) . '|' . $this->input->ip_address());
+    }
+
+    /** Whether the current rolling window already contains the maximum attempts. */
+    private function _rate_limit_exceeded($key, $max_attempts, $window_seconds)
+    {
+        $all = (array) $this->session->userdata('nexam_rate_limits');
+        $cutoff = time() - $window_seconds;
+        $attempts = isset($all[$key]) ? array_values(array_filter((array) $all[$key], function ($timestamp) use ($cutoff) {
+            return (int) $timestamp >= $cutoff;
+        })) : [];
+        $all[$key] = $attempts;
+        $this->session->set_userdata('nexam_rate_limits', $all);
+        return count($attempts) >= $max_attempts;
+    }
+
+    /** Add one timestamp and discard expired entries from the current window. */
+    private function _record_rate_attempt($key, $window_seconds)
+    {
+        $all = (array) $this->session->userdata('nexam_rate_limits');
+        $cutoff = time() - $window_seconds;
+        $attempts = isset($all[$key]) ? array_filter((array) $all[$key], function ($timestamp) use ($cutoff) {
+            return (int) $timestamp >= $cutoff;
+        }) : [];
+        $attempts[] = time();
+        $all[$key] = array_values($attempts);
+        $this->session->set_userdata('nexam_rate_limits', $all);
+    }
+
+    private function _clear_rate_attempts($key)
+    {
+        $all = (array) $this->session->userdata('nexam_rate_limits');
+        unset($all[$key]);
+        $this->session->set_userdata('nexam_rate_limits', $all);
     }
 
     /**

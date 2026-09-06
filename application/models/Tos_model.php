@@ -14,13 +14,15 @@ class Tos_model extends CI_Model
         return $this->db->count_all_results();
     }
 
-    public function get_by_user($user_id, $limit = null, $offset = null)
+    public function get_by_user($user_id, $filters = [], $limit = null, $offset = null)
     {
-        $this->db->select('t.*, s.name as subject_name, s.code as subject_code')
+        $this->db->select('t.*, s.name as subject_name, s.code as subject_code,
+                (SELECT COUNT(*) FROM ' . $this->topics_table . ' tt WHERE tt.tos_id = t.id) AS topic_count', FALSE)
             ->from($this->table . ' t')
             ->join('subjects s', 's.id = t.subject_id')
-            ->where('s.instructor_id', $user_id)
-            ->order_by('t.created_at', 'DESC');
+            ->where('s.instructor_id', $user_id);
+        if (!empty($filters['subject_id'])) $this->db->where('t.subject_id', $filters['subject_id']);
+        $this->db->order_by('t.created_at', 'DESC');
         if ($limit !== null) $this->db->limit($limit, (int) $offset);
         return $this->db->get()->result();
     }
@@ -56,6 +58,53 @@ class Tos_model extends CI_Model
         return $this->db->where('id', $id)->delete($this->table);
     }
 
+    /**
+     * Delete several blueprints at once.
+     *
+     * Ownership is re-derived from the database rather than trusted from the
+     * request: only ids that resolve to a subject owned by $user_id are
+     * touched, so a forged id in the POST body is a no-op.
+     *
+     * @return int  number of blueprints actually removed
+     */
+    public function delete_many(array $ids, $user_id)
+    {
+        $ids = array_values(array_filter(array_unique($ids), 'strlen'));
+        if (empty($ids)) return 0;
+
+        $owned = $this->db->select('t.id')
+            ->from($this->table . ' t')
+            ->join('subjects s', 's.id = t.subject_id')
+            ->where('s.instructor_id', $user_id)
+            ->where_in('t.id', $ids)
+            ->get()->result();
+
+        $owned_ids = array_map(function ($row) { return $row->id; }, $owned);
+        if (empty($owned_ids)) return 0;
+
+        $this->db->trans_start();
+        $this->db->where_in('tos_id', $owned_ids)->delete($this->topics_table);
+        $this->db->where_in('id', $owned_ids)->delete($this->table);
+        $this->db->trans_complete();
+
+        return $this->db->trans_status() ? count($owned_ids) : 0;
+    }
+
+    /** Blueprint counts per subject id, for the subjects list. */
+    public function counts_by_subject($user_id)
+    {
+        $rows = $this->db->select('t.subject_id, COUNT(*) AS c', FALSE)
+            ->from($this->table . ' t')
+            ->join('subjects s', 's.id = t.subject_id')
+            ->where('s.instructor_id', $user_id)
+            ->group_by('t.subject_id')
+            ->get()->result();
+
+        $out = [];
+        foreach ($rows as $r) $out[$r->subject_id] = (int) $r->c;
+        return $out;
+    }
+
     public function get_topics($tos_id)
     {
         return $this->db->where('tos_id', $tos_id)
@@ -69,9 +118,11 @@ class Tos_model extends CI_Model
         return $data['id'];
     }
 
-    public function delete_topic($topic_id)
+    public function delete_topic($topic_id, $tos_id)
     {
-        return $this->db->where('id', $topic_id)->delete($this->topics_table);
+        return $this->db->where('id', $topic_id)
+            ->where('tos_id', $tos_id)
+            ->delete($this->topics_table);
     }
 
     /* ------------------------------------------------------------------

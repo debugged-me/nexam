@@ -9,6 +9,11 @@ document.addEventListener("DOMContentLoaded", function () {
         lucide.createIcons();
     }
 
+    var flash = document.getElementById("nexam-flash-toast");
+    if (flash && typeof NexamToast !== "undefined") {
+        NexamToast.show("", flash.dataset.message || "", flash.dataset.type || "info", 5000);
+    }
+
     // Password show/hide toggle — works for any .password-toggle button
     document.querySelectorAll(".password-toggle").forEach(function (btn) {
         btn.addEventListener("click", function () {
@@ -51,6 +56,8 @@ document.addEventListener("DOMContentLoaded", function () {
                 msg = "Resetting your password...";
             } else if (action.indexOf("verify/submit") !== -1) {
                 msg = "Verifying your code...";
+            } else if (action.indexOf("verify/resend") !== -1) {
+                msg = "Sending a new code...";
             }
 
             if (typeof NexamToast !== "undefined") {

@@ -1,0 +1,905 @@
+/* ==========================================================================
+   datatables.css — the nexam data grid
+   --------------------------------------------------------------------------
+   One layer, one source of truth. DataTables runs headless here (dom: 't'):
+   the library owns sorting / paging / filtering / responsive column dropping,
+   and every piece of visible chrome — toolbar, footer, pagination, selection
+   bar, view menu — is ours. Nothing in this file overrides anything else in
+   this file.
+
+   Design rules this file enforces:
+   - Colour is reserved for state that needs a decision (status, danger,
+     selection). Taxonomy is typography, not paint.
+   - One accent per row: the title. Everything else is ink-2 / ink-3.
+   - Fixed table layout, so columns never shift between pages.
+   - Every control is >= 32px, >= 44px on coarse pointers.
+   ========================================================================== */
+
+.dataset {
+    --grid-x: 14px;              /* horizontal cell rhythm */
+    --grid-row: 56px;            /* comfortable row height */
+    --grid-title: .8125rem;
+    --grid-meta: .75rem;
+    --sort-gutter: 17px;         /* width the sort arrow reserves in a header */
+
+    position: relative;          /* row menus escape upward, not clipped */
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-lg);
+}
+
+.dataset[data-density="compact"] {
+    --grid-row: 40px;
+    --grid-meta: 0px;            /* meta line is suppressed when compact */
+}
+
+/* ==========================================================================
+   Toolbar
+   ========================================================================== */
+
+.dataset-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    min-height: 52px;
+    padding: 8px var(--grid-x);
+    border-bottom: 1px solid var(--line);
+    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+    background: var(--surface);
+}
+
+.dataset-bar-lead,
+.dataset-bar-trail {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+}
+
+.dataset-bar-lead { flex: 1 1 auto; }
+.dataset-bar-trail { flex: 0 0 auto; }
+
+/* ---- Search ---------------------------------------------------------- */
+
+.ds-search {
+    position: relative;
+    display: flex;
+    align-items: center;
+    flex: 0 1 320px;
+    min-width: 0;
+}
+
+.ds-search > svg {
+    position: absolute;
+    left: 9px;
+    width: 15px !important;
+    height: 15px !important;
+    color: var(--ink-faint);
+    pointer-events: none;
+}
+
+.ds-search input {
+    width: 100%;
+    height: 34px;
+    padding: 0 60px 0 30px;
+    border: 1px solid transparent;
+    border-radius: var(--radius-sm);
+    background: var(--surface-2);
+    color: var(--ink);
+    font: 400 .8125rem/1 var(--font-body, "Inter", sans-serif);
+    outline: none;
+    transition: background-color .13s ease, border-color .13s ease, box-shadow .13s ease;
+}
+
+.ds-search input::placeholder { color: var(--ink-faint); }
+.ds-search input::-webkit-search-cancel-button { display: none; }
+
+.ds-search input:hover { background: var(--surface-3); }
+.ds-search input:focus {
+    background: var(--surface);
+    border-color: var(--line-strong);
+    box-shadow: 0 0 0 3px var(--ring-soft);
+}
+
+/* The "/" hint disappears once the field is in use. */
+.ds-search kbd {
+    position: absolute;
+    right: 8px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 17px;
+    height: 17px;
+    padding: 0 4px;
+    border: 1px solid var(--line);
+    border-radius: 3px;
+    background: var(--surface);
+    color: var(--ink-faint);
+    font: 500 .6875rem/1 var(--font-body, "Inter", sans-serif);
+    pointer-events: none;
+}
+
+.ds-search input:focus ~ kbd,
+.ds-search input:not(:placeholder-shown) ~ kbd { opacity: 0; }
+
+/* ---- Facet selects --------------------------------------------------- */
+
+.ds-facet {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    flex: 0 0 auto;
+}
+
+.ds-facet select {
+    height: 34px;
+    max-width: 190px;
+    padding: 0 26px 0 10px;
+    border: 1px solid var(--line);
+    border-radius: var(--radius-sm);
+    background: var(--surface);
+    color: var(--ink-2);
+    font: 500 .8125rem/1 var(--font-body, "Inter", sans-serif);
+    cursor: pointer;
+    appearance: none;
+    -webkit-appearance: none;
+    outline: none;
+    text-overflow: ellipsis;
+}
+
+.ds-facet select:hover { background: var(--surface-2); }
+.ds-facet select:focus-visible { border-color: var(--line-strong); box-shadow: 0 0 0 3px var(--ring-soft); }
+.ds-facet[data-active="true"] select { border-color: var(--ink-faint); color: var(--ink); }
+
+.ds-facet > svg {
+    position: absolute;
+    right: 8px;
+    width: 14px !important;
+    height: 14px !important;
+    color: var(--ink-faint);
+    pointer-events: none;
+}
+
+/* ---- Toolbar buttons ------------------------------------------------- */
+
+.ds-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    height: 34px;
+    padding: 0 10px;
+    border: 1px solid var(--line);
+    border-radius: var(--radius-sm);
+    background: var(--surface);
+    color: var(--ink-2);
+    font: 500 .8125rem/1 var(--font-body, "Inter", sans-serif);
+    white-space: nowrap;
+    cursor: pointer;
+    transition: background-color .13s ease, border-color .13s ease, color .13s ease;
+}
+
+.ds-btn svg { width: 15px !important; height: 15px !important; display: block; color: var(--ink-faint); }
+.ds-btn:hover { background: var(--surface-2); border-color: var(--line-strong); color: var(--ink); }
+.ds-btn:hover svg { color: var(--ink-3); }
+.ds-btn:focus-visible { outline: 2px solid var(--brand-accent); outline-offset: 1px; }
+.ds-btn[aria-expanded="true"] { background: var(--surface-3); border-color: var(--line-strong); color: var(--ink); }
+
+/* ==========================================================================
+   View menu — density, columns, export
+   ========================================================================== */
+
+.ds-menu { position: relative; }
+
+.ds-menu-panel {
+    position: absolute;
+    top: calc(100% + 6px);
+    right: 0;
+    z-index: 60;
+    width: 232px;
+    padding: 6px;
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    background: var(--surface);
+    box-shadow: var(--shadow-lg);
+}
+
+.ds-menu-panel[hidden] { display: none; }
+
+.ds-menu-label {
+    padding: 7px 8px 5px;
+    color: var(--ink-faint);
+    font: 500 .6875rem/1 var(--font-body, "Inter", sans-serif);
+    letter-spacing: .02em;
+}
+
+.ds-menu-sep { height: 1px; margin: 5px 0; background: var(--line); }
+
+/* Segmented density control */
+.ds-seg {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 2px;
+    margin: 0 4px 2px;
+    padding: 2px;
+    border-radius: var(--radius-sm);
+    background: var(--surface-2);
+}
+
+.ds-seg button {
+    height: 28px;
+    border: 0;
+    border-radius: 4px;
+    background: transparent;
+    color: var(--ink-3);
+    font: 500 .75rem/1 var(--font-body, "Inter", sans-serif);
+    cursor: pointer;
+}
+
+.ds-seg button[aria-pressed="true"] {
+    background: var(--surface);
+    color: var(--ink);
+    box-shadow: var(--shadow-sm);
+}
+
+.ds-menu-item {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    width: 100%;
+    min-height: 32px;
+    padding: 6px 8px;
+    border: 0;
+    border-radius: var(--radius-xs);
+    background: transparent;
+    color: var(--ink-2);
+    font: 400 .8125rem/1.3 var(--font-body, "Inter", sans-serif);
+    text-align: left;
+    cursor: pointer;
+}
+
+.ds-menu-item:hover { background: var(--surface-2); color: var(--ink); }
+.ds-menu-item:focus-visible { outline: 2px solid var(--brand-accent); outline-offset: -2px; }
+.ds-menu-item svg { width: 15px !important; height: 15px !important; color: var(--ink-faint); }
+.ds-menu-item input[type="checkbox"] { margin: 0; }
+.ds-menu-item.is-locked { opacity: .45; pointer-events: none; }
+
+/* ==========================================================================
+   Selection bar — replaces the toolbar while rows are checked
+   ========================================================================== */
+
+.dataset-select-bar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-height: 52px;
+    padding: 8px var(--grid-x);
+    border-bottom: 1px solid var(--line-strong);
+    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+    background: var(--surface-3);
+}
+
+.dataset-select-bar[hidden] { display: none; }
+.dataset[data-selecting="true"] .dataset-bar { display: none; }
+
+.ds-select-count {
+    margin-right: auto;
+    color: var(--ink);
+    font: 600 .8125rem/1 var(--font-body, "Inter", sans-serif);
+    font-variant-numeric: tabular-nums;
+}
+
+.ds-select-bar-form { display: inline-flex; margin: 0; }
+
+.ds-btn.is-danger { color: var(--red-600); }
+.ds-btn.is-danger svg { color: var(--red-600); }
+.ds-btn.is-danger:hover { background: var(--red-50); border-color: var(--red-100); color: var(--red-700); }
+
+/* ==========================================================================
+   The grid
+   ========================================================================== */
+
+/* Positioned, so the absolutely-positioned .sr-only labels inside the table
+   resolve against this box. Without it they resolve against .dataset, escape
+   the horizontal scroll clip below, and drag the whole document sideways. */
+.dataset-scroll { position: relative; overflow: visible; }
+
+table.grid {
+    width: 100%;
+    border-collapse: separate;   /* keeps sticky header borders painted */
+    border-spacing: 0;
+    table-layout: fixed;
+    font-size: var(--grid-title);
+}
+
+/* ---- Header ---------------------------------------------------------- */
+
+table.grid thead > tr > th {
+    position: sticky;
+    top: var(--topbar-height);
+    z-index: 3;
+    height: 36px;
+    padding: 0 var(--grid-x);
+    border-bottom: 1px solid var(--line);
+    background: var(--surface);
+    color: var(--ink-3);
+    font: 500 .71875rem/1 var(--font-body, "Inter", sans-serif);
+    text-align: left;
+    white-space: nowrap;
+    user-select: none;
+}
+
+table.grid thead > tr > th.is-num,
+table.grid.dataTable thead > tr > th.is-num.sorting,
+table.grid.dataTable thead > tr > th.is-num.sorting_asc,
+table.grid.dataTable thead > tr > th.is-num.sorting_desc { text-align: right; }
+
+/* DataTables' stylesheet targets sortable headers with a higher-specificity
+   selector (`table.dataTable thead>tr>th.sorting`) that resets position and
+   adds a 26px right padding for its own sort arrows. Match that specificity
+   so the sticky offset and our padding survive on sortable columns. */
+table.grid.dataTable thead > tr > th.sorting,
+table.grid.dataTable thead > tr > th.sorting_asc,
+table.grid.dataTable thead > tr > th.sorting_desc,
+table.grid.dataTable thead > tr > th.sorting_asc_disabled,
+table.grid.dataTable thead > tr > th.sorting_desc_disabled {
+    position: sticky;
+    top: var(--topbar-height);
+    padding: 0 var(--grid-x);
+}
+
+table.grid.dataTable thead > tr > th
+/* DataTables marks sortable headers; the arrow is an affordance, not decor,
+   so it only appears on hover or once the column is actually sorting. */
+table.grid thead th.sorting,
+table.grid thead th.sorting_asc,
+table.grid thead th.sorting_desc { cursor: pointer; }
+
+table.grid thead th.sorting:hover,
+table.grid thead th.sorting_asc,
+table.grid thead th.sorting_desc { color: var(--ink); }
+
+table.grid thead th.sorting::before,
+table.grid thead th.sorting::after,
+table.grid thead th.sorting_asc::before,
+table.grid thead th.sorting_asc::after,
+table.grid thead th.sorting_desc::before,
+table.grid thead th.sorting_desc::after {
+    display: none !important;
+    content: none !important;
+}
+
+.ds-sort {
+    display: inline-flex;
+    align-items: center;
+    margin-left: 4px;
+    vertical-align: -3px;
+    opacity: 0;
+    transition: opacity .12s ease;
+}
+
+.ds-sort svg { width: 13px !important; height: 13px !important; display: block; }
+th.sorting:hover .ds-sort { opacity: .55; }
+th.sorting_asc .ds-sort,
+th.sorting_desc .ds-sort { opacity: 1; color: var(--ink); }
+
+table.grid thead th:focus-visible { outline: 2px solid var(--brand-accent); outline-offset: -2px; }
+
+/* ---- Body ------------------------------------------------------------ */
+
+table.grid tbody td {
+    height: var(--grid-row);
+    padding: 0 var(--grid-x);
+    border-bottom: 1px solid var(--line);
+    color: var(--ink-2);
+    vertical-align: middle;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+table.grid tbody tr:last-child > td { border-bottom: 0; }
+table.grid tbody tr:hover > td { background: var(--surface-2); }
+table.grid tbody tr.is-selected > td { background: var(--action-50); }
+table.grid tbody tr.is-selected:hover > td { background: var(--action-100); }
+
+/* The sort arrow sits after the header label and reserves width even while
+   invisible, so a right-aligned header would otherwise float left of its own
+   numbers. Reserving the same gutter in the body keeps the column flush. */
+table.grid tbody td.is-num {
+    padding-right: calc(var(--grid-x) + var(--sort-gutter));
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+}
+
+/* ---- Primary cell: title over meta ----------------------------------- */
+
+.g-primary { display: block; min-width: 0; }
+
+.g-title {
+    display: block;
+    overflow: hidden;
+    color: var(--ink);
+    font-weight: 500;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+a.g-title:hover { text-decoration: underline; text-underline-offset: 2px; }
+a.g-title:focus-visible { outline: 2px solid var(--brand-accent); outline-offset: 2px; border-radius: 2px; }
+
+.g-meta {
+    display: block;
+    margin-top: 1px;
+    overflow: hidden;
+    color: var(--ink-3);
+    font-size: var(--grid-meta);
+    line-height: 1.35;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* Compact density drops the second line rather than squashing it. */
+.dataset[data-density="compact"] .g-meta { display: none; }
+
+/* ---- Secondary cell text --------------------------------------------- */
+
+.g-text { color: var(--ink-2); }
+.g-mute { color: var(--ink-faint); }
+
+a.g-link { color: var(--ink-2); }
+a.g-link:hover { color: var(--ink); text-decoration: underline; text-underline-offset: 2px; }
+
+.g-inline { display: inline-flex; align-items: center; gap: 6px; min-width: 0; }
+.g-inline > svg { width: 14px !important; height: 14px !important; flex: 0 0 auto; color: var(--ink-faint); }
+
+/* ---- Status: a dot, not a pill --------------------------------------- */
+
+.g-state {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    color: var(--ink-2);
+    font-weight: 500;
+    white-space: nowrap;
+}
+
+.g-state::before {
+    content: "";
+    width: 6px;
+    height: 6px;
+    flex: 0 0 auto;
+    border-radius: 50%;
+    background: var(--line-strong);
+}
+
+.g-state.is-live::before  { background: var(--green-600); box-shadow: 0 0 0 3px rgba(5, 150, 105, .13); }
+.g-state.is-draft::before { background: var(--line-strong); }
+.g-state.is-draft         { color: var(--ink-3); }
+
+/* ---- Bloom: an ordinal scale, encoded as one hue ----------------------
+   Bloom's levels are ordered (remember -> create), so they get a sequential
+   ramp of the brand blue rather than six unrelated hues. The step reads as a
+   quantity at a glance, and the table keeps a single accent family. */
+
+.g-bloom {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    color: var(--ink-2);
+    white-space: nowrap;
+}
+
+.g-bloom::before {
+    content: "";
+    width: 9px;
+    height: 9px;
+    flex: 0 0 auto;
+    border-radius: 2px;
+    background: var(--line-strong);
+}
+
+.g-bloom[data-level="1"]::before { background: #DCEDFB; }
+.g-bloom[data-level="2"]::before { background: #B5DAF8; }
+.g-bloom[data-level="3"]::before { background: #87C2F2; }
+.g-bloom[data-level="4"]::before { background: #57A6EA; }
+.g-bloom[data-level="5"]::before { background: #2383E2; }
+.g-bloom[data-level="6"]::before { background: #1A6CBD; }
+
+/* ---- Code chip — the one thing that stays a chip ---------------------- */
+
+.g-code {
+    display: inline-block;
+    max-width: 100%;
+    padding: 1px 6px;
+    overflow: hidden;
+    border: 1px solid var(--line);
+    border-radius: var(--radius-xs);
+    background: var(--surface-2);
+    color: var(--ink-3);
+    font: 500 .6875rem/1.6 var(--font-body, "Inter", sans-serif);
+    letter-spacing: .01em;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    vertical-align: 1px;
+}
+
+/* ---- Count cells: a number reads better than a badge ------------------ */
+
+.g-count { color: var(--ink); font-weight: 500; font-variant-numeric: tabular-nums; }
+.g-count.is-zero { color: var(--ink-faint); font-weight: 400; }
+
+/* ---- Column widths ----------------------------------------------------
+   Percentages, and every column carries one so they sum to 100.
+
+   This is not cosmetic. `table-layout: fixed` spreads any leftover width
+   *equally* across all columns, so a mix of px widths and one auto column
+   fattens the 40px checkbox exactly as much as the title. Percentages on
+   every column leave no surplus to spread: each table below declares a set
+   that adds up to 100, so the columns hold their proportions at every
+   viewport and never shift between pages. Below the table's min-width the
+   grid scrolls instead of squeezing further. */
+
+.wp-4  { width: 4%; }
+.wp-5  { width: 5%; }
+.wp-8  { width: 8%; }
+.wp-10  { width: 10%; }
+.wp-11  { width: 11%; }
+.wp-12  { width: 12%; }
+.wp-13  { width: 13%; }
+.wp-14  { width: 14%; }
+.wp-16  { width: 16%; }
+.wp-17  { width: 17%; }
+.wp-22  { width: 22%; }
+.wp-31  { width: 31%; }
+.wp-32  { width: 32%; }
+.wp-33  { width: 33%; }
+.wp-36  { width: 36%; }
+
+/* DataTables' sortable-header selector outranks a single class, so the ladder
+   is repeated at its specificity for the columns that end up sortable. */
+table.grid.dataTable thead > tr > th.wp-4  { width: 4%; }
+table.grid.dataTable thead > tr > th.wp-5  { width: 5%; }
+table.grid.dataTable thead > tr > th.wp-8  { width: 8%; }
+table.grid.dataTable thead > tr > th.wp-10 { width: 10%; }
+table.grid.dataTable thead > tr > th.wp-11 { width: 11%; }
+table.grid.dataTable thead > tr > th.wp-12 { width: 12%; }
+table.grid.dataTable thead > tr > th.wp-13 { width: 13%; }
+table.grid.dataTable thead > tr > th.wp-14 { width: 14%; }
+table.grid.dataTable thead > tr > th.wp-16 { width: 16%; }
+table.grid.dataTable thead > tr > th.wp-17 { width: 17%; }
+table.grid.dataTable thead > tr > th.wp-22 { width: 22%; }
+table.grid.dataTable thead > tr > th.wp-31 { width: 31%; }
+table.grid.dataTable thead > tr > th.wp-32 { width: 32%; }
+table.grid.dataTable thead > tr > th.wp-33 { width: 33%; }
+table.grid.dataTable thead > tr > th.wp-36 { width: 36%; }
+
+/* ==========================================================================
+   Selection column
+   ========================================================================== */
+
+table.grid th.col-select,
+table.grid td.col-select {
+    padding-left: 12px;
+    padding-right: 0;
+    overflow: visible;
+}
+
+.ds-check {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    margin: 0;
+    cursor: pointer;
+}
+
+.ds-check input {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    opacity: 0;
+    cursor: pointer;
+}
+
+.ds-check span {
+    display: block;
+    width: 15px;
+    height: 15px;
+    border: 1px solid var(--line-strong);
+    border-radius: 3px;
+    background: var(--surface);
+    transition: background-color .12s ease, border-color .12s ease;
+}
+
+.ds-check:hover span { border-color: var(--ink-faint); }
+
+.ds-check input:checked + span,
+.ds-check input:indeterminate + span {
+    border-color: var(--action-600);
+    background: var(--action-600) 50% 50% / 11px no-repeat;
+}
+
+.ds-check input:checked + span {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23fff' stroke-width='3.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20 6 9 17l-5-5'/%3E%3C/svg%3E");
+}
+
+.ds-check input:indeterminate + span {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23fff' stroke-width='3.5' stroke-linecap='round'%3E%3Cpath d='M5 12h14'/%3E%3C/svg%3E");
+}
+
+.ds-check input:focus-visible + span {
+    outline: 2px solid var(--brand-accent);
+    outline-offset: 2px;
+}
+
+/* ==========================================================================
+   Row actions — present on hover, reachable by keyboard, always on touch
+   ========================================================================== */
+
+table.grid th.col-actions,
+table.grid td.col-actions {
+    padding-right: 10px;
+    text-align: right;
+    overflow: visible;                 /* the menu must escape the cell */
+}
+
+.g-menu { position: relative; display: inline-block; }
+.g-menu > summary { list-style: none; }
+.g-menu > summary::-webkit-details-marker { display: none; }
+
+.g-menu-trigger {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border-radius: var(--radius-xs);
+    background: transparent;
+    color: var(--ink-faint);
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity .12s ease, background-color .12s ease, color .12s ease;
+}
+
+.g-menu-trigger svg { width: 16px !important; height: 16px !important; display: block; }
+.g-menu-trigger:hover { background: var(--surface-3); color: var(--ink-2); }
+
+tr:hover .g-menu-trigger,
+tr:focus-within .g-menu-trigger,
+.g-menu[open] .g-menu-trigger { opacity: 1; }
+
+.g-menu[open] .g-menu-trigger { background: var(--surface-3); color: var(--ink); }
+.g-menu-trigger:focus-visible { opacity: 1; outline: 2px solid var(--brand-accent); outline-offset: 1px; }
+
+@media (hover: none) {
+    .g-menu-trigger { opacity: 1; width: 40px; height: 40px; }
+}
+
+.g-menu-panel {
+    position: absolute;
+    top: calc(100% + 4px);
+    right: 0;
+    z-index: 70;
+    min-width: 168px;
+    padding: 4px;
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    background: var(--surface);
+    box-shadow: var(--shadow-lg);
+    text-align: left;
+}
+
+/* Rows near the bottom of the table open their menu upward. */
+.g-menu.drop-up .g-menu-panel { top: auto; bottom: calc(100% + 4px); }
+
+.g-menu-item {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    width: 100%;
+    min-height: 34px;
+    padding: 7px 9px;
+    border: 0;
+    border-radius: var(--radius-xs);
+    background: transparent;
+    color: var(--ink-2);
+    font: 400 .8125rem/1.3 var(--font-body, "Inter", sans-serif);
+    text-align: left;
+    white-space: nowrap;
+    cursor: pointer;
+}
+
+.g-menu-item:hover,
+.g-menu-item:focus-visible { background: var(--surface-2); color: var(--ink); outline: none; }
+.g-menu-item svg { width: 15px !important; height: 15px !important; color: var(--ink-faint); }
+.g-menu-item.is-danger { color: var(--red-600); }
+.g-menu-item.is-danger svg { color: var(--red-600); }
+.g-menu-item.is-danger:hover,
+.g-menu-item.is-danger:focus-visible { background: var(--red-50); color: var(--red-700); }
+.g-menu-sep { height: 1px; margin: 4px 2px; background: var(--line); }
+.g-menu-form { display: block; margin: 0; }
+
+/* ==========================================================================
+   Footer — range, page size, pagination
+   ========================================================================== */
+
+.dataset-foot {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    min-height: 48px;
+    padding: 7px var(--grid-x);
+    border-top: 1px solid var(--line);
+    border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+    background: var(--surface);
+}
+
+.dataset-foot[hidden] { display: none; }
+
+.ds-range {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    color: var(--ink-3);
+    font-size: .75rem;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+}
+
+.ds-range b { color: var(--ink-2); font-weight: 500; }
+
+.ds-perpage {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--ink-faint);
+    font-size: .75rem;
+}
+
+.ds-perpage select {
+    height: 28px;
+    padding: 0 4px;
+    border: 1px solid var(--line);
+    border-radius: var(--radius-xs);
+    background: var(--surface);
+    color: var(--ink-2);
+    font: 500 .75rem/1 var(--font-body, "Inter", sans-serif);
+    cursor: pointer;
+    outline: none;
+}
+
+.ds-perpage select:hover { background: var(--surface-2); }
+.ds-perpage select:focus-visible { border-color: var(--line-strong); box-shadow: 0 0 0 3px var(--ring-soft); }
+
+.ds-pager { display: flex; align-items: center; gap: 2px; }
+
+.ds-page {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 28px;
+    height: 28px;
+    padding: 0 7px;
+    border: 0;
+    border-radius: var(--radius-xs);
+    background: transparent;
+    color: var(--ink-3);
+    font: 500 .75rem/1 var(--font-body, "Inter", sans-serif);
+    font-variant-numeric: tabular-nums;
+    cursor: pointer;
+    transition: background-color .12s ease, color .12s ease;
+}
+
+.ds-page svg { width: 15px !important; height: 15px !important; display: block; }
+.ds-page:hover { background: var(--surface-2); color: var(--ink); }
+.ds-page:focus-visible { outline: 2px solid var(--brand-accent); outline-offset: 1px; }
+
+.ds-page[aria-current="page"] {
+    background: var(--surface-3);
+    color: var(--ink);
+    font-weight: 600;
+    cursor: default;
+}
+
+.ds-page:disabled { opacity: .35; cursor: default; background: transparent; }
+
+.ds-gap {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 20px;
+    height: 28px;
+    color: var(--ink-faint);
+    font-size: .75rem;
+    user-select: none;
+}
+
+/* ==========================================================================
+   No-results state, inside the grid
+   ========================================================================== */
+
+td.dataTables_empty,
+.ds-noresults {
+    height: auto !important;
+    padding: 44px 20px !important;
+    text-align: center;
+    white-space: normal !important;
+}
+
+.ds-noresults-title {
+    display: block;
+    margin-bottom: 3px;
+    color: var(--ink);
+    font-weight: 500;
+}
+
+.ds-noresults-sub { display: block; color: var(--ink-3); font-size: .75rem; }
+.ds-noresults-sub button {
+    border: 0;
+    background: none;
+    color: var(--ink-2);
+    font: inherit;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+    cursor: pointer;
+}
+
+/* DataTables runs headless, but its wrapper must stay a real block box —
+   it is the element the table's own width resolves against. */
+.dataTables_wrapper { display: block; width: 100%; }
+
+/* ==========================================================================
+   Narrow screens
+   ========================================================================== */
+
+/* Below the table's natural width the grid scrolls sideways rather than
+   dropping columns: every value stays reachable, and nothing about the layout
+   changes shape on the way down. A sticky header cannot survive a scroll
+   container, so it is released at the same breakpoint. */
+@media (max-width: 1100px) {
+    .dataset-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+    table.grid { min-width: 880px; }
+    /* Sticky must be released completely here: a sticky header inside a
+       horizontally scrolling container escapes that container's clip and
+       drags the whole document sideways. Every header state DataTables can
+       apply is listed, at its own specificity, so none stays sticky. */
+    table.grid thead > tr > th,
+    table.grid.dataTable thead > tr > th,
+    table.grid.dataTable thead > tr > th.sorting,
+    table.grid.dataTable thead > tr > th.sorting_asc,
+    table.grid.dataTable thead > tr > th.sorting_desc,
+    table.grid.dataTable thead > tr > th.sorting_disabled,
+    table.grid.dataTable thead > tr > th.sorting_asc_disabled,
+    table.grid.dataTable thead > tr > th.sorting_desc_disabled { position: static; }
+}
+
+@media (max-width: 768px) {
+    .dataset { --grid-x: 12px; }
+
+    .dataset-bar { flex-wrap: wrap; align-items: stretch; }
+    .dataset-bar-lead { flex-wrap: wrap; }
+    .ds-search { flex: 1 1 100%; }
+    .ds-search input { height: 40px; }
+    .ds-facet select { height: 40px; flex: 1 1 auto; }
+    .ds-btn { height: 40px; }
+
+    .dataset-foot { flex-direction: column; align-items: stretch; gap: 8px; }
+    .ds-range { justify-content: space-between; }
+    .ds-pager { justify-content: center; }
+    .ds-page { min-width: 40px; height: 40px; }
+    .ds-perpage select { height: 40px; }
+    .ds-check { width: 40px; height: 40px; }
+    .g-menu-panel { min-width: 184px; }
+    .g-menu-item { min-height: 44px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .ds-btn, .ds-page, .g-menu-trigger, .ds-sort, .ds-check span, .ds-search input {
+        transition: none;
+    }
+}

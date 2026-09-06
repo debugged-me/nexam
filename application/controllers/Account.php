@@ -111,9 +111,9 @@ class Account extends CI_Controller
             ]);
         }
 
-        $this->form_validation->set_rules('current_password', 'Current password', 'required');
-        $this->form_validation->set_rules('new_password', 'New password', 'required|min_length[8]|max_length[255]');
-        $this->form_validation->set_rules('confirm_password', 'Confirm password', 'required|matches[new_password]');
+        $this->form_validation->set_rules('current_password', 'Current password', 'required|max_length[128]');
+        $this->form_validation->set_rules('new_password', 'New password', 'required|min_length[8]|max_length[128]');
+        $this->form_validation->set_rules('confirm_password', 'Confirm password', 'required|max_length[128]|matches[new_password]');
 
         if ($this->form_validation->run() === false) {
             return $this->_json(422, ['message' => trim(validation_errors(' ', ' '))]);

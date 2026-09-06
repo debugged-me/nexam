@@ -13,14 +13,38 @@ class Subjects extends MY_Controller
 
     public function index()
     {
-        $per_page = 10;
-        $total = $this->Subject_model->count_by_user($this->user_id);
-        $pagination = $this->paginate($total, $per_page);
+        $this->load->model(['Question_model', 'Tos_model', 'Exam_model']);
 
-        $data['subjects']    = $this->Subject_model->get_by_user($this->user_id, $per_page, $pagination['offset']);
-        $data['pagination']  = $pagination;
-        $data['total']       = $total;
+        $data['subjects'] = $this->Subject_model->get_by_user($this->user_id);
+        $data['total']    = count($data['subjects']);
+
+        // Three grouped counts, not one query per row.
+        $data['question_counts'] = $this->Question_model->counts_by_subject($this->user_id);
+        $data['tos_counts']      = $this->Tos_model->counts_by_subject($this->user_id);
+        $data['exam_counts']     = $this->Exam_model->counts_by_subject($this->user_id);
+
+        $data['use_datatables'] = true;
         $this->render('subjects/index', $data);
+    }
+
+    /** Delete a batch of subjects selected in the list. */
+    public function bulk_delete()
+    {
+        if ($this->input->method() !== 'post') {
+            show_404();
+            return;
+        }
+
+        $ids = $this->input->post('ids');
+        $ids = is_array($ids) ? array_map('strval', $ids) : [];
+
+        $deleted = $this->Subject_model->delete_many($ids, $this->user_id);
+
+        $this->session->set_flashdata('toast', $deleted > 0
+            ? ['type' => 'success', 'message' => $deleted . ' subject' . ($deleted === 1 ? '' : 's') . ' deleted.']
+            : ['type' => 'error', 'message' => 'Nothing was deleted.']);
+
+        redirect('subjects');
     }
 
     public function create()
@@ -30,7 +54,7 @@ class Subjects extends MY_Controller
         if ($this->input->method() === 'post') {
             $this->form_validation->set_rules('name', 'Subject Name', 'required|trim|max_length[255]');
             $this->form_validation->set_rules('code', 'Code', 'trim|max_length[50]');
-            $this->form_validation->set_rules('description', 'Description', 'trim');
+            $this->form_validation->set_rules('description', 'Description', 'trim|max_length[5000]');
 
             if ($this->form_validation->run()) {
                 $id = $this->Subject_model->create([
@@ -64,7 +88,7 @@ class Subjects extends MY_Controller
         if ($this->input->method() === 'post') {
             $this->form_validation->set_rules('name', 'Subject Name', 'required|trim|max_length[255]');
             $this->form_validation->set_rules('code', 'Code', 'trim|max_length[50]');
-            $this->form_validation->set_rules('description', 'Description', 'trim');
+            $this->form_validation->set_rules('description', 'Description', 'trim|max_length[5000]');
 
             if ($this->form_validation->run()) {
                 $this->Subject_model->update($id, [
@@ -83,6 +107,11 @@ class Subjects extends MY_Controller
 
     public function delete($id)
     {
+        if ($this->input->method() !== 'post') {
+            show_error('Method Not Allowed', 405);
+            return;
+        }
+
         $subject = $this->Subject_model->get_owned($id, $this->user_id);
         if (!$subject) {
             $this->session->set_flashdata('toast', ['type' => 'error', 'message' => 'Subject not found.']);
@@ -102,11 +131,13 @@ class Subjects extends MY_Controller
             redirect('subjects');
         }
 
-        $this->page_title = htmlspecialchars($subject->name);
+        $this->page_title = $subject->name;
         $this->load->model('Question_model');
         $this->load->model('Tos_model');
 
         $data['subject']        = $subject;
+        $data['subject_context'] = $subject;
+        $data['subject_tab']     = 'overview';
         $data['questions']      = $this->Question_model->get_by_user($this->user_id, ['subject_id' => $id]);
         $data['tos_list']       = $this->db->where('subject_id', $id)->order_by('created_at', 'DESC')->get('tos')->result();
         $data['question_count'] = count($data['questions']);

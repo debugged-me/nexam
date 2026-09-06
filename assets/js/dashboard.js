@@ -82,16 +82,6 @@
     })();
 
     /* ------------------------------------------------------------------
-       Bloom bars — grow to their share
-       ------------------------------------------------------------------ */
-
-    requestAnimationFrame(function () {
-        document.querySelectorAll(".bloom-fill[data-width]").forEach(function (bar) {
-            bar.style.width = bar.dataset.width + "%";
-        });
-    });
-
-    /* ------------------------------------------------------------------
        Activity chart
        ------------------------------------------------------------------ */
 
@@ -362,15 +352,13 @@
         geometry.eDot.setAttribute("opacity", "0");
     }
 
-    plot.addEventListener("mousemove", function (ev) {
+    var activePoint = -1;
+
+    function showPoint(idx) {
         if (!geometry || !current.length) return;
-
+        idx = Math.max(0, Math.min(current.length - 1, idx));
+        activePoint = idx;
         var box = plot.getBoundingClientRect();
-        var x = ev.clientX - box.left;
-        var idx = geometry.stepX
-            ? Math.max(0, Math.min(current.length - 1, Math.round((x - PAD.left) / geometry.stepX)))
-            : 0;
-
         var row = current[idx];
         var prevRow = previous[idx];
         var px = geometry.xAt(idx);
@@ -408,9 +396,38 @@
         var left = Math.max(tipW / 2 + 4, Math.min(box.width - tipW / 2 - 4, px));
         tip.style.left = left + "px";
         tip.style.top = geometry.qPts[idx].y + "px";
+    }
+
+    plot.addEventListener("pointermove", function (ev) {
+        if (!geometry || !current.length) return;
+        var box = plot.getBoundingClientRect();
+        var x = ev.clientX - box.left;
+        var idx = geometry.stepX
+            ? Math.max(0, Math.min(current.length - 1, Math.round((x - PAD.left) / geometry.stepX)))
+            : 0;
+        showPoint(idx);
     });
 
-    plot.addEventListener("mouseleave", hideTip);
+    plot.addEventListener("pointerleave", function () {
+        if (document.activeElement !== plot) hideTip();
+    });
+
+    plot.addEventListener("keydown", function (ev) {
+        if (!["ArrowLeft", "ArrowRight", "Home", "End", "Escape"].includes(ev.key)) return;
+        ev.preventDefault();
+        if (ev.key === "Escape") {
+            hideTip();
+            activePoint = -1;
+            return;
+        }
+        if (ev.key === "Home") activePoint = 0;
+        else if (ev.key === "End") activePoint = current.length - 1;
+        else if (ev.key === "ArrowLeft") activePoint = activePoint < 0 ? current.length - 1 : activePoint - 1;
+        else activePoint = activePoint < 0 ? 0 : activePoint + 1;
+        showPoint(activePoint);
+    });
+
+    plot.addEventListener("blur", hideTip);
 
     /* ---- Range switch ---- */
 
@@ -419,10 +436,15 @@
             var btn = ev.target.closest("button[data-range]");
             if (!btn) return;
 
-            switcher.querySelectorAll("button").forEach(function (b) { b.classList.remove("active"); });
+            switcher.querySelectorAll("button").forEach(function (b) {
+                b.classList.remove("active");
+                b.setAttribute("aria-pressed", "false");
+            });
             btn.classList.add("active");
+            btn.setAttribute("aria-pressed", "true");
 
             range = parseInt(btn.dataset.range, 10) || 30;
+            plot.setAttribute("aria-label", "Activity chart for the last " + range + " days. Use left and right arrow keys to inspect each day.");
             hideTip();
             sliceData();
             renderSummary();

@@ -5,13 +5,14 @@ $bar_avatar    = !empty($avatar_path) ? base_url($avatar_path) : '';
 
 // Section the current page belongs to, for the breadcrumb.
 $sections = [
-    'dashboard' => 'Overview',
+    'dashboard' => 'Dashboard',
     'subjects'  => 'Subjects',
-    'questions' => 'Question Bank',
-    'tos'       => 'TOS Builder',
+    'questions' => 'Questions',
+    'tos'       => 'Blueprints',
     'exams'     => 'Exams',
 ];
 $section_roots = [
+    'dashboard' => 'dashboard',
     'subjects'  => 'subjects',
     'questions' => 'questions',
     'tos'       => 'tos',
@@ -23,8 +24,7 @@ $current_page = isset($page_title) ? $page_title : 'Dashboard';
 $section      = isset($sections[$nav_key]) ? $sections[$nav_key] : '';
 $section_url  = isset($section_roots[$nav_key]) ? site_url($section_roots[$nav_key]) : '';
 
-// Only show the crumb when it adds something the title does not already say.
-$show_crumb = $section !== '' && $section !== $current_page && $section_url !== '';
+$is_section_root = $section !== '' && $section === $current_page;
 
 /** Avatar markup: the uploaded photo when there is one, initials otherwise. */
 function nexam_avatar($src, $initials, $id, $class = 'avatar')
@@ -39,23 +39,25 @@ function nexam_avatar($src, $initials, $id, $class = 'avatar')
          . htmlspecialchars($initials) . '</span>';
 }
 ?>
-<div class="main-content">
+<main class="main-content" id="main-content" tabindex="-1">
 <header class="topbar">
     <div class="topbar-left">
         <button class="rail-toggle" id="rail-toggle" type="button"
-                aria-label="Toggle navigation" aria-controls="sidebar">
+                aria-label="Collapse navigation" aria-controls="sidebar" aria-expanded="true">
             <i data-lucide="menu"></i>
         </button>
 
-        <div class="topbar-heading">
-            <?php if ($show_crumb): ?>
-                <nav class="crumbs" aria-label="Breadcrumb">
-                    <a href="<?= $section_url ?>"><?= htmlspecialchars($section) ?></a>
-                    <span class="crumb-sep">/</span>
-                </nav>
+        <nav class="topbar-heading crumbs" aria-label="Breadcrumb">
+            <?php if ($is_section_root): ?>
+                <a href="<?= site_url('dashboard') ?>">Workspace</a>
+            <?php elseif ($section_url !== ''): ?>
+                <a href="<?= $section_url ?>"><?= htmlspecialchars($section) ?></a>
+            <?php else: ?>
+                <span>Workspace</span>
             <?php endif; ?>
-            <div class="topbar-title"><?= htmlspecialchars($current_page) ?></div>
-        </div>
+            <i class="crumb-icon" data-lucide="chevron-right" aria-hidden="true"></i>
+            <span class="topbar-title" aria-current="page"><?= htmlspecialchars($current_page) ?></span>
+        </nav>
     </div>
 
     <div class="topbar-right">
@@ -67,9 +69,9 @@ function nexam_avatar($src, $initials, $id, $class = 'avatar')
                 <span class="bell-count" id="bell-count" hidden>0</span>
             </button>
 
-            <div class="bell-panel" id="bell-panel" role="menu" hidden>
+            <div class="bell-panel" id="bell-panel" role="dialog" aria-modal="false" aria-labelledby="bell-title" hidden>
                 <div class="bell-head">
-                    <span class="card-title">Needs Attention</span>
+                    <span class="card-title" id="bell-title">Needs Attention</span>
                     <span class="bell-sub" id="bell-sub">Checking…</span>
                 </div>
                 <div class="bell-list" id="bell-list"></div>
@@ -101,9 +103,12 @@ function nexam_avatar($src, $initials, $id, $class = 'avatar')
 
                 <div class="user-dropdown-sep"></div>
 
-                <a href="<?= site_url('logout') ?>" class="user-dropdown-item danger" role="menuitem">
-                    <i data-lucide="log-out"></i> Log out
-                </a>
+                <form action="<?= site_url('logout') ?>" method="post" class="user-dropdown-form">
+                    <input type="hidden" name="<?= htmlspecialchars($csrf_name) ?>" value="<?= htmlspecialchars($csrf_hash) ?>">
+                    <button type="submit" class="user-dropdown-item danger" role="menuitem">
+                        <i data-lucide="log-out"></i> Log out
+                    </button>
+                </form>
             </div>
         </div>
     </div>

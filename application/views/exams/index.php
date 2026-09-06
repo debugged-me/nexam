@@ -1,97 +1,129 @@
-<div class="page-content">
+<div class="page-content page-content--wide">
 
-    <div class="page-header">
-        <div class="page-intro">
-            <div class="page-intro-icon"><i data-lucide="file-text"></i></div>
-            <div class="page-intro-body">
-                <div class="page-intro-title">Exams<?php if (!empty($pagination['total'])): ?><span class="page-intro-count"><?php echo number_format($pagination['total']); ?></span><?php endif; ?></div>
-                <div class="page-intro-sub">Papers generated from your blueprints and question bank.</div>
-            </div>
+    <?php $this->load->view('partials/subject_nav'); ?>
+
+    <header class="list-head">
+        <div class="list-head-main">
+            <h1 class="list-head-title">
+                Exams
+                <?php if (!empty($exams)): ?>
+                    <span class="list-head-count"><?php echo number_format($total); ?></span>
+                <?php endif; ?>
+            </h1>
+            <p class="list-head-desc">Draft and published papers assembled from your question bank.</p>
         </div>
-        <a href="<?php echo site_url('exams/create'); ?>" class="btn btn-accent">
-            <i data-lucide="sparkles"></i> Generate Exam
-        </a>
-    </div>
+        <div class="list-head-actions">
+            <a href="<?php echo site_url('exams/create' . (!empty($subject_context) ? '?subject=' . rawurlencode($subject_context->id) : '')); ?>" class="btn btn-primary">
+                <i data-lucide="plus"></i> New exam
+            </a>
+        </div>
+    </header>
 
     <?php if (empty($exams)): ?>
-        <div class="card">
-            <div class="empty-state">
-                <div class="empty-icon"><i data-lucide="file-text"></i></div>
-                <h4>No exams yet</h4>
-                <p>Generate your first exam from a subject or TOS blueprint.</p>
-                <a href="<?php echo site_url('exams/create'); ?>" class="btn btn-accent">
-                    <i data-lucide="sparkles"></i> Generate Exam
-                </a>
-            </div>
+        <div class="empty-state">
+            <h4><?php echo !empty($subject_context) ? 'No exams for this subject' : 'No exams yet'; ?></h4>
+            <p>Start from a blank paper, or generate one from a blueprint so the Bloom spread is decided for you.</p>
+            <a href="<?php echo site_url('exams/create' . (!empty($subject_context) ? '?subject=' . rawurlencode($subject_context->id) : '')); ?>" class="btn btn-primary">
+                <i data-lucide="plus"></i> New exam
+            </a>
         </div>
     <?php else: ?>
-        <div class="table-wrap">
-            <div class="table-scroll">
-                <table class="data-table">
-                    <thead>
-                        <tr>
-                            <th class="col-wide">Title</th>
-                            <th class="col-medium">Subject</th>
-                            <th class="col-shrink">Format</th>
-                            <th class="col-shrink">Status</th>
-                            <th class="col-shrink">Questions</th>
-                            <th class="col-shrink">Created</th>
-                            <th class="col-actions">Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <?php foreach ($exams as $e): ?>
-                            <tr>
-                                <td>
-                                    <a href="<?php echo site_url('exams/view/' . $e->id); ?>" class="cell-primary"
-                                       title="<?php echo htmlspecialchars($e->title); ?>">
-                                        <?php echo htmlspecialchars($e->title); ?>
-                                    </a>
-                                </td>
-                                <td class="cell-truncate"><?php echo !empty($e->subject_name) ? htmlspecialchars($e->subject_name) : '<span class="text-muted">—</span>'; ?></td>
-                                <td>
-                                    <?php if ($e->format === 'print'): ?>
-                                        <span class="badge badge-gray"><i data-lucide="printer"></i> Print</span>
-                                    <?php else: ?>
-                                        <span class="badge badge-blue"><i data-lucide="monitor"></i> Digital</span>
-                                    <?php endif; ?>
-                                </td>
-                                <td>
-                                    <?php if ($e->status === 'published'): ?>
-                                        <span class="badge badge-green">Published</span>
-                                    <?php else: ?>
-                                        <span class="badge badge-amber">Draft</span>
-                                    <?php endif; ?>
-                                </td>
-                                <td><?php echo isset($e->question_count) ? $e->question_count : 0; ?></td>
-                                <td class="text-muted nowrap"><?php echo date('M j, Y', strtotime($e->created_at)); ?></td>
-                                <td>
-                                    <div class="action-icons">
-                                        <a href="<?php echo site_url('exams/view/' . $e->id); ?>" class="action-icon" title="View"><i data-lucide="eye"></i></a>
-                                        <a href="<?php echo site_url('exams/edit/' . $e->id); ?>" class="action-icon" title="Edit"><i data-lucide="pencil"></i></a>
-                                        <a href="<?php echo site_url('exams/delete/' . $e->id); ?>" class="action-icon danger" title="Delete"
-                                           onclick="return confirmDelete(event, '<?php echo htmlspecialchars($e->title, ENT_QUOTES); ?>')"><i data-lucide="trash-2"></i></a>
-                                    </div>
-                                </td>
-                            </tr>
-                        <?php endforeach; ?>
-                    </tbody>
-                </table>
-            </div>
-            <?php $this->load->view('partials/pagination', ['pagination' => $pagination]); ?>
-        </div>
+        <?php
+        $grid = [
+            'key'         => 'exams',
+            'label'       => 'exams',
+            'placeholder' => 'Search exams…',
+            'bulk_url'    => site_url('exams/bulk-delete'),
+            'facets'      => [
+                ['name' => 'Status', 'column' => 4, 'options' => ['Published' => 'Published', 'Draft' => 'Draft']],
+                ['name' => 'Format', 'column' => 3, 'options' => ['Print' => 'Print', 'Digital' => 'Digital']],
+            ],
+        ];
+        $this->load->view('partials/grid_open', ['grid' => $grid, 'csrf_name' => $csrf_name, 'csrf_hash' => $csrf_hash]);
+        ?>
+
+        <table class="grid datatable" data-grid="exams" data-grid-label="exams">
+            <caption class="sr-only">Exams in your workspace</caption>
+            <thead>
+                <tr>
+                    <th class="col-select wp-4">
+                        <label class="ds-check">
+                            <input type="checkbox" data-check-all>
+                            <span aria-hidden="true"></span>
+                            <span class="sr-only">Select all rows on this page</span>
+                        </label>
+                    </th>
+                    <th class="col-primary wp-31" data-name="Exam" data-locked>Exam</th>
+                    <th class="wp-17" data-name="Subject">Subject</th>
+                    <th class="wp-11" data-name="Format">Format</th>
+                    <th class="wp-11" data-name="Status">Status</th>
+                    <th class="is-num wp-8" data-name="Items">Items</th>
+                    <th class="wp-13" data-name="Updated">Updated</th>
+                    <th class="col-actions wp-5"><span class="sr-only">Actions</span></th>
+                </tr>
+            </thead>
+            <tbody>
+                <?php foreach ($exams as $e): ?>
+                    <?php
+                    $count     = isset($e->question_count) ? (int) $e->question_count : 0;
+                    $published = $e->status === 'published';
+                    $print     = $e->format === 'print';
+                    $touched   = !empty($e->updated_at) ? $e->updated_at : $e->created_at;
+                    $meta      = [];
+                    if (!empty($e->duration_minutes)) $meta[] = (int) $e->duration_minutes . ' min';
+                    $meta[] = $count . ' ' . ($count === 1 ? 'item' : 'items');
+                    ?>
+                    <tr data-id="<?php echo htmlspecialchars($e->id); ?>">
+                        <td class="col-select">
+                            <label class="ds-check">
+                                <input type="checkbox" data-row-check>
+                                <span aria-hidden="true"></span>
+                                <span class="sr-only">Select <?php echo htmlspecialchars($e->title); ?></span>
+                            </label>
+                        </td>
+                        <td>
+                            <span class="g-primary">
+                                <a href="<?php echo site_url('exams/view/' . $e->id); ?>" class="g-title"><?php echo htmlspecialchars($e->title); ?></a>
+                                <span class="g-meta"><?php echo htmlspecialchars(implode(' · ', $meta)); ?></span>
+                            </span>
+                        </td>
+                        <td data-order="<?php echo htmlspecialchars($e->subject_name ?: ''); ?>" data-filter="<?php echo htmlspecialchars($e->subject_name ?: ''); ?>">
+                            <?php if (!empty($e->subject_name)): ?>
+                                <a href="<?php echo site_url('subjects/view/' . $e->subject_id); ?>" class="g-link" title="<?php echo htmlspecialchars($e->subject_name); ?>"><?php echo htmlspecialchars($e->subject_name); ?></a>
+                            <?php else: ?>
+                                <span class="g-mute">—</span>
+                            <?php endif; ?>
+                        </td>
+                        <td data-filter="<?php echo $print ? 'Print' : 'Digital'; ?>">
+                            <span class="g-inline"><i data-lucide="<?php echo $print ? 'printer' : 'monitor'; ?>"></i><?php echo $print ? 'Print' : 'Digital'; ?></span>
+                        </td>
+                        <td data-order="<?php echo $published ? 1 : 0; ?>" data-filter="<?php echo $published ? 'Published' : 'Draft'; ?>">
+                            <span class="g-state <?php echo $published ? 'is-live' : 'is-draft'; ?>"><?php echo $published ? 'Published' : 'Draft'; ?></span>
+                        </td>
+                        <td class="is-num" data-order="<?php echo $count; ?>">
+                            <span class="g-count<?php echo $count ? '' : ' is-zero'; ?>"><?php echo $count ?: '—'; ?></span>
+                        </td>
+                        <td class="g-mute" data-order="<?php echo htmlspecialchars($touched); ?>"><?php echo date('M j, Y', strtotime($touched)); ?></td>
+                        <td class="col-actions">
+                            <details class="g-menu">
+                                <summary class="g-menu-trigger" aria-label="Actions for <?php echo htmlspecialchars($e->title); ?>"><i data-lucide="ellipsis"></i></summary>
+                                <div class="g-menu-panel">
+                                    <a href="<?php echo site_url('exams/view/' . $e->id); ?>" class="g-menu-item"><i data-lucide="eye"></i> Open</a>
+                                    <a href="<?php echo site_url('exams/edit/' . $e->id); ?>" class="g-menu-item"><i data-lucide="pencil"></i> Edit</a>
+                                    <div class="g-menu-sep"></div>
+                                    <form action="<?php echo site_url('exams/delete/' . $e->id); ?>" method="post" class="g-menu-form">
+                                        <input type="hidden" name="<?php echo $csrf_name; ?>" value="<?php echo $csrf_hash; ?>">
+                                        <button type="button" class="g-menu-item is-danger" data-confirm data-confirm-title="Delete exam?" data-confirm-type="delete" data-confirm-message="&ldquo;<?php echo htmlspecialchars($e->title, ENT_QUOTES); ?>&rdquo; and its selected questions will be permanently removed."><i data-lucide="trash-2"></i> Delete</button>
+                                    </form>
+                                </div>
+                            </details>
+                        </td>
+                    </tr>
+                <?php endforeach; ?>
+            </tbody>
+        </table>
+
+        <?php $this->load->view('partials/grid_close'); ?>
     <?php endif; ?>
 
 </div>
-
-<script>
-function confirmDelete(e, name) {
-    e.preventDefault();
-    NexamModal.deleteConfirm(
-        "Delete exam?",
-        "Deleting \"" + name + "\" will also remove its questions. This cannot be undone.",
-        function () { window.location.href = e.currentTarget.href; }
-    );
-    return false;
-}
-</script>

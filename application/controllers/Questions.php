@@ -15,7 +15,7 @@ class Questions extends MY_Controller
     public function __construct()
     {
         parent::__construct();
-        $this->page_title = 'Question Bank';
+        $this->page_title = 'Questions';
         $this->active_nav = 'questions';
         $this->load->model('Subject_model');
         $this->load->model('Question_model');
@@ -40,24 +40,34 @@ class Questions extends MY_Controller
             $filters['type'] = null;
         }
 
-        $data['filters']   = $filters;
-        $data['subjects']  = $this->Subject_model->get_by_user($this->user_id);
-
-        $per_page = 10;
-        $total = $this->Question_model->count_by_user_filtered($this->user_id, $filters);
-        $pagination = $this->paginate($total, $per_page);
-
-        $data['questions'] = $this->Question_model->get_by_user($this->user_id, $filters, $per_page, $pagination['offset']);
+        $data['subjects'] = $this->Subject_model->get_by_user($this->user_id);
 
         // Build a subject lookup map so the view can show subject names
         $subject_map = [];
         foreach ($data['subjects'] as $s) {
             $subject_map[$s->id] = $s->name;
+            if (!empty($filters['subject_id']) && (string) $filters['subject_id'] === (string) $s->id) {
+                $data['subject_context'] = $s;
+            }
         }
+        if (empty($data['subject_context'])) {
+            $filters['subject_id'] = null;
+        }
+
+        $data['filters'] = $filters;
+
+        // Bloom and type are filtered in the browser by the grid facets, so the
+        // whole (subject-scoped) set is loaded and stays available for the user
+        // to widen the filter again without a round trip.
+        $data['questions'] = $this->Question_model->get_by_user(
+            $this->user_id,
+            ['subject_id' => $filters['subject_id']]
+        );
+        $data['subject_tab'] = 'questions';
         $data['subject_map'] = $subject_map;
 
-        $data['pagination'] = $pagination;
-        $data['total']      = $total;
+        $data['total']      = count($data['questions']);
+        $data['use_datatables'] = true;
 
         // Whitelists for the client-side modal forms
         $data['bloom_levels']   = $this->bloom_levels;
@@ -68,6 +78,26 @@ class Questions extends MY_Controller
         $data['page_js']  = ['questions.js'];
 
         $this->render('questions/index', $data);
+    }
+
+    /** Delete a batch of questions selected in the list. */
+    public function bulk_delete()
+    {
+        if ($this->input->method() !== 'post') {
+            show_404();
+            return;
+        }
+
+        $ids = $this->input->post('ids');
+        $ids = is_array($ids) ? array_map('strval', $ids) : [];
+
+        $deleted = $this->Question_model->delete_many($ids, $this->user_id);
+
+        $this->session->set_flashdata('toast', $deleted > 0
+            ? ['type' => 'success', 'message' => $deleted . ' question' . ($deleted === 1 ? '' : 's') . ' deleted.']
+            : ['type' => 'error', 'message' => 'Nothing was deleted.']);
+
+        redirect('questions');
     }
 
     /**
@@ -169,6 +199,8 @@ class Questions extends MY_Controller
         $data['question_types']   = $this->question_types;
         $data['statuses']         = $this->statuses;
         $data['preselect_subject'] = $this->input->get('subject', true);
+        $data['page_css']           = ['questions.css'];
+        $data['page_js']            = ['questions.js'];
         $this->render('questions/form', $data);
     }
 
@@ -207,6 +239,8 @@ class Questions extends MY_Controller
         $data['bloom_levels']   = $this->bloom_levels;
         $data['question_types'] = $this->question_types;
         $data['statuses']       = $this->statuses;
+        $data['page_css']       = ['questions.css'];
+        $data['page_js']        = ['questions.js'];
         $this->render('questions/form', $data);
     }
 
@@ -215,6 +249,11 @@ class Questions extends MY_Controller
      */
     public function delete($id)
     {
+        if ($this->input->method() !== 'post') {
+            show_error('Method Not Allowed', 405);
+            return;
+        }
+
         $question = $this->Question_model->get_owned($id, $this->user_id);
         if (!$question) {
             $this->session->set_flashdata('toast', ['type' => 'error', 'message' => 'Question not found.']);
@@ -231,14 +270,14 @@ class Questions extends MY_Controller
      */
     private function _set_validation_rules()
     {
-        $this->form_validation->set_rules('subject_id', 'Subject', 'required|trim');
+        $this->form_validation->set_rules('subject_id', 'Subject', 'required|trim|callback_owned_subject');
         $this->form_validation->set_rules('topic', 'Topic', 'trim|max_length[255]');
         $this->form_validation->set_rules('bloom', 'Bloom Level', 'trim|in_list[remember,understand,apply,analyze,evaluate,create]');
         $this->form_validation->set_rules('type', 'Question Type', 'required|trim|in_list[mcq,true_false,identification,essay]');
-        $this->form_validation->set_rules('stem', 'Question Stem', 'required|trim');
-        $this->form_validation->set_rules('options', 'Options', 'trim');
-        $this->form_validation->set_rules('answer', 'Answer', 'trim');
-        $this->form_validation->set_rules('explanation', 'Explanation', 'trim');
+        $this->form_validation->set_rules('stem', 'Question Stem', 'required|trim|max_length[10000]');
+        $this->form_validation->set_rules('options', 'Options', 'trim|callback_valid_question_content');
+        $this->form_validation->set_rules('answer', 'Answer', 'trim|max_length[10000]|callback_valid_answer_for_type');
+        $this->form_validation->set_rules('explanation', 'Explanation', 'trim|max_length[10000]');
         $this->form_validation->set_rules('status', 'Status', 'trim|in_list[draft,active]');
     }
 
@@ -269,5 +308,48 @@ class Questions extends MY_Controller
             'explanation' => $this->input->post('explanation', true) ?: null,
             'status'      => in_array($status, $this->statuses, true) ? $status : 'draft',
         ];
+    }
+
+    /** Ensure multiple-choice questions have usable options and a matching answer. */
+    public function valid_question_content($options_raw)
+    {
+        if ($this->input->post('type', true) !== 'mcq') {
+            return true;
+        }
+
+        $lines = array_values(array_filter(array_map('trim', preg_split('/\r?\n/', (string) $options_raw)), 'strlen'));
+        $answer = trim((string) $this->input->post('answer', true));
+
+        if (count($lines) < 2) {
+            $this->form_validation->set_message('valid_question_content', 'Multiple-choice questions need at least two answer options.');
+            return false;
+        }
+
+        if ($answer === '' || !in_array($answer, $lines, true)) {
+            $this->form_validation->set_message('valid_question_content', 'Select a correct answer from the available options.');
+            return false;
+        }
+
+        return true;
+    }
+
+    /** Keep fixed-choice answer types internally consistent. */
+    public function valid_answer_for_type($answer)
+    {
+        $type = $this->input->post('type', true);
+        if ($type === 'true_false' && !in_array($answer, ['True', 'False'], true)) {
+            $this->form_validation->set_message('valid_answer_for_type', 'Select either True or False as the answer.');
+            return false;
+        }
+
+        return true;
+    }
+
+    /** Form-validation callback: subject must belong to the signed-in user. */
+    public function owned_subject($subject_id)
+    {
+        if ($this->Subject_model->get_owned($subject_id, $this->user_id)) return true;
+        $this->form_validation->set_message('owned_subject', 'Select a subject from your workspace.');
+        return false;
     }
 }

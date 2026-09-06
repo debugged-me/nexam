@@ -106,6 +106,62 @@ NexamModal.open({
 });
 ```
 
+## Data grid (list pages)
+
+Subjects, Questions, Blueprints and Exams all render through one grid system:
+`assets/css/datatables.css` + `assets/js/datatables.js`, wrapped by
+`partials/grid_open.php` / `partials/grid_close.php`.
+
+DataTables runs **headless** (`dom: 't'`). It owns sorting, paging and
+filtering; every visible control — toolbar, facets, selection bar, view menu,
+footer, pagination — is ours, so the chrome matches the rest of the app.
+
+### Rules that must not be broken
+
+- **Every column carries a percentage width, and they sum to 100** (`.wp-*`
+  classes). `table-layout: fixed` spreads leftover width *equally* across all
+  columns, so a mix of px widths and one auto column fattens the 40px checkbox
+  exactly as much as the title. Adding a column means re-balancing the set.
+- **Do not re-add the DataTables Responsive extension.** It measures columns by
+  cloning the table into a 1px box, which cannot produce sane numbers against
+  `table-layout: fixed` — it dropped every data column at 1440px. Narrow
+  screens scroll the grid sideways instead; the user hides columns through the
+  View menu.
+- **A cell a facet filters on needs `data-filter="<exact token>"`.** DataTables
+  filters on the cell's text content, which includes the markup's whitespace,
+  so an anchored `^Draft$` match fails without it. Keep the token equal to the
+  visible text so global search still works.
+- **A cell sorted on something other than its text needs `data-order`** (Bloom
+  sorts by level, status by state, dates by ISO string).
+- `.dataset-scroll` must stay `position: relative`. The `.sr-only` labels inside
+  the table are absolutely positioned; without a positioned scroll container
+  they resolve against `.dataset`, escape the horizontal clip, and drag the
+  whole document sideways.
+- The sticky header is released in full at the scroll breakpoint, for **every**
+  header state DataTables applies (`sorting`, `sorting_asc`, `sorting_desc`,
+  and the three `*_disabled` variants) — a sticky header inside a horizontally
+  scrolling container escapes that container's clip.
+- DataTables' own stylesheet targets sortable headers as
+  `table.dataTable thead>tr>th.sorting`. Any header rule that must win has to
+  match that specificity, not just `table.grid thead th`.
+
+### Colour discipline
+
+Colour marks **state that needs a decision**, never taxonomy:
+
+- Status is a dot plus a label (`.g-state.is-live` / `.is-draft`), not a pill.
+- Bloom is *ordinal*, so it gets a sequential ramp of one hue (`.g-bloom`
+  `data-level="1..6"`), never six unrelated colours.
+- Type, format, subject and counts are plain text in `--ink-2`.
+- The row title is `--ink`, not blue; the underline on hover carries the
+  affordance.
+
+### Bulk actions
+
+Selection posts `ids[]` to `<controller>/bulk-delete`. Every `delete_many()`
+re-derives ownership from the database and silently skips ids the user does not
+own, so a forged id in the request body is a no-op. Keep that pattern.
+
 ## Responsive Design
 
 **All pages must be responsive and work on any screen size.** When building new features, follow these rules:

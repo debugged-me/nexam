@@ -1,7 +1,10 @@
 <div class="page-content">
 
+    <?php $this->load->view('partials/subject_nav'); ?>
+
     <div class="page-header">
         <div>
+            <h1><?php echo htmlspecialchars($tos->title); ?></h1>
             <?php if (!empty($subject)): ?>
                 <a href="<?php echo site_url('subjects/view/' . $subject->id); ?>" class="crumb-link">
                     <i data-lucide="book-open"></i>
@@ -15,7 +18,6 @@
                 <i data-lucide="file-text"></i> Generate Exam
             </a>
             <a href="<?php echo site_url('tos/edit/' . $tos->id); ?>" class="btn btn-outline btn-sm"><i data-lucide="pencil"></i> Edit</a>
-            <a href="<?php echo site_url('tos'); ?>" class="btn btn-outline btn-sm"><i data-lucide="arrow-left"></i> Back</a>
         </div>
     </div>
 
@@ -57,14 +59,6 @@
                 'evaluate'   => 'Evaluate',
                 'create'     => 'Create',
             ];
-            $bloom_colors = [
-                'remember'   => '#3E6B96',
-                'understand' => '#2563eb',
-                'apply'      => '#16a34a',
-                'analyze'    => '#d97706',
-                'evaluate'   => '#9333ea',
-                'create'     => '#dc2626',
-            ];
             foreach ($bloom_labels as $key => $label):
                 $pct = isset($bloom_weights[$key]) ? (int) $bloom_weights[$key] : 0;
                 $item_count = round($pct / 100 * $tos->total_items);
@@ -72,7 +66,7 @@
                 <div class="bloom-bar-row">
                     <div class="bloom-bar-label"><?php echo $label; ?></div>
                     <div class="bloom-bar-track">
-                        <div class="bloom-bar-fill" style="width:<?php echo $pct; ?>%;background:<?php echo $bloom_colors[$key]; ?>"></div>
+                        <div class="bloom-bar-fill" style="width:<?php echo $pct; ?>%"></div>
                     </div>
                     <div class="bloom-bar-meta">
                         <span class="badge badge-gray"><?php echo $pct; ?>%</span>
@@ -96,6 +90,7 @@
         <?php else: ?>
             <div class="table-wrap table-bare">
                 <table class="data-table">
+                    <caption class="sr-only">Topics in this Table of Specification</caption>
                     <thead>
                         <tr>
                             <th class="col-num">#</th>
@@ -112,8 +107,13 @@
                                 <td><span class="badge badge-amber"><?php echo (int) $tp->instructional_hours; ?> hrs</span></td>
                                 <td>
                                     <div class="action-icons">
-                                        <a href="<?php echo site_url('tos/delete_topic/' . $tos->id . '/' . $tp->id); ?>" class="action-icon danger" title="Remove topic"
-                                           onclick="return confirmDeleteTopic(event, '<?php echo htmlspecialchars($tp->title, ENT_QUOTES); ?>')"><i data-lucide="trash-2"></i></a>
+                                        <form action="<?php echo site_url('tos/delete_topic/' . $tos->id . '/' . $tp->id); ?>" method="post" class="inline-action-form">
+                                            <input type="hidden" name="<?php echo $csrf_name; ?>" value="<?php echo $csrf_hash; ?>">
+                                            <button type="button" class="action-icon danger" aria-label="Remove <?php echo htmlspecialchars($tp->title); ?>"
+                                                    data-confirm
+                                                    data-confirm-title="Remove topic?" data-confirm-type="delete"
+                                                    data-confirm-message="This topic will be removed from the blueprint. This cannot be undone."><i data-lucide="trash-2"></i></button>
+                                        </form>
                                     </div>
                                 </td>
                             </tr>
@@ -124,7 +124,7 @@
         <?php endif; ?>
 
         <div class="card-body card-body-divider">
-            <form action="<?php echo site_url('tos/add_topic/' . $tos->id); ?>" method="post" autocomplete="off">
+            <form action="<?php echo site_url('tos/add_topic/' . $tos->id); ?>" method="post">
                 <input type="hidden" name="<?php echo $csrf_name; ?>" value="<?php echo $csrf_hash; ?>">
                 <div class="inline-form">
                     <div class="inline-form-grow">
@@ -144,15 +144,3 @@
     </div>
 
 </div>
-
-<script>
-function confirmDeleteTopic(e, name) {
-    e.preventDefault();
-    NexamModal.deleteConfirm(
-        "Remove topic?",
-        "Removing \"" + name + "\" from this TOS cannot be undone.",
-        function () { window.location.href = e.currentTarget.href; }
-    );
-    return false;
-}
-</script>

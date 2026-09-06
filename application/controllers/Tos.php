@@ -16,7 +16,7 @@ class Tos extends MY_Controller
     public function __construct()
     {
         parent::__construct();
-        $this->page_title = 'TOS Builder';
+        $this->page_title = 'Blueprints';
         $this->active_nav = 'tos';
         $this->load->model('Tos_model');
         $this->load->model('Subject_model');
@@ -25,14 +25,35 @@ class Tos extends MY_Controller
     /** List all TOS owned by the logged-in user. */
     public function index()
     {
-        $per_page = 10;
-        $total = $this->Tos_model->count_by_user($this->user_id);
-        $pagination = $this->paginate($total, $per_page);
-
-        $data['tos_list']   = $this->Tos_model->get_by_user($this->user_id, $per_page, $pagination['offset']);
-        $data['pagination'] = $pagination;
-        $data['total']      = $total;
+        $subject_id = $this->input->get('subject_id', true);
+        $subject = $subject_id ? $this->Subject_model->get_owned($subject_id, $this->user_id) : null;
+        $filters = ['subject_id' => $subject ? $subject->id : null];
+        $data['tos_list'] = $this->Tos_model->get_by_user($this->user_id, $filters);
+        $data['subject_context'] = $subject;
+        $data['subject_tab'] = 'tos';
+        $data['total']    = count($data['tos_list']);
+        $data['use_datatables'] = true;
         $this->render('tos/index', $data);
+    }
+
+    /** Delete a batch of blueprints selected in the list. */
+    public function bulk_delete()
+    {
+        if ($this->input->method() !== 'post') {
+            show_404();
+            return;
+        }
+
+        $ids = $this->input->post('ids');
+        $ids = is_array($ids) ? array_map('strval', $ids) : [];
+
+        $deleted = $this->Tos_model->delete_many($ids, $this->user_id);
+
+        $this->session->set_flashdata('toast', $deleted > 0
+            ? ['type' => 'success', 'message' => $deleted . ' blueprint' . ($deleted === 1 ? '' : 's') . ' deleted.']
+            : ['type' => 'error', 'message' => 'Nothing was deleted.']);
+
+        redirect('tos');
     }
 
     /** Create a new TOS. Supports ?subject=UUID to pre-select a subject. */
@@ -45,14 +66,14 @@ class Tos extends MY_Controller
 
         if ($this->input->method() === 'post') {
             $this->form_validation->set_rules('title', 'Title', 'required|trim|max_length[255]');
-            $this->form_validation->set_rules('subject_id', 'Subject', 'required|trim');
+            $this->form_validation->set_rules('subject_id', 'Subject', 'required|trim|callback_owned_subject');
             $this->form_validation->set_rules('total_items', 'Total Items', 'required|integer|greater_than[0]');
             $this->form_validation->set_rules('remember', 'Remember', 'integer|greater_than_equal_to[0]|less_than_equal_to[100]');
             $this->form_validation->set_rules('understand', 'Understand', 'integer|greater_than_equal_to[0]|less_than_equal_to[100]');
             $this->form_validation->set_rules('apply', 'Apply', 'integer|greater_than_equal_to[0]|less_than_equal_to[100]');
             $this->form_validation->set_rules('analyze', 'Analyze', 'integer|greater_than_equal_to[0]|less_than_equal_to[100]');
             $this->form_validation->set_rules('evaluate', 'Evaluate', 'integer|greater_than_equal_to[0]|less_than_equal_to[100]');
-            $this->form_validation->set_rules('create', 'Create', 'integer|greater_than_equal_to[0]|less_than_equal_to[100]');
+            $this->form_validation->set_rules('create', 'Create', 'integer|greater_than_equal_to[0]|less_than_equal_to[100]|callback_valid_bloom_total');
 
             if ($this->form_validation->run()) {
                 $bloom = $this->_collect_bloom();
@@ -78,6 +99,7 @@ class Tos extends MY_Controller
         $data['preselect']      = $preselect;
         $data['bloom_weights']  = $this->default_bloom;
         $data['page_css']       = ['tos.css'];
+        $data['page_js']        = ['tos.js'];
         $this->render('tos/form', $data);
     }
 
@@ -94,14 +116,14 @@ class Tos extends MY_Controller
 
         if ($this->input->method() === 'post') {
             $this->form_validation->set_rules('title', 'Title', 'required|trim|max_length[255]');
-            $this->form_validation->set_rules('subject_id', 'Subject', 'required|trim');
+            $this->form_validation->set_rules('subject_id', 'Subject', 'required|trim|callback_owned_subject');
             $this->form_validation->set_rules('total_items', 'Total Items', 'required|integer|greater_than[0]');
             $this->form_validation->set_rules('remember', 'Remember', 'integer|greater_than_equal_to[0]|less_than_equal_to[100]');
             $this->form_validation->set_rules('understand', 'Understand', 'integer|greater_than_equal_to[0]|less_than_equal_to[100]');
             $this->form_validation->set_rules('apply', 'Apply', 'integer|greater_than_equal_to[0]|less_than_equal_to[100]');
             $this->form_validation->set_rules('analyze', 'Analyze', 'integer|greater_than_equal_to[0]|less_than_equal_to[100]');
             $this->form_validation->set_rules('evaluate', 'Evaluate', 'integer|greater_than_equal_to[0]|less_than_equal_to[100]');
-            $this->form_validation->set_rules('create', 'Create', 'integer|greater_than_equal_to[0]|less_than_equal_to[100]');
+            $this->form_validation->set_rules('create', 'Create', 'integer|greater_than_equal_to[0]|less_than_equal_to[100]|callback_valid_bloom_total');
 
             if ($this->form_validation->run()) {
                 $bloom = $this->_collect_bloom();
@@ -122,6 +144,7 @@ class Tos extends MY_Controller
         $data['subjects']      = $this->Subject_model->get_by_user($this->user_id);
         $data['bloom_weights'] = $this->_decode_bloom($tos->bloom_weights);
         $data['page_css']      = ['tos.css'];
+        $data['page_js']       = ['tos.js'];
         $this->render('tos/form', $data);
     }
 
@@ -134,12 +157,14 @@ class Tos extends MY_Controller
             redirect('tos');
         }
 
-        $this->page_title = htmlspecialchars($tos->title);
+        $this->page_title = $tos->title;
 
         $subject = $this->Subject_model->get_by_id($tos->subject_id);
 
         $data['tos']           = $tos;
         $data['subject']       = $subject;
+        $data['subject_context'] = $subject;
+        $data['subject_tab']     = 'tos';
         $data['bloom_weights'] = $this->_decode_bloom($tos->bloom_weights);
         $data['topics']        = $this->Tos_model->get_topics($id);
         $data['page_css']      = ['tos.css'];
@@ -149,6 +174,11 @@ class Tos extends MY_Controller
     /** Delete a TOS. */
     public function delete($id)
     {
+        if ($this->input->method() !== 'post') {
+            show_error('Method Not Allowed', 405);
+            return;
+        }
+
         $tos = $this->Tos_model->get_owned($id, $this->user_id);
         if (!$tos) {
             $this->session->set_flashdata('toast', ['type' => 'error', 'message' => 'TOS not found.']);
@@ -201,13 +231,18 @@ class Tos extends MY_Controller
     /** Delete a topic from a TOS. */
     public function delete_topic($tos_id, $topic_id)
     {
+        if ($this->input->method() !== 'post') {
+            show_error('Method Not Allowed', 405);
+            return;
+        }
+
         $tos = $this->Tos_model->get_owned($tos_id, $this->user_id);
         if (!$tos) {
             $this->session->set_flashdata('toast', ['type' => 'error', 'message' => 'TOS not found.']);
             redirect('tos');
         }
 
-        $this->Tos_model->delete_topic($topic_id);
+        $this->Tos_model->delete_topic($topic_id, $tos_id);
         $this->session->set_flashdata('toast', ['type' => 'delete', 'message' => 'Topic removed.']);
         redirect('tos/view/' . $tos_id);
     }
@@ -227,6 +262,23 @@ class Tos extends MY_Controller
             'evaluate'   => (int) $this->input->post('evaluate', true),
             'create'     => (int) $this->input->post('create', true),
         ];
+    }
+
+    /** Form-validation callback: subject must belong to the signed-in user. */
+    public function owned_subject($subject_id)
+    {
+        if ($this->Subject_model->get_owned($subject_id, $this->user_id)) return true;
+        $this->form_validation->set_message('owned_subject', 'Select a subject from your workspace.');
+        return false;
+    }
+
+    /** Form-validation callback: Bloom percentages must add up to 100. */
+    public function valid_bloom_total($unused)
+    {
+        $total = array_sum($this->_collect_bloom());
+        if ($total === 100) return true;
+        $this->form_validation->set_message('valid_bloom_total', 'Bloom taxonomy weights must total exactly 100%.');
+        return false;
     }
 
     /**

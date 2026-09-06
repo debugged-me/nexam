@@ -152,9 +152,9 @@ body.app-body #nexam-toasts { top: 74px; }
 
 .nexam-toast .toast-close {
     flex-shrink: 0;
-    width: 24px;
-    height: 24px;
-    margin: -2px -2px 0 0;
+    width: 44px;
+    height: 44px;
+    margin: -8px -8px -8px 0;
     padding: 0;
     border: none;
     border-radius: 6px;
@@ -169,6 +169,7 @@ body.app-body #nexam-toasts { top: 74px; }
 
 .nexam-toast .toast-close svg { width: 14px !important; height: 14px !important; display: block; }
 .nexam-toast .toast-close:hover { background: #F1F5F9; color: var(--tst-ink-2); }
+.nexam-toast .toast-close:focus-visible { outline: 2px solid var(--tst-info); outline-offset: 1px; }
 
 /* ---- Auto-dismiss progress ---- */
 

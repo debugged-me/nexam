@@ -9,17 +9,17 @@
    ========================================================================== */
 
 :root {
-    --mdl-surface: #FFFFFF;
-    --mdl-line:    #E2E8F0;
-    --mdl-line-2:  #F1F5F9;
-    --mdl-ink:     #0F172A;
-    --mdl-ink-2:   #475569;
-    --mdl-ink-3:   #64748B;
-    --mdl-faint:   #94A3B8;
+    --mdl-surface: var(--surface, #FFFFFF);
+    --mdl-line:    var(--line, #E2E8F0);
+    --mdl-line-2:  var(--surface-3, #F1F5F9);
+    --mdl-ink:     var(--ink, #0F172A);
+    --mdl-ink-2:   var(--ink-2, #475569);
+    --mdl-ink-3:   var(--ink-3, #64748B);
+    --mdl-faint:   var(--ink-faint, #94A3B8);
 
-    --mdl-blue:    #2563EB;
-    --mdl-blue-d:  #1D4ED8;
-    --mdl-blue-bg: #EFF6FF;
+    --mdl-blue:    var(--action-600, #0F766E);
+    --mdl-blue-d:  var(--action-700, #115E59);
+    --mdl-blue-bg: var(--action-50, #F0FDFA);
     --mdl-green:   #059669;
     --mdl-green-d: #047857;
     --mdl-green-bg:#ECFDF5;
@@ -61,8 +61,9 @@
     max-width: 460px;
     max-height: calc(100vh - 48px);
     background: var(--mdl-surface);
-    border-radius: 16px;
-    box-shadow: 0 24px 60px rgba(15, 23, 42, .28), 0 2px 8px rgba(15, 23, 42, .12);
+    border: 1px solid var(--mdl-line);
+    border-radius: var(--radius-lg, 8px);
+    box-shadow: var(--shadow-lg, 0 20px 40px rgba(15, 23, 42, .18));
     font-family: var(--font-body, "Inter", -apple-system, sans-serif);
     display: flex;
     flex-direction: column;
@@ -110,7 +111,7 @@
 }
 
 .nexam-modal-subtitle {
-    font-size: .78rem;
+    font-size: var(--text-sm, .8125rem);
     color: var(--mdl-ink-3);
     line-height: 1.5;
     margin-top: 2px;
@@ -118,9 +119,9 @@
 
 .nexam-modal-close {
     flex-shrink: 0;
-    width: 28px;
-    height: 28px;
-    margin: -2px -2px 0 0;
+    width: 44px;
+    height: 44px;
+    margin: -6px -6px 0 0;
     padding: 0;
     border: none;
     border-radius: 7px;
@@ -166,7 +167,7 @@
     align-items: center;
     justify-content: center;
     gap: 6px;
-    height: 38px;
+    min-height: 44px;
     padding: 0 16px;
     border: 1px solid transparent;
     border-radius: 8px;
@@ -216,7 +217,7 @@
     .nexam-modal {
         max-width: 100%;
         max-height: calc(100vh - 24px);
-        border-radius: 16px;
+        border-radius: var(--radius-lg, 8px) var(--radius-lg, 8px) 0 0;
     }
 
     .nexam-modal-header { padding: 16px 16px 14px; }

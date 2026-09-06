@@ -2,10 +2,7 @@
     <div class="form-container form-container--wide">
 
         <div class="page-header">
-            <p class="page-sub"><?php echo isset($tos) ? 'Update this blueprint.' : 'Set the total items and how they spread across Bloom levels.'; ?></p>
-            <a href="<?php echo site_url('tos'); ?>" class="btn btn-outline btn-sm">
-                <i data-lucide="arrow-left"></i> Back
-            </a>
+            <div><h1><?php echo isset($tos) ? 'Edit TOS Blueprint' : 'New TOS Blueprint'; ?></h1><p class="page-sub"><?php echo isset($tos) ? 'Update this blueprint.' : 'Set the total items and how they spread across Bloom levels.'; ?></p></div>
         </div>
 
         <?php if (empty($subjects)): ?>
@@ -22,15 +19,18 @@
         <?php else: ?>
             <div class="card">
                 <div class="card-body">
-                    <form action="" method="post" autocomplete="off">
+                    <form action="" method="post" id="tos-form" data-dirty-guard>
                         <input type="hidden" name="<?php echo $csrf_name; ?>" value="<?php echo $csrf_hash; ?>">
+                        <?php if (validation_errors()): ?>
+                            <div class="form-alert" role="alert"><i data-lucide="circle-alert"></i><div><strong>Please review the blueprint.</strong><span><?php echo htmlspecialchars(trim(validation_errors(' ', ' ')), ENT_QUOTES, 'UTF-8'); ?></span></div></div>
+                        <?php endif; ?>
 
                         <div class="form-section">
                             <div class="form-section-title">Details</div>
                             <div class="form-group">
                                 <label class="form-label" for="title">Title <span class="req">*</span></label>
                                 <input type="text" id="title" name="title" class="form-control" required maxlength="255"
-                                       value="<?php echo isset($tos) ? htmlspecialchars($tos->title) : ''; ?>"
+                                       value="<?php echo htmlspecialchars(set_value('title', isset($tos) ? $tos->title : ''), ENT_QUOTES, 'UTF-8'); ?>"
                                        placeholder="e.g. Midterm Exam Blueprint" autofocus>
                             </div>
 
@@ -39,8 +39,8 @@
                                 <select id="subject_id" name="subject_id" class="form-control form-select" required>
                                     <option value="">Select a subject…</option>
                                     <?php foreach ($subjects as $s): ?>
-                                        <option value="<?php echo htmlspecialchars($s->id); ?>"
-                                            <?php echo (isset($tos) && $tos->subject_id === $s->id) || (isset($preselect) && $preselect === $s->id) ? 'selected' : ''; ?>>
+                                        <?php $tos_subject_value = set_value('subject_id', isset($tos) ? $tos->subject_id : (isset($preselect) ? $preselect : '')); ?>
+                                        <option value="<?php echo htmlspecialchars($s->id); ?>" <?php echo $tos_subject_value === $s->id ? 'selected' : ''; ?>>
                                             <?php echo htmlspecialchars($s->name); ?><?php echo $s->code ? ' (' . htmlspecialchars($s->code) . ')' : ''; ?>
                                         </option>
                                     <?php endforeach; ?>
@@ -50,7 +50,7 @@
                             <div class="form-group">
                                 <label class="form-label" for="total_items">Total Items <span class="req">*</span></label>
                                 <input type="number" id="total_items" name="total_items" class="form-control" required min="1" max="500"
-                                       value="<?php echo isset($tos) ? (int) $tos->total_items : 50; ?>">
+                                       value="<?php echo (int) set_value('total_items', isset($tos) ? $tos->total_items : 50); ?>">
                             </div>
                         </div>
 
@@ -76,24 +76,25 @@
                                         <div class="bloom-input-wrap">
                                             <input type="number" id="bloom_<?php echo $key; ?>" name="<?php echo $key; ?>"
                                                    class="form-control bloom-input" min="0" max="100" step="1"
-                                                   value="<?php echo isset($bloom_weights[$key]) ? (int) $bloom_weights[$key] : 0; ?>"
+                                                   value="<?php echo (int) set_value($key, isset($bloom_weights[$key]) ? $bloom_weights[$key] : 0); ?>"
                                                    data-bloom="1">
                                             <span class="bloom-pct">%</span>
                                         </div>
                                     </div>
                                 <?php endforeach; ?>
                             </div>
-                            <div class="bloom-total" id="bloomTotal">
+                            <div class="bloom-total" id="bloomTotal" role="status" aria-live="polite">
                                 Total: <span id="bloomTotalValue">0</span>%
                                 <span class="bloom-total-badge" id="bloomTotalBadge"></span>
                             </div>
                         </div>
 
-                        <div class="form-actions">
+                        <div class="form-actions form-actions--sticky">
                             <button type="submit" class="btn btn-primary">
-                                <i data-lucide="check"></i> <?php echo isset($tos) ? 'Update' : 'Create'; ?>
+                                <i data-lucide="check"></i> <?php echo isset($tos) ? 'Save Changes' : 'Create Blueprint'; ?>
                             </button>
-                            <a href="<?php echo isset($tos) ? site_url('tos/view/' . $tos->id) : site_url('tos'); ?>" class="btn btn-outline">Cancel</a>
+                            <?php $return_subject = isset($tos) ? $tos->subject_id : (!empty($preselect) ? $preselect : null); ?>
+                            <a href="<?php echo isset($tos) ? site_url('tos/view/' . $tos->id) : site_url('tos' . ($return_subject ? '?subject_id=' . rawurlencode($return_subject) : '')); ?>" class="btn btn-outline">Cancel</a>
                         </div>
                     </form>
                 </div>
@@ -102,32 +103,3 @@
 
     </div>
 </div>
-
-<script>
-(function () {
-    var inputs = document.querySelectorAll('.bloom-input');
-    var totalEl = document.getElementById('bloomTotalValue');
-    var badgeEl = document.getElementById('bloomTotalBadge');
-
-    function recalc() {
-        var sum = 0;
-        inputs.forEach(function (el) {
-            sum += parseInt(el.value, 10) || 0;
-        });
-        totalEl.textContent = sum;
-        if (sum === 100) {
-            badgeEl.textContent = 'Balanced';
-            badgeEl.className = 'bloom-total-badge ok';
-        } else {
-            badgeEl.textContent = 'Should be 100%';
-            badgeEl.className = 'bloom-total-badge warn';
-        }
-    }
-
-    inputs.forEach(function (el) {
-        el.addEventListener('input', recalc);
-    });
-
-    recalc();
-})();
-</script>

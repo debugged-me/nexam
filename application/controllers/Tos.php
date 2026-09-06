@@ -77,6 +77,7 @@ class Tos extends MY_Controller
         $data['subjects']      = $subjects;
         $data['preselect']      = $preselect;
         $data['bloom_weights']  = $this->default_bloom;
+        $data['page_css']       = ['tos.css'];
         $this->render('tos/form', $data);
     }
 
@@ -120,6 +121,7 @@ class Tos extends MY_Controller
         $data['tos']           = $tos;
         $data['subjects']      = $this->Subject_model->get_by_user($this->user_id);
         $data['bloom_weights'] = $this->_decode_bloom($tos->bloom_weights);
+        $data['page_css']      = ['tos.css'];
         $this->render('tos/form', $data);
     }
 
@@ -140,6 +142,7 @@ class Tos extends MY_Controller
         $data['subject']       = $subject;
         $data['bloom_weights'] = $this->_decode_bloom($tos->bloom_weights);
         $data['topics']        = $this->Tos_model->get_topics($id);
+        $data['page_css']      = ['tos.css'];
         $this->render('tos/view', $data);
     }
 

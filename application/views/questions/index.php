@@ -1,7 +1,13 @@
 <div class="page-content">
 
     <div class="page-header">
-        <p class="page-sub">Every item you have written. Filter by subject, Bloom level or type.</p>
+        <div class="page-intro">
+            <div class="page-intro-icon"><i data-lucide="help-circle"></i></div>
+            <div class="page-intro-body">
+                <div class="page-intro-title">Question Bank<?php if (!empty($pagination['total'])): ?><span class="page-intro-count"><?php echo number_format($pagination['total']); ?></span><?php endif; ?></div>
+                <div class="page-intro-sub">Every item you have written. Filter by subject, Bloom level or type.</div>
+            </div>
+        </div>
         <div class="page-header-actions">
             <button type="button" class="btn btn-outline" id="filter-btn">
                 <i data-lucide="sliders-horizontal"></i> Filter
@@ -20,8 +26,9 @@
     <?php if (empty($questions)): ?>
         <div class="card">
             <div class="empty-state">
-                <i data-lucide="help-circle"></i>
-                <p>No questions found. Create your first question to start building your bank.</p>
+                <div class="empty-icon"><i data-lucide="help-circle"></i></div>
+                <h4>No questions found</h4>
+                <p>Create your first question to start building your bank.</p>
                 <button type="button" class="btn btn-primary" id="new-question-btn-empty">
                     <i data-lucide="plus"></i> New Question
                 </button>
@@ -39,7 +46,7 @@
                             <th class="col-shrink">Bloom</th>
                             <th class="col-shrink">Type</th>
                             <th class="col-shrink">Status</th>
-                            <th class="col-shrink" style="text-align:right">Actions</th>
+                            <th class="col-actions">Actions</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -70,7 +77,7 @@
                                 <td class="cell-truncate">
                                     <?php if (!empty($subject_map[$q->subject_id])): ?>
                                         <a href="<?php echo site_url('subjects/view/' . $q->subject_id); ?>"
-                                           style="color:var(--ink-2);font-weight:500"
+                                           class="cell-link"
                                            title="<?php echo htmlspecialchars($subject_map[$q->subject_id]); ?>">
                                             <?php echo htmlspecialchars($subject_map[$q->subject_id]); ?>
                                         </a>
@@ -101,7 +108,7 @@
                                     <?php endif; ?>
                                 </td>
                                 <td>
-                                    <div class="action-icons" style="justify-content:flex-end">
+                                    <div class="action-icons">
                                         <a href="<?php echo site_url('questions/edit/' . $q->id); ?>" class="action-icon" title="Edit"><i data-lucide="pencil"></i></a>
                                         <a href="<?php echo site_url('questions/delete/' . $q->id); ?>" class="action-icon danger" title="Delete"
                                            onclick="return confirmDelete(event, '<?php echo htmlspecialchars(mb_strimwidth($q->stem, 0, 60, '...'), ENT_QUOTES); ?>')"><i data-lucide="trash-2"></i></a>

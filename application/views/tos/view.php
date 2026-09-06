@@ -3,14 +3,14 @@
     <div class="page-header">
         <div>
             <?php if (!empty($subject)): ?>
-                <a href="<?php echo site_url('subjects/view/' . $subject->id); ?>" style="font-size:14px;color:var(--text-muted)">
-                    <i data-lucide="book-open" style="width:14px;height:14px;display:inline;vertical-align:-2px"></i>
+                <a href="<?php echo site_url('subjects/view/' . $subject->id); ?>" class="crumb-link">
+                    <i data-lucide="book-open"></i>
                     <?php echo htmlspecialchars($subject->name); ?>
-                    <?php if ($subject->code): ?><span class="badge badge-gray" style="margin-left:6px"><?php echo htmlspecialchars($subject->code); ?></span><?php endif; ?>
+                    <?php if ($subject->code): ?><span class="badge badge-gray ml-1"><?php echo htmlspecialchars($subject->code); ?></span><?php endif; ?>
                 </a>
             <?php endif; ?>
         </div>
-        <div style="display:flex;gap:8px">
+        <div class="header-actions">
             <a href="<?php echo site_url('exams/create?tos=' . $tos->id); ?>" class="btn btn-primary btn-sm">
                 <i data-lucide="file-text"></i> Generate Exam
             </a>
@@ -19,7 +19,7 @@
         </div>
     </div>
 
-    <div class="stats-grid" style="margin-bottom:20px">
+    <div class="stats-grid mb-2">
         <div class="stat-card">
             <div class="stat-icon blue"><i data-lucide="list-ordered"></i></div>
             <div class="stat-info"><div class="stat-value"><?php echo (int) $tos->total_items; ?></div><div class="stat-label">Total Items</div></div>
@@ -76,7 +76,7 @@
                     </div>
                     <div class="bloom-bar-meta">
                         <span class="badge badge-gray"><?php echo $pct; ?>%</span>
-                        <span class="text-muted" style="font-size:12px">~<?php echo $item_count; ?> items</span>
+                        <span class="text-muted meta-xs">~<?php echo $item_count; ?> items</span>
                     </div>
                 </div>
             <?php endforeach; ?>
@@ -86,32 +86,32 @@
     <div class="card">
         <div class="card-header">
             <span class="card-title">Topics</span>
-            <span class="text-muted" style="font-size:13px"><?php echo count($topics); ?> topic<?php echo count($topics) === 1 ? '' : 's'; ?></span>
+            <span class="text-muted meta-sm"><?php echo count($topics); ?> topic<?php echo count($topics) === 1 ? '' : 's'; ?></span>
         </div>
         <?php if (empty($topics)): ?>
-            <div class="empty-state" style="padding:32px">
+            <div class="empty-state empty-state-md">
                 <i data-lucide="layers"></i>
                 <p>No topics added yet. Add topics below to define what this TOS covers.</p>
             </div>
         <?php else: ?>
-            <div class="table-wrap" style="border:none;border-radius:0">
+            <div class="table-wrap table-bare">
                 <table class="data-table">
                     <thead>
                         <tr>
-                            <th style="width:40px">#</th>
+                            <th class="col-num">#</th>
                             <th>Topic</th>
-                            <th style="width:160px">Instructional Hours</th>
-                            <th style="width:80px;text-align:right">Actions</th>
+                            <th class="col-medium">Instructional Hours</th>
+                            <th class="col-actions">Actions</th>
                         </tr>
                     </thead>
                     <tbody>
                         <?php foreach ($topics as $i => $tp): ?>
                             <tr>
                                 <td class="text-muted"><?php echo $i + 1; ?></td>
-                                <td style="font-weight:500"><?php echo htmlspecialchars($tp->title); ?></td>
+                                <td class="cell-primary"><?php echo htmlspecialchars($tp->title); ?></td>
                                 <td><span class="badge badge-amber"><?php echo (int) $tp->instructional_hours; ?> hrs</span></td>
                                 <td>
-                                    <div class="action-icons" style="justify-content:flex-end">
+                                    <div class="action-icons">
                                         <a href="<?php echo site_url('tos/delete_topic/' . $tos->id . '/' . $tp->id); ?>" class="action-icon danger" title="Remove topic"
                                            onclick="return confirmDeleteTopic(event, '<?php echo htmlspecialchars($tp->title, ENT_QUOTES); ?>')"><i data-lucide="trash-2"></i></a>
                                     </div>
@@ -123,15 +123,15 @@
             </div>
         <?php endif; ?>
 
-        <div class="card-body" style="border-top:1px solid var(--border)">
+        <div class="card-body card-body-divider">
             <form action="<?php echo site_url('tos/add_topic/' . $tos->id); ?>" method="post" autocomplete="off">
                 <input type="hidden" name="<?php echo $csrf_name; ?>" value="<?php echo $csrf_hash; ?>">
-                <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end">
-                    <div style="flex:1;min-width:200px">
-                        <label class="form-label" for="topic_title">Topic Title <span style="color:#dc2626">*</span></label>
+                <div class="inline-form">
+                    <div class="inline-form-grow">
+                        <label class="form-label" for="topic_title">Topic Title <span class="req">*</span></label>
                         <input type="text" id="topic_title" name="title" class="form-control" required maxlength="255" placeholder="e.g. Introduction to Algorithms">
                     </div>
-                    <div style="width:140px">
+                    <div class="inline-form-fixed">
                         <label class="form-label" for="topic_hours">Instructional Hours</label>
                         <input type="number" id="topic_hours" name="instructional_hours" class="form-control" min="0" max="1000" value="0">
                     </div>
@@ -144,46 +144,6 @@
     </div>
 
 </div>
-
-<style>
-.bloom-bar-row {
-    display: grid;
-    grid-template-columns: 120px 1fr 130px;
-    align-items: center;
-    gap: 14px;
-    margin-bottom: 12px;
-}
-.bloom-bar-row:last-child { margin-bottom: 0; }
-.bloom-bar-label {
-    font-size: 13px;
-    font-weight: 600;
-    color: var(--text);
-}
-.bloom-bar-track {
-    height: 10px;
-    background: var(--bg-hover);
-    border-radius: 999px;
-    overflow: hidden;
-}
-.bloom-bar-fill {
-    height: 100%;
-    border-radius: 999px;
-    transition: width 0.3s ease;
-    min-width: 2px;
-}
-.bloom-bar-meta {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-}
-@media (max-width: 600px) {
-    .bloom-bar-row {
-        grid-template-columns: 1fr;
-        gap: 6px;
-    }
-    .bloom-bar-meta { justify-content: flex-start; }
-}
-</style>
 
 <script>
 function confirmDeleteTopic(e, name) {

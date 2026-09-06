@@ -1,0 +1,73 @@
+/* ==========================================================================
+   maintenance.css — 503 maintenance page
+   --------------------------------------------------------------------------
+   Uses the shared nexam token system (loaded via fonts.css) so the page
+   matches the product identity even when the app is offline.
+   ========================================================================== */
+
+.maintenance-body {
+    margin: 0;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    background: var(--surface-2);
+    font-family: var(--font-body);
+    color: var(--ink);
+    text-align: center;
+}
+
+.maintenance-card {
+    max-width: 500px;
+    width: 100%;
+    background: var(--surface);
+    padding: 48px 40px;
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-sm);
+    border: 1px solid var(--line);
+}
+
+.maintenance-icon {
+    width: 64px;
+    height: 64px;
+    margin: 0 auto 20px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--red-50);
+    color: var(--red-600);
+}
+.maintenance-icon svg { width: 32px; height: 32px; }
+
+.maintenance-title {
+    font-family: var(--font-display);
+    font-size: var(--text-xl);
+    font-weight: 700;
+    color: var(--ink);
+    margin: 0 0 12px;
+}
+
+.maintenance-text {
+    font-size: var(--text-base);
+    color: var(--ink-3);
+    line-height: 1.6;
+    margin: 0 0 28px;
+}
+
+.maintenance-spinner {
+    width: 28px;
+    height: 28px;
+    margin: 0 auto;
+    border: 3px solid var(--surface-3);
+    border-top-color: var(--red-600);
+    border-radius: 50%;
+    animation: maintenance-spin 0.8s linear infinite;
+}
+
+@keyframes maintenance-spin { to { transform: rotate(360deg); } }
+
+@media (prefers-reduced-motion: reduce) {
+    .maintenance-spinner { animation: none; border-top-color: var(--surface-3); }
+}

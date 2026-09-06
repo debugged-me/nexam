@@ -39,6 +39,25 @@
 .kpi-card--warning::before { background: var(--amber-600); }
 .kpi-card--purple::before  { background: var(--purple-600); }
 
+/* Faint top-fade tint matching the stripe, for more presence */
+.kpi-card::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 60px;
+    pointer-events: none;
+    opacity: .5;
+}
+.kpi-card--info::after    { background: linear-gradient(180deg, rgba(37, 99, 235, .06), transparent); }
+.kpi-card--success::after { background: linear-gradient(180deg, rgba(5, 150, 105, .06), transparent); }
+.kpi-card--warning::after { background: linear-gradient(180deg, rgba(217, 119, 6, .06), transparent); }
+.kpi-card--purple::after  { background: linear-gradient(180deg, rgba(124, 58, 237, .06), transparent); }
+
+/* Content sits above the ::after tint */
+.kpi-card > * { position: relative; }
+
 .kpi-top {
     display: flex;
     align-items: center;
@@ -259,6 +278,12 @@
 .gauge-legend .gl { display: inline-flex; align-items: center; gap: 6px; font-size: .74rem; color: var(--ink-3); }
 .gauge-legend .gl b { color: var(--ink); font-weight: 700; font-variant-numeric: tabular-nums; }
 .gauge-legend .gl i { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+.gauge-legend .gl i.green { background: var(--green-600); }
+.gauge-legend .gl i.amber { background: var(--amber-600); }
+.gauge-legend .gl i.slate { background: var(--ink-faint); }
+
+/* Footnote under the readiness gauge */
+.gauge-foot-note { font-size: .74rem; }
 
 /* ---- Bloom coverage -------------------------------------------------- */
 

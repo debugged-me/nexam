@@ -1,7 +1,13 @@
 <div class="page-content">
 
     <div class="page-header">
-        <p class="page-sub">Blueprints that decide how many items each topic and Bloom level gets.</p>
+        <div class="page-intro">
+            <div class="page-intro-icon"><i data-lucide="table"></i></div>
+            <div class="page-intro-body">
+                <div class="page-intro-title">TOS Blueprints<?php if (!empty($total)): ?><span class="page-intro-count"><?php echo number_format($total); ?></span><?php endif; ?></div>
+                <div class="page-intro-sub">Blueprints that decide how many items each topic and Bloom level gets.</div>
+            </div>
+        </div>
         <a href="<?php echo site_url('tos/create'); ?>" class="btn btn-primary">
             <i data-lucide="plus"></i> New TOS
         </a>
@@ -10,8 +16,9 @@
     <?php if (empty($tos_list)): ?>
         <div class="card">
             <div class="empty-state">
-                <i data-lucide="table"></i>
-                <p>No TOS blueprints yet. Create one to plan your exam distribution.</p>
+                <div class="empty-icon"><i data-lucide="table"></i></div>
+                <h4>No TOS blueprints yet</h4>
+                <p>Create one to plan your exam distribution.</p>
                 <a href="<?php echo site_url('tos/create'); ?>" class="btn btn-primary">
                     <i data-lucide="plus"></i> New TOS
                 </a>
@@ -27,7 +34,7 @@
                             <th class="col-medium">Subject</th>
                             <th class="col-shrink">Total Items</th>
                             <th class="col-shrink">Created</th>
-                            <th class="col-shrink" style="text-align:right">Actions</th>
+                            <th class="col-actions">Actions</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -42,12 +49,12 @@
                                 <td class="cell-truncate">
                                     <?php if (!empty($t->subject_name)): ?>
                                         <a href="<?php echo site_url('subjects/view/' . $t->subject_id); ?>"
-                                           style="color:var(--ink-2)"
+                                           class="cell-link"
                                            title="<?php echo htmlspecialchars($t->subject_name); ?>">
                                             <?php echo htmlspecialchars($t->subject_name); ?>
                                         </a>
                                         <?php if (!empty($t->subject_code)): ?>
-                                            <span class="badge badge-gray" style="margin-left:6px"><?php echo htmlspecialchars($t->subject_code); ?></span>
+                                            <span class="badge badge-gray ml-1"><?php echo htmlspecialchars($t->subject_code); ?></span>
                                         <?php endif; ?>
                                     <?php else: ?>
                                         <span class="text-muted">—</span>
@@ -56,7 +63,7 @@
                                 <td><span class="badge badge-blue"><?php echo (int) $t->total_items; ?> items</span></td>
                                 <td class="text-muted nowrap"><?php echo date('M j, Y', strtotime($t->created_at)); ?></td>
                                 <td>
-                                    <div class="action-icons" style="justify-content:flex-end">
+                                    <div class="action-icons">
                                         <a href="<?php echo site_url('tos/view/' . $t->id); ?>" class="action-icon" title="View"><i data-lucide="eye"></i></a>
                                         <a href="<?php echo site_url('tos/edit/' . $t->id); ?>" class="action-icon" title="Edit"><i data-lucide="pencil"></i></a>
                                         <a href="<?php echo site_url('tos/delete/' . $t->id); ?>" class="action-icon danger" title="Delete"

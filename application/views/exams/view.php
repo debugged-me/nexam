@@ -11,7 +11,7 @@
                 <span class="badge badge-amber">Draft</span>
             <?php endif; ?>
         </div>
-        <div style="display:flex;gap:8px">
+        <div class="header-actions">
             <?php if ($exam->status === 'draft'): ?>
                 <a href="<?php echo site_url('exams/publish/' . $exam->id); ?>" class="btn btn-primary btn-sm"
                    onclick="return confirmPublish(event)">
@@ -28,14 +28,14 @@
         </div>
     </div>
 
-    <div class="stats-grid" style="margin-bottom:20px">
+    <div class="stats-grid mb-2">
         <div class="stat-card">
             <div class="stat-icon blue"><i data-lucide="file-text"></i></div>
             <div class="stat-info"><div class="stat-value"><?php echo count($questions); ?></div><div class="stat-label">Questions</div></div>
         </div>
         <div class="stat-card">
             <div class="stat-icon <?php echo $exam->format === 'print' ? 'amber' : 'green'; ?>"><i data-lucide="<?php echo $exam->format === 'print' ? 'printer' : 'monitor'; ?>"></i></div>
-            <div class="stat-info"><div class="stat-value" style="font-size:18px;text-transform:capitalize"><?php echo htmlspecialchars($exam->format); ?></div><div class="stat-label">Format</div></div>
+            <div class="stat-info"><div class="stat-value stat-value-sm"><?php echo htmlspecialchars($exam->format); ?></div><div class="stat-label">Format</div></div>
         </div>
         <?php if ($exam->duration_minutes): ?>
             <div class="stat-card">
@@ -49,7 +49,7 @@
         <div class="card mb-2">
             <div class="card-header"><span class="card-title">Instructions</span></div>
             <div class="card-body">
-                <p style="white-space:pre-wrap;font-size:14px"><?php echo htmlspecialchars($exam->instructions); ?></p>
+                <p class="preserve-lines"><?php echo htmlspecialchars($exam->instructions); ?></p>
             </div>
         </div>
     <?php endif; ?>
@@ -58,11 +58,11 @@
         <div class="card-header">
             <span class="card-title">Questions</span>
             <?php if (!empty($questions)): ?>
-                <span class="text-muted" style="font-size:13px"><?php echo count($questions); ?> total</span>
+                <span class="text-muted meta-sm"><?php echo count($questions); ?> total</span>
             <?php endif; ?>
         </div>
         <?php if (empty($questions)): ?>
-            <div class="empty-state" style="padding:48px 24px">
+            <div class="empty-state empty-state-lg">
                 <i data-lucide="help-circle"></i>
                 <p>This exam has no questions yet.</p>
                 <a href="<?php echo site_url('exams/create?tos='); ?>" class="btn btn-primary btn-sm">
@@ -70,11 +70,11 @@
                 </a>
             </div>
         <?php else: ?>
-            <div class="table-wrap" style="border:none;border-radius:0">
+            <div class="table-wrap table-bare">
                 <table class="data-table">
                     <thead>
                         <tr>
-                            <th style="width:50px">#</th>
+                            <th class="col-num">#</th>
                             <th>Question</th>
                             <th>Type</th>
                             <th>Bloom</th>
@@ -84,7 +84,7 @@
                         <?php foreach ($questions as $i => $q): ?>
                             <tr>
                                 <td class="text-muted"><?php echo $i + 1; ?></td>
-                                <td style="max-width:520px"><?php echo htmlspecialchars(mb_strimwidth($q->stem, 0, 120, '…')); ?></td>
+                                <td class="cell-medium"><?php echo htmlspecialchars(mb_strimwidth($q->stem, 0, 120, '…')); ?></td>
                                 <td><span class="badge badge-gray"><?php echo htmlspecialchars(ucfirst($q->type)); ?></span></td>
                                 <td><span class="badge badge-purple"><?php echo htmlspecialchars(ucfirst($q->bloom)); ?></span></td>
                             </tr>

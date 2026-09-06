@@ -8,72 +8,18 @@
    ========================================================================== */
 
 :root {
-    /* ---- Nav rail (matches srms sidebar-theme.css) ---- */
-    --sb-bg: #1A2942;
-    --sb-bg-sunken: #16243A;
+    /* ---- Nav rail (sidebar-specific; brand colours come from fonts.css) ---- */
+    --sb-bg: var(--brand);
+    --sb-bg-sunken: var(--brand-deep);
     --sb-text: #94A3B8;
     --sb-text-hover: #B8C2D0;
-    --sb-text-active: #3BC0C3;
+    --sb-text-active: var(--brand-accent);
     --sb-title: #8593A8;
     --sb-divider: rgba(148, 163, 184, .14);
-
-    /* ---- Palette (matches srms-tokens.css) ---- */
-    --blue-50:  #EFF6FF;
-    --blue-100: #DBEAFE;
-    --blue-600: #2563EB;
-    --blue-700: #1D4ED8;
-
-    --green-50:  #ECFDF5;
-    --green-100: #D1FAE5;
-    --green-600: #059669;
-    --green-700: #047857;
-
-    --amber-50:  #FFFBEB;
-    --amber-100: #FEF3C7;
-    --amber-600: #D97706;
-    --amber-700: #B45309;
-
-    --red-50:  #FEF2F2;
-    --red-100: #FEE2E2;
-    --red-600: #DC2626;
-    --red-700: #B91C1C;
-
-    --purple-50:  #F5F3FF;
-    --purple-600: #7C3AED;
-    --purple-700: #6D28D9;
-
-    --teal-50:  #F0FDFA;
-    --teal-600: #0D9488;
-
-    /* ---- Ink ---- */
-    --ink:       #0F172A;
-    --ink-2:     #475569;
-    --ink-3:     #64748B;
-    --ink-faint: #94A3B8;
-
-    /* ---- Surfaces ---- */
-    --surface:   #FFFFFF;
-    --surface-2: #F8FAFC;
-    --surface-3: #F1F5F9;
-    --line:        #E2E8F0;
-    --line-strong: #CBD5E1;
-
-    /* ---- Shape ---- */
-    --radius-xs: 6px;
-    --radius-sm: 8px;
-    --radius: 12px;
-    --radius-lg: 14px;
-
-    /* ---- Elevation: layered, low-alpha, never coloured ---- */
-    --shadow-sm: 0 1px 3px rgba(15, 23, 42, .07), 0 1px 2px rgba(15, 23, 42, .05);
-    --shadow-md: 0 4px 12px rgba(15, 23, 42, .08), 0 2px 6px rgba(15, 23, 42, .05);
-    --shadow-lg: 0 10px 30px rgba(15, 23, 42, .10), 0 4px 12px rgba(15, 23, 42, .06);
 
     /* ---- Layout ---- */
     --sidebar-width: 240px;
     --topbar-height: 60px;
-
-    --ease: cubic-bezier(.16, 1, .3, 1);
 
     /* ---- Aliases kept so existing pages keep resolving ---- */
     --primary: var(--blue-600);
@@ -254,8 +200,24 @@ button { font-family: inherit; }
 .nav-item:hover { color: var(--sb-text-hover); }
 .nav-item:hover svg { opacity: 1; }
 
-.nav-item.active { color: var(--sb-text-active); font-weight: 600; }
+/* Active row: teal text + a 3px teal left rail + a subtle teal-tinted
+   background. Ties the content area's accent back to the brand chrome. */
+.nav-item.active {
+    color: var(--sb-text-active);
+    font-weight: 600;
+    background: rgba(59, 192, 195, .08);
+}
 .nav-item.active svg { opacity: 1; }
+.nav-item.active::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 3px;
+    background: var(--brand-accent);
+    border-radius: 0 3px 3px 0;
+}
 
 
 .sidebar-footer {
@@ -454,8 +416,8 @@ body.rail-collapsed .nav-item:hover::after { opacity: 1; }
 
 .bell-trigger {
     position: relative;
-    width: 34px;
-    height: 34px;
+    width: 36px;
+    height: 36px;
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -855,6 +817,10 @@ body.rail-collapsed .nav-item:hover::after { opacity: 1; }
 .btn-danger { background: var(--red-600); color: #fff; }
 .btn-danger:hover { background: var(--red-700); }
 
+/* Accent — the teal signature, for the product's hero action (Generate Exam) */
+.btn-accent { background: var(--brand-accent); color: var(--brand-deep); }
+.btn-accent:hover { background: #2DA9AC; }
+
 .btn-sm { height: 31px; padding: 0 .7rem; font-size: .74rem; }
 .btn-sm svg { width: 13px !important; height: 13px !important; }
 .btn-lg { height: 44px; padding: 0 1.3rem; font-size: .87rem; }
@@ -881,7 +847,7 @@ body.rail-collapsed .nav-item:hover::after { opacity: 1; }
     width: 100%;
     border-collapse: collapse;
     font-size: .85rem;
-    table-layout: fixed;
+    table-layout: auto;
 }
 
 .data-table thead th {
@@ -897,23 +863,24 @@ body.rail-collapsed .nav-item:hover::after { opacity: 1; }
     white-space: nowrap;
 }
 
-/* Column width helpers — use on <th> to control widths */
-.col-shrink { width: 1%; white-space: nowrap; }
-.col-medium { width: 140px; }
-.col-wide   { width: auto; }
+/* Column width helpers — use on <th> to control widths.
+   With table-layout:auto these are hints; nowrap columns size to
+   their content so badges/dates/actions never get clipped. */
+.col-shrink   { width: auto; white-space: nowrap; }
+.col-medium   { width: 160px; min-width: 120px; }
+.col-wide     { width: auto; min-width: 180px; }
+.col-actions  { width: auto; white-space: nowrap; text-align: right; }
 
 .data-table tbody td {
     padding: 12px 18px;
     border-bottom: 1px solid var(--line);
     vertical-align: middle;
     color: var(--ink-2);
-    overflow: hidden;
-    text-overflow: ellipsis;
 }
 
 /* Truncation: add .cell-truncate to <td> for single-line ellipsis */
 .cell-truncate {
-    max-width: 0; /* needed inside table-layout:fixed for ellipsis to work */
+    max-width: 240px;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -972,8 +939,8 @@ body.rail-collapsed .nav-item:hover::after { opacity: 1; }
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    min-width: 32px;
-    height: 32px;
+    min-width: 36px;
+    height: 36px;
     padding: 0 8px;
     border: 1px solid var(--line);
     border-radius: var(--radius-xs);
@@ -1229,6 +1196,204 @@ textarea.form-control { resize: vertical; min-height: 92px; height: auto; paddin
 .filter-bar .form-group { margin-bottom: 0; flex: 1; min-width: 150px; }
 
 /* ==========================================================================
+   Form layout helpers (replace ad-hoc inline styles in views)
+   ========================================================================== */
+
+/* Centred narrow column for single-record forms (subject, exam, etc.) */
+.form-container { max-width: 640px; margin: 0 auto; }
+.form-container.form-container--wide { max-width: 800px; }
+
+/* Button row at the foot of a form */
+.form-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+
+/* Required-asterisk span — use <span class="req">*</span> instead of inline color */
+.form-label .req,
+.req { color: var(--red-600); font-weight: 600; }
+
+/* ==========================================================================
+   Callouts — inline info/warning banners (replaces inline-styled banners)
+   ========================================================================== */
+
+.callout {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 16px 20px;
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--line);
+    background: var(--surface-2);
+}
+.callout .callout-icon {
+    width: 40px;
+    height: 40px;
+    flex-shrink: 0;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.callout .callout-icon svg { width: 18px !important; height: 18px !important; display: block; }
+.callout .callout-title {
+    font-family: var(--font-display, "Google Sans", sans-serif);
+    font-size: .94rem;
+    font-weight: 600;
+    color: var(--ink);
+}
+.callout .callout-detail { font-size: .82rem; color: var(--ink-3); margin-top: 4px; }
+.callout .callout-note { font-size: .76rem; margin-top: 6px; display: flex; align-items: center; gap: 5px; }
+.callout .callout-note svg { width: 13px !important; height: 13px !important; display: block; }
+
+.callout-warning { background: var(--amber-50); border-color: #FDE68A; }
+.callout-warning .callout-icon { background: var(--amber-100); color: var(--amber-700); }
+.callout-warning .callout-note { color: var(--amber-700); }
+
+.callout-info { background: var(--blue-50); border-color: var(--blue-100); }
+.callout-info .callout-icon { background: var(--blue-100); color: var(--blue-700); }
+.callout-info .callout-note { color: var(--blue-700); }
+
+/* ==========================================================================
+   Table cell link — secondary link inside a data cell
+   ========================================================================== */
+
+.cell-link { color: var(--ink-2); font-weight: 500; }
+.cell-link:hover { color: var(--blue-600); }
+
+/* ==========================================================================
+   Page intro — lightweight header block for list pages
+   ========================================================================== */
+
+.page-intro {
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+    margin-bottom: 1.25rem;
+}
+/* When inside a page-header, the header carries the spacing */
+.page-header .page-intro { margin-bottom: 0; }
+.page-intro .page-intro-icon {
+    width: 44px;
+    height: 44px;
+    flex-shrink: 0;
+    border-radius: var(--radius);
+    background: var(--surface);
+    border: 1px solid var(--line);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--brand-accent);
+    box-shadow: var(--shadow-sm);
+}
+.page-intro .page-intro-icon svg { width: 22px !important; height: 22px !important; display: block; }
+.page-intro .page-intro-body { min-width: 0; padding-top: 2px; }
+.page-intro .page-intro-title {
+    font-family: var(--font-display, "Google Sans", sans-serif);
+    font-size: 1.15rem;
+    font-weight: 700;
+    letter-spacing: -.02em;
+    color: var(--ink);
+    line-height: 1.25;
+}
+.page-intro .page-intro-sub { font-size: .84rem; color: var(--ink-3); margin-top: 3px; }
+.page-intro .page-intro-count {
+    display: inline-flex;
+    align-items: center;
+    margin-left: 8px;
+    padding: 2px 9px;
+    border-radius: 999px;
+    background: var(--surface-3);
+    color: var(--ink-3);
+    font-family: var(--font-body, "Inter", sans-serif);
+    font-size: .72rem;
+    font-weight: 600;
+    vertical-align: 2px;
+}
+
+/* ==========================================================================
+   Form sections — group fields inside a card with a sub-heading
+   ========================================================================== */
+
+.form-section { margin-bottom: 1.25rem; }
+.form-section:last-child { margin-bottom: 0; }
+.form-section-title {
+    font-family: var(--font-display, "Google Sans", sans-serif);
+    font-size: .78rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .06em;
+    color: var(--ink-2);
+    margin-bottom: .85rem;
+    padding-bottom: .5rem;
+    border-bottom: 1px solid var(--line);
+}
+.form-section .form-group:last-child { margin-bottom: 0; }
+
+/* ==========================================================================
+   Detail views — helpers for record pages (subject/exam/tos view)
+   ========================================================================== */
+
+/* Action button group in a page-header (replaces inline flex) */
+.header-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+
+/* Two-column grid for side-by-side cards on detail pages */
+.detail-grid-2 {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.2rem;
+}
+@media (max-width: 768px) { .detail-grid-2 { grid-template-columns: 1fr; } }
+
+/* Smaller stat value for non-numeric content (e.g. "Print") */
+.stat-value-sm { font-size: 1.15rem; text-transform: capitalize; }
+
+/* Pre-wrapped instruction/paragraph text */
+.preserve-lines { white-space: pre-wrap; font-size: var(--text-base); line-height: 1.6; }
+
+/* A table that sits flush inside a card (no border/radius of its own) */
+.table-bare { border: none; border-radius: 0; box-shadow: none; }
+
+/* Narrow "#" index column */
+.col-num { width: 50px; }
+
+/* Cell with a max width for long text */
+.cell-medium { max-width: 520px; }
+
+/* Inline add-form at the foot of a card (e.g. add-topic) */
+.inline-form {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    align-items: flex-end;
+}
+.inline-form .inline-form-grow { flex: 1; min-width: 200px; }
+.inline-form .inline-form-fixed { width: 140px; }
+
+/* Card body that acts as a footer section (top border only) */
+.card-body-divider { border-top: 1px solid var(--line); }
+
+/* Larger padding for empty states inside cards */
+.empty-state-lg { padding: 48px 24px; }
+.empty-state-md { padding: 32px; }
+
+/* Small muted meta text (replaces inline font-size on muted spans) */
+.meta-sm { font-size: var(--text-sm); }
+.meta-xs { font-size: var(--text-xs); }
+
+/* Subject/TOS breadcrumb-style link in a page header */
+.crumb-link {
+    font-size: var(--text-sm);
+    color: var(--ink-3);
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+}
+.crumb-link:hover { color: var(--blue-600); }
+.crumb-link svg { width: 14px !important; height: 14px !important; display: block; }
+
+/* Title link inside a bare table cell */
+.cell-title { color: var(--ink); font-weight: 500; }
+.cell-title:hover { color: var(--blue-600); }
+
+/* ==========================================================================
    Empty state
    ========================================================================== */
 
@@ -1278,11 +1443,15 @@ textarea.form-control { resize: vertical; min-height: 92px; height: auto; paddin
    Action icons
    ========================================================================== */
 
-.action-icons { display: flex; gap: 2px; justify-content: flex-end; }
+.action-icons { display: flex; gap: 2px; justify-content: flex-end; flex-wrap: nowrap; }
+/* The <td> holding .action-icons already forces right alignment; the class
+   itself defaults to flex-end so views need no inline style. */
 
 .action-icon {
-    width: 30px;
-    height: 30px;
+    width: 36px;
+    height: 36px;
+    min-width: 36px;
+    flex-shrink: 0;
     border-radius: var(--radius-xs);
     border: none;
     background: transparent;
@@ -1297,6 +1466,13 @@ textarea.form-control { resize: vertical; min-height: 92px; height: auto; paddin
 .action-icon svg { width: 15px !important; height: 15px !important; display: block; }
 .action-icon:hover { background: var(--surface-3); color: var(--ink-2); }
 .action-icon.danger:hover { background: var(--red-50); color: var(--red-600); }
+
+/* The <td> holding .action-icons must never clip or shrink the icons */
+.data-table td:has(.action-icons) {
+    white-space: nowrap;
+    text-align: right;
+    width: 1%;
+}
 
 /* ==========================================================================
    Responsive
@@ -1337,6 +1513,8 @@ textarea.form-control { resize: vertical; min-height: 92px; height: auto; paddin
 .mb-1 { margin-bottom: .5rem; }
 .mb-2 { margin-bottom: 1rem; }
 .mb-3 { margin-bottom: 1.5rem; }
+.ml-1 { margin-left: .5rem; }
+.ml-2 { margin-left: 1rem; }
 .mt-2 { margin-top: 1rem; }
 .flex-between { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; }
 .w-full { width: 100%; }

@@ -42,7 +42,7 @@
                 <p>Enter the code we emailed you.</p>
             </div>
 
-            <p style="font-size:13px;color:#64748b;margin-bottom:1.5rem;text-align:center">
+            <p class="verify-email-line">
                 A reset code was sent to <strong><?php echo htmlspecialchars($email); ?></strong>
             </p>
 

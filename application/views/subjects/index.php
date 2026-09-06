@@ -1,7 +1,13 @@
 <div class="page-content">
 
     <div class="page-header">
-        <p class="page-sub">Courses you teach. Each subject groups its own questions, blueprints and exams.</p>
+        <div class="page-intro">
+            <div class="page-intro-icon"><i data-lucide="book-open"></i></div>
+            <div class="page-intro-body">
+                <div class="page-intro-title">Subjects<?php if (!empty($pagination['total'])): ?><span class="page-intro-count"><?php echo number_format($pagination['total']); ?></span><?php endif; ?></div>
+                <div class="page-intro-sub">Courses you teach. Each subject groups its own questions, blueprints and exams.</div>
+            </div>
+        </div>
         <a href="<?php echo site_url('subjects/create'); ?>" class="btn btn-primary">
             <i data-lucide="plus"></i> New Subject
         </a>
@@ -10,8 +16,9 @@
     <?php if (empty($subjects)): ?>
         <div class="card">
             <div class="empty-state">
-                <i data-lucide="book-open"></i>
-                <p>No subjects yet. Create your first subject to start building exams.</p>
+                <div class="empty-icon"><i data-lucide="book-open"></i></div>
+                <h4>No subjects yet</h4>
+                <p>Create your first subject to start building exams.</p>
                 <a href="<?php echo site_url('subjects/create'); ?>" class="btn btn-primary">
                     <i data-lucide="plus"></i> New Subject
                 </a>
@@ -26,7 +33,7 @@
                             <th class="col-wide">Name</th>
                             <th class="col-shrink">Code</th>
                             <th class="col-shrink">Created</th>
-                            <th class="col-shrink" style="text-align:right">Actions</th>
+                            <th class="col-actions">Actions</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -41,7 +48,7 @@
                                 <td><?php echo $s->code ? '<span class="badge badge-gray">' . htmlspecialchars($s->code) . '</span>' : '<span class="text-muted">—</span>'; ?></td>
                                 <td class="text-muted nowrap"><?php echo date('M j, Y', strtotime($s->created_at)); ?></td>
                                 <td>
-                                    <div class="action-icons" style="justify-content:flex-end">
+                                    <div class="action-icons">
                                         <a href="<?php echo site_url('subjects/view/' . $s->id); ?>" class="action-icon" title="View"><i data-lucide="eye"></i></a>
                                         <a href="<?php echo site_url('subjects/edit/' . $s->id); ?>" class="action-icon" title="Edit"><i data-lucide="pencil"></i></a>
                                         <a href="<?php echo site_url('subjects/delete/' . $s->id); ?>" class="action-icon danger" title="Delete"

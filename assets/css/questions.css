@@ -38,7 +38,7 @@
 
 /* Required asterisk */
 .req {
-    color: #dc2626;
+    color: var(--red-600);
 }
 
 /* Form groups inside modals — tighten the spacing slightly */
@@ -47,6 +47,14 @@
 
 /* ---- Responsive ------------------------------------------------------ */
 
+/* Two-column field grid on the question form (type + bloom side by side) */
+.question-form-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+}
+
 @media (max-width: 520px) {
     .qf-grid { grid-template-columns: 1fr; gap: 0; }
+    .question-form-grid { grid-template-columns: 1fr; }
 }

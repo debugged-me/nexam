@@ -1,8 +1,14 @@
 <div class="page-content">
 
     <div class="page-header">
-        <p class="page-sub">Papers generated from your blueprints and question bank.</p>
-        <a href="<?php echo site_url('exams/create'); ?>" class="btn btn-primary">
+        <div class="page-intro">
+            <div class="page-intro-icon"><i data-lucide="file-text"></i></div>
+            <div class="page-intro-body">
+                <div class="page-intro-title">Exams<?php if (!empty($pagination['total'])): ?><span class="page-intro-count"><?php echo number_format($pagination['total']); ?></span><?php endif; ?></div>
+                <div class="page-intro-sub">Papers generated from your blueprints and question bank.</div>
+            </div>
+        </div>
+        <a href="<?php echo site_url('exams/create'); ?>" class="btn btn-accent">
             <i data-lucide="sparkles"></i> Generate Exam
         </a>
     </div>
@@ -10,9 +16,10 @@
     <?php if (empty($exams)): ?>
         <div class="card">
             <div class="empty-state">
-                <i data-lucide="file-text"></i>
-                <p>No exams yet. Generate your first exam from a subject or TOS blueprint.</p>
-                <a href="<?php echo site_url('exams/create'); ?>" class="btn btn-primary">
+                <div class="empty-icon"><i data-lucide="file-text"></i></div>
+                <h4>No exams yet</h4>
+                <p>Generate your first exam from a subject or TOS blueprint.</p>
+                <a href="<?php echo site_url('exams/create'); ?>" class="btn btn-accent">
                     <i data-lucide="sparkles"></i> Generate Exam
                 </a>
             </div>
@@ -29,7 +36,7 @@
                             <th class="col-shrink">Status</th>
                             <th class="col-shrink">Questions</th>
                             <th class="col-shrink">Created</th>
-                            <th class="col-shrink" style="text-align:right">Actions</th>
+                            <th class="col-actions">Actions</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -59,7 +66,7 @@
                                 <td><?php echo isset($e->question_count) ? $e->question_count : 0; ?></td>
                                 <td class="text-muted nowrap"><?php echo date('M j, Y', strtotime($e->created_at)); ?></td>
                                 <td>
-                                    <div class="action-icons" style="justify-content:flex-end">
+                                    <div class="action-icons">
                                         <a href="<?php echo site_url('exams/view/' . $e->id); ?>" class="action-icon" title="View"><i data-lucide="eye"></i></a>
                                         <a href="<?php echo site_url('exams/edit/' . $e->id); ?>" class="action-icon" title="Edit"><i data-lucide="pencil"></i></a>
                                         <a href="<?php echo site_url('exams/delete/' . $e->id); ?>" class="action-icon danger" title="Delete"

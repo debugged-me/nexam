@@ -37,7 +37,7 @@ $bloom_index = 0;
             <a href="<?= site_url('questions/create') ?>" class="btn btn-outline">
                 <i data-lucide="plus"></i> New Question
             </a>
-            <a href="<?= site_url('exams/create') ?>" class="btn btn-primary">
+            <a href="<?= site_url('exams/create') ?>" class="btn btn-accent">
                 <i data-lucide="sparkles"></i> Generate Exam
             </a>
         </div>
@@ -131,16 +131,16 @@ $bloom_index = 0;
                     </div>
                 </div>
                 <div class="gauge-legend">
-                    <span class="gl"><i style="background:#059669"></i> Approved <b><?= number_format($bank['approved']) ?></b></span>
-                    <span class="gl"><i style="background:#D97706"></i> Draft <b><?= number_format($bank['draft']) ?></b></span>
+                    <span class="gl"><i class="green"></i> Approved <b><?= number_format($bank['approved']) ?></b></span>
+                    <span class="gl"><i class="amber"></i> Draft <b><?= number_format($bank['draft']) ?></b></span>
                     <?php if ($bank['other'] > 0): ?>
-                        <span class="gl"><i style="background:#94A3B8"></i> Other <b><?= number_format($bank['other']) ?></b></span>
+                        <span class="gl"><i class="slate"></i> Other <b><?= number_format($bank['other']) ?></b></span>
                     <?php endif; ?>
                 </div>
             </div>
 
             <div class="card-footer">
-                <span class="text-muted" style="font-size:.74rem">
+                <span class="text-muted gauge-foot-note">
                     <?php if ($blueprint['planned'] > 0): ?>
                         Blueprints call for <?= number_format($blueprint['planned']) ?> items — bank covers <?= (int) $blueprint['fill_pct'] ?>%
                     <?php else: ?>
@@ -251,7 +251,7 @@ $bloom_index = 0;
                     <div class="empty-icon"><i data-lucide="file-text"></i></div>
                     <h4>No exams generated yet</h4>
                     <p>Build a blueprint, then generate a paper from your bank.</p>
-                    <a href="<?= site_url('exams/create') ?>" class="btn btn-primary btn-sm">
+                    <a href="<?= site_url('exams/create') ?>" class="btn btn-accent btn-sm">
                         <i data-lucide="sparkles"></i> Generate Exam
                     </a>
                 </div>

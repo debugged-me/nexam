@@ -1,5 +1,5 @@
 <div class="page-content">
-    <div style="max-width:800px;margin:0 auto">
+    <div class="form-container form-container--wide">
 
         <div class="page-header">
             <p class="page-sub"><?php echo isset($tos) ? 'Update this blueprint.' : 'Set the total items and how they spread across Bloom levels.'; ?></p>
@@ -11,7 +11,8 @@
         <?php if (empty($subjects)): ?>
             <div class="card">
                 <div class="empty-state">
-                    <i data-lucide="book-open"></i>
+                    <div class="empty-icon"><i data-lucide="book-open"></i></div>
+                    <h4>No subjects available</h4>
                     <p>You need at least one subject before creating a TOS.</p>
                     <a href="<?php echo site_url('subjects/create'); ?>" class="btn btn-primary">
                         <i data-lucide="plus"></i> Create Subject
@@ -24,35 +25,38 @@
                     <form action="" method="post" autocomplete="off">
                         <input type="hidden" name="<?php echo $csrf_name; ?>" value="<?php echo $csrf_hash; ?>">
 
-                        <div class="form-group">
-                            <label class="form-label" for="title">Title <span style="color:#dc2626">*</span></label>
-                            <input type="text" id="title" name="title" class="form-control" required maxlength="255"
-                                   value="<?php echo isset($tos) ? htmlspecialchars($tos->title) : ''; ?>"
-                                   placeholder="e.g. Midterm Exam Blueprint" autofocus>
+                        <div class="form-section">
+                            <div class="form-section-title">Details</div>
+                            <div class="form-group">
+                                <label class="form-label" for="title">Title <span class="req">*</span></label>
+                                <input type="text" id="title" name="title" class="form-control" required maxlength="255"
+                                       value="<?php echo isset($tos) ? htmlspecialchars($tos->title) : ''; ?>"
+                                       placeholder="e.g. Midterm Exam Blueprint" autofocus>
+                            </div>
+
+                            <div class="form-group">
+                                <label class="form-label" for="subject_id">Subject <span class="req">*</span></label>
+                                <select id="subject_id" name="subject_id" class="form-control form-select" required>
+                                    <option value="">Select a subject…</option>
+                                    <?php foreach ($subjects as $s): ?>
+                                        <option value="<?php echo htmlspecialchars($s->id); ?>"
+                                            <?php echo (isset($tos) && $tos->subject_id === $s->id) || (isset($preselect) && $preselect === $s->id) ? 'selected' : ''; ?>>
+                                            <?php echo htmlspecialchars($s->name); ?><?php echo $s->code ? ' (' . htmlspecialchars($s->code) . ')' : ''; ?>
+                                        </option>
+                                    <?php endforeach; ?>
+                                </select>
+                            </div>
+
+                            <div class="form-group">
+                                <label class="form-label" for="total_items">Total Items <span class="req">*</span></label>
+                                <input type="number" id="total_items" name="total_items" class="form-control" required min="1" max="500"
+                                       value="<?php echo isset($tos) ? (int) $tos->total_items : 50; ?>">
+                            </div>
                         </div>
 
-                        <div class="form-group">
-                            <label class="form-label" for="subject_id">Subject <span style="color:#dc2626">*</span></label>
-                            <select id="subject_id" name="subject_id" class="form-control form-select" required>
-                                <option value="">Select a subject…</option>
-                                <?php foreach ($subjects as $s): ?>
-                                    <option value="<?php echo htmlspecialchars($s->id); ?>"
-                                        <?php echo (isset($tos) && $tos->subject_id === $s->id) || (isset($preselect) && $preselect === $s->id) ? 'selected' : ''; ?>>
-                                        <?php echo htmlspecialchars($s->name); ?><?php echo $s->code ? ' (' . htmlspecialchars($s->code) . ')' : ''; ?>
-                                    </option>
-                                <?php endforeach; ?>
-                            </select>
-                        </div>
-
-                        <div class="form-group">
-                            <label class="form-label" for="total_items">Total Items <span style="color:#dc2626">*</span></label>
-                            <input type="number" id="total_items" name="total_items" class="form-control" required min="1" max="500"
-                                   value="<?php echo isset($tos) ? (int) $tos->total_items : 50; ?>">
-                        </div>
-
-                        <div class="form-group">
-                            <label class="form-label">Bloom's Taxonomy Weights (%)</label>
-                            <p class="text-muted" style="font-size:13px;margin-bottom:12px">
+                        <div class="form-section">
+                            <div class="form-section-title">Bloom's Taxonomy Weights</div>
+                            <p class="form-hint mb-2">
                                 Distribute percentages across the six cognitive levels. Should total 100%.
                             </p>
                             <div class="bloom-grid">
@@ -85,7 +89,7 @@
                             </div>
                         </div>
 
-                        <div style="display:flex;gap:10px">
+                        <div class="form-actions">
                             <button type="submit" class="btn btn-primary">
                                 <i data-lucide="check"></i> <?php echo isset($tos) ? 'Update' : 'Create'; ?>
                             </button>
@@ -98,51 +102,6 @@
 
     </div>
 </div>
-
-<style>
-.bloom-grid {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 14px;
-    margin-bottom: 14px;
-}
-.bloom-cell .form-label { margin-bottom: 4px; font-size: 12px; }
-.bloom-input-wrap { position: relative; }
-.bloom-input { padding-right: 28px; }
-.bloom-pct {
-    position: absolute;
-    right: 12px;
-    top: 50%;
-    transform: translateY(-50%);
-    color: var(--text-muted);
-    font-size: 13px;
-    pointer-events: none;
-}
-.bloom-total {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    font-size: 14px;
-    font-weight: 600;
-    color: var(--text);
-    padding: 10px 14px;
-    background: var(--bg-hover);
-    border-radius: var(--radius-sm);
-}
-.bloom-total-badge {
-    display: inline-flex;
-    align-items: center;
-    padding: 2px 10px;
-    border-radius: 999px;
-    font-size: 12px;
-    font-weight: 600;
-}
-.bloom-total-badge.ok { background: #f0fdf4; color: #16a34a; }
-.bloom-total-badge.warn { background: #fef2f2; color: #dc2626; }
-@media (max-width: 600px) {
-    .bloom-grid { grid-template-columns: repeat(2, 1fr); }
-}
-</style>
 
 <script>
 (function () {

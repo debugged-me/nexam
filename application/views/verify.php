@@ -42,7 +42,7 @@
                 <p>Enter the 6-digit code we sent you.</p>
             </div>
 
-            <p style="font-size:13px;color:#64748b;margin-bottom:1.5rem;text-align:center">
+            <p class="verify-email-line">
                 We sent a code to <strong><?php echo htmlspecialchars($email); ?></strong>
             </p>
 

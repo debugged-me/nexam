@@ -13,52 +13,30 @@ class MaintenanceMode
             header('HTTP/1.1 503 Service Temporarily Unavailable');
             header('Retry-After: 3600'); // Suggest retry after 1 hour
 
-            // Maintenance Page with Bootstrap
-            echo '
-            <!DOCTYPE html>
-            <html lang="en">
-            <head>
-                <meta charset="UTF-8">
-                <meta name="viewport" content="width=device-width, initial-scale=1.0">
-                <title>Maintenance Mode</title>
-                <!-- Bootstrap CSS -->
-                <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-                <style>
-                    body {
-                        background-color: #f8f9fa;
-                        display: flex;
-                        align-items: center;
-                        justify-content: center;
-                        height: 100vh;
-                        text-align: center;
-                    }
-                    .container {
-                        max-width: 500px;
-                        background: #ffffff;
-                        padding: 40px;
-                        border-radius: 10px;
-                        box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.1);
-                    }
-                    .spinner-border {
-                        margin: 20px auto;
-                    }
-                </style>
-            </head>
-            <body>
-                <div class="container">
-                    <h1 class="text-danger"><i class="bi bi-tools"></i> Maintenance Mode</h1>
-                    <p class="lead">Our website is currently undergoing maintenance. We\'ll be back soon!</p>
-                    <div class="spinner-border text-danger" role="status">
-                        <span class="visually-hidden">Loading...</span>
-                    </div>
-                 
-                </div>
-
-                <!-- Bootstrap Icons & JS -->
-                <script src="https://cdn.jsdelivr.net/npm/bootstrap-icons/font/bootstrap-icons.css"></script>
-                <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-            </body>
-            </html>';
+            // Maintenance page — uses the nexam design system (local fonts,
+            // shared tokens, Lucide icons). Relative paths because hooks run
+            // before CI is fully bootstrapped (no base_url() available).
+            echo '<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>nexam — Maintenance</title>
+    <meta name="theme-color" content="#1A2942">
+    <link href="assets/css/fonts.css" rel="stylesheet">
+    <link href="assets/css/maintenance.css" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+<body class="maintenance-body">
+    <div class="maintenance-card">
+        <div class="maintenance-icon"><i data-lucide="wrench"></i></div>
+        <h1 class="maintenance-title">Maintenance Mode</h1>
+        <p class="maintenance-text">nexam is currently undergoing maintenance. We\'ll be back soon.</p>
+        <div class="maintenance-spinner" role="status" aria-label="Loading"></div>
+    </div>
+    <script>lucide.createIcons();</script>
+</body>
+</html>';
             exit;
         }
     }

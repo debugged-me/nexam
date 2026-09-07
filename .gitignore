@@ -14,6 +14,10 @@ user_guide_src/cilexer/pycilexer.egg-info/*
 # macOS
 .DS_Store
 
+# Server logs
+error_log
+*.log
+
 #codeigniter 3
 application/logs/*
 !application/logs/index.html

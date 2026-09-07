@@ -50,7 +50,7 @@ $g_bulk        = isset($grid['bulk_url']) ? $grid['bulk_url'] : '';
             <div class="ds-menu" data-grid-view>
                 <button type="button" class="ds-btn" aria-expanded="false" aria-haspopup="true"
                         data-grid-view-trigger>
-                    <i data-lucide="settings-2"></i> View
+                    <i data-lucide="settings-2"></i> Options
                 </button>
                 <div class="ds-menu-panel" role="group" aria-label="Table options" hidden data-grid-view-panel></div>
             </div>

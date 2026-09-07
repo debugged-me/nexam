@@ -48,6 +48,13 @@
         return node;
     }
 
+    /** Escape text inserted into chip labels (search terms come from user input). */
+    var escaper = document.createElement("div");
+    function escapeText(str) {
+        escaper.textContent = str == null ? "" : String(str);
+        return escaper.innerHTML;
+    }
+
     /** Visible text of a cell's HTML — screen-reader and icon markup stripped. */
     var scratch = document.createElement("div");
     function cellText(html) {
@@ -114,6 +121,7 @@
 
         this.buildFooter();
         this.buildViewMenu();
+        this.buildFilterBar();
         this.wireSearch();
         this.wireFacets();
         this.wireSelection();
@@ -160,6 +168,7 @@
 
         this.syncHeaderCheckbox();
         this.renderFooter();
+        this.renderFilterBar();
         icons();
     };
 
@@ -234,6 +243,9 @@
             return btn;
         }
 
+        this.pager.appendChild(pageBtn('<i data-lucide="chevrons-left"></i>', 0, {
+            disabled: info.page === 0, aria: "First page"
+        }));
         this.pager.appendChild(pageBtn('<i data-lucide="chevron-left"></i>', info.page - 1, {
             disabled: info.page === 0, aria: "Previous page"
         }));
@@ -256,6 +268,9 @@
 
         this.pager.appendChild(pageBtn('<i data-lucide="chevron-right"></i>', info.page + 1, {
             disabled: info.page >= info.pages - 1, aria: "Next page"
+        }));
+        this.pager.appendChild(pageBtn('<i data-lucide="chevrons-right"></i>', info.pages - 1, {
+            disabled: info.page >= info.pages - 1, aria: "Last page"
         }));
     };
 
@@ -311,6 +326,82 @@
                 self.api.column(column).search(value ? "^" + value + "$" : "", true, false).draw();
             });
         });
+    };
+
+    /* ----------------------------------------------------------- filter bar */
+
+    /** Build the empty chip container that sits between the toolbar and the
+     *  grid. Hidden until a facet or search is active. */
+    Grid.prototype.buildFilterBar = function () {
+        if (!this.dataset) return;
+        var bar = el("div", "ds-filter-bar");
+        bar.hidden = true;
+        bar.setAttribute("aria-live", "polite");
+        // Insert between the toolbar/selection bar and the scroll container.
+        var scroll = this.dataset.querySelector(".dataset-scroll");
+        if (scroll) this.dataset.insertBefore(bar, scroll);
+        this.filterBar = bar;
+    };
+
+    /** Read the current facet + search state and render a chip per active
+     *  filter, plus a "Clear all" button. */
+    Grid.prototype.renderFilterBar = function () {
+        if (!this.filterBar) return;
+
+        var self = this;
+        var chips = [];
+        var hasSearch = this.search && this.search.value.trim() !== "";
+        var facetActive = (this.facets || []).some(function (f) { return f.select.value !== ""; });
+
+        if (!hasSearch && !facetActive) {
+            this.filterBar.hidden = true;
+            this.filterBar.innerHTML = "";
+            return;
+        }
+
+        if (hasSearch) {
+            chips.push(this.filterChip('Search', '"' + this.search.value.trim() + '"', function () {
+                self.search.value = "";
+                self.api.search("").draw();
+            }));
+        }
+
+        (this.facets || []).forEach(function (f) {
+            if (!f.select.value) return;
+            var label = f.select.options[f.select.selectedIndex].text;
+            var name = f.wrap.querySelector("select").getAttribute("aria-label") || "Filter";
+            name = name.replace(/^filter by\s+/i, "");
+            name = name.charAt(0).toUpperCase() + name.slice(1);
+            chips.push(self.filterChip(name, label, function () {
+                f.select.value = "";
+                f.wrap.setAttribute("data-active", "false");
+                self.api.column(f.column).search("").draw();
+            }));
+        });
+
+        this.filterBar.innerHTML = "";
+        this.filterBar.appendChild(el("span", "ds-filter-bar-label", "Filters:"));
+        chips.forEach(function (c) { self.filterBar.appendChild(c); });
+
+        var clearAll = el("button", "ds-filter-clear",
+            '<i data-lucide="x"></i><span>Clear all</span>');
+        clearAll.type = "button";
+        clearAll.addEventListener("click", function () { self.clearFilters(); });
+        this.filterBar.appendChild(clearAll);
+
+        this.filterBar.hidden = false;
+        icons();
+    };
+
+    Grid.prototype.filterChip = function (name, value, onClear) {
+        var chip = el("span", "ds-filter-chip");
+        chip.innerHTML = "<b>" + escapeText(name) + "</b> " + escapeText(value);
+        var btn = el("button", null, '<i data-lucide="x"></i>');
+        btn.type = "button";
+        btn.setAttribute("aria-label", "Remove " + name + " filter");
+        btn.addEventListener("click", onClear);
+        chip.appendChild(btn);
+        return chip;
     };
 
     /* ----------------------------------------------------------- selection */

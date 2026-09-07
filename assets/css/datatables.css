@@ -18,7 +18,7 @@
 .dataset {
     --grid-x: 14px;              /* horizontal cell rhythm */
     --grid-row: 56px;            /* comfortable row height */
-    --grid-title: .8125rem;
+    --grid-title: .875rem;       /* 14px — readable for classroom/projector use */
     --grid-meta: .75rem;
     --sort-gutter: 17px;         /* width the sort arrow reserves in a header */
 
@@ -151,6 +151,82 @@
 .ds-facet select:hover { background: var(--surface-2); }
 .ds-facet select:focus-visible { border-color: var(--line-strong); box-shadow: 0 0 0 3px var(--ring-soft); }
 .ds-facet[data-active="true"] select { border-color: var(--ink-faint); color: var(--ink); }
+
+/* ---- Active filter chips ---------------------------------------------
+   A visible reminder that a facet or search is constraining the grid, so
+   an instructor who filters by "Draft" and scrolls doesn't forget the filter
+   is on and wonder where the rest of the rows went. */
+
+.ds-filter-bar {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 6px;
+    padding: 0 var(--grid-x) 8px;
+    border-bottom: 1px solid var(--line);
+    background: var(--surface);
+}
+
+.ds-filter-bar[hidden] { display: none; }
+
+.ds-filter-bar-label {
+    color: var(--ink-faint);
+    font: 500 .6875rem/1 var(--font-body, "Inter", sans-serif);
+    letter-spacing: .02em;
+    margin-right: 2px;
+}
+
+.ds-filter-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    height: 24px;
+    padding: 0 4px 0 9px;
+    border: 1px solid var(--action-100);
+    border-radius: 99px;
+    background: var(--action-50);
+    color: var(--ink-2);
+    font: 500 .75rem/1 var(--font-body, "Inter", sans-serif);
+    white-space: nowrap;
+}
+
+.ds-filter-chip b { color: var(--ink); font-weight: 600; }
+
+.ds-filter-chip button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 16px;
+    height: 16px;
+    padding: 0;
+    border: 0;
+    border-radius: 50%;
+    background: transparent;
+    color: var(--ink-faint);
+    cursor: pointer;
+    transition: background-color .12s ease, color .12s ease;
+}
+
+.ds-filter-chip button:hover { background: var(--surface-3); color: var(--ink-2); }
+.ds-filter-chip button svg { width: 11px !important; height: 11px !important; display: block; }
+
+.ds-filter-clear {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    height: 24px;
+    padding: 0 9px;
+    border: 0;
+    border-radius: 99px;
+    background: transparent;
+    color: var(--ink-3);
+    font: 500 .75rem/1 var(--font-body, "Inter", sans-serif);
+    cursor: pointer;
+    transition: background-color .12s ease, color .12s ease;
+}
+
+.ds-filter-clear:hover { background: var(--surface-2); color: var(--ink); }
+.ds-filter-clear svg { width: 12px !important; height: 12px !important; display: block; }
 
 .ds-facet > svg {
     position: absolute;
@@ -323,7 +399,7 @@ table.grid thead > tr > th {
     border-bottom: 1px solid var(--line);
     background: var(--surface);
     color: var(--ink-3);
-    font: 500 .71875rem/1 var(--font-body, "Inter", sans-serif);
+    font: 500 .75rem/1 var(--font-body, "Inter", sans-serif);
     text-align: left;
     white-space: nowrap;
     user-select: none;
@@ -466,14 +542,14 @@ a.g-link:hover { color: var(--ink); text-decoration: underline; text-underline-o
 
 .g-state::before {
     content: "";
-    width: 6px;
-    height: 6px;
+    width: 8px;
+    height: 8px;
     flex: 0 0 auto;
     border-radius: 50%;
     background: var(--line-strong);
 }
 
-.g-state.is-live::before  { background: var(--green-600); box-shadow: 0 0 0 3px rgba(5, 150, 105, .13); }
+.g-state.is-live::before  { background: var(--green-600); box-shadow: 0 0 0 4px rgba(5, 150, 105, .13); }
 .g-state.is-draft::before { background: var(--line-strong); }
 .g-state.is-draft         { color: var(--ink-3); }
 
@@ -492,8 +568,8 @@ a.g-link:hover { color: var(--ink); text-decoration: underline; text-underline-o
 
 .g-bloom::before {
     content: "";
-    width: 9px;
-    height: 9px;
+    width: 12px;
+    height: 12px;
     flex: 0 0 auto;
     border-radius: 2px;
     background: var(--line-strong);
@@ -661,7 +737,7 @@ table.grid td.col-actions {
     background: transparent;
     color: var(--ink-faint);
     cursor: pointer;
-    opacity: 0;
+    opacity: .35;
     transition: opacity .12s ease, background-color .12s ease, color .12s ease;
 }
 

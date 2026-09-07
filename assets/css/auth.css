@@ -404,7 +404,7 @@ a { color: inherit; text-decoration: none; }
 .form-alert span { margin-top: 2px; font-weight: 400; }
 
 .password-toggle svg { width: 17px !important; height: 17px !important; display: block; }
-.password-toggle:hover { background: #F1F5F9; color: var(--auth-ink-2); }
+.password-toggle:hover { color: var(--auth-ink-2); }
 .password-toggle:focus-visible { outline: 2px solid var(--auth-blue); outline-offset: 1px; }
 
 /* One-time codes read better spaced out and centred. */

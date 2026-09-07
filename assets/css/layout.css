@@ -1364,7 +1364,7 @@ textarea.form-control { resize: vertical; min-height: 92px; height: auto; paddin
 }
 
 .field-reveal button svg { width: 16px !important; height: 16px !important; display: block; }
-.field-reveal button:hover { background: var(--surface-3); color: var(--ink-2); }
+.field-reveal button:hover { color: var(--ink-2); }
 .field-reveal button:focus-visible { outline: 2px solid var(--brand-accent); outline-offset: 1px; }
 
 .filter-bar {

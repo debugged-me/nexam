@@ -123,34 +123,82 @@
 .ds-search input:focus ~ kbd,
 .ds-search input:not(:placeholder-shown) ~ kbd { opacity: 0; }
 
-/* ---- Facet selects --------------------------------------------------- */
+/* ---- Filter button --------------------------------------------------- */
 
-.ds-facet {
+.ds-filter-btn {
     position: relative;
-    display: inline-flex;
-    align-items: center;
-    flex: 0 0 auto;
 }
 
-.ds-facet select {
-    height: 34px;
-    max-width: 190px;
-    padding: 0 26px 0 10px;
+.ds-filter-btn[data-active="true"] {
+    background: var(--action-50);
+    border-color: var(--action-100);
+    color: var(--action-600);
+}
+
+.ds-filter-btn[data-active="true"] svg { color: var(--action-600); }
+
+.ds-filter-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 16px;
+    height: 16px;
+    padding: 0 4px;
+    margin-left: 2px;
+    border-radius: 99px;
+    background: var(--action-600);
+    color: #fff;
+    font: 700 .625rem/1 var(--font-body, "Inter", sans-serif);
+    font-variant-numeric: tabular-nums;
+}
+
+.ds-filter-badge[hidden] { display: none; }
+
+/* ---- Filter modal sections ------------------------------------------ */
+
+.ds-filter-section { margin-bottom: 18px; }
+.ds-filter-section:last-child { margin-bottom: 0; }
+
+.ds-filter-section-label {
+    margin-bottom: 8px;
+    color: var(--ink-faint);
+    font: 600 .6875rem/1 var(--font-body, "Inter", sans-serif);
+    letter-spacing: .04em;
+    text-transform: uppercase;
+}
+
+.ds-filter-options {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.ds-filter-option {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    height: 32px;
+    padding: 0 12px;
     border: 1px solid var(--line);
-    border-radius: var(--radius-sm);
+    border-radius: 99px;
     background: var(--surface);
     color: var(--ink-2);
     font: 500 .8125rem/1 var(--font-body, "Inter", sans-serif);
     cursor: pointer;
-    appearance: none;
-    -webkit-appearance: none;
-    outline: none;
-    text-overflow: ellipsis;
+    transition: background-color .12s ease, border-color .12s ease, color .12s ease;
 }
 
-.ds-facet select:hover { background: var(--surface-2); }
-.ds-facet select:focus-visible { border-color: var(--line-strong); box-shadow: 0 0 0 3px var(--ring-soft); }
-.ds-facet[data-active="true"] select { border-color: var(--ink-faint); color: var(--ink); }
+.ds-filter-option:hover { background: var(--surface-2); border-color: var(--line-strong); color: var(--ink); }
+.ds-filter-option:focus-visible { outline: 2px solid var(--brand-accent); outline-offset: 1px; }
+
+.ds-filter-option[aria-pressed="true"] {
+    background: var(--action-600);
+    border-color: var(--action-600);
+    color: #fff;
+}
+
+.ds-filter-option[aria-pressed="true"] svg { color: #fff; }
+.ds-filter-option svg { width: 13px !important; height: 13px !important; display: block; }
 
 /* ---- Active filter chips ---------------------------------------------
    A visible reminder that a facet or search is constraining the grid, so
@@ -961,7 +1009,6 @@ td.dataTables_empty,
     .dataset-bar-lead { flex-wrap: wrap; }
     .ds-search { flex: 1 1 100%; }
     .ds-search input { height: 40px; }
-    .ds-facet select { height: 40px; flex: 1 1 auto; }
     .ds-btn { height: 40px; }
 
     .dataset-foot { flex-direction: column; align-items: stretch; gap: 8px; }

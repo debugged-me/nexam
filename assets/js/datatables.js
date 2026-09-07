@@ -100,12 +100,22 @@
         var pageLength = parseInt(this.prefs.pageLength, 10);
         if ([10, 25, 50, 100].indexOf(pageLength) === -1) pageLength = 25;
 
+        // Default sort: newest first by the Created/Updated column, if one
+        // exists. The column index is detected from data-name so every grid
+        // gets a sensible initial order without per-view configuration.
+        var sortCol = -1;
+        headers.forEach(function (th, i) {
+            var name = (th.getAttribute("data-name") || "").toLowerCase();
+            if (name === "created" || name === "updated") sortCol = i;
+        });
+        var order = sortCol >= 0 ? [[sortCol, "desc"]] : [];
+
         this.api = this.$node.DataTable({
             dom: "t",
             columns: columns,
             paging: true,
             pageLength: pageLength,
-            order: [],
+            order: order,
             autoWidth: false,
             deferRender: true,
             language: {
@@ -123,7 +133,7 @@
         this.buildViewMenu();
         this.buildFilterBar();
         this.wireSearch();
-        this.wireFacets();
+        this.wireFilters();
         this.wireSelection();
         this.wireMenus();
 
@@ -297,35 +307,158 @@
     Grid.prototype.clearFilters = function () {
         if (this.search) this.search.value = "";
         this.api.search("");
-        (this.facets || []).forEach(function (facet) {
-            facet.select.value = "";
-            facet.wrap.setAttribute("data-active", "false");
-        });
+        (this.filters || []).forEach(function (f) { f.selected = null; });
         this.api.columns().search("").draw();
     };
 
-    /* -------------------------------------------------------------- facets */
+    /* -------------------------------------------------------------- filters */
 
-    Grid.prototype.wireFacets = function () {
+    /** Read the facet config from the JSON script block and build the filter
+     *  state model. Each filter tracks its column, options, and the currently
+     *  selected value (null = no filter). */
+    Grid.prototype.wireFilters = function () {
         var self = this;
-        this.facets = [];
+        this.filters = [];
 
-        (this.dataset ? this.dataset.querySelectorAll("[data-grid-facet]") : []).forEach(function (select) {
-            var column = parseInt(select.getAttribute("data-grid-facet"), 10);
-            if (isNaN(column)) return;
+        if (!this.dataset) return;
+        var script = this.dataset.querySelector("[data-grid-facets]");
+        if (!script) return;
 
-            var wrap = select.closest(".ds-facet") || select.parentNode;
-            var facet = { select: select, wrap: wrap, column: column };
-            self.facets.push(facet);
+        var config;
+        try { config = JSON.parse(script.textContent); }
+        catch (e) { return; }
+        if (!Array.isArray(config)) return;
 
-            wrap.setAttribute("data-active", select.value ? "true" : "false");
-            select.addEventListener("change", function () {
-                var value = select.value;
-                wrap.setAttribute("data-active", value ? "true" : "false");
-                // Values are matched exactly against the cell's data-filter token.
-                self.api.column(column).search(value ? "^" + value + "$" : "", true, false).draw();
+        config.forEach(function (facet) {
+            var options = [];
+            Object.keys(facet.options || {}).forEach(function (value) {
+                options.push({ value: value, label: facet.options[value] });
+            });
+            var selected = facet.selected || null;
+            self.filters.push({
+                name: facet.name || "Filter",
+                column: parseInt(facet.column, 10),
+                options: options,
+                selected: selected
             });
         });
+
+        // Apply any server-side pre-selected filters to DataTables.
+        this.filters.forEach(function (f) {
+            if (f.selected) {
+                self.api.column(f.column).search("^" + f.selected + "$", true, false);
+            }
+        });
+
+        this.filterBtn = this.dataset.querySelector("[data-grid-filter-trigger]");
+        this.filterBadge = this.dataset.querySelector("[data-grid-filter-count]");
+        if (this.filterBtn) {
+            this.filterBtn.addEventListener("click", function () { self.openFilterModal(); });
+        }
+        this.updateFilterButton();
+    };
+
+    /** Count active filters and reflect it on the toolbar button. */
+    Grid.prototype.updateFilterButton = function () {
+        if (!this.filterBtn) return;
+        var count = (this.filters || []).filter(function (f) { return f.selected; }).length;
+        this.filterBtn.setAttribute("data-active", count > 0 ? "true" : "false");
+        if (this.filterBadge) {
+            this.filterBadge.textContent = String(count);
+            this.filterBadge.hidden = count === 0;
+        }
+    };
+
+    /** Open a modal with all filter options as toggle pills. Selections are
+     *  staged locally; "Apply" commits them to DataTables. */
+    Grid.prototype.openFilterModal = function () {
+        var self = this;
+        if (!this.filters || !this.filters.length) return;
+
+        // Stage a copy of the current selections so Cancel leaves state intact.
+        var staged = this.filters.map(function (f) { return f.selected; });
+
+        var bodyHtml = "";
+        this.filters.forEach(function (f, fi) {
+            bodyHtml += '<div class="ds-filter-section">';
+            bodyHtml += '<div class="ds-filter-section-label">' + escapeText(f.name) + "</div>";
+            bodyHtml += '<div class="ds-filter-options">';
+            f.options.forEach(function (opt) {
+                var pressed = staged[fi] === opt.value;
+                bodyHtml += '<button type="button" class="ds-filter-option" ' +
+                    'data-facet="' + fi + '" data-value="' + escapeText(opt.value) + '" ' +
+                    'aria-pressed="' + pressed + '">' + escapeText(opt.label) + "</button>";
+            });
+            bodyHtml += "</div></div>";
+        });
+
+        var overlay = NexamModal.open({
+            title: "Filter " + this.label,
+            subtitle: "Narrow the " + this.label + " shown in the table.",
+            body: bodyHtml,
+            type: "info",
+            showClose: true,
+            buttons: [
+                {
+                    text: "Clear all",
+                    style: "cancel",
+                    dismiss: false,
+                    onClick: function () {
+                        // Reset staged selections and update pill states in-place.
+                        staged = self.filters.map(function () { return null; });
+                        overlay.querySelectorAll(".ds-filter-option").forEach(function (btn) {
+                            btn.setAttribute("aria-pressed", "false");
+                        });
+                    }
+                },
+                {
+                    text: "Apply",
+                    style: "primary",
+                    icon: "check",
+                    dismiss: true,
+                    onClick: function () {
+                        // Commit staged selections to the filter state + DataTables.
+                        self.filters.forEach(function (f, fi) { f.selected = staged[fi]; });
+                        self.applyFilters();
+                    }
+                }
+            ]
+        });
+
+        // Wire pill toggles — single-select per facet.
+        var modal = overlay.querySelector(".nexam-modal");
+        modal.querySelectorAll(".ds-filter-option").forEach(function (btn) {
+            btn.addEventListener("click", function () {
+                var fi = parseInt(btn.getAttribute("data-facet"), 10);
+                var val = btn.getAttribute("data-value");
+                // Toggle: clicking the active pill deselects it.
+                if (staged[fi] === val) {
+                    staged[fi] = null;
+                    btn.setAttribute("aria-pressed", "false");
+                } else {
+                    staged[fi] = val;
+                    // Deselect sibling pills in the same facet.
+                    modal.querySelectorAll('.ds-filter-option[data-facet="' + fi + '"]').forEach(function (sib) {
+                        sib.setAttribute("aria-pressed", "false");
+                    });
+                    btn.setAttribute("aria-pressed", "true");
+                }
+            });
+        });
+    };
+
+    /** Push all filter selections into DataTables column search and redraw. */
+    Grid.prototype.applyFilters = function () {
+        var self = this;
+        this.filters.forEach(function (f) {
+            if (f.selected) {
+                self.api.column(f.column).search("^" + f.selected + "$", true, false);
+            } else {
+                self.api.column(f.column).search("");
+            }
+        });
+        this.api.draw();
+        this.updateFilterButton();
     };
 
     /* ----------------------------------------------------------- filter bar */
@@ -343,7 +476,7 @@
         this.filterBar = bar;
     };
 
-    /** Read the current facet + search state and render a chip per active
+    /** Read the current filter + search state and render a chip per active
      *  filter, plus a "Clear all" button. */
     Grid.prototype.renderFilterBar = function () {
         if (!this.filterBar) return;
@@ -351,9 +484,9 @@
         var self = this;
         var chips = [];
         var hasSearch = this.search && this.search.value.trim() !== "";
-        var facetActive = (this.facets || []).some(function (f) { return f.select.value !== ""; });
+        var filterActive = (this.filters || []).some(function (f) { return f.selected; });
 
-        if (!hasSearch && !facetActive) {
+        if (!hasSearch && !filterActive) {
             this.filterBar.hidden = true;
             this.filterBar.innerHTML = "";
             return;
@@ -366,16 +499,13 @@
             }));
         }
 
-        (this.facets || []).forEach(function (f) {
-            if (!f.select.value) return;
-            var label = f.select.options[f.select.selectedIndex].text;
-            var name = f.wrap.querySelector("select").getAttribute("aria-label") || "Filter";
-            name = name.replace(/^filter by\s+/i, "");
-            name = name.charAt(0).toUpperCase() + name.slice(1);
-            chips.push(self.filterChip(name, label, function () {
-                f.select.value = "";
-                f.wrap.setAttribute("data-active", "false");
-                self.api.column(f.column).search("").draw();
+        (this.filters || []).forEach(function (f) {
+            if (!f.selected) return;
+            var opt = f.options.find(function (o) { return o.value === f.selected; });
+            var label = opt ? opt.label : f.selected;
+            chips.push(self.filterChip(f.name, label, function () {
+                f.selected = null;
+                self.applyFilters();
             }));
         });
 

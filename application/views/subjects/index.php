@@ -74,7 +74,7 @@
                         <td>
                             <span class="g-primary">
                                 <a href="<?php echo site_url('subjects/view/' . $s->id); ?>" class="g-title"><?php echo htmlspecialchars($s->name); ?></a>
-                                <span class="g-meta"><?php
+                                <span class="g-meta"<?php echo !empty($s->description) ? ' title="' . htmlspecialchars(mb_strimwidth(trim(preg_replace('/\s+/', ' ', $s->description)), 0, 200)) . '"' : ''; ?>><?php
                                     echo !empty($s->description)
                                         ? htmlspecialchars(mb_strimwidth(trim(preg_replace('/\s+/', ' ', $s->description)), 0, 90, '…'))
                                         : 'No description';

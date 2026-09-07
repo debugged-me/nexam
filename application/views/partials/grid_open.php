@@ -29,21 +29,15 @@ $g_bulk        = isset($grid['bulk_url']) ? $grid['bulk_url'] : '';
                 <kbd aria-hidden="true">/</kbd>
             </label>
 
-            <?php foreach ($g_facets as $facet): ?>
-                <div class="ds-facet" data-active="<?php echo !empty($facet['selected']) ? 'true' : 'false'; ?>">
-                    <select data-grid-facet="<?php echo (int) $facet['column']; ?>"
-                            aria-label="Filter by <?php echo htmlspecialchars(strtolower($facet['name'])); ?>">
-                        <option value="">All <?php echo htmlspecialchars(strtolower($facet['name'])); ?></option>
-                        <?php foreach ($facet['options'] as $value => $text): ?>
-                            <option value="<?php echo htmlspecialchars($value); ?>"
-                                <?php echo (isset($facet['selected']) && (string) $facet['selected'] === (string) $value) ? 'selected' : ''; ?>>
-                                <?php echo htmlspecialchars($text); ?>
-                            </option>
-                        <?php endforeach; ?>
-                    </select>
-                    <i data-lucide="chevron-down"></i>
-                </div>
-            <?php endforeach; ?>
+            <?php if (!empty($g_facets)): ?>
+                <button type="button" class="ds-btn ds-filter-btn" data-grid-filter-trigger>
+                    <i data-lucide="filter"></i> Filters
+                    <span class="ds-filter-badge" data-grid-filter-count hidden>0</span>
+                </button>
+                <script type="application/json" data-grid-facets><?php
+                    echo json_encode($g_facets, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT);
+                ?></script>
+            <?php endif; ?>
         </div>
 
         <div class="dataset-bar-trail">

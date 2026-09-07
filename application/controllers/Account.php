@@ -22,14 +22,6 @@ class Account extends CI_Controller
     /** Where avatars live, relative to the web root. */
     const AVATAR_DIR = 'upload/avatars/';
 
-    /** Accepted image types, mapped to the extension we store them under. */
-    private static $avatar_types = [
-        'image/jpeg' => 'jpg',
-        'image/png'  => 'png',
-        'image/gif'  => 'gif',
-        'image/webp' => 'webp',
-    ];
-
     public function __construct()
     {
         parent::__construct();
@@ -148,35 +140,35 @@ class Account extends CI_Controller
             return $this->_json(422, ['message' => 'Please choose an image first.']);
         }
 
-        $file = $_FILES['photo'];
-
-        if ($file['error'] !== UPLOAD_ERR_OK) {
-            return $this->_json(422, ['message' => 'That file could not be uploaded. Please try again.']);
-        }
-
-        if ($file['size'] > self::MAX_AVATAR_BYTES) {
-            return $this->_json(422, ['message' => 'Images must be 2 MB or smaller.']);
-        }
-
-        // Trust the file's contents, never its name or the browser's claim.
-        $info = @getimagesize($file['tmp_name']);
-        if ($info === false || !isset(self::$avatar_types[$info['mime']])) {
-            return $this->_json(422, ['message' => 'Please choose a JPG, PNG, GIF or WebP image.']);
-        }
-
-        $filename = $this->generate_uuid() . '.' . self::$avatar_types[$info['mime']];
-        $relative = self::AVATAR_DIR . $filename;
-        $absolute = FCPATH . $relative;
-
         if (!is_dir(FCPATH . self::AVATAR_DIR)) {
             @mkdir(FCPATH . self::AVATAR_DIR, 0755, true);
         }
 
-        if (!@move_uploaded_file($file['tmp_name'], $absolute)) {
-            return $this->_json(500, ['message' => 'Could not save the image. Please try again.']);
+        // Generate a UUID filename so the stored name never reveals anything
+        // about the uploader. The extension is resolved by the Upload library
+        // from the verified MIME type, so spoofed extensions are ignored.
+        $uuid = $this->generate_uuid();
+
+        $config['upload_path']   = FCPATH . self::AVATAR_DIR;
+        $config['allowed_types'] = 'jpg|jpeg|png|gif|webp';
+        $config['max_size']      = (int) (self::MAX_AVATAR_BYTES / 1024); // KB
+        $config['file_name']     = $uuid;
+        $config['overwrite']     = true;
+        $config['remove_spaces'] = true;
+        // Verify the actual image dimensions so a renamed text file is rejected.
+        $config['min_width']  = 1;
+        $config['min_height'] = 1;
+
+        $this->load->library('upload', $config);
+
+        if (!$this->upload->do_upload('photo')) {
+            return $this->_json(422, ['message' => strip_tags($this->upload->display_errors('', '')) ?: 'Please choose a JPG, PNG, GIF or WebP image (2 MB max).']);
         }
 
-        @chmod($absolute, 0644);
+        $upload = $this->upload->data();
+        $relative = self::AVATAR_DIR . $upload['file_name'];
+
+        @chmod(FCPATH . $relative, 0644);
 
         $user = $this->User_model->find_by_id($user_id);
         $this->User_model->update_avatar($user_id, $relative);

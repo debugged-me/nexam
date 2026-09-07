@@ -52,6 +52,7 @@ Every page should include these shared CSS files (in order):
 
 - Page-specific JS: `assets/js/<page-name>.js` (e.g. `auth.js`)
 - Link JS files via `base_url('assets/js/...')` in views
+- **Exception — server-to-client data:** `<script type="application/json" data-...>` blocks that pass server data to client-side JS are permitted. They contain no executable code, use `JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT` flags to prevent `</script>` breakout, and are read by the page JS via `JSON.parse(el.textContent)`. This is the standard pattern for seeding DataTables grid configs, dashboard chart series, and similar server-derived data.
 
 ### Standard JS includes for every page
 

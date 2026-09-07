@@ -1,0 +1,14 @@
+import { Router } from 'express';
+import healthRouter from './health.js';
+import authRouter from './auth.js';
+
+const router = Router();
+
+/**
+ * All API routes are mounted under /api.
+ * Add new route groups here: e.g. router.use('/subjects', subjectsRouter);
+ */
+router.use('/health', healthRouter);
+router.use('/auth', authRouter);
+
+export default router;

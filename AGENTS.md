@@ -1,5 +1,62 @@
 # nexam — Project Guidelines
 
+## Node.js API (`api/`)
+
+A standalone Node.js (Express 5) backend lives in `api/`. It shares the same
+`nexam` MySQL database as the CodeIgniter PHP app, and is designed to serve
+both the web frontend and a future Flutter mobile app (OMR scanning).
+
+### Running the API
+
+```bash
+cd api
+cp .env.example .env          # first-time setup — edit secrets for production
+npm install
+npm run dev                   # nodemon, auto-restarts on changes
+# or: npm start               # plain node, no watch
+```
+
+Server listens on `http://localhost:3000` (configurable via `PORT` in `.env`).
+
+### Structure
+
+```
+api/
+├── .env.example          # copy to .env, fill in secrets
+├── package.json
+└── src/
+    ├── server.js         # entry point — helmet, cors, json, routes, error handlers
+    ├── config/
+    │   ├── env.js        # loads + validates env vars
+    │   └── db.js         # mysql2 connection pool (shared nexam DB)
+    ├── middleware/
+    │   ├── auth.js       # JWT requireAuth + requireRole
+    │   └── errorHandler.js  # 404 + central error handler
+    └── routes/
+        ├── index.js      # route aggregator — add new route groups here
+        ├── health.js     # GET /api/health (liveness probe)
+        └── auth.js       # POST /api/auth/login, GET /api/auth/me
+```
+
+### Conventions
+
+- **ES modules** (`"type": "module"` in package.json) — use `import`/`export`.
+- **Shared DB** — the Node API reads/writes the same `nexam` database as PHP.
+  Always scope queries by `user_id` (same IDOR rules as the PHP app).
+- **Auth** — JWT issued by `POST /api/auth/login`. Both the PHP web app and the
+  Flutter app send it as `Authorization: Bearer <token>`.
+- **CORS** — allowed origins are in `.env` (`ALLOWED_ORIGINS`). Add Flutter /
+  Capacitor origins there.
+- **Adding a route group** — create `src/routes/<name>.js`, then mount it in
+  `src/routes/index.js`:
+  ```js
+  import subjectsRouter from './subjects.js';
+  router.use('/subjects', subjectsRouter);
+  ```
+- **Security** — the same security checklist (auth, IDOR, input validation,
+  no secrets in responses) applies to every Node route. Use parameterized
+  queries via the `mysql2` named placeholders (`:name`), never string-concat.
+
 ## Icons
 
 **Always use [Lucide](https://lucide.dev/icons/) icons only.** Do not use any other icon set (Material Icons, Font Awesome, AI-generated SVGs, emoji-as-icons, etc.).

@@ -27,3 +27,10 @@ application/logs/*
 # Uploaded avatars are user data, not source
 upload/avatars/*
 !upload/avatars/.htaccess
+
+# ── Node.js (api/) ───────────────────────────────────────
+api/node_modules/
+api/.env
+api/npm-debug.log*
+api/*.log
+api/coverage/

@@ -1,0 +1,27 @@
+{
+  "name": "nexam-api",
+  "version": "1.0.0",
+  "description": "Node.js API backend for nexam — serves the PHP web app and the Flutter mobile app (OMR scanning).",
+  "main": "src/server.js",
+  "type": "module",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "nodemon src/server.js"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "bcryptjs": "^3.0.3",
+    "cors": "^2.8.6",
+    "dotenv": "^17.4.2",
+    "express": "^5.2.1",
+    "helmet": "^8.3.0",
+    "jsonwebtoken": "^9.0.3",
+    "morgan": "^1.12.0",
+    "mysql2": "^3.24.3"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.14"
+  }
+}

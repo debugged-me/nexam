@@ -44,8 +44,8 @@ class Tos extends MY_Controller
             return;
         }
 
-        $ids = $this->input->post('ids');
-        $ids = is_array($ids) ? array_map('strval', $ids) : [];
+        $ids = $this->input->post('ids', true);
+        $ids = is_array($ids) ? array_filter(array_map('strval', $ids), fn($v) => preg_match('/^[0-9a-f\-]{36}$/i', $v)) : [];
 
         $deleted = $this->Tos_model->delete_many($ids, $this->user_id);
 
@@ -159,7 +159,7 @@ class Tos extends MY_Controller
 
         $this->page_title = $tos->title;
 
-        $subject = $this->Subject_model->get_by_id($tos->subject_id);
+        $subject = $this->Subject_model->get_owned($tos->subject_id, $this->user_id);
 
         $data['tos']           = $tos;
         $data['subject']       = $subject;
@@ -267,6 +267,7 @@ class Tos extends MY_Controller
     /** Form-validation callback: subject must belong to the signed-in user. */
     public function owned_subject($subject_id)
     {
+        if ($this->input->method(true) !== 'POST') { show_404(); }
         if ($this->Subject_model->get_owned($subject_id, $this->user_id)) return true;
         $this->form_validation->set_message('owned_subject', 'Select a subject from your workspace.');
         return false;
@@ -275,6 +276,7 @@ class Tos extends MY_Controller
     /** Form-validation callback: Bloom percentages must add up to 100. */
     public function valid_bloom_total($unused)
     {
+        if ($this->input->method(true) !== 'POST') { show_404(); }
         $total = array_sum($this->_collect_bloom());
         if ($total === 100) return true;
         $this->form_validation->set_message('valid_bloom_total', 'Bloom taxonomy weights must total exactly 100%.');

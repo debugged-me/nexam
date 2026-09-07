@@ -36,8 +36,8 @@ class Exams extends MY_Controller
             return;
         }
 
-        $ids = $this->input->post('ids');
-        $ids = is_array($ids) ? array_map('strval', $ids) : [];
+        $ids = $this->input->post('ids', true);
+        $ids = is_array($ids) ? array_filter(array_map('strval', $ids), fn($v) => preg_match('/^[0-9a-f\-]{36}$/i', $v)) : [];
 
         $deleted = $this->Exam_model->delete_many($ids, $this->user_id);
 
@@ -133,7 +133,7 @@ class Exams extends MY_Controller
         $this->page_title = $exam->title;
 
         $data['exam']      = $exam;
-        $data['subject']   = $this->Subject_model->get_by_id($exam->subject_id);
+        $data['subject']   = $this->Subject_model->get_owned($exam->subject_id, $this->user_id);
         $data['subject_context'] = $data['subject'];
         $data['subject_tab'] = 'exams';
         $data['questions'] = $this->Exam_model->get_questions($exam->id);
@@ -248,6 +248,7 @@ class Exams extends MY_Controller
     /** Ensure a submitted subject belongs to the current instructor. */
     public function owned_subject($subject_id)
     {
+        if ($this->input->method(true) !== 'POST') { show_404(); }
         if ($subject_id && $this->Subject_model->get_owned($subject_id, $this->user_id)) {
             return true;
         }
@@ -259,6 +260,7 @@ class Exams extends MY_Controller
     /** Validate that a selected TOS matches the subject and has enough active questions. */
     public function valid_tos_selection($tos_id)
     {
+        if ($this->input->method(true) !== 'POST') { show_404(); }
         if (!$tos_id) {
             return true;
         }

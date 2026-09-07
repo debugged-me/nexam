@@ -16,7 +16,7 @@
         </div>
         <div class="header-actions">
             <?php if ($exam->status === 'draft'): ?>
-                <form action="<?php echo site_url('exams/publish/' . $exam->id); ?>" method="post" class="inline-action-form">
+                <form action="<?php echo site_url('exams/publish/' . rawurlencode($exam->id)); ?>" method="post" class="inline-action-form">
                     <input type="hidden" name="<?php echo $csrf_name; ?>" value="<?php echo $csrf_hash; ?>">
                     <button type="button" class="btn btn-primary btn-sm" data-confirm
                             data-confirm-title="Publish exam?" data-confirm-type="warning"
@@ -30,7 +30,7 @@
                     <i data-lucide="printer"></i> Print
                 </button>
             <?php endif; ?>
-            <a href="<?php echo site_url('exams/edit/' . $exam->id); ?>" class="btn btn-outline btn-sm"><i data-lucide="pencil"></i> Edit</a>
+            <a href="<?php echo site_url('exams/edit/' . rawurlencode($exam->id)); ?>" class="btn btn-outline btn-sm"><i data-lucide="pencil"></i> Edit</a>
         </div>
     </div>
 
@@ -69,7 +69,7 @@
         </div>
         <?php if (empty($questions)): ?>
             <div class="empty-state empty-state-lg">
-                <div class="empty-icon"><i data-lucide="help-circle"></i></div>
+                <div class="empty-icon"><i data-lucide="help-circle" aria-hidden="true"></i></div>
                 <h4>No questions in this exam</h4>
                 <p>Generate a new exam from a TOS blueprint to populate it.</p>
                 <a href="<?php echo site_url('tos'); ?>" class="btn btn-accent btn-sm">

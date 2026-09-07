@@ -120,13 +120,13 @@ $facets[] = [
                         </td>
                         <td>
                             <span class="g-primary">
-                                <a href="<?php echo site_url('questions/edit/' . $q->id); ?>" class="g-title" title="<?php echo htmlspecialchars($stem); ?>"><?php echo htmlspecialchars(mb_strimwidth($stem, 0, 120, '…')); ?></a>
+                                <a href="<?php echo site_url('questions/edit/' . rawurlencode($q->id)); ?>" class="g-title" title="<?php echo htmlspecialchars($stem); ?>"><?php echo htmlspecialchars(mb_strimwidth($stem, 0, 120, '…')); ?></a>
                                 <span class="g-meta"><?php echo $q->topic ? htmlspecialchars($q->topic) : 'No topic'; ?></span>
                             </span>
                         </td>
                         <td data-order="<?php echo htmlspecialchars($subject); ?>" data-filter="<?php echo htmlspecialchars($subject); ?>">
                             <?php if ($subject !== ''): ?>
-                                <a href="<?php echo site_url('subjects/view/' . $q->subject_id); ?>" class="g-link" title="<?php echo htmlspecialchars($subject); ?>"><?php echo htmlspecialchars($subject); ?></a>
+                                <a href="<?php echo site_url('subjects/view/' . rawurlencode($q->subject_id)); ?>" class="g-link" title="<?php echo htmlspecialchars($subject); ?>"><?php echo htmlspecialchars($subject); ?></a>
                             <?php else: ?>
                                 <span class="g-mute">—</span>
                             <?php endif; ?>
@@ -146,11 +146,11 @@ $facets[] = [
                         <td class="g-mute" data-order="<?php echo htmlspecialchars($touched); ?>"><?php echo date('M j, Y', strtotime($touched)); ?></td>
                         <td class="col-actions">
                             <details class="g-menu">
-                                <summary class="g-menu-trigger" aria-label="Question actions"><i data-lucide="ellipsis"></i></summary>
+                                <summary class="g-menu-trigger" aria-label="Actions for <?php echo htmlspecialchars($stem); ?>"><i data-lucide="ellipsis"></i></summary>
                                 <div class="g-menu-panel">
-                                    <a href="<?php echo site_url('questions/edit/' . $q->id); ?>" class="g-menu-item"><i data-lucide="pencil"></i> Edit</a>
+                                    <a href="<?php echo site_url('questions/edit/' . rawurlencode($q->id)); ?>" class="g-menu-item"><i data-lucide="pencil"></i> Edit</a>
                                     <div class="g-menu-sep"></div>
-                                    <form action="<?php echo site_url('questions/delete/' . $q->id); ?>" method="post" class="g-menu-form">
+                                    <form action="<?php echo site_url('questions/delete/' . rawurlencode($q->id)); ?>" method="post" class="g-menu-form">
                                         <input type="hidden" name="<?php echo $csrf_name; ?>" value="<?php echo $csrf_hash; ?>">
                                         <button type="button" class="g-menu-item is-danger" data-confirm data-confirm-title="Delete question?" data-confirm-type="delete" data-confirm-message="This question will be permanently removed from the bank. Exams already built with it keep their copy."><i data-lucide="trash-2"></i> Delete</button>
                                     </form>

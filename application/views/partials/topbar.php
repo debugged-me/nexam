@@ -31,7 +31,7 @@ function nexam_avatar($src, $initials, $id, $class = 'avatar')
 {
     if ($src !== '') {
         return '<span class="' . $class . ' has-photo" id="' . $id . '" data-initials="' . htmlspecialchars($initials) . '">'
-             . '<img src="' . htmlspecialchars($src) . '" alt="">'
+             . '<img src="' . htmlspecialchars($src) . '" alt="User profile photo">'
              . '</span>';
     }
 
@@ -48,15 +48,19 @@ function nexam_avatar($src, $initials, $id, $class = 'avatar')
         </button>
 
         <nav class="topbar-heading crumbs" aria-label="Breadcrumb">
-            <?php if ($is_section_root): ?>
-                <a href="<?= site_url('dashboard') ?>">Workspace</a>
-            <?php elseif ($section_url !== ''): ?>
-                <a href="<?= $section_url ?>"><?= htmlspecialchars($section) ?></a>
-            <?php else: ?>
-                <span>Workspace</span>
-            <?php endif; ?>
-            <i class="crumb-icon" data-lucide="chevron-right" aria-hidden="true"></i>
-            <span class="topbar-title" aria-current="page"><?= htmlspecialchars($current_page) ?></span>
+            <ol class="crumb-list">
+                <li class="crumb-item">
+                    <?php if ($is_section_root): ?>
+                        <a href="<?= site_url('dashboard') ?>">Workspace</a>
+                    <?php elseif ($section_url !== ''): ?>
+                        <a href="<?= $section_url ?>"><?= htmlspecialchars($section) ?></a>
+                    <?php else: ?>
+                        <span>Workspace</span>
+                    <?php endif; ?>
+                </li>
+                <li class="crumb-sep" aria-hidden="true"><i data-lucide="chevron-right"></i></li>
+                <li class="crumb-item crumb-current" aria-current="page"><span class="topbar-title"><?= htmlspecialchars($current_page) ?></span></li>
+            </ol>
         </nav>
     </div>
 
@@ -69,7 +73,7 @@ function nexam_avatar($src, $initials, $id, $class = 'avatar')
                 <span class="bell-count" id="bell-count" hidden>0</span>
             </button>
 
-            <div class="bell-panel" id="bell-panel" role="dialog" aria-modal="false" aria-labelledby="bell-title" hidden>
+            <div class="bell-panel" id="bell-panel" role="menu" aria-labelledby="bell-title" hidden>
                 <div class="bell-head">
                     <span class="card-title" id="bell-title">Needs Attention</span>
                     <span class="bell-sub" id="bell-sub">Checking…</span>

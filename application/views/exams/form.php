@@ -18,7 +18,7 @@
                     <?php if (!empty($tos_list)): ?>
                         <div class="creation-blueprints">
                             <?php foreach (array_slice($tos_list, 0, 3) as $blueprint): ?>
-                                <a href="<?php echo site_url('exams/create?tos=' . $blueprint->id); ?>" class="creation-blueprint-link">
+                                <a href="<?php echo site_url('exams/create?tos=' . rawurlencode($blueprint->id)); ?>" class="creation-blueprint-link">
                                     <span><strong><?php echo htmlspecialchars($blueprint->title); ?></strong><small><?php echo htmlspecialchars($blueprint->subject_name); ?> · <?php echo (int) $blueprint->total_items; ?> items</small></span>
                                     <i data-lucide="chevron-right"></i>
                                 </a>
@@ -76,7 +76,7 @@
                 <?php if (validation_errors()): ?>
                     <div class="form-alert" role="alert" tabindex="-1">
                         <i data-lucide="circle-alert"></i>
-                        <div><strong>Please review the form.</strong><?php echo validation_errors('<div>', '</div>'); ?></div>
+                        <div><strong>Please review the form.</strong><span><?php echo htmlspecialchars(trim(validation_errors(' ', ' ')), ENT_QUOTES, 'UTF-8'); ?></span></div>
                     </div>
                 <?php endif; ?>
                 <form action="" method="post" data-dirty-guard>
@@ -149,7 +149,7 @@
                             <i data-lucide="check"></i> <?php echo isset($exam) ? 'Update Exam' : ((isset($tos) && $tos) ? 'Generate Exam' : 'Create Blank Exam'); ?>
                         </button>
                         <?php $return_subject = isset($exam) ? $exam->subject_id : (isset($tos) && $tos ? $tos->subject_id : (!empty($preselect_subject) ? $preselect_subject : null)); ?>
-                        <a href="<?php echo isset($exam) ? site_url('exams/view/' . $exam->id) : site_url('exams' . ($return_subject ? '?subject_id=' . rawurlencode($return_subject) : '')); ?>" class="btn btn-outline">Cancel</a>
+                        <a href="<?php echo isset($exam) ? site_url('exams/view/' . rawurlencode($exam->id)) : site_url('exams' . ($return_subject ? '?subject_id=' . rawurlencode($return_subject) : '')); ?>" class="btn btn-outline">Cancel</a>
                     </div>
                 </form>
             </div>

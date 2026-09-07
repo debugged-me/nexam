@@ -40,10 +40,20 @@
     Header always set X-Content-Type-Options "nosniff"
     Header always set X-Frame-Options "SAMEORIGIN"
     Header always set Referrer-Policy "strict-origin-when-cross-origin"
+    # Content Security Policy — restrict to same origin for scripts/styles/fonts;
+    # allow Lucide icons from unpkg CDN and inline styles for DataTables.
+    Header always set Content-Security-Policy "default-src 'self'; script-src 'self' https://unpkg.com; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data:; connect-src 'self'; frame-ancestors 'self'; base-uri 'self'; form-action 'self'"
+    # HSTS — only sent over HTTPS; max-age 1 year, include subdomains, preload-ready.
+    Header always set Strict-Transport-Security "max-age=31536000; includeSubDomains"
     <FilesMatch "\.(css|js|png|jpe?g|webp|svg|ico|ttf|woff2?)$">
         Header set Cache-Control "public, max-age=2592000"
     </FilesMatch>
 </IfModule>
+
+# Block direct web access to seed/maintenance scripts that should only run from CLI.
+<FilesMatch "^(seed_|_seed|migrate|cleanup)\.php$">
+    Require all denied
+</FilesMatch>
 
 <IfModule mod_php.c>
     php_flag expose_php Off

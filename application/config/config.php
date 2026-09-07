@@ -255,7 +255,7 @@ $config['allow_get_array'] = TRUE;
 | your log files will fill up very fast.
 |
 */
-$config['log_threshold'] = 4; // enable detailed logging for troubleshooting profile save
+$config['log_threshold'] = defined('ENVIRONMENT') && ENVIRONMENT === 'production' ? 1 : 4;
 
 /*
 |--------------------------------------------------------------------------
@@ -357,7 +357,9 @@ $config['cache_query_string'] = FALSE;
 |
 */
 // $config['encryption_key'] = '';
-$config['encryption_key'] = '9f4a7b62e1a6c390f54bb3a4d72b9e11';
+// Production: set NEXAM_ENCRYPTION_KEY in the environment. The fallback below
+// keeps local development working but MUST be replaced in any production deploy.
+$config['encryption_key'] = getenv('NEXAM_ENCRYPTION_KEY') ?: '9f4a7b62e1a6c390f54bb3a4d72b9e11';
 
 /*
 |--------------------------------------------------------------------------
@@ -416,7 +418,7 @@ $config['sess_expiration'] = 7200;
 $config['sess_save_path'] = NULL;
 $config['sess_match_ip'] = FALSE;
 $config['sess_time_to_update'] = 300;
-$config['sess_regenerate_destroy'] = FALSE;
+$config['sess_regenerate_destroy'] = TRUE;
 
 /*
 |--------------------------------------------------------------------------

@@ -13,8 +13,12 @@ $home_url = function_exists('site_url') ? site_url('dashboard') : '/nexam/';
     <link rel="preload" href="<?php echo htmlspecialchars($asset_root . 'fonts/Google_Sans/static/GoogleSans-Regular.subset.ttf', ENT_QUOTES, 'UTF-8'); ?>" as="font" type="font/ttf" crossorigin>
     <link rel="preload" href="<?php echo htmlspecialchars($asset_root . 'fonts/Inter/static/Inter_18pt-Regular.subset.ttf', ENT_QUOTES, 'UTF-8'); ?>" as="font" type="font/ttf" crossorigin>
     <link rel="stylesheet" href="<?php echo htmlspecialchars($asset_root . 'css/fonts.css', ENT_QUOTES, 'UTF-8'); ?>">
+    <link rel="stylesheet" href="<?php echo htmlspecialchars($asset_root . 'css/toast.css', ENT_QUOTES, 'UTF-8'); ?>">
+    <link rel="stylesheet" href="<?php echo htmlspecialchars($asset_root . 'css/modal.css', ENT_QUOTES, 'UTF-8'); ?>">
     <link rel="stylesheet" href="<?php echo htmlspecialchars($asset_root . 'css/error.css', ENT_QUOTES, 'UTF-8'); ?>">
     <script src="https://unpkg.com/lucide@latest" defer></script>
+    <script src="<?php echo htmlspecialchars($asset_root . 'js/toast.js', ENT_QUOTES, 'UTF-8'); ?>" defer></script>
+    <script src="<?php echo htmlspecialchars($asset_root . 'js/modal.js', ENT_QUOTES, 'UTF-8'); ?>" defer></script>
     <script src="<?php echo htmlspecialchars($asset_root . 'js/error.js', ENT_QUOTES, 'UTF-8'); ?>" defer></script>
 </head>
 <body class="error-page error-page--<?php echo htmlspecialchars($error_tone, ENT_QUOTES, 'UTF-8'); ?>">

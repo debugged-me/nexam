@@ -67,7 +67,7 @@ $rail_role     = isset($role) && $role !== '' ? ucfirst($role) : 'Instructor';
     <div class="sidebar-footer">
         <button type="button" class="sidebar-user" data-account-action="profile">
             <?php if ($rail_avatar !== ''): ?>
-                <span class="avatar avatar-sm has-photo"><img src="<?= htmlspecialchars($rail_avatar) ?>" alt=""></span>
+                <span class="avatar avatar-sm has-photo"><img src="<?= htmlspecialchars($rail_avatar) ?>" alt="User profile photo"></span>
             <?php else: ?>
                 <span class="avatar avatar-sm"><?= htmlspecialchars($rail_initials) ?></span>
             <?php endif; ?>

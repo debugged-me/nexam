@@ -6,7 +6,7 @@
         <div>
             <h1><?php echo htmlspecialchars($tos->title); ?></h1>
             <?php if (!empty($subject)): ?>
-                <a href="<?php echo site_url('subjects/view/' . $subject->id); ?>" class="crumb-link">
+                <a href="<?php echo site_url('subjects/view/' . rawurlencode($subject->id)); ?>" class="crumb-link">
                     <i data-lucide="book-open"></i>
                     <?php echo htmlspecialchars($subject->name); ?>
                     <?php if ($subject->code): ?><span class="badge badge-gray ml-1"><?php echo htmlspecialchars($subject->code); ?></span><?php endif; ?>
@@ -14,10 +14,10 @@
             <?php endif; ?>
         </div>
         <div class="header-actions">
-            <a href="<?php echo site_url('exams/create?tos=' . $tos->id); ?>" class="btn btn-primary btn-sm">
+            <a href="<?php echo site_url('exams/create?tos=' . rawurlencode($tos->id)); ?>" class="btn btn-primary btn-sm">
                 <i data-lucide="file-text"></i> Generate Exam
             </a>
-            <a href="<?php echo site_url('tos/edit/' . $tos->id); ?>" class="btn btn-outline btn-sm"><i data-lucide="pencil"></i> Edit</a>
+            <a href="<?php echo site_url('tos/edit/' . rawurlencode($tos->id)); ?>" class="btn btn-outline btn-sm"><i data-lucide="pencil"></i> Edit</a>
         </div>
     </div>
 
@@ -84,7 +84,7 @@
         </div>
         <?php if (empty($topics)): ?>
             <div class="empty-state empty-state-md">
-                <i data-lucide="layers"></i>
+                <i data-lucide="layers" aria-hidden="true"></i>
                 <p>No topics added yet. Add topics below to define what this TOS covers.</p>
             </div>
         <?php else: ?>
@@ -107,7 +107,7 @@
                                 <td><span class="badge badge-amber"><?php echo (int) $tp->instructional_hours; ?> hrs</span></td>
                                 <td>
                                     <div class="action-icons">
-                                        <form action="<?php echo site_url('tos/delete_topic/' . $tos->id . '/' . $tp->id); ?>" method="post" class="inline-action-form">
+                                        <form action="<?php echo site_url('tos/' . rawurlencode($tos->id) . '/delete-topic/' . rawurlencode($tp->id)); ?>" method="post" class="inline-action-form">
                                             <input type="hidden" name="<?php echo $csrf_name; ?>" value="<?php echo $csrf_hash; ?>">
                                             <button type="button" class="action-icon danger" aria-label="Remove <?php echo htmlspecialchars($tp->title); ?>"
                                                     data-confirm
@@ -124,7 +124,7 @@
         <?php endif; ?>
 
         <div class="card-body card-body-divider">
-            <form action="<?php echo site_url('tos/add_topic/' . $tos->id); ?>" method="post">
+            <form action="<?php echo site_url('tos/' . rawurlencode($tos->id) . '/add-topic'); ?>" method="post">
                 <input type="hidden" name="<?php echo $csrf_name; ?>" value="<?php echo $csrf_hash; ?>">
                 <div class="inline-form">
                     <div class="inline-form-grow">

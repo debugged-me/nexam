@@ -19,8 +19,18 @@ class MY_Controller extends CI_Controller
         $this->load->library(['session', 'form_validation']);
         $this->load->helper(['url', 'form', 'string', 'name']);
 
-        // Enforce auth on every subclass
+        // Enforce auth on every subclass. AJAX callers get a 403 JSON
+        // response so the frontend can react cleanly instead of following
+        // a 302 redirect to the HTML login page.
         if (!$this->session->userdata('logged_in')) {
+            if ($this->input->is_ajax_request()) {
+                $this->output
+                    ->set_status_header(403)
+                    ->set_content_type('application/json')
+                    ->set_output(json_encode(['error' => 'Unauthorized', 'message' => 'Please log in to continue.']))
+                    ->_display();
+                exit;
+            }
             $this->session->set_flashdata('toast', ['type' => 'warning', 'message' => 'Please log in to continue.']);
             redirect('login');
         }

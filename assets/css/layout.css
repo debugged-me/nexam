@@ -499,9 +499,19 @@ body.rail-collapsed .nav-item:hover::after { opacity: 1; }
     color: var(--ink-3);
 }
 
+.crumb-list {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
 .crumbs a { color: var(--ink-3); transition: color .13s ease; }
 .crumbs a:hover { color: var(--ink); }
-.crumb-sep { color: var(--line-strong); }
+.crumb-sep { color: var(--line-strong); display: flex; align-items: center; }
+.crumb-sep svg { width: 14px !important; height: 14px !important; color: var(--line-strong); flex: 0 0 auto; }
 .crumb-icon { width: 14px !important; height: 14px !important; color: var(--line-strong); flex: 0 0 auto; }
 
 .topbar-title {

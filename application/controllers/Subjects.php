@@ -35,8 +35,8 @@ class Subjects extends MY_Controller
             return;
         }
 
-        $ids = $this->input->post('ids');
-        $ids = is_array($ids) ? array_map('strval', $ids) : [];
+        $ids = $this->input->post('ids', true);
+        $ids = is_array($ids) ? array_filter(array_map('strval', $ids), fn($v) => preg_match('/^[0-9a-f\-]{36}$/i', $v)) : [];
 
         $deleted = $this->Subject_model->delete_many($ids, $this->user_id);
 
@@ -139,7 +139,7 @@ class Subjects extends MY_Controller
         $data['subject_context'] = $subject;
         $data['subject_tab']     = 'overview';
         $data['questions']      = $this->Question_model->get_by_user($this->user_id, ['subject_id' => $id]);
-        $data['tos_list']       = $this->db->where('subject_id', $id)->order_by('created_at', 'DESC')->get('tos')->result();
+        $data['tos_list']       = $this->Tos_model->get_by_user($this->user_id, ['subject_id' => $id]);
         $data['question_count'] = count($data['questions']);
         $data['tos_count']      = count($data['tos_list']);
         $this->render('subjects/view', $data);

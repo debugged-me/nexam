@@ -83,13 +83,13 @@
                         </td>
                         <td>
                             <span class="g-primary">
-                                <a href="<?php echo site_url('exams/view/' . $e->id); ?>" class="g-title"><?php echo htmlspecialchars($e->title); ?></a>
+                                <a href="<?php echo site_url('exams/view/' . rawurlencode($e->id)); ?>" class="g-title"><?php echo htmlspecialchars($e->title); ?></a>
                                 <span class="g-meta"><?php echo htmlspecialchars(implode(' · ', $meta)); ?></span>
                             </span>
                         </td>
                         <td data-order="<?php echo htmlspecialchars($e->subject_name ?: ''); ?>" data-filter="<?php echo htmlspecialchars($e->subject_name ?: ''); ?>">
                             <?php if (!empty($e->subject_name)): ?>
-                                <a href="<?php echo site_url('subjects/view/' . $e->subject_id); ?>" class="g-link" title="<?php echo htmlspecialchars($e->subject_name); ?>"><?php echo htmlspecialchars($e->subject_name); ?></a>
+                                <a href="<?php echo site_url('subjects/view/' . rawurlencode($e->subject_id)); ?>" class="g-link" title="<?php echo htmlspecialchars($e->subject_name); ?>"><?php echo htmlspecialchars($e->subject_name); ?></a>
                             <?php else: ?>
                                 <span class="g-mute">—</span>
                             <?php endif; ?>
@@ -108,10 +108,10 @@
                             <details class="g-menu">
                                 <summary class="g-menu-trigger" aria-label="Actions for <?php echo htmlspecialchars($e->title); ?>"><i data-lucide="ellipsis"></i></summary>
                                 <div class="g-menu-panel">
-                                    <a href="<?php echo site_url('exams/view/' . $e->id); ?>" class="g-menu-item"><i data-lucide="eye"></i> Open</a>
-                                    <a href="<?php echo site_url('exams/edit/' . $e->id); ?>" class="g-menu-item"><i data-lucide="pencil"></i> Edit</a>
+                                    <a href="<?php echo site_url('exams/view/' . rawurlencode($e->id)); ?>" class="g-menu-item"><i data-lucide="eye"></i> Open</a>
+                                    <a href="<?php echo site_url('exams/edit/' . rawurlencode($e->id)); ?>" class="g-menu-item"><i data-lucide="pencil"></i> Edit</a>
                                     <div class="g-menu-sep"></div>
-                                    <form action="<?php echo site_url('exams/delete/' . $e->id); ?>" method="post" class="g-menu-form">
+                                    <form action="<?php echo site_url('exams/delete/' . rawurlencode($e->id)); ?>" method="post" class="g-menu-form">
                                         <input type="hidden" name="<?php echo $csrf_name; ?>" value="<?php echo $csrf_hash; ?>">
                                         <button type="button" class="g-menu-item is-danger" data-confirm data-confirm-title="Delete exam?" data-confirm-type="delete" data-confirm-message="&ldquo;<?php echo htmlspecialchars($e->title, ENT_QUOTES); ?>&rdquo; and its selected questions will be permanently removed."><i data-lucide="trash-2"></i> Delete</button>
                                     </form>

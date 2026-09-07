@@ -74,7 +74,7 @@
                         </td>
                         <td>
                             <span class="g-primary">
-                                <a href="<?php echo site_url('tos/view/' . $t->id); ?>" class="g-title"><?php echo htmlspecialchars($t->title); ?></a>
+                                <a href="<?php echo site_url('tos/view/' . rawurlencode($t->id)); ?>" class="g-title"><?php echo htmlspecialchars($t->title); ?></a>
                                 <span class="g-meta"><?php
                                     echo $topics
                                         ? $topics . ' ' . ($topics === 1 ? 'topic' : 'topics') . ' · ' . $items . ' items'
@@ -84,7 +84,7 @@
                         </td>
                         <td data-order="<?php echo htmlspecialchars($t->subject_name ?: ''); ?>" data-filter="<?php echo htmlspecialchars($t->subject_name ?: ''); ?>">
                             <?php if (!empty($t->subject_name)): ?>
-                                <a href="<?php echo site_url('subjects/view/' . $t->subject_id); ?>" class="g-link" title="<?php echo htmlspecialchars($t->subject_name); ?>"><?php echo htmlspecialchars($t->subject_name); ?></a>
+                                <a href="<?php echo site_url('subjects/view/' . rawurlencode($t->subject_id)); ?>" class="g-link" title="<?php echo htmlspecialchars($t->subject_name); ?>"><?php echo htmlspecialchars($t->subject_name); ?></a>
                             <?php else: ?>
                                 <span class="g-mute">—</span>
                             <?php endif; ?>
@@ -98,11 +98,11 @@
                             <details class="g-menu">
                                 <summary class="g-menu-trigger" aria-label="Actions for <?php echo htmlspecialchars($t->title); ?>"><i data-lucide="ellipsis"></i></summary>
                                 <div class="g-menu-panel">
-                                    <a href="<?php echo site_url('tos/view/' . $t->id); ?>" class="g-menu-item"><i data-lucide="eye"></i> Open</a>
-                                    <a href="<?php echo site_url('tos/edit/' . $t->id); ?>" class="g-menu-item"><i data-lucide="pencil"></i> Edit</a>
-                                    <a href="<?php echo site_url('exams/create?tos=' . $t->id); ?>" class="g-menu-item"><i data-lucide="file-plus-2"></i> Generate exam</a>
+                                    <a href="<?php echo site_url('tos/view/' . rawurlencode($t->id)); ?>" class="g-menu-item"><i data-lucide="eye"></i> Open</a>
+                                    <a href="<?php echo site_url('tos/edit/' . rawurlencode($t->id)); ?>" class="g-menu-item"><i data-lucide="pencil"></i> Edit</a>
+                                    <a href="<?php echo site_url('exams/create?tos=' . rawurlencode($t->id)); ?>" class="g-menu-item"><i data-lucide="file-plus-2"></i> Generate exam</a>
                                     <div class="g-menu-sep"></div>
-                                    <form action="<?php echo site_url('tos/delete/' . $t->id); ?>" method="post" class="g-menu-form">
+                                    <form action="<?php echo site_url('tos/delete/' . rawurlencode($t->id)); ?>" method="post" class="g-menu-form">
                                         <input type="hidden" name="<?php echo $csrf_name; ?>" value="<?php echo $csrf_hash; ?>">
                                         <button type="button" class="g-menu-item is-danger" data-confirm data-confirm-title="Delete blueprint?" data-confirm-type="delete" data-confirm-message="&ldquo;<?php echo htmlspecialchars($t->title, ENT_QUOTES); ?>&rdquo; and all of its topics will be permanently removed."><i data-lucide="trash-2"></i> Delete</button>
                                     </form>

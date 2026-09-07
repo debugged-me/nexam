@@ -170,7 +170,7 @@ foreach ($initial_activity as $day) {
 
             <?php if ($bloom_total === 0): ?>
                 <div class="dash-empty">
-                    <div class="empty-icon"><i data-lucide="layers"></i></div>
+                    <div class="empty-icon"><i data-lucide="layers" aria-hidden="true"></i></div>
                     <h4>Nothing classified yet</h4>
                     <p>Tag questions with a Bloom level to see coverage here.</p>
                     <a href="<?= site_url('questions/create') ?>" class="btn btn-primary btn-sm">
@@ -226,7 +226,7 @@ foreach ($initial_activity as $day) {
 
             <?php if (empty($recent_subjects)): ?>
                 <div class="dash-empty">
-                    <div class="empty-icon"><i data-lucide="book-open"></i></div>
+                    <div class="empty-icon"><i data-lucide="book-open" aria-hidden="true"></i></div>
                     <h4>No subjects yet</h4>
                     <p>Subjects group your questions, blueprints and exams.</p>
                     <a href="<?= site_url('subjects/create') ?>" class="btn btn-primary btn-sm">
@@ -236,7 +236,7 @@ foreach ($initial_activity as $day) {
             <?php else: ?>
                 <div class="recent-list">
                     <?php foreach ($recent_subjects as $s): ?>
-                        <a href="<?= site_url('subjects/view/' . $s->id) ?>" class="recent-row">
+                        <a href="<?= site_url('subjects/view/' . rawurlencode($s->id)) ?>" class="recent-row">
                             <span class="recent-tile"><?= htmlspecialchars(strtoupper(substr($s->name, 0, 2))) ?></span>
                             <span class="recent-body">
                                 <span class="recent-title"><?= htmlspecialchars($s->name) ?></span>
@@ -262,7 +262,7 @@ foreach ($initial_activity as $day) {
 
             <?php if (empty($recent_exams)): ?>
                 <div class="dash-empty">
-                    <div class="empty-icon"><i data-lucide="file-text"></i></div>
+                    <div class="empty-icon"><i data-lucide="file-text" aria-hidden="true"></i></div>
                     <h4>No exams generated yet</h4>
                     <p>Build a blueprint, then generate a paper from your bank.</p>
                     <a href="<?= site_url('exams/create') ?>" class="btn btn-accent btn-sm">
@@ -272,7 +272,7 @@ foreach ($initial_activity as $day) {
             <?php else: ?>
                 <div class="recent-list">
                     <?php foreach ($recent_exams as $e): ?>
-                        <a href="<?= site_url('exams/view/' . $e->id) ?>" class="recent-row">
+                        <a href="<?= site_url('exams/view/' . rawurlencode($e->id)) ?>" class="recent-row">
                             <span class="recent-tile icon"><i data-lucide="file-text"></i></span>
                             <span class="recent-body">
                                 <span class="recent-title"><?= htmlspecialchars($e->title) ?></span>

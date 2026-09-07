@@ -73,7 +73,7 @@
                         </td>
                         <td>
                             <span class="g-primary">
-                                <a href="<?php echo site_url('subjects/view/' . $s->id); ?>" class="g-title"><?php echo htmlspecialchars($s->name); ?></a>
+                                <a href="<?php echo site_url('subjects/view/' . rawurlencode($s->id)); ?>" class="g-title"><?php echo htmlspecialchars($s->name); ?></a>
                                 <span class="g-meta"<?php echo !empty($s->description) ? ' title="' . htmlspecialchars(mb_strimwidth(trim(preg_replace('/\s+/', ' ', $s->description)), 0, 200)) . '"' : ''; ?>><?php
                                     echo !empty($s->description)
                                         ? htmlspecialchars(mb_strimwidth(trim(preg_replace('/\s+/', ' ', $s->description)), 0, 90, '…'))
@@ -98,11 +98,11 @@
                             <details class="g-menu">
                                 <summary class="g-menu-trigger" aria-label="Actions for <?php echo htmlspecialchars($s->name); ?>"><i data-lucide="ellipsis"></i></summary>
                                 <div class="g-menu-panel">
-                                    <a href="<?php echo site_url('subjects/view/' . $s->id); ?>" class="g-menu-item"><i data-lucide="eye"></i> Open</a>
-                                    <a href="<?php echo site_url('subjects/edit/' . $s->id); ?>" class="g-menu-item"><i data-lucide="pencil"></i> Edit</a>
-                                    <a href="<?php echo site_url('questions?subject_id=' . $s->id); ?>" class="g-menu-item"><i data-lucide="circle-help"></i> Questions</a>
+                                    <a href="<?php echo site_url('subjects/view/' . rawurlencode($s->id)); ?>" class="g-menu-item"><i data-lucide="eye"></i> Open</a>
+                                    <a href="<?php echo site_url('subjects/edit/' . rawurlencode($s->id)); ?>" class="g-menu-item"><i data-lucide="pencil"></i> Edit</a>
+                                    <a href="<?php echo site_url('questions?subject_id=' . rawurlencode($s->id)); ?>" class="g-menu-item"><i data-lucide="circle-help"></i> Questions</a>
                                     <div class="g-menu-sep"></div>
-                                    <form action="<?php echo site_url('subjects/delete/' . $s->id); ?>" method="post" class="g-menu-form">
+                                    <form action="<?php echo site_url('subjects/delete/' . rawurlencode($s->id)); ?>" method="post" class="g-menu-form">
                                         <input type="hidden" name="<?php echo $csrf_name; ?>" value="<?php echo $csrf_hash; ?>">
                                         <button type="button" class="g-menu-item is-danger" data-confirm data-confirm-title="Delete subject?" data-confirm-type="delete" data-confirm-message="Deleting &ldquo;<?php echo htmlspecialchars($s->name, ENT_QUOTES); ?>&rdquo; also removes its questions, blueprints and exams. This cannot be undone."><i data-lucide="trash-2"></i> Delete</button>
                                     </form>

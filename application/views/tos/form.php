@@ -94,7 +94,7 @@
                                 <i data-lucide="check"></i> <?php echo isset($tos) ? 'Save Changes' : 'Create Blueprint'; ?>
                             </button>
                             <?php $return_subject = isset($tos) ? $tos->subject_id : (!empty($preselect) ? $preselect : null); ?>
-                            <a href="<?php echo isset($tos) ? site_url('tos/view/' . $tos->id) : site_url('tos' . ($return_subject ? '?subject_id=' . rawurlencode($return_subject) : '')); ?>" class="btn btn-outline">Cancel</a>
+                            <a href="<?php echo isset($tos) ? site_url('tos/view/' . rawurlencode($tos->id)) : site_url('tos' . ($return_subject ? '?subject_id=' . rawurlencode($return_subject) : '')); ?>" class="btn btn-outline">Cancel</a>
                         </div>
                     </form>
                 </div>

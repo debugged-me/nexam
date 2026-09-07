@@ -1,8 +1,8 @@
 /* ==========================================================================
    auth.css — login, register, verify, forgot and reset screens
    --------------------------------------------------------------------------
-   Layout follows the DOrSU student portal: one centred card floating on a soft
-   tinted background, split into an image-style brand panel (institution mark
+   Layout follows the DOrSU student portal: a centred split card floating on a
+   soft tinted background, with an image-style brand panel (institution mark
    pinned to the bottom) and a form panel led by a centred logo and a
    gradient-text welcome line.
 
@@ -33,7 +33,8 @@
     --auth-faint:   var(--ink-faint);
     --auth-error:   var(--red-600);
 
-    --auth-card-shadow: var(--shadow-md);
+    --auth-card-shadow: 0 24px 60px -20px rgba(13, 46, 78, .28),
+                        0 8px 24px -12px rgba(13, 46, 78, .18);
     --auth-ease: var(--ease);
 }
 
@@ -42,7 +43,6 @@
 body.auth-page {
     position: relative;
     font-family: var(--font-body, "Inter", -apple-system, sans-serif);
-    background: var(--surface);
     color: var(--auth-ink);
     min-height: 100vh;
     min-height: 100dvh;
@@ -54,10 +54,24 @@ body.auth-page {
     line-height: 1.6;
     -webkit-font-smoothing: antialiased;
     overflow-x: hidden;
+    background:
+        radial-gradient(90% 60% at 85% 110%, rgba(99, 179, 245, .18) 0%, transparent 60%),
+        radial-gradient(70% 50% at 10% -10%, rgba(35, 131, 226, .14) 0%, transparent 55%),
+        linear-gradient(180deg, #EEF4FB 0%, #E4EDF6 100%);
 }
 
-/* Soft tinted wash behind the card, in place of the reference's wave asset. */
-body.auth-page::before,
+/* Soft floating orbs behind the card, echoing the reference's wave asset. */
+body.auth-page::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    background-image:
+        radial-gradient(circle at 18% 22%, rgba(99, 179, 245, .10) 0%, transparent 28%),
+        radial-gradient(circle at 82% 78%, rgba(27, 90, 148, .08) 0%, transparent 32%);
+    pointer-events: none;
+    z-index: 0;
+}
+
 body.auth-page::after { content: none; }
 
 a { color: inherit; text-decoration: none; }
@@ -70,17 +84,18 @@ a { color: inherit; text-decoration: none; }
     position: relative;
     z-index: 1;
     width: 100%;
-    max-width: 420px;
-    display: block;
+    max-width: 920px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
     background: var(--auth-surface);
-    border: 1px solid var(--auth-line);
-    border-radius: var(--radius-lg);
-    box-shadow: none;
+    border: 1px solid rgba(220, 229, 240, .7);
+    border-radius: 18px;
+    box-shadow: var(--auth-card-shadow);
     overflow: hidden;
 }
 
 /* The register form carries paired name rows and needs the extra width. */
-.auth-page-register .auth-wrap { max-width: 520px; }
+.auth-page-register .auth-wrap { max-width: 980px; }
 
 /* ==========================================================================
    Brand panel
@@ -92,15 +107,13 @@ a { color: inherit; text-decoration: none; }
         radial-gradient(120% 80% at 15% 0%, var(--accent-wash) 0%, transparent 55%),
         linear-gradient(155deg, var(--auth-navy-soft) 0%, var(--auth-navy) 45%, var(--auth-navy-deep) 100%);
     color: #fff;
-    padding: 36px 34px;
+    padding: 40px 38px;
     display: flex;
     flex-direction: column;
     justify-content: flex-end;
-    min-height: 480px;
+    min-height: 540px;
     overflow: hidden;
 }
-
-.auth-panel { display: none; }
 
 /* Fine dot grid — texture without needing a photograph. */
 .auth-panel::before {
@@ -110,6 +123,18 @@ a { color: inherit; text-decoration: none; }
     background-image: radial-gradient(rgba(255, 255, 255, .14) 1px, transparent 1px);
     background-size: 22px 22px;
     opacity: .5;
+    pointer-events: none;
+}
+
+/* Soft top glow that lifts the panel off the page. */
+.auth-panel::after {
+    content: "";
+    position: absolute;
+    top: -40%;
+    left: -20%;
+    width: 80%;
+    height: 70%;
+    background: radial-gradient(circle, rgba(99, 179, 245, .22) 0%, transparent 65%);
     pointer-events: none;
 }
 
@@ -126,14 +151,14 @@ a { color: inherit; text-decoration: none; }
     background: var(--accent-wash);
     border: 1px solid var(--accent-line);
     border-radius: 999px;
-    padding: 5px 11px;
-    margin-bottom: 16px;
+    padding: 6px 12px;
+    margin-bottom: 18px;
 }
 
 .panel-title {
     position: relative;
     font-family: var(--font-display, "Google Sans", sans-serif);
-    font-size: 1.85rem;
+    font-size: 2rem;
     font-weight: 700;
     letter-spacing: -.03em;
     line-height: 1.15;
@@ -148,10 +173,10 @@ a { color: inherit; text-decoration: none; }
 
 .panel-tagline {
     position: relative;
-    font-size: .86rem;
+    font-size: .9rem;
     line-height: 1.65;
-    color: rgba(255, 255, 255, .6);
-    margin-top: 12px;
+    color: rgba(255, 255, 255, .65);
+    margin-top: 14px;
     max-width: 34ch;
 }
 
@@ -161,16 +186,16 @@ a { color: inherit; text-decoration: none; }
     display: flex;
     align-items: center;
     gap: 12px;
-    margin-top: 32px;
-    padding-top: 22px;
+    margin-top: 36px;
+    padding-top: 24px;
     border-top: 1px solid rgba(148, 163, 184, .2);
 }
 
 .panel-icon {
-    width: 42px;
-    height: 42px;
+    width: 44px;
+    height: 44px;
     flex-shrink: 0;
-    border-radius: 11px;
+    border-radius: 12px;
     background: var(--accent-wash);
     border: 1px solid var(--accent-line);
     display: flex;
@@ -178,11 +203,11 @@ a { color: inherit; text-decoration: none; }
     justify-content: center;
 }
 
-.panel-icon svg { width: 21px !important; height: 21px !important; display: block; color: var(--auth-accent); }
+.panel-icon svg { width: 22px !important; height: 22px !important; display: block; color: var(--auth-accent); }
 
 .panel-org {
     font-family: var(--font-display, "Google Sans", sans-serif);
-    font-size: .9rem;
+    font-size: .95rem;
     font-weight: 600;
     color: #fff;
     line-height: 1.3;
@@ -203,7 +228,7 @@ a { color: inherit; text-decoration: none; }
    ========================================================================== */
 
 .auth-form-wrap {
-    padding: 30px 32px 28px;
+    padding: 44px 44px 36px;
     display: flex;
     flex-direction: column;
     justify-content: center;
@@ -211,26 +236,26 @@ a { color: inherit; text-decoration: none; }
 
 .auth-form-wrap > form { width: 100%; }
 
-.auth-heading { text-align: left; margin-bottom: 24px; }
+.auth-heading { text-align: left; margin-bottom: 26px; }
 
 .auth-logo {
     display: inline-flex;
     align-items: center;
-    gap: 9px;
-    margin-bottom: 24px;
+    gap: 10px;
+    margin-bottom: 26px;
 }
 
 .auth-logo span {
     font-family: var(--font-display, "Google Sans", sans-serif);
-    font-size: 1.28rem;
+    font-size: 1.3rem;
     font-weight: 700;
     letter-spacing: -.02em;
     color: var(--auth-navy);
 }
 
 .auth-logo .logo-mark {
-    width: 36px;
-    height: 36px;
+    width: 38px;
+    height: 38px;
     border-radius: var(--radius-sm);
     background: var(--auth-navy);
     display: flex;
@@ -238,28 +263,28 @@ a { color: inherit; text-decoration: none; }
     justify-content: center;
 }
 
-.auth-logo .logo-mark svg { width: 19px !important; height: 19px !important; display: block; color: var(--auth-accent); }
+.auth-logo .logo-mark svg { width: 20px !important; height: 20px !important; display: block; color: var(--auth-accent); }
 
 .auth-heading h1 {
     font-family: var(--font-display, "Google Sans", sans-serif);
-    font-size: 1.4rem;
+    font-size: 1.55rem;
     font-weight: 700;
     letter-spacing: -.025em;
     line-height: 1.25;
-    color: var(--auth-navy);
+    color: var(--auth-ink);
 }
 
 .auth-heading h1.gradient-text { color: var(--auth-ink); }
 
 .auth-heading p {
-    font-size: .84rem;
+    font-size: .88rem;
     color: var(--auth-ink-3);
-    margin-top: 7px;
+    margin-top: 8px;
 }
 
 /* "We sent a code to …" line on the verify screen. */
 .verify-email-line {
-    font-size: .84rem;
+    font-size: .86rem;
     color: var(--auth-ink-3);
     margin-bottom: 1.5rem;
     text-align: center;
@@ -269,15 +294,15 @@ a { color: inherit; text-decoration: none; }
    Fields
    ========================================================================== */
 
-.form-group { margin-bottom: 15px; }
+.form-group { margin-bottom: 16px; }
 
 .form-label {
     display: block;
     font-family: var(--font-display, "Google Sans", sans-serif);
-    font-size: .78rem;
+    font-size: .8rem;
     font-weight: 600;
     color: var(--auth-ink-2);
-    margin-bottom: 6px;
+    margin-bottom: 7px;
 }
 
 .form-label .req { color: var(--auth-error); }
@@ -302,10 +327,10 @@ a { color: inherit; text-decoration: none; }
 .form-input,
 .form-select {
     width: 100%;
-    height: 48px;
+    height: 50px;
     padding: 0 16px 0 42px;
     font-family: var(--font-body, "Inter", sans-serif);
-    font-size: .88rem;
+    font-size: .9rem;
     color: var(--auth-ink);
     background: var(--auth-surface);
     border: 1px solid var(--auth-line);
@@ -417,17 +442,32 @@ a { color: inherit; text-decoration: none; }
    Buttons
    ========================================================================== */
 
+/* Side-by-side action row, matching the reference's LOGIN / REGISTER pair. */
+.btn-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-top: 10px;
+}
+
+/* Stacked variant — used when a single primary + a back link is clearer. */
+.btn-row-stacked {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-top: 10px;
+}
+
 .btn-login {
     position: relative;
     width: 100%;
-    height: 48px;
-    margin-top: 8px;
+    height: 50px;
     border: none;
     border-radius: var(--radius-sm);
     background: var(--auth-blue);
     color: #fff;
     font-family: var(--font-display, "Google Sans", sans-serif);
-    font-size: .82rem;
+    font-size: .85rem;
     font-weight: 600;
     letter-spacing: 0;
     cursor: pointer;
@@ -435,10 +475,11 @@ a { color: inherit; text-decoration: none; }
     align-items: center;
     justify-content: center;
     gap: 9px;
-    transition: background-color .15s ease, box-shadow .15s ease;
+    transition: background-color .15s ease, box-shadow .15s ease, transform .1s ease;
 }
 
-.btn-login:hover { background: var(--auth-blue-dark); }
+.btn-login:hover { background: var(--auth-blue-dark); box-shadow: 0 6px 16px -6px rgba(35, 131, 226, .5); }
+.btn-login:active { transform: translateY(1px); }
 .btn-login:focus-visible { outline: 2px solid var(--auth-blue); outline-offset: 2px; }
 .btn-login.is-loading { pointer-events: none; background: var(--auth-blue-dark); }
 
@@ -458,14 +499,13 @@ a { color: inherit; text-decoration: none; }
 
 .btn-register {
     width: 100%;
-    height: 46px;
-    margin-top: 10px;
+    height: 50px;
     border: 1px solid var(--auth-line);
     border-radius: var(--radius-sm);
     background: var(--auth-surface);
     color: var(--auth-ink-2);
     font-family: var(--font-display, "Google Sans", sans-serif);
-    font-size: .82rem;
+    font-size: .85rem;
     font-weight: 600;
     letter-spacing: .04em;
     cursor: pointer;
@@ -473,25 +513,27 @@ a { color: inherit; text-decoration: none; }
     align-items: center;
     justify-content: center;
     gap: 8px;
-    transition: background-color .15s ease, border-color .15s ease, color .15s ease;
+    transition: background-color .15s ease, border-color .15s ease, color .15s ease, transform .1s ease;
 }
 
 .btn-register svg { width: 16px !important; height: 16px !important; display: block; }
-.btn-register:hover { background: #F8FAFC; border-color: var(--auth-line-2); color: var(--auth-ink); }
+.btn-register:hover { background: var(--surface-2); border-color: var(--auth-line-2); color: var(--auth-ink); }
+.btn-register:active { transform: translateY(1px); }
+.btn-register:focus-visible { outline: 2px solid var(--auth-blue); outline-offset: 2px; }
 
 /* ==========================================================================
    Footer links
    ========================================================================== */
 
 .form-links {
-    margin-top: 22px;
-    padding-top: 18px;
+    margin-top: 24px;
+    padding-top: 20px;
     border-top: 1px solid var(--auth-line);
     display: flex;
     flex-wrap: wrap;
     justify-content: center;
     gap: 6px 14px;
-    font-size: .82rem;
+    font-size: .84rem;
     color: var(--auth-ink-3);
 }
 
@@ -502,7 +544,8 @@ a { color: inherit; text-decoration: none; }
 .form-links a:hover { color: var(--auth-blue-dark); text-decoration: underline; }
 
 /* ==========================================================================
-   Responsive — the brand panel drops away, matching the reference
+   Responsive — the brand panel drops away on narrow screens, matching the
+   reference, and the card becomes a single centred form.
    ========================================================================== */
 
 @media (max-width: 860px) {
@@ -514,13 +557,15 @@ a { color: inherit; text-decoration: none; }
         max-width: 520px;
         margin: auto;
         box-shadow: none;
+        border: none;
+        border-radius: 0;
         background: transparent;
     }
 
     .auth-panel { display: none; }
 
     .auth-form-wrap {
-        padding: 36px 26px 30px;
+        padding: 40px 28px 32px;
         background: transparent;
     }
 
@@ -528,13 +573,25 @@ a { color: inherit; text-decoration: none; }
 }
 
 @media (max-width: 520px) {
+    body.auth-page { padding: 0; }
+
+    .auth-wrap,
+    .auth-page-register .auth-wrap {
+        max-width: 100%;
+        margin: 0;
+    }
+
     .form-row { grid-template-columns: 1fr; }
     .form-row-ext { grid-template-columns: minmax(0, 1fr) 104px; }
 
-    .auth-form-wrap { padding: 30px 18px 26px; }
-    .auth-heading h1 { font-size: 1.25rem; }
+    /* On very narrow screens, stack the Login / Register pair vertically. */
+    .btn-row { grid-template-columns: 1fr; }
+
+    .auth-form-wrap { padding: 32px 20px 28px; }
+    .auth-heading h1 { font-size: 1.3rem; }
 }
 
 @media (prefers-reduced-motion: reduce) {
     .btn-spinner { animation-duration: 1.4s; }
+    .btn-login, .btn-register { transition: background-color .15s ease, border-color .15s ease, color .15s ease; }
 }

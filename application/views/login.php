@@ -68,14 +68,16 @@
                     </div>
                 </div>
 
-                <button type="submit" class="btn-login">
-                    <span class="btn-spinner"></span>
-                    <span class="btn-label">Log In</span>
-                </button>
-                <a href="<?php echo site_url('register'); ?>" class="btn-register">
-                    <i data-lucide="user-plus"></i>
-                    Register
-                </a>
+                <div class="btn-row">
+                    <button type="submit" class="btn-login">
+                        <span class="btn-spinner"></span>
+                        <span class="btn-label">Log In</span>
+                    </button>
+                    <a href="<?php echo site_url('register'); ?>" class="btn-register">
+                        <i data-lucide="user-plus"></i>
+                        Register
+                    </a>
+                </div>
             </form>
 
             <div class="form-links">

@@ -83,14 +83,16 @@
                     </div>
                 </div>
 
-                <button type="submit" class="btn-login">
-                    <span class="btn-spinner"></span>
-                    <span class="btn-label">Reset Password</span>
-                </button>
-                <a href="<?php echo site_url('login'); ?>" class="btn-register">
-                    <i data-lucide="arrow-left"></i>
-                    Back to Login
-                </a>
+                <div class="btn-row-stacked">
+                    <button type="submit" class="btn-login">
+                        <span class="btn-spinner"></span>
+                        <span class="btn-label">Reset Password</span>
+                    </button>
+                    <a href="<?php echo site_url('login'); ?>" class="btn-register">
+                        <i data-lucide="arrow-left"></i>
+                        Back to Login
+                    </a>
+                </div>
             </form>
         </div>
     </main>

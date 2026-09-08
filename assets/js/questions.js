@@ -367,5 +367,62 @@
 
         var newBtnEmpty = document.getElementById("new-question-btn-empty");
         if (newBtnEmpty) newBtnEmpty.addEventListener("click", openNewQuestionDialog);
+
+        // ── Approve / Reject AI-drafted questions ────────
+        document.querySelectorAll(".btn-approve-q").forEach(function (btn) {
+            btn.addEventListener("click", async function () {
+                var id = btn.dataset.id;
+                try {
+                    var csrfCookie = getCookie("nexam_csrf_cookie");
+                    var res = await fetch(SITE_URL + "/questions/approve/" + id, {
+                        method: "POST",
+                        headers: {
+                            "X-CSRF-TOKEN": csrfCookie || "",
+                            "X-Requested-With": "XMLHttpRequest",
+                        },
+                    });
+                    var data = await res.json();
+                    if (res.ok) {
+                        NexamToast.success("Question approved and added to the bank.");
+                        var row = btn.closest("tr");
+                        if (row) row.remove();
+                    } else {
+                        NexamToast.error(data.error || "Approval failed.");
+                    }
+                } catch (err) {
+                    NexamToast.error("Network error.");
+                }
+            });
+        });
+
+        document.querySelectorAll(".btn-reject-q").forEach(function (btn) {
+            btn.addEventListener("click", function () {
+                var id = btn.dataset.id;
+                NexamModal.deleteConfirm("Reject this question?", "The AI-drafted question will be permanently deleted.", function () {
+                    fetch(SITE_URL + "/questions/reject/" + id, {
+                        method: "POST",
+                        headers: {
+                            "X-CSRF-TOKEN": getCookie("nexam_csrf_cookie") || "",
+                            "X-Requested-With": "XMLHttpRequest",
+                        },
+                    }).then(function (res) { return res.json(); }).then(function (data) {
+                        if (data.ok) {
+                            NexamToast.success("Question rejected.");
+                            var row = btn.closest("tr");
+                            if (row) row.remove();
+                        } else {
+                            NexamToast.error(data.error || "Rejection failed.");
+                        }
+                    }).catch(function () {
+                        NexamToast.error("Network error.");
+                    });
+                });
+            });
+        });
     });
+
+    function getCookie(name) {
+        var match = document.cookie.match(new RegExp("(^| )" + name + "=([^;]+)"));
+        return match ? match[2] : "";
+    }
 })();

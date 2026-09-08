@@ -26,6 +26,7 @@ $nav_groups = [
         'items' => [
             ['label' => 'Blueprints', 'key' => 'tos',   'icon' => 'panels-top-left', 'url' => 'tos'],
             ['label' => 'Exams',      'key' => 'exams', 'icon' => 'file-text',       'url' => 'exams'],
+            ['label' => 'Analytics',  'key' => 'analytics', 'icon' => 'bar-chart-3', 'url' => 'analytics'],
         ],
     ],
 ];

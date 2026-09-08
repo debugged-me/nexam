@@ -131,6 +131,44 @@
     });
   });
 
+  // ── Generate TOS from syllabus ──────────────────────
+  document.querySelectorAll('.btn-generate-tos').forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      const id = btn.dataset.id;
+      btn.disabled = true;
+      btn.innerHTML = '<i data-lucide="loader-2" style="animation: spin 1s linear infinite;"></i> Generating...';
+      if (window.lucide) lucide.createIcons();
+
+      try {
+        const csrfCookie = getCookie('nexam_csrf_cookie');
+        const res = await fetch(`${SITE_URL}/materials/generate_tos`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': csrfCookie || '',
+            'X-Requested-With': 'XMLHttpRequest',
+          },
+          body: JSON.stringify({ material_id: id }),
+        });
+        const data = await res.json();
+        if (res.ok) {
+          NexamToast.success('TOS generation started. Check the Blueprints page shortly.');
+          setTimeout(() => location.reload(), 2000);
+        } else {
+          NexamToast.error(data.error || 'Generation failed.');
+          btn.disabled = false;
+          btn.innerHTML = '<i data-lucide="sparkles"></i> Generate TOS';
+          if (window.lucide) lucide.createIcons();
+        }
+      } catch (err) {
+        NexamToast.error('Network error. Please try again.');
+        btn.disabled = false;
+        btn.innerHTML = '<i data-lucide="sparkles"></i> Generate TOS';
+        if (window.lucide) lucide.createIcons();
+      }
+    });
+  });
+
   function getCookie(name) {
     const match = document.cookie.match(new RegExp('(^| )' + name + '=([^;]+)'));
     return match ? match[2] : '';

@@ -6,8 +6,8 @@ class Questions extends MY_Controller
     /** Allowed Bloom levels (whitelist). */
     private $bloom_levels = ['remember', 'understand', 'apply', 'analyze', 'evaluate', 'create'];
 
-    /** Allowed question types (whitelist). */
-    private $question_types = ['mcq', 'true_false', 'identification', 'essay'];
+    /** Allowed question types (whitelist) — per scope: objective types only. */
+    private $question_types = ['mcq', 'true_false', 'matching', 'identification'];
 
     /** Allowed statuses (whitelist). */
     private $statuses = ['draft', 'active'];
@@ -30,6 +30,7 @@ class Questions extends MY_Controller
             'subject_id' => $this->input->get('subject_id', true),
             'bloom'      => $this->input->get('bloom', true),
             'type'       => $this->input->get('type', true),
+            'tos_id'     => $this->input->get('tos_id', true),
         ];
 
         // Validate filter values against whitelists to avoid arbitrary input
@@ -61,7 +62,7 @@ class Questions extends MY_Controller
         // to widen the filter again without a round trip.
         $data['questions'] = $this->Question_model->get_by_user(
             $this->user_id,
-            ['subject_id' => $filters['subject_id']]
+            ['subject_id' => $filters['subject_id'], 'tos_id' => $filters['tos_id']]
         );
         $data['subject_tab'] = 'questions';
         $data['subject_map'] = $subject_map;
@@ -273,7 +274,7 @@ class Questions extends MY_Controller
         $this->form_validation->set_rules('subject_id', 'Subject', 'required|trim|callback_owned_subject');
         $this->form_validation->set_rules('topic', 'Topic', 'trim|max_length[255]');
         $this->form_validation->set_rules('bloom', 'Bloom Level', 'trim|in_list[remember,understand,apply,analyze,evaluate,create]');
-        $this->form_validation->set_rules('type', 'Question Type', 'required|trim|in_list[mcq,true_false,identification,essay]');
+        $this->form_validation->set_rules('type', 'Question Type', 'required|trim|in_list[mcq,true_false,matching,identification]');
         $this->form_validation->set_rules('stem', 'Question Stem', 'required|trim|max_length[10000]');
         $this->form_validation->set_rules('options', 'Options', 'trim|callback_valid_question_content');
         $this->form_validation->set_rules('answer', 'Answer', 'trim|max_length[10000]|callback_valid_answer_for_type');
@@ -354,5 +355,112 @@ class Questions extends MY_Controller
         if ($this->Subject_model->get_owned($subject_id, $this->user_id)) return true;
         $this->form_validation->set_message('owned_subject', 'Select a subject from your workspace.');
         return false;
+    }
+
+    /**
+     * AJAX: approve an AI-drafted question (status draft → active).
+     * Records who approved and when. IDOR-protected via get_owned.
+     */
+    public function approve($id)
+    {
+        if (!$this->session->userdata('logged_in')) {
+            $this->output->set_status_header(403)->set_content_type('application/json')
+                ->set_output(json_encode(['error' => 'Unauthorized']));
+            return;
+        }
+        if ($this->input->method(true) !== 'POST') {
+            show_404();
+        }
+
+        $question = $this->Question_model->get_owned($id, $this->user_id);
+        if (!$question) {
+            $this->output->set_status_header(404)->set_content_type('application/json')
+                ->set_output(json_encode(['error' => 'Question not found.']));
+            return;
+        }
+
+        $this->Question_model->update($id, [
+            'status'      => 'active',
+            'approved_by' => $this->user_id,
+            'approved_at' => date('Y-m-d H:i:s'),
+        ]);
+
+        $this->output->set_content_type('application/json')
+            ->set_output(json_encode([
+                'ok'         => true,
+                'csrf_name'  => $this->security->get_csrf_token_name(),
+                'csrf_hash'  => $this->security->get_csrf_hash(),
+            ]));
+    }
+
+    /**
+     * AJAX: reject (delete) an AI-drafted question.
+     * IDOR-protected — only the owner can reject.
+     */
+    public function reject($id)
+    {
+        if (!$this->session->userdata('logged_in')) {
+            $this->output->set_status_header(403)->set_content_type('application/json')
+                ->set_output(json_encode(['error' => 'Unauthorized']));
+            return;
+        }
+        if ($this->input->method(true) !== 'POST') {
+            show_404();
+        }
+
+        $question = $this->Question_model->get_owned($id, $this->user_id);
+        if (!$question) {
+            $this->output->set_status_header(404)->set_content_type('application/json')
+                ->set_output(json_encode(['error' => 'Question not found.']));
+            return;
+        }
+
+        $this->Question_model->delete($id);
+
+        $this->output->set_content_type('application/json')
+            ->set_output(json_encode([
+                'ok'         => true,
+                'csrf_name'  => $this->security->get_csrf_token_name(),
+                'csrf_hash'  => $this->security->get_csrf_hash(),
+            ]));
+    }
+
+    /**
+     * AJAX: bulk approve AI-drafted questions.
+     */
+    public function bulk_approve()
+    {
+        if (!$this->session->userdata('logged_in')) {
+            $this->output->set_status_header(403)->set_content_type('application/json')
+                ->set_output(json_encode(['error' => 'Unauthorized']));
+            return;
+        }
+        if ($this->input->method(true) !== 'POST') {
+            show_404();
+        }
+
+        $ids = $this->input->post('ids', true);
+        $ids = is_array($ids) ? array_filter(array_map('strval', $ids), fn($v) => preg_match('/^[0-9a-f\-]{36}$/i', $v)) : [];
+
+        $approved = 0;
+        foreach ($ids as $qid) {
+            $question = $this->Question_model->get_owned($qid, $this->user_id);
+            if ($question && $question->status === 'draft') {
+                $this->Question_model->update($qid, [
+                    'status'      => 'active',
+                    'approved_by' => $this->user_id,
+                    'approved_at' => date('Y-m-d H:i:s'),
+                ]);
+                $approved++;
+            }
+        }
+
+        $this->output->set_content_type('application/json')
+            ->set_output(json_encode([
+                'ok'        => true,
+                'approved'  => $approved,
+                'csrf_name' => $this->security->get_csrf_token_name(),
+                'csrf_hash' => $this->security->get_csrf_hash(),
+            ]));
     }
 }

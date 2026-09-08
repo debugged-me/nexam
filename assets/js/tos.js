@@ -25,4 +25,54 @@
         }
     });
     recalculate();
+
+    // ── Generate Questions (AI RAG) ────────────────────
+    var genBtn = document.getElementById("btn-generate-questions");
+    if (genBtn) {
+        genBtn.addEventListener("click", async function () {
+            var tosId = genBtn.dataset.tosId;
+            NexamModal.confirm(
+                "Generate questions with AI?",
+                "The system will draft questions from your uploaded materials using RAG, aligned to this blueprint's Bloom distribution. You'll review every question before it enters the question bank.",
+                "info",
+                async function () {
+                    genBtn.disabled = true;
+                    genBtn.innerHTML = '<i data-lucide="loader-2" style="animation: spin 1s linear infinite;"></i> Generating...';
+                    if (window.lucide) lucide.createIcons();
+
+                    try {
+                        var csrfCookie = getCookie("nexam_csrf_cookie");
+                        var res = await fetch(SITE_URL + "/tos/generate_questions", {
+                            method: "POST",
+                            headers: {
+                                "Content-Type": "application/json",
+                                "X-CSRF-TOKEN": csrfCookie || "",
+                                "X-Requested-With": "XMLHttpRequest",
+                            },
+                            body: JSON.stringify({ tos_id: tosId }),
+                        });
+                        var data = await res.json();
+                        if (res.ok) {
+                            NexamToast.success("Question generation started. Check the Questions page shortly.");
+                        } else {
+                            NexamToast.error(data.error || "Generation failed.");
+                            genBtn.disabled = false;
+                            genBtn.innerHTML = '<i data-lucide="sparkles"></i> Generate Questions';
+                            if (window.lucide) lucide.createIcons();
+                        }
+                    } catch (err) {
+                        NexamToast.error("Network error. Please try again.");
+                        genBtn.disabled = false;
+                        genBtn.innerHTML = '<i data-lucide="sparkles"></i> Generate Questions';
+                        if (window.lucide) lucide.createIcons();
+                    }
+                }
+            );
+        });
+    }
+
+    function getCookie(name) {
+        var match = document.cookie.match(new RegExp("(^| )" + name + "=([^;]+)"));
+        return match ? match[2] : "";
+    }
 })();

@@ -284,6 +284,46 @@ class Tos extends MY_Controller
     }
 
     /**
+     * AJAX: generate AI questions from this TOS blueprint via RAG.
+     * Delegates to the Node API which enqueues a generation job.
+     */
+    public function generate_questions()
+    {
+        if (!$this->session->userdata('logged_in')) {
+            $this->output->set_status_header(403)->set_content_type('application/json')
+                ->set_output(json_encode(['error' => 'Unauthorized']));
+            return;
+        }
+        if ($this->input->method(true) !== 'POST') {
+            show_404();
+        }
+
+        $input = json_decode(file_get_contents('php://input'), true);
+        $tos_id = $input['tos_id'] ?? null;
+        if (!$tos_id) {
+            $this->output->set_status_header(400)->set_content_type('application/json')
+                ->set_output(json_encode(['error' => 'tos_id is required.']));
+            return;
+        }
+
+        // Ownership check
+        $tos = $this->Tos_model->get_owned($tos_id, $this->user_id);
+        if (!$tos) {
+            $this->output->set_status_header(404)->set_content_type('application/json')
+                ->set_output(json_encode(['error' => 'TOS not found.']));
+            return;
+        }
+
+        $this->load->library('nexam_api');
+        $response = $this->nexam_api->post('ai/generate-questions', ['tosId' => $tos_id]);
+
+        $this->output
+            ->set_status_header($response['status'])
+            ->set_content_type('application/json')
+            ->set_output(json_encode($response['body'] ?? ['error' => 'Generation failed.']));
+    }
+
+    /**
      * Decode the bloom_weights JSON string, falling back to defaults.
      *
      * @param string|null $json

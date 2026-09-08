@@ -78,6 +78,7 @@ class Exams extends MY_Controller
             $this->form_validation->set_rules('subject_id', 'Subject', 'required|trim|callback_owned_subject');
             $this->form_validation->set_rules('tos_id', 'TOS blueprint', 'trim|callback_valid_tos_selection');
             $this->form_validation->set_rules('format', 'Format', 'required|trim|in_list[print,digital]');
+            $this->form_validation->set_rules('set_count', 'Exam Sets', 'trim|integer|in_list[1,2]');
             $this->form_validation->set_rules('duration_minutes', 'Duration', 'trim|integer|greater_than_equal_to[0]|less_than_equal_to[1000]');
             $this->form_validation->set_rules('instructions', 'Instructions', 'trim|max_length[5000]');
 
@@ -87,6 +88,7 @@ class Exams extends MY_Controller
                     'subject_id'        => $this->input->post('subject_id', true),
                     'title'             => $this->input->post('title', true),
                     'format'            => $this->input->post('format', true),
+                    'set_count'         => (int) $this->input->post('set_count', true) ?: 1,
                     'duration_minutes'  => $this->input->post('duration_minutes', true) ?: null,
                     'instructions'      => $this->input->post('instructions', true) ?: null,
                     'status'            => 'draft',
@@ -137,6 +139,8 @@ class Exams extends MY_Controller
         $data['subject_context'] = $data['subject'];
         $data['subject_tab'] = 'exams';
         $data['questions'] = $this->Exam_model->get_questions($exam->id);
+        $data['page_css'] = ['exams.css'];
+        $data['page_js'] = ['exams.js'];
         $this->render('exams/view', $data);
     }
 
@@ -155,6 +159,7 @@ class Exams extends MY_Controller
             $this->form_validation->set_rules('title', 'Title', 'required|trim|max_length[255]');
             $this->form_validation->set_rules('subject_id', 'Subject', 'required|trim|callback_owned_subject');
             $this->form_validation->set_rules('format', 'Format', 'required|trim|in_list[print,digital]');
+            $this->form_validation->set_rules('set_count', 'Exam Sets', 'trim|integer|in_list[1,2]');
             $this->form_validation->set_rules('duration_minutes', 'Duration', 'trim|integer|greater_than_equal_to[0]|less_than_equal_to[1000]');
             $this->form_validation->set_rules('instructions', 'Instructions', 'trim|max_length[5000]');
 
@@ -163,6 +168,7 @@ class Exams extends MY_Controller
                     'subject_id'        => $this->input->post('subject_id', true),
                     'title'             => $this->input->post('title', true),
                     'format'            => $this->input->post('format', true),
+                    'set_count'         => (int) $this->input->post('set_count', true) ?: 1,
                     'duration_minutes'  => $this->input->post('duration_minutes', true) ?: null,
                     'instructions'      => $this->input->post('instructions', true) ?: null,
                 ]);
@@ -212,6 +218,175 @@ class Exams extends MY_Controller
         $this->Exam_model->update($id, ['status' => 'published']);
         $this->session->set_flashdata('toast', ['type' => 'success', 'message' => 'Exam published.']);
         redirect('exams/view/' . $id);
+    }
+
+    /**
+     * AJAX: generate Set A/Set B PDFs, answer keys, and TOS report via Node API.
+     */
+    public function generate_pdfs()
+    {
+        if (!$this->session->userdata('logged_in')) {
+            $this->output->set_status_header(403)->set_content_type('application/json')
+                ->set_output(json_encode(['error' => 'Unauthorized']));
+            return;
+        }
+        if ($this->input->method(true) !== 'POST') {
+            show_404();
+        }
+
+        $input = json_decode(file_get_contents('php://input'), true);
+        $exam_id = $input['exam_id'] ?? null;
+        if (!$exam_id) {
+            $this->output->set_status_header(400)->set_content_type('application/json')
+                ->set_output(json_encode(['error' => 'exam_id is required.']));
+            return;
+        }
+
+        // Ownership check
+        $exam = $this->Exam_model->get_owned($exam_id, $this->user_id);
+        if (!$exam) {
+            $this->output->set_status_header(404)->set_content_type('application/json')
+                ->set_output(json_encode(['error' => 'Exam not found.']));
+            return;
+        }
+
+        $this->load->library('nexam_api');
+        $response = $this->nexam_api->post('exams/' . $exam_id . '/generate-sets');
+
+        $this->output
+            ->set_status_header($response['status'])
+            ->set_content_type('application/json')
+            ->set_output(json_encode($response['body'] ?? ['error' => 'Generation failed.']));
+    }
+
+    /**
+     * Download a generated PDF (exam, answer key, or TOS report).
+     * Streams the file from the Node API to the browser.
+     */
+    public function download($exam_id, $type)
+    {
+        if (!$this->session->userdata('logged_in')) {
+            show_404();
+            return;
+        }
+
+        // Ownership check
+        $exam = $this->Exam_model->get_owned($exam_id, $this->user_id);
+        if (!$exam) {
+            show_404();
+            return;
+        }
+
+        $set = $this->input->get('set', true);
+
+        // Build the Node API URL
+        $url = "http://localhost:3000/api/exams/{$exam_id}/download/{$type}";
+        if ($set) $url .= '?set=' . rawurlencode($set);
+
+        // Generate a JWT for the Node API
+        $this->load->library('nexam_api');
+        $token = $this->_get_node_token();
+
+        $ch = curl_init($url);
+        curl_setopt_array($ch, [
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_HTTPHEADER => [
+                'Authorization: Bearer ' . $token,
+                'Accept: application/pdf',
+            ],
+            CURLOPT_TIMEOUT => 60,
+        ]);
+
+        $content = curl_exec($ch);
+        $status = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $error = curl_error($ch);
+        curl_close($ch);
+
+        if ($error || $status !== 200) {
+            show_error('Failed to download file.', 404);
+            return;
+        }
+
+        $filename = $type === 'tos-report' ? "tos_report_{$exam_id}.pdf" : "{$type}_{$exam_id}_set{$set}.pdf";
+        $this->output
+            ->set_content_type('application/pdf')
+            ->set_header('Content-Disposition: attachment; filename="' . $filename . '"')
+            ->set_header('Content-Length: ' . strlen($content))
+            ->set_output($content);
+    }
+
+    /** Generate a JWT for the Node API using the session user. */
+    private function _get_node_token()
+    {
+        $secret = getenv('JWT_SECRET') ?: 'change-me-in-production';
+        $header = rtrim(strtr(base64_encode(json_encode(['alg' => 'HS256', 'typ' => 'JWT'])), '+/', '-_'), '=');
+        $payload = rtrim(strtr(base64_encode(json_encode([
+            'id' => $this->user_id,
+            'email' => $this->email,
+            'role' => $this->role,
+            'iat' => time(),
+            'exp' => time() + 3600,
+        ])), '+/', '-_'), '=');
+        $sig = rtrim(strtr(base64_encode(hash_hmac('sha256', "$header.$payload", $secret, true)), '+/', '-_'), '=');
+        return "$header.$payload.$sig";
+    }
+
+    /**
+     * Export exam questions as GIFT (Moodle) or XML (Canvas).
+     * Streams the export from the Node API to the browser.
+     */
+    public function export($exam_id, $format)
+    {
+        if (!$this->session->userdata('logged_in')) {
+            show_404();
+            return;
+        }
+
+        // Ownership check
+        $exam = $this->Exam_model->get_owned($exam_id, $this->user_id);
+        if (!$exam) {
+            show_404();
+            return;
+        }
+
+        $format = strtolower($format);
+        if (!in_array($format, ['gift', 'xml'], true)) {
+            show_404();
+            return;
+        }
+
+        $token = $this->_get_node_token();
+        $url = "http://localhost:3000/api/exams/{$exam_id}/export/{$format}";
+
+        $ch = curl_init($url);
+        curl_setopt_array($ch, [
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_HTTPHEADER => [
+                'Authorization: Bearer ' . $token,
+                'Accept: ' . ($format === 'gift' ? 'text/plain' : 'application/xml'),
+            ],
+            CURLOPT_TIMEOUT => 30,
+        ]);
+
+        $content = curl_exec($ch);
+        $status = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $error = curl_error($ch);
+        curl_close($ch);
+
+        if ($error || $status !== 200) {
+            show_error('Export failed.', 500);
+            return;
+        }
+
+        $ext = $format === 'gift' ? 'gift' : 'xml';
+        $ctype = $format === 'gift' ? 'text/plain; charset=utf-8' : 'application/xml; charset=utf-8';
+        $filename = preg_replace('/[^a-z0-9]+/i', '_', $exam->title) . '.' . $ext;
+
+        $this->output
+            ->set_content_type($ctype)
+            ->set_header('Content-Disposition: attachment; filename="' . $filename . '"')
+            ->set_header('Content-Length: ' . strlen($content))
+            ->set_output($content);
     }
 
     /**

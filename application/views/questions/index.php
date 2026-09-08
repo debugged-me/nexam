@@ -3,8 +3,8 @@ $bloom_order = ['remember' => 1, 'understand' => 2, 'apply' => 3, 'analyze' => 4
 $type_label  = [
     'mcq'            => 'Multiple choice',
     'true_false'     => 'True / false',
+    'matching'       => 'Matching type',
     'identification' => 'Identification',
-    'essay'          => 'Essay',
 ];
 
 // The subject facet only appears when the page is not already scoped to one
@@ -145,17 +145,28 @@ $facets[] = [
                         </td>
                         <td class="g-mute" data-order="<?php echo htmlspecialchars($touched); ?>"><?php echo date('M j, Y', strtotime($touched)); ?></td>
                         <td class="col-actions">
-                            <details class="g-menu">
-                                <summary class="g-menu-trigger" aria-label="Actions for <?php echo htmlspecialchars($stem); ?>"><i data-lucide="ellipsis"></i></summary>
-                                <div class="g-menu-panel">
-                                    <a href="<?php echo site_url('questions/edit/' . rawurlencode($q->id)); ?>" class="g-menu-item"><i data-lucide="pencil"></i> Edit</a>
-                                    <div class="g-menu-sep"></div>
-                                    <form action="<?php echo site_url('questions/delete/' . rawurlencode($q->id)); ?>" method="post" class="g-menu-form">
-                                        <input type="hidden" name="<?php echo $csrf_name; ?>" value="<?php echo $csrf_hash; ?>">
-                                        <button type="button" class="g-menu-item is-danger" data-confirm data-confirm-title="Delete question?" data-confirm-type="delete" data-confirm-message="This question will be permanently removed from the bank. Exams already built with it keep their copy."><i data-lucide="trash-2"></i> Delete</button>
-                                    </form>
+                            <?php if (!$active && $q->source === 'ai'): ?>
+                                <div class="row-actions" style="display:flex;gap:4px;">
+                                    <button type="button" class="btn btn-primary btn-xs btn-approve-q" data-id="<?php echo htmlspecialchars($q->id); ?>" title="Approve">
+                                        <i data-lucide="check"></i>
+                                    </button>
+                                    <button type="button" class="btn btn-outline btn-xs btn-reject-q" data-id="<?php echo htmlspecialchars($q->id); ?>" title="Reject">
+                                        <i data-lucide="x"></i>
+                                    </button>
                                 </div>
-                            </details>
+                            <?php else: ?>
+                                <details class="g-menu">
+                                    <summary class="g-menu-trigger" aria-label="Actions for <?php echo htmlspecialchars($stem); ?>"><i data-lucide="ellipsis"></i></summary>
+                                    <div class="g-menu-panel">
+                                        <a href="<?php echo site_url('questions/edit/' . rawurlencode($q->id)); ?>" class="g-menu-item"><i data-lucide="pencil"></i> Edit</a>
+                                        <div class="g-menu-sep"></div>
+                                        <form action="<?php echo site_url('questions/delete/' . rawurlencode($q->id)); ?>" method="post" class="g-menu-form">
+                                            <input type="hidden" name="<?php echo $csrf_name; ?>" value="<?php echo $csrf_hash; ?>">
+                                            <button type="button" class="g-menu-item is-danger" data-confirm data-confirm-title="Delete question?" data-confirm-type="delete" data-confirm-message="This question will be permanently removed from the bank. Exams already built with it keep their copy."><i data-lucide="trash-2"></i> Delete</button>
+                                        </form>
+                                    </div>
+                                </details>
+                            <?php endif; ?>
                         </td>
                     </tr>
                 <?php endforeach; ?>

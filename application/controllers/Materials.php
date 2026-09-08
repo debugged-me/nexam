@@ -151,4 +151,34 @@ class Materials extends MY_Controller
             ->set_content_type('application/json')
             ->set_output(json_encode($response['body'] ?? ['error' => 'Reprocess failed.']));
     }
+
+    /**
+     * AJAX: generate a TOS blueprint from a processed syllabus material.
+     */
+    public function generate_tos()
+    {
+        if (!$this->session->userdata('logged_in')) {
+            $this->output->set_status_header(403)->set_content_type('application/json')
+                ->set_output(json_encode(['error' => 'Unauthorized']));
+            return;
+        }
+        if ($this->input->method(true) !== 'POST') {
+            show_404();
+        }
+
+        $input = json_decode(file_get_contents('php://input'), true);
+        $material_id = $input['material_id'] ?? null;
+        if (!$material_id) {
+            $this->output->set_status_header(400)->set_content_type('application/json')
+                ->set_output(json_encode(['error' => 'material_id is required.']));
+            return;
+        }
+
+        $response = $this->nexam_api->post('ai/syllabus-tos', ['materialId' => $material_id]);
+
+        $this->output
+            ->set_status_header($response['status'])
+            ->set_content_type('application/json')
+            ->set_output(json_encode($response['body'] ?? ['error' => 'Generation failed.']));
+    }
 }

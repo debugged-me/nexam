@@ -14,7 +14,10 @@
             <?php endif; ?>
         </div>
         <div class="header-actions">
-            <a href="<?php echo site_url('exams/create?tos=' . rawurlencode($tos->id)); ?>" class="btn btn-primary btn-sm">
+            <button type="button" class="btn btn-primary btn-sm" id="btn-generate-questions" data-tos-id="<?php echo rawurlencode($tos->id); ?>">
+                <i data-lucide="sparkles"></i> Generate Questions
+            </button>
+            <a href="<?php echo site_url('exams/create?tos=' . rawurlencode($tos->id)); ?>" class="btn btn-outline btn-sm">
                 <i data-lucide="file-text"></i> Generate Exam
             </a>
             <a href="<?php echo site_url('tos/edit/' . rawurlencode($tos->id)); ?>" class="btn btn-outline btn-sm"><i data-lucide="pencil"></i> Edit</a>

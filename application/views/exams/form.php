@@ -119,6 +119,16 @@
                             </div>
 
                             <div class="form-group">
+                                <label class="form-label" for="set_count">Exam Sets</label>
+                                <select id="set_count" name="set_count" class="form-control form-select">
+                                    <?php $selected_sets = (int) set_value('set_count', isset($exam) ? $exam->set_count : 1); ?>
+                                    <option value="1" <?php echo $selected_sets === 1 ? 'selected' : ''; ?>>1 set (Set A only)</option>
+                                    <option value="2" <?php echo $selected_sets === 2 ? 'selected' : ''; ?>>2 sets (Set A + Set B)</option>
+                                </select>
+                                <small class="form-hint">Set B has the same questions in shuffled order.</small>
+                            </div>
+
+                            <div class="form-group">
                                 <label class="form-label" for="duration_minutes">Duration (minutes)</label>
                                 <input type="number" id="duration_minutes" name="duration_minutes" class="form-control" min="0" max="1000"
                                        value="<?php echo htmlspecialchars(set_value('duration_minutes', isset($exam) && $exam->duration_minutes ? $exam->duration_minutes : '')); ?>"

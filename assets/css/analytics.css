@@ -1,0 +1,127 @@
+/* analytics.css — performance dashboard styles */
+
+/* ── Score distribution histogram ─────────────────── */
+.score-distribution {
+  display: flex;
+  align-items: flex-end;
+  gap: 0.5rem;
+  height: 200px;
+  padding: 1rem 0;
+}
+
+.dist-bar {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex: 1;
+  height: 100%;
+  min-width: 40px;
+}
+
+.dist-bar-count {
+  font: 600 0.75rem var(--font-display, sans-serif);
+  color: var(--ink-2, #64748b);
+  margin-bottom: 0.25rem;
+}
+
+.dist-bar-track {
+  flex: 1;
+  width: 100%;
+  max-width: 40px;
+  background: var(--surface-2, #f1f5f9);
+  border-radius: 4px 4px 0 0;
+  display: flex;
+  align-items: flex-end;
+  overflow: hidden;
+}
+
+.dist-bar-fill {
+  width: 100%;
+  background: linear-gradient(180deg, var(--primary, #4f46e5), #6366f1);
+  border-radius: 4px 4px 0 0;
+  min-height: 2px;
+  transition: height 0.3s ease;
+}
+
+.dist-bar-label {
+  font: 500 0.7rem var(--font-body, sans-serif);
+  color: var(--ink-3, #94a3b8);
+  margin-top: 0.25rem;
+}
+
+/* ── Correct rate bar ─────────────────────────────── */
+.correct-rate-bar {
+  position: relative;
+  width: 100px;
+  height: 20px;
+  background: var(--surface-2, #f1f5f9);
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.correct-rate-fill {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  background: linear-gradient(90deg, #10b981, #34d399);
+  border-radius: 10px;
+  transition: width 0.3s ease;
+}
+
+.correct-rate-text {
+  position: relative;
+  z-index: 1;
+  font: 600 0.7rem var(--font-display, sans-serif);
+  color: var(--ink, #1e293b);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  text-shadow: 0 0 2px rgba(255, 255, 255, 0.8);
+}
+
+/* ── Answer distribution chips ────────────────────── */
+.answer-dist {
+  display: flex;
+  gap: 0.25rem;
+  flex-wrap: wrap;
+}
+
+.answer-dist-item {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 0.2rem 0.4rem;
+  background: var(--surface-2, #f1f5f9);
+  border-radius: 4px;
+  min-width: 32px;
+}
+
+.answer-dist-letter {
+  font: 600 0.7rem var(--font-display, sans-serif);
+  color: var(--ink, #1e293b);
+}
+
+.answer-dist-count {
+  font: 400 0.65rem var(--font-body, sans-serif);
+  color: var(--ink-3, #94a3b8);
+}
+
+/* ── Badge colors for difficulty ───────────────────── */
+.badge-red {
+  background: #fee2e2;
+  color: #dc2626;
+}
+
+/* ── Responsive ──────────────────────────────────── */
+@media (max-width: 768px) {
+  .score-distribution {
+    overflow-x: auto;
+    padding-bottom: 1.5rem;
+  }
+
+  .dist-bar {
+    min-width: 30px;
+  }
+}

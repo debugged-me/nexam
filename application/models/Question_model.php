@@ -26,6 +26,7 @@ class Question_model extends CI_Model
         if (!empty($filters['subject_id'])) $this->db->where('subject_id', $filters['subject_id']);
         if (!empty($filters['bloom']))      $this->db->where('bloom', $filters['bloom']);
         if (!empty($filters['type']))       $this->db->where('type', $filters['type']);
+        if (!empty($filters['tos_id']))     $this->db->where('tos_id', $filters['tos_id']);
         if (!empty($filters['topic']))      $this->db->like('topic', $filters['topic']);
         $this->db->order_by('created_at', 'DESC');
         if ($limit !== null) $this->db->limit($limit, (int) $offset);

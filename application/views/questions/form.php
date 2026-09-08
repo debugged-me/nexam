@@ -47,8 +47,8 @@
                                     $type_labels = [
                                         'mcq'           => 'Multiple Choice',
                                         'true_false'    => 'True / False',
+                                        'matching'      => 'Matching Type',
                                         'identification'=> 'Identification',
-                                        'essay'         => 'Essay',
                                     ];
                                     $current_type = set_value('type', isset($question) ? $question->type : 'mcq');
                                     ?>

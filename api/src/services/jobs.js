@@ -37,7 +37,9 @@ export async function enqueue({ type, payload, userId = null, subjectId = null, 
 }
 
 /**
- * Atomically claim the next queued job (FOR UPDATE SKIP LOCKED).
+ * Atomically claim the next queued job.
+ * Uses UPDATE ... SET status='running' WHERE status='queued' to claim
+ * a job without SKIP LOCKED (not supported by MariaDB/MySQL < 8.0).
  * Marks it 'running' and returns its row.
  *
  * @returns {Promise<object|null>}
@@ -47,23 +49,26 @@ export async function claimNext() {
   try {
     await conn.beginTransaction();
     const [rows] = await conn.query(
-      `SELECT * FROM ai_jobs
+      `SELECT id FROM ai_jobs
        WHERE status = 'queued'
        ORDER BY priority ASC, created_at ASC
        LIMIT 1
-       FOR UPDATE SKIP LOCKED`
+       FOR UPDATE`
     );
     if (!rows.length) {
       await conn.commit();
       return null;
     }
-    const job = rows[0];
+    const jobId = rows[0].id;
     await conn.query(
       `UPDATE ai_jobs SET status = 'running', started_at = NOW() WHERE id = :id`,
-      { id: job.id }
+      { id: jobId }
     );
     await conn.commit();
-    return job;
+
+    // Fetch the full row outside the transaction (no lock needed).
+    const [full] = await pool.query(`SELECT * FROM ai_jobs WHERE id = :id`, { id: jobId });
+    return full[0] || null;
   } catch (err) {
     await conn.rollback();
     throw err;

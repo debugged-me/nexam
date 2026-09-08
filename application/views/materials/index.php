@@ -48,6 +48,11 @@
                                     <div class="cell-title"><?php echo htmlspecialchars($m['title'], ENT_QUOTES, 'UTF-8'); ?></div>
                                     <?php if (!empty($m['is_syllabus'])): ?>
                                         <span class="badge badge-gray">Syllabus</span>
+                                        <?php if ($m['status'] === 'processed'): ?>
+                                            <button class="btn btn-primary btn-xs btn-generate-tos" data-id="<?php echo htmlspecialchars($m['id'], ENT_QUOTES, 'UTF-8'); ?>" style="margin-top:4px;">
+                                                <i data-lucide="sparkles"></i> Generate TOS
+                                            </button>
+                                        <?php endif; ?>
                                     <?php endif; ?>
                                 </td>
                                 <td class="text-muted"><?php echo htmlspecialchars(ucfirst($m['source_type']), ENT_QUOTES, 'UTF-8'); ?></td>

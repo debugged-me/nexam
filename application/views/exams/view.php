@@ -25,6 +25,9 @@
                     </button>
                 </form>
             <?php endif; ?>
+            <button type="button" class="btn btn-primary btn-sm" id="btn-generate-pdfs" data-exam-id="<?php echo rawurlencode($exam->id); ?>">
+                <i data-lucide="file-text"></i> Generate PDFs
+            </button>
             <?php if ($exam->format === 'print'): ?>
                 <button type="button" class="btn btn-outline btn-sm" data-print-page>
                     <i data-lucide="printer"></i> Print
@@ -101,6 +104,34 @@
                 </table>
             </div>
         <?php endif; ?>
+    </div>
+
+    <div class="card" id="exam-downloads" hidden>
+        <div class="card-header">
+            <span class="card-title">Downloads</span>
+            <span class="text-muted meta-sm">Generated PDFs</span>
+        </div>
+        <div class="card-body">
+            <div id="downloads-content">
+                <p class="text-muted">Click "Generate PDFs" to create downloadable exam sets, answer keys, and TOS report.</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-header">
+            <span class="card-title">LMS Export</span>
+            <span class="text-muted meta-sm">Moodle & Canvas</span>
+        </div>
+        <div class="card-body">
+            <p class="text-muted mb-2">Export this exam's questions to a learning management system.</p>
+            <a href="<?php echo site_url('exams/export/' . rawurlencode($exam->id) . '/gift'); ?>" class="btn btn-outline btn-sm">
+                <i data-lucide="download"></i> Moodle GIFT
+            </a>
+            <a href="<?php echo site_url('exams/export/' . rawurlencode($exam->id) . '/xml'); ?>" class="btn btn-outline btn-sm">
+                <i data-lucide="download"></i> Canvas XML
+            </a>
+        </div>
     </div>
 
 </div>

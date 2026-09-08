@@ -1,0 +1,135 @@
+/* materials.css — upload + list page styles */
+
+/* ── Source type tabs ─────────────────────────────── */
+.source-tabs {
+  display: flex;
+  gap: 0.25rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.75rem;
+}
+
+.source-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.5rem 1rem;
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--ink-2, #64748b);
+  cursor: pointer;
+  font: 500 0.875rem var(--font-display, sans-serif);
+  transition: all 0.15s;
+}
+
+.source-tab:hover {
+  border-color: var(--ink-3, #94a3b8);
+  color: var(--ink, #1e293b);
+}
+
+.source-tab.is-active {
+  background: var(--primary, #4f46e5);
+  border-color: var(--primary, #4f46e5);
+  color: #fff;
+}
+
+.source-tab i {
+  width: 16px;
+  height: 16px;
+}
+
+.source-panel {
+  margin-bottom: 1rem;
+}
+
+/* ── File drop zone ───────────────────────────────── */
+.file-drop {
+  border: 2px dashed var(--border, #e2e8f0);
+  border-radius: 12px;
+  padding: 2rem 1.5rem;
+  text-align: center;
+  cursor: pointer;
+  transition: border-color 0.2s, background 0.2s;
+}
+
+.file-drop:hover,
+.file-drop.is-dragover {
+  border-color: var(--primary, #4f46e5);
+  background: var(--primary-50, #eef2ff);
+}
+
+.file-drop-prompt i {
+  width: 40px;
+  height: 40px;
+  color: var(--ink-3, #94a3b8);
+  margin-bottom: 0.5rem;
+}
+
+.file-drop-prompt p {
+  margin: 0.25rem 0;
+  font: 500 0.9rem var(--font-display, sans-serif);
+}
+
+.file-drop-prompt .link {
+  color: var(--primary, #4f46e5);
+  text-decoration: underline;
+}
+
+.file-drop-selected {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  justify-content: center;
+}
+
+.file-drop-selected i {
+  width: 24px;
+  height: 24px;
+  color: var(--primary, #4f46e5);
+}
+
+.file-drop-selected .file-name {
+  font: 500 0.9rem var(--font-display, sans-serif);
+}
+
+/* ── Form check (syllabus toggle) ─────────────────── */
+.form-check {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  cursor: pointer;
+}
+
+.form-check input[type="checkbox"] {
+  margin-top: 0.2rem;
+  width: 18px;
+  height: 18px;
+  accent-color: var(--primary, #4f46e5);
+}
+
+/* ── Status badges ────────────────────────────────── */
+.g-state.is-failed {
+  color: #dc2626;
+}
+
+.g-state.is-failed i {
+  color: #dc2626;
+}
+
+/* ── Responsive ──────────────────────────────────── */
+@media (max-width: 640px) {
+  .source-tab {
+    flex: 1;
+    justify-content: center;
+    padding: 0.5rem 0.75rem;
+    font-size: 0.8rem;
+  }
+
+  .source-tab i {
+    display: none;
+  }
+
+  .file-drop {
+    padding: 1.5rem 1rem;
+  }
+}

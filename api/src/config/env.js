@@ -35,6 +35,26 @@ export const env = {
       .map((s) => s.trim())
       .filter(Boolean),
   },
+
+  ai: {
+    gemini: {
+      apiKey: process.env.GEMINI_API_KEY || '',
+      model: process.env.GEMINI_MODEL || 'gemini-2.0-flash',
+      embeddingModel: process.env.GEMINI_EMBEDDING_MODEL || 'text-embedding-004',
+    },
+    groq: {
+      apiKey: process.env.GROQ_API_KEY || '',
+      model: process.env.GROQ_MODEL || 'llama-3.3-70b-versatile',
+    },
+    worker: {
+      pollInterval: parseInt(process.env.WORKER_POLL_INTERVAL || '5000', 10),
+      concurrency: parseInt(process.env.WORKER_CONCURRENCY || '2', 10),
+    },
+    generation: {
+      maxTokens: parseInt(process.env.AI_MAX_TOKENS || '8192', 10),
+      temperature: parseFloat(process.env.AI_TEMPERATURE || '0.4'),
+    },
+  },
 };
 
 export default env;

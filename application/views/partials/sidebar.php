@@ -17,6 +17,7 @@ $nav_groups = [
         'label' => 'Content',
         'items' => [
             ['label' => 'Subjects',  'key' => 'subjects',  'icon' => 'book-open',   'url' => 'subjects'],
+            ['label' => 'Materials', 'key' => 'materials', 'icon' => 'folder-open',  'url' => 'materials'],
             ['label' => 'Questions', 'key' => 'questions', 'icon' => 'circle-help', 'url' => 'questions'],
         ],
     ],

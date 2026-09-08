@@ -49,3 +49,7 @@ $route['exams/edit/(:any)']       = 'exams/edit/$1';
 $route['exams/delete/(:any)']     = 'exams/delete/$1';
 $route['exams/bulk-delete']       = 'exams/bulk_delete';
 $route['exams/publish/(:any)']    = 'exams/publish/$1';
+$route['materials']                = 'materials';
+$route['materials/upload']         = 'materials/upload';
+$route['materials/delete/(:any)']  = 'materials/delete/$1';
+$route['materials/reprocess/(:any)'] = 'materials/reprocess/$1';

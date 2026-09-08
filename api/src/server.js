@@ -5,6 +5,8 @@ import morgan from 'morgan';
 import env from './config/env.js';
 import { errorHandler, notFound } from './middleware/errorHandler.js';
 import routes from './routes/index.js';
+import { start as startWorker } from './worker/worker.js';
+import './worker/register.js'; // side-effect: registers all job handlers
 
 const app = express();
 
@@ -43,6 +45,8 @@ app.use(errorHandler);
 app.listen(env.port, () => {
   // eslint-disable-next-line no-console
   console.log(`[nexam-api] listening on http://localhost:${env.port} (${env.nodeEnv})`);
+  // Start the background AI job worker.
+  startWorker();
 });
 
 export default app;

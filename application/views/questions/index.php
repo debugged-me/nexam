@@ -95,7 +95,14 @@ $facets[] = [
             <caption class="sr-only">Questions in your question bank</caption>
             <thead>
                 <tr>
-                    <th class="col-primary wp-36" data-name="Question" data-locked>Question</th>
+                    <th class="col-select wp-4">
+                        <label class="ds-check">
+                            <input type="checkbox" data-check-all>
+                            <span aria-hidden="true"></span>
+                            <span class="sr-only">Select all rows on this page</span>
+                        </label>
+                    </th>
+                    <th class="col-primary wp-32" data-name="Question" data-locked>Question</th>
                     <th class="wp-16" data-name="Subject">Subject</th>
                     <th class="wp-11" data-name="Bloom">Bloom</th>
                     <th class="wp-12" data-name="Type">Type</th>
@@ -114,6 +121,13 @@ $facets[] = [
                     $touched = !empty($q->updated_at) ? $q->updated_at : $q->created_at;
                     ?>
                     <tr data-id="<?php echo htmlspecialchars($q->id); ?>">
+                        <td class="col-select">
+                            <label class="ds-check">
+                                <input type="checkbox" data-row-check>
+                                <span aria-hidden="true"></span>
+                                <span class="sr-only">Select question</span>
+                            </label>
+                        </td>
                         <td>
                             <span class="g-primary">
                                 <a href="<?php echo site_url('questions/edit/' . rawurlencode($q->id)); ?>" class="g-title" title="<?php echo htmlspecialchars($stem); ?>"><?php echo htmlspecialchars(mb_strimwidth($stem, 0, 120, '…')); ?></a>

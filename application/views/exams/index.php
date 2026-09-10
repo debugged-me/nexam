@@ -45,7 +45,14 @@
             <caption class="sr-only">Exams in your workspace</caption>
             <thead>
                 <tr>
-                    <th class="col-primary wp-35" data-name="Exam" data-locked>Exam</th>
+                    <th class="col-select wp-4">
+                        <label class="ds-check">
+                            <input type="checkbox" data-check-all>
+                            <span aria-hidden="true"></span>
+                            <span class="sr-only">Select all rows on this page</span>
+                        </label>
+                    </th>
+                    <th class="col-primary wp-31" data-name="Exam" data-locked>Exam</th>
                     <th class="wp-17" data-name="Subject">Subject</th>
                     <th class="wp-11" data-name="Format">Format</th>
                     <th class="wp-11" data-name="Status">Status</th>
@@ -66,6 +73,13 @@
                     $meta[] = $count . ' ' . ($count === 1 ? 'item' : 'items');
                     ?>
                     <tr data-id="<?php echo htmlspecialchars($e->id); ?>">
+                        <td class="col-select">
+                            <label class="ds-check">
+                                <input type="checkbox" data-row-check>
+                                <span aria-hidden="true"></span>
+                                <span class="sr-only">Select <?php echo htmlspecialchars($e->title); ?></span>
+                            </label>
+                        </td>
                         <td>
                             <span class="g-primary">
                                 <a href="<?php echo site_url('exams/view/' . rawurlencode($e->id)); ?>" class="g-title"><?php echo htmlspecialchars($e->title); ?></a>

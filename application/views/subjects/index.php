@@ -40,7 +40,14 @@
             <caption class="sr-only">Subjects in your workspace</caption>
             <thead>
                 <tr>
-                    <th class="col-primary wp-37" data-name="Subject" data-locked>Subject</th>
+                    <th class="col-select wp-4">
+                        <label class="ds-check">
+                            <input type="checkbox" data-check-all>
+                            <span aria-hidden="true"></span>
+                            <span class="sr-only">Select all rows on this page</span>
+                        </label>
+                    </th>
+                    <th class="col-primary wp-33" data-name="Subject" data-locked>Subject</th>
                     <th class="wp-12" data-name="Code">Code</th>
                     <th class="is-num wp-12" data-name="Questions">Questions</th>
                     <th class="is-num wp-12" data-name="Blueprints">Blueprints</th>
@@ -57,6 +64,13 @@
                     $e_count = isset($exam_counts[$s->id]) ? (int) $exam_counts[$s->id] : 0;
                     ?>
                     <tr data-id="<?php echo htmlspecialchars($s->id); ?>">
+                        <td class="col-select">
+                            <label class="ds-check">
+                                <input type="checkbox" data-row-check>
+                                <span aria-hidden="true"></span>
+                                <span class="sr-only">Select <?php echo htmlspecialchars($s->name); ?></span>
+                            </label>
+                        </td>
                         <td>
                             <span class="g-primary">
                                 <a href="<?php echo site_url('subjects/view/' . rawurlencode($s->id)); ?>" class="g-title"><?php echo htmlspecialchars($s->name); ?></a>

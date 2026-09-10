@@ -727,6 +727,12 @@ table.grid td.col-select {
     overflow: visible;
 }
 
+/* Hide checkbox column by default; show when Select mode is on */
+.dataset:not([data-select-mode]) table.grid th.col-select,
+.dataset:not([data-select-mode]) table.grid td.col-select {
+    display: none;
+}
+
 .ds-check {
     position: relative;
     display: inline-flex;

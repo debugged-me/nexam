@@ -54,9 +54,9 @@ $facets[] = [
             <button type="button" class="btn btn-outline" id="btn-import-questions">
                 <i data-lucide="upload"></i> Import
             </button>
-            <a href="<?php echo site_url('questions/create' . ($scoped ? '?subject=' . rawurlencode($subject_context->id) : '')); ?>" class="btn btn-primary">
-                <i data-lucide="plus"></i> New question
-            </a>
+            <button type="button" class="btn btn-primary" id="new-question-btn">
+                <i data-lucide="plus"></i> New Question
+            </button>
         </div>
     </header>
 
@@ -66,7 +66,7 @@ $facets[] = [
                 <h4>No questions for this subject</h4>
                 <p>Add a question manually, import from GIFT/XML, or auto-generate from a blueprint (TOS) using your uploaded materials.</p>
                 <div class="empty-state-actions">
-                    <a href="<?php echo site_url('questions/create?subject=' . rawurlencode($subject_context->id)); ?>" class="btn btn-primary"><i data-lucide="plus"></i> New Question</a>
+                    <button type="button" class="btn btn-primary" id="new-question-btn-empty"><i data-lucide="plus"></i> New Question</button>
                     <button type="button" class="btn btn-outline" id="btn-import-questions-empty"><i data-lucide="upload"></i> Import</button>
                     <a href="<?php echo site_url('tos?subject_id=' . rawurlencode($subject_context->id)); ?>" class="btn btn-outline"><i data-lucide="sparkles"></i> Auto-generate from Blueprint</a>
                 </div>
@@ -74,7 +74,7 @@ $facets[] = [
                 <h4>Your question bank is empty</h4>
                 <p>Add a question manually, import from GIFT/XML, or auto-generate from a blueprint (TOS) using your uploaded materials.</p>
                 <div class="empty-state-actions">
-                    <a href="<?php echo site_url('questions/create'); ?>" class="btn btn-primary"><i data-lucide="plus"></i> New Question</a>
+                    <button type="button" class="btn btn-primary" id="new-question-btn-empty"><i data-lucide="plus"></i> New Question</button>
                     <button type="button" class="btn btn-outline" id="btn-import-questions-empty"><i data-lucide="upload"></i> Import</button>
                     <a href="<?php echo site_url('tos'); ?>" class="btn btn-outline"><i data-lucide="sparkles"></i> Auto-generate from Blueprint</a>
                 </div>

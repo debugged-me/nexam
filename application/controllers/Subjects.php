@@ -24,6 +24,7 @@ class Subjects extends MY_Controller
         $data['exam_counts']     = $this->Exam_model->counts_by_subject($this->user_id);
 
         $data['use_datatables'] = true;
+        $data['page_js'] = ['subjects.js'];
         $this->render('subjects/index', $data);
     }
 
@@ -73,6 +74,49 @@ class Subjects extends MY_Controller
         }
 
         $this->render('subjects/form');
+    }
+
+    /** AJAX: create a subject from the modal. */
+    public function store()
+    {
+        if (!$this->session->userdata('logged_in')) {
+            return $this->_json(403, ['message' => 'Unauthorized']);
+        }
+        if ($this->input->method(true) !== 'POST') {
+            return $this->_json(405, ['message' => 'Method not allowed.']);
+        }
+
+        $this->form_validation->set_rules('name', 'Subject Name', 'required|trim|max_length[255]');
+        $this->form_validation->set_rules('code', 'Code', 'trim|max_length[50]');
+        $this->form_validation->set_rules('description', 'Description', 'trim|max_length[5000]');
+
+        if ($this->form_validation->run() === false) {
+            return $this->_json(422, ['message' => trim(validation_errors(' ', ' '))]);
+        }
+
+        $id = $this->Subject_model->create([
+            'instructor_id' => $this->user_id,
+            'name'          => $this->input->post('name', true),
+            'code'          => $this->input->post('code', true) ?: null,
+            'description'   => $this->input->post('description', true) ?: null,
+        ]);
+
+        if (!$id) {
+            return $this->_json(500, ['message' => 'Failed to create subject.']);
+        }
+
+        return $this->_json(200, ['message' => 'Subject created successfully.']);
+    }
+
+    private function _json($status, $payload)
+    {
+        $payload['csrf_name'] = $this->security->get_csrf_token_name();
+        $payload['csrf_hash'] = $this->security->get_csrf_hash();
+
+        $this->output
+            ->set_status_header($status)
+            ->set_content_type('application/json')
+            ->set_output(json_encode($payload));
     }
 
     public function edit($id)

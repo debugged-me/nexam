@@ -30,6 +30,7 @@ $route['subjects/edit/(:any)']    = 'subjects/edit/$1';
 $route['subjects/delete/(:any)']  = 'subjects/delete/$1';
 $route['subjects/view/(:any)']    = 'subjects/view/$1';
 $route['subjects/bulk-delete']    = 'subjects/bulk_delete';
+$route['subjects/store']         = 'subjects/store';
 $route['questions']                = 'questions';
 $route['questions/create']         = 'questions/create';
 $route['questions/edit/(:any)']    = 'questions/edit/$1';

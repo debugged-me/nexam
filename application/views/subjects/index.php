@@ -11,9 +11,9 @@
             <p class="list-head-desc">Courses you teach. Each subject owns its own question bank, blueprints and exams.</p>
         </div>
         <div class="list-head-actions">
-            <a href="<?php echo site_url('subjects/create'); ?>" class="btn btn-primary">
-                <i data-lucide="plus"></i> New subject
-            </a>
+            <button type="button" class="btn btn-primary" id="new-subject-btn">
+                <i data-lucide="plus"></i> New Subject
+            </button>
         </div>
     </header>
 
@@ -21,9 +21,9 @@
         <div class="empty-state">
             <h4>No subjects yet</h4>
             <p>A subject is the container for everything else — create one and the question bank, blueprints and exams follow.</p>
-            <a href="<?php echo site_url('subjects/create'); ?>" class="btn btn-primary">
-                <i data-lucide="plus"></i> New subject
-            </a>
+            <button type="button" class="btn btn-primary" id="new-subject-btn-empty">
+                <i data-lucide="plus"></i> New Subject
+            </button>
         </div>
     <?php else: ?>
         <?php
@@ -118,3 +118,11 @@
     <?php endif; ?>
 
 </div>
+
+<script id="subjects-config" type="application/json"><?php
+    echo json_encode([
+        'storeUrl' => site_url('subjects/store'),
+        'csrfName' => $csrf_name,
+        'csrfHash' => $csrf_hash,
+    ], JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT);
+?></script>

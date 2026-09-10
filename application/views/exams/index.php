@@ -32,6 +32,7 @@
             'key'         => 'exams',
             'label'       => 'exams',
             'placeholder' => 'Search exams…',
+            'bulk_url'    => site_url('exams/bulk-delete'),
             'facets'      => [
                 ['name' => 'Status', 'column' => 4, 'options' => ['Published' => 'Published', 'Draft' => 'Draft']],
                 ['name' => 'Format', 'column' => 3, 'options' => ['Print' => 'Print', 'Digital' => 'Digital']],

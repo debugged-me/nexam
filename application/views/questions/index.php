@@ -85,6 +85,7 @@ $facets[] = [
             'key'         => 'questions',
             'label'       => 'questions',
             'placeholder' => 'Search stems and topics…',
+            'bulk_url'    => site_url('questions/bulk-delete'),
             'facets'      => $facets,
         ];
         $this->load->view('partials/grid_open', ['grid' => $grid, 'csrf_name' => $csrf_name, 'csrf_hash' => $csrf_hash]);

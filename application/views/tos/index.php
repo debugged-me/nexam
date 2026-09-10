@@ -37,6 +37,7 @@
             'key'         => 'blueprints',
             'label'       => 'blueprints',
             'placeholder' => 'Search blueprints…',
+            'bulk_url'    => site_url('tos/bulk-delete'),
         ];
         $this->load->view('partials/grid_open', ['grid' => $grid, 'csrf_name' => $csrf_name, 'csrf_hash' => $csrf_hash]);
         ?>

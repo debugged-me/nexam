@@ -83,7 +83,8 @@
         this.init();
     }
 
-    Grid.prototype.init = function () {
+    /** Initialize or re-initialize the DataTables instance. */
+    Grid.prototype.initTable = function () {
         var self = this;
         var headers = Array.prototype.slice.call(this.node.querySelectorAll("thead th"));
 
@@ -100,9 +101,6 @@
         var pageLength = parseInt(this.prefs.pageLength, 10);
         if ([10, 25, 50, 100].indexOf(pageLength) === -1) pageLength = 25;
 
-        // Default sort: newest first by the Created/Updated column, if one
-        // exists. The column index is detected from data-name so every grid
-        // gets a sensible initial order without per-view configuration.
         var sortCol = -1;
         headers.forEach(function (th, i) {
             var name = (th.getAttribute("data-name") || "").toLowerCase();
@@ -125,6 +123,12 @@
             },
             drawCallback: function () { self.afterDraw(); }
         });
+    };
+
+    Grid.prototype.init = function () {
+        var self = this;
+
+        this.initTable();
 
         this.applyColumnPrefs();
         this.applyDensity(this.prefs.density === "compact" ? "compact" : "comfortable");
@@ -135,6 +139,7 @@
         this.wireSearch();
         this.wireFilters();
         this.wireSelection();
+        this.wireSelectToggle();
         this.wireMenus();
 
         this.afterDraw();
@@ -535,6 +540,85 @@
     };
 
     /* ----------------------------------------------------------- selection */
+
+    /** Toggle the checkbox column on/off via the "Select" toolbar button. */
+    Grid.prototype.wireSelectToggle = function () {
+        var self = this;
+        this.selectToggle = this.query("[data-grid-select-toggle]");
+        if (!this.selectToggle) return;
+
+        this.selectToggle.addEventListener("click", function () {
+            var on = self.selectToggle.getAttribute("aria-pressed") === "true";
+            if (on) {
+                self.removeSelectColumn();
+            } else {
+                self.addSelectColumn();
+            }
+        });
+    };
+
+    /** Insert a checkbox column into the table header + every body row. */
+    Grid.prototype.addSelectColumn = function () {
+        var self = this;
+        this.selectToggle.setAttribute("aria-pressed", "true");
+        this.dataset.setAttribute("data-selecting", "true");
+
+        // Header
+        var thead = this.node.querySelector("thead tr");
+        if (thead && !thead.querySelector("[data-check-all]")) {
+            var th = document.createElement("th");
+            th.className = "col-select wp-4";
+            th.innerHTML = '<label class="ds-check"><input type="checkbox" data-check-all><span aria-hidden="true"></span><span class="sr-only">Select all</span></label>';
+            thead.insertBefore(th, thead.firstChild);
+        }
+
+        // Body rows
+        this.node.querySelectorAll("tbody tr[data-id]").forEach(function (row) {
+            if (row.querySelector("[data-row-check]")) return;
+            var td = document.createElement("td");
+            td.className = "col-select";
+            td.innerHTML = '<label class="ds-check"><input type="checkbox" data-row-check><span aria-hidden="true"></span></label>';
+            row.insertBefore(td, row.firstChild);
+        });
+
+        // Re-init selection wiring for the new checkboxes
+        this.headerCheck = this.node.querySelector("[data-check-all]");
+        this.wireSelection();
+
+        // Tell DataTables about the new column
+        if (this.api) {
+            this.api.destroy();
+            this.initTable();
+            this.afterDraw();
+        }
+
+        if (window.lucide) lucide.createIcons();
+    };
+
+    /** Remove the checkbox column and clear selections. */
+    Grid.prototype.removeSelectColumn = function () {
+        var self = this;
+        this.selectToggle.setAttribute("aria-pressed", "false");
+        this.selected.clear();
+        this.dataset.setAttribute("data-selecting", "false");
+
+        // Remove header
+        var th = this.node.querySelector("thead th.col-select");
+        if (th) th.remove();
+
+        // Remove body cells
+        this.node.querySelectorAll("tbody tr td.col-select").forEach(function (td) { td.remove(); });
+
+        // Hide selection bar
+        if (this.selectBar) this.selectBar.hidden = true;
+
+        // Re-init DataTables without the column
+        if (this.api) {
+            this.api.destroy();
+            this.initTable();
+            this.afterDraw();
+        }
+    };
 
     Grid.prototype.wireSelection = function () {
         var self = this;

@@ -41,6 +41,11 @@ $g_bulk        = isset($grid['bulk_url']) ? $grid['bulk_url'] : '';
         </div>
 
         <div class="dataset-bar-trail">
+            <?php if ($g_bulk !== ''): ?>
+                <button type="button" class="ds-btn" data-grid-select-toggle aria-pressed="false">
+                    <i data-lucide="check-square"></i> Select
+                </button>
+            <?php endif; ?>
             <div class="ds-menu" data-grid-view>
                 <button type="button" class="ds-btn" aria-expanded="false" aria-haspopup="true"
                         data-grid-view-trigger>

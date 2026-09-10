@@ -31,6 +31,7 @@
             'key'         => 'subjects',
             'label'       => 'subjects',
             'placeholder' => 'Search by name or code…',
+            'bulk_url'    => site_url('subjects/bulk-delete'),
         ];
         $this->load->view('partials/grid_open', ['grid' => $grid, 'csrf_name' => $csrf_name, 'csrf_hash' => $csrf_hash]);
         ?>

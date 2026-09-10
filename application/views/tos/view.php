@@ -24,6 +24,23 @@
         </div>
     </div>
 
+    <div class="tos-workflow-callout">
+        <div class="tos-workflow-step">
+            <span class="tos-workflow-num">1</span>
+            <span class="tos-workflow-text"><strong>Auto-generate Questions</strong> — AI drafts questions from your uploaded materials, aligned to this blueprint's Bloom distribution.</span>
+        </div>
+        <i data-lucide="chevron-right" class="tos-workflow-arrow"></i>
+        <div class="tos-workflow-step">
+            <span class="tos-workflow-num">2</span>
+            <span class="tos-workflow-text"><strong>Review & Approve</strong> — Drafts appear on the Questions page. Approve the good ones to make them active.</span>
+        </div>
+        <i data-lucide="chevron-right" class="tos-workflow-arrow"></i>
+        <div class="tos-workflow-step">
+            <span class="tos-workflow-num">3</span>
+            <span class="tos-workflow-text"><strong>Build Exam</strong> — Pulls from your approved (active) question bank to fill this blueprint.</span>
+        </div>
+    </div>
+
     <div class="stats-grid mb-2">
         <div class="stat-card">
             <div class="stat-icon blue"><i data-lucide="list-ordered"></i></div>

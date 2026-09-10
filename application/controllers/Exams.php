@@ -462,7 +462,10 @@ class Exams extends MY_Controller
         }
 
         if ($shortages) {
-            $this->form_validation->set_message('valid_tos_selection', 'Not enough active questions for this blueprint (' . implode('; ', $shortages) . ').');
+            $this->form_validation->set_message('valid_tos_selection',
+                'Not enough approved (active) questions in your bank to fill this blueprint (' . implode('; ', $shortages) . '). ' .
+                'Use the blueprint\'s "Auto-generate Questions" button to create more with AI, then approve them on the Questions page.'
+            );
             return false;
         }
 

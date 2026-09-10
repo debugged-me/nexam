@@ -63,7 +63,7 @@
                     </div>
                     <div class="callout-note">
                         <i data-lucide="info"></i>
-                        Questions will be auto-selected from active questions matching this subject and bloom distribution.
+                        This pulls from your <strong>approved (active)</strong> question bank — not drafts. If you need more questions, use the blueprint's "Auto-generate Questions" button first, then approve the drafts on the Questions page.
                     </div>
                 </div>
             </div>

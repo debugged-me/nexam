@@ -27,6 +27,7 @@ $route['alerts/mark-read']   = 'notifications/mark_read';
 $route['subjects']                = 'subjects';
 $route['subjects/create']         = 'subjects/create';
 $route['subjects/edit/(:any)']    = 'subjects/edit/$1';
+$route['subjects/update/(:any)']  = 'subjects/update/$1';
 $route['subjects/delete/(:any)']  = 'subjects/delete/$1';
 $route['subjects/view/(:any)']    = 'subjects/view/$1';
 $route['subjects/bulk-delete']    = 'subjects/bulk_delete';

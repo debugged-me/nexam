@@ -168,6 +168,7 @@ class Tos extends MY_Controller
         $data['bloom_weights'] = $this->_decode_bloom($tos->bloom_weights);
         $data['topics']        = $this->Tos_model->get_topics($id);
         $data['page_css']      = ['tos.css'];
+        $data['page_js']       = ['tos.js'];
         $this->render('tos/view', $data);
     }
 

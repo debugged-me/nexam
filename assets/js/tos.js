@@ -1,39 +1,44 @@
-/* TOS blueprint form feedback. */
+/* TOS blueprint form feedback + generate questions. */
 (function () {
     "use strict";
+
+    /* ── Bloom weight form (only on create/edit pages) ──────────────── */
+
     var form = document.getElementById("tos-form");
     var inputs = document.querySelectorAll(".bloom-input");
     var totalEl = document.getElementById("bloomTotalValue");
     var badgeEl = document.getElementById("bloomTotalBadge");
-    if (!form || !inputs.length || !totalEl || !badgeEl) return;
 
-    function recalculate() {
-        var sum = 0;
-        inputs.forEach(function (input) { sum += parseInt(input.value, 10) || 0; });
-        totalEl.textContent = sum;
-        badgeEl.textContent = sum === 100 ? "Balanced" : (100 - sum > 0 ? (100 - sum) + "% remaining" : Math.abs(100 - sum) + "% over");
-        badgeEl.className = "bloom-total-badge " + (sum === 100 ? "ok" : "warn");
-        return sum;
+    if (form && inputs.length && totalEl && badgeEl) {
+        function recalculate() {
+            var sum = 0;
+            inputs.forEach(function (input) { sum += parseInt(input.value, 10) || 0; });
+            totalEl.textContent = sum;
+            badgeEl.textContent = sum === 100 ? "Balanced" : (100 - sum > 0 ? (100 - sum) + "% remaining" : Math.abs(100 - sum) + "% over");
+            badgeEl.className = "bloom-total-badge " + (sum === 100 ? "ok" : "warn");
+            return sum;
+        }
+
+        inputs.forEach(function (input) { input.addEventListener("input", recalculate); });
+        form.addEventListener("submit", function (event) {
+            if (recalculate() !== 100) {
+                event.preventDefault();
+                NexamToast.warning("Bloom taxonomy weights must total exactly 100%.");
+                inputs[0].focus();
+            }
+        });
+        recalculate();
     }
 
-    inputs.forEach(function (input) { input.addEventListener("input", recalculate); });
-    form.addEventListener("submit", function (event) {
-        if (recalculate() !== 100) {
-            event.preventDefault();
-            NexamToast.warning("Bloom taxonomy weights must total exactly 100%.");
-            inputs[0].focus();
-        }
-    });
-    recalculate();
+    /* ── Generate Questions (AI RAG) — works on TOS view page ────────── */
 
-    // ── Generate Questions (AI RAG) ────────────────────
     var genBtn = document.getElementById("btn-generate-questions");
     if (genBtn) {
         genBtn.addEventListener("click", async function () {
             var tosId = genBtn.dataset.tosId;
             NexamModal.confirm(
                 "Generate questions with AI?",
-                "The system will draft questions from your uploaded materials using RAG, aligned to this blueprint's Bloom distribution. You'll review every question before it enters the question bank.",
+                "The system will draft questions from your uploaded materials using RAG, aligned to this blueprint's Bloom distribution. Drafts appear on the Questions page for your review and approval.",
                 "info",
                 async function () {
                     genBtn.disabled = true;
@@ -53,17 +58,22 @@
                         });
                         var data = await res.json();
                         if (res.ok) {
-                            NexamToast.success("Question generation started. Check the Questions page shortly.");
+                            NexamToast.success("Question generation started. Check the Questions page shortly — drafts will appear for your review.");
+                            genBtn.innerHTML = '<i data-lucide="check"></i> Generation Started';
+                            if (window.lucide) lucide.createIcons();
+                            setTimeout(function () {
+                                window.location.href = SITE_URL + "/questions";
+                            }, 2000);
                         } else {
-                            NexamToast.error(data.error || "Generation failed.");
+                            NexamToast.error(data.error || data.message || "Generation failed.");
                             genBtn.disabled = false;
-                            genBtn.innerHTML = '<i data-lucide="sparkles"></i> Generate Questions';
+                            genBtn.innerHTML = '<i data-lucide="sparkles"></i> Auto-generate Questions';
                             if (window.lucide) lucide.createIcons();
                         }
                     } catch (err) {
                         NexamToast.error("Network error. Please try again.");
                         genBtn.disabled = false;
-                        genBtn.innerHTML = '<i data-lucide="sparkles"></i> Generate Questions';
+                        genBtn.innerHTML = '<i data-lucide="sparkles"></i> Auto-generate Questions';
                         if (window.lucide) lucide.createIcons();
                     }
                 }

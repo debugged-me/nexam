@@ -191,7 +191,7 @@ class Questions extends MY_Controller
                 } else {
                     $this->session->set_flashdata('toast', ['type' => 'error', 'message' => 'Failed to create question.']);
                 }
-                redirect('questions');
+                redirect('questions?subject_id=' . rawurlencode($data['subject_id']));
             }
         }
 
@@ -226,7 +226,7 @@ class Questions extends MY_Controller
                 $data = $this->_collect_post();
                 $this->Question_model->update($id, $data);
                 $this->session->set_flashdata('toast', ['type' => 'success', 'message' => 'Question updated.']);
-                redirect('questions');
+                redirect('questions?subject_id=' . rawurlencode($data['subject_id']));
             }
         }
 

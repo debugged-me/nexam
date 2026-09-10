@@ -99,7 +99,7 @@
                                 <summary class="g-menu-trigger" aria-label="Actions for <?php echo htmlspecialchars($s->name); ?>"><i data-lucide="ellipsis"></i></summary>
                                 <div class="g-menu-panel">
                                     <a href="<?php echo site_url('subjects/view/' . rawurlencode($s->id)); ?>" class="g-menu-item"><i data-lucide="eye"></i> Open</a>
-                                    <a href="<?php echo site_url('subjects/edit/' . rawurlencode($s->id)); ?>" class="g-menu-item"><i data-lucide="pencil"></i> Edit</a>
+                                    <button type="button" class="g-menu-item" data-edit-subject="<?php echo rawurlencode($s->id); ?>"><i data-lucide="pencil"></i> Edit</button>
                                     <a href="<?php echo site_url('questions?subject_id=' . rawurlencode($s->id)); ?>" class="g-menu-item"><i data-lucide="circle-help"></i> Questions</a>
                                     <div class="g-menu-sep"></div>
                                     <form action="<?php echo site_url('subjects/delete/' . rawurlencode($s->id)); ?>" method="post" class="g-menu-form">
@@ -121,8 +121,10 @@
 
 <script id="subjects-config" type="application/json"><?php
     echo json_encode([
-        'storeUrl' => site_url('subjects/store'),
-        'csrfName' => $csrf_name,
-        'csrfHash' => $csrf_hash,
+        'storeUrl'   => site_url('subjects/store'),
+        'updateUrl'  => site_url('subjects/update'),
+        'csrfName'   => $csrf_name,
+        'csrfHash'   => $csrf_hash,
+        'subjects'   => isset($subjects_json) ? json_decode($subjects_json, true) : [],
     ], JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT);
 ?></script>

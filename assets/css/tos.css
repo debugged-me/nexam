@@ -87,3 +87,59 @@
     .bloom-bar-row { grid-template-columns: 1fr; gap: 6px; }
     .bloom-bar-meta { justify-content: flex-start; }
 }
+
+/* ── Workflow callout (3-step guide) ───────────────── */
+
+.tos-workflow-callout {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    padding: var(--space-3) var(--space-4);
+    margin-bottom: var(--space-4);
+    background: var(--surface-2);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-md);
+}
+
+.tos-workflow-step {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    flex: 1;
+    min-width: 0;
+}
+
+.tos-workflow-num {
+    display: inline-flex;
+    width: 24px;
+    height: 24px;
+    flex-shrink: 0;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    background: var(--brand-accent);
+    color: #fff;
+    font-size: var(--text-xs);
+    font-weight: 700;
+}
+
+.tos-workflow-text {
+    font-size: var(--text-sm);
+    color: var(--ink-2);
+    line-height: 1.4;
+}
+
+.tos-workflow-text strong { color: var(--ink); font-weight: 600; }
+
+.tos-workflow-arrow {
+    width: 18px !important;
+    height: 18px !important;
+    flex-shrink: 0;
+    color: var(--ink-faint);
+}
+
+@media (max-width: 768px) {
+    .tos-workflow-callout { flex-direction: column; align-items: flex-start; }
+    .tos-workflow-arrow { transform: rotate(90deg); margin: -4px 0; }
+    .tos-workflow-step { width: 100%; }
+}

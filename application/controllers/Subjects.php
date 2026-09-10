@@ -25,6 +25,20 @@ class Subjects extends MY_Controller
 
         $data['use_datatables'] = true;
         $data['page_js'] = ['subjects.js'];
+
+        // Pass subject data for the edit modal (id, name, code, description).
+        $data['subjects_json'] = json_encode(
+            array_map(function ($s) {
+                return [
+                    'id'          => $s->id,
+                    'name'        => $s->name,
+                    'code'        => $s->code ?? '',
+                    'description' => $s->description ?? '',
+                ];
+            }, $data['subjects']),
+            JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT
+        );
+
         $this->render('subjects/index', $data);
     }
 
@@ -147,6 +161,38 @@ class Subjects extends MY_Controller
 
         $data['subject'] = $subject;
         $this->render('subjects/form', $data);
+    }
+
+    /** AJAX: update a subject from the edit modal. */
+    public function update($id)
+    {
+        if (!$this->session->userdata('logged_in')) {
+            return $this->_json(403, ['message' => 'Unauthorized']);
+        }
+        if ($this->input->method(true) !== 'POST') {
+            return $this->_json(405, ['message' => 'Method not allowed.']);
+        }
+
+        $subject = $this->Subject_model->get_owned($id, $this->user_id);
+        if (!$subject) {
+            return $this->_json(404, ['message' => 'Subject not found.']);
+        }
+
+        $this->form_validation->set_rules('name', 'Subject Name', 'required|trim|max_length[255]');
+        $this->form_validation->set_rules('code', 'Code', 'trim|max_length[50]');
+        $this->form_validation->set_rules('description', 'Description', 'trim|max_length[5000]');
+
+        if ($this->form_validation->run() === false) {
+            return $this->_json(422, ['message' => trim(validation_errors(' ', ' '))]);
+        }
+
+        $this->Subject_model->update($id, [
+            'name'        => $this->input->post('name', true),
+            'code'        => $this->input->post('code', true) ?: null,
+            'description' => $this->input->post('description', true) ?: null,
+        ]);
+
+        return $this->_json(200, ['message' => 'Subject updated.']);
     }
 
     public function delete($id)

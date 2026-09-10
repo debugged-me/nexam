@@ -151,7 +151,7 @@ $facets[] = [
                         <td class="g-mute" data-order="<?php echo htmlspecialchars($touched); ?>"><?php echo date('M j, Y', strtotime($touched)); ?></td>
                         <td class="col-actions">
                             <?php if (!$active && $q->source === 'ai'): ?>
-                                <div class="row-actions" style="display:flex;gap:4px;">
+                                <div class="row-actions">
                                     <button type="button" class="btn btn-primary btn-xs btn-approve-q" data-id="<?php echo htmlspecialchars($q->id); ?>" title="Approve">
                                         <i data-lucide="check"></i>
                                     </button>

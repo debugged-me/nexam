@@ -28,7 +28,7 @@
     <?php else: ?>
         <div class="dataset" data-grid="materials">
             <div class="dataset-scroll">
-                <table class="grid" style="table-layout: fixed;">
+                <table class="grid">
                     <colgroup>
                         <col class="wp-40"><col class="wp-20"><col class="wp-15"><col class="wp-15"><col class="wp-10">
                     </colgroup>
@@ -49,7 +49,7 @@
                                     <?php if (!empty($m['is_syllabus'])): ?>
                                         <span class="badge badge-gray">Syllabus</span>
                                         <?php if ($m['status'] === 'processed'): ?>
-                                            <button class="btn btn-primary btn-xs btn-generate-tos" data-id="<?php echo htmlspecialchars($m['id'], ENT_QUOTES, 'UTF-8'); ?>" style="margin-top:4px;">
+                                            <button class="btn btn-primary btn-xs btn-generate-tos" data-id="<?php echo htmlspecialchars($m['id'], ENT_QUOTES, 'UTF-8'); ?>">
                                                 <i data-lucide="sparkles"></i> Generate TOS
                                             </button>
                                         <?php endif; ?>

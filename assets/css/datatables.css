@@ -789,6 +789,23 @@ table.grid td.col-actions {
     overflow: visible;                 /* the menu must escape the cell */
 }
 
+/* Inline action buttons (approve/reject, retry/delete) */
+.row-actions {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+    justify-content: flex-end;
+}
+.row-actions .btn-xs {
+    min-width: 28px;
+    padding: 0;
+    justify-content: center;
+}
+.row-actions .btn-xs svg {
+    width: 14px !important;
+    height: 14px !important;
+}
+
 .g-menu { position: relative; display: inline-block; }
 .g-menu > summary { list-style: none; }
 .g-menu > summary::-webkit-details-marker { display: none; }

@@ -357,16 +357,197 @@
     }
 
     /* ------------------------------------------------------------------
+       Import Questions dialog (uses NexamModal)
+       ------------------------------------------------------------------ */
+
+    var importFormat = 'gift';
+
+    function openImportModal() {
+        var subjects = config.subjects || [];
+        var bloomLevels = config.bloomLevels || [];
+
+        if (subjects.length === 0) {
+            NexamToast.warning("Create a subject first before importing questions.");
+            return;
+        }
+
+        var subjectOptions = '<option value="" disabled selected>Select a subject…</option>' +
+            subjects.map(function (s) {
+                return '<option value="' + esc(s.id) + '">' + esc(s.name) +
+                    (s.code ? " (" + esc(s.code) + ")" : "") + "</option>";
+            }).join("");
+
+        var bloomOptions = bloomLevels.map(function (b, i) {
+            var sel = i === 0 ? " selected" : "";
+            return '<option value="' + esc(b) + '"' + sel + ">" + esc(capitalize(b)) + "</option>";
+        }).join("");
+
+        var modal = NexamModal.open({
+            title: "Import Questions",
+            subtitle: "Upload from Moodle GIFT or Canvas QTI XML — imported as drafts",
+            type: "info",
+            buttons: [
+                { text: "Cancel", style: "cancel", dismiss: true },
+                { text: "Import Questions", style: "primary", icon: "upload", dismiss: false }
+            ],
+            body:
+                '<div class="form-group">' +
+                    '<label class="form-label" for="imp_subject">Subject <span class="req">*</span></label>' +
+                    '<select id="imp_subject" class="form-control">' + subjectOptions + "</select>" +
+                "</div>" +
+                '<div class="form-group">' +
+                    '<label class="form-label">Format <span class="req">*</span></label>' +
+                    '<div class="source-tabs" role="tablist">' +
+                        '<button type="button" class="source-tab is-active" data-imp-fmt="gift" role="tab" aria-selected="true">' +
+                            '<i data-lucide="file-text"></i> Moodle GIFT</button>' +
+                        '<button type="button" class="source-tab" data-imp-fmt="xml" role="tab" aria-selected="false">' +
+                            '<i data-lucide="code-xml"></i> Canvas QTI XML</button>' +
+                    "</div>" +
+                "</div>" +
+                '<div class="form-group">' +
+                    '<label class="form-label" for="imp_file">Upload File</label>' +
+                    '<div class="file-drop" id="imp-file-drop">' +
+                        '<input type="file" id="imp_file" accept=".gift,.txt,.xml" hidden>' +
+                        '<div class="file-drop-prompt">' +
+                            '<i data-lucide="upload-cloud"></i>' +
+                            '<p>Drag a file here or <span class="link">browse</span></p>' +
+                            '<span class="text-muted">.gift, .txt, or .xml</span>' +
+                        "</div>" +
+                        '<div class="file-drop-selected" hidden>' +
+                            '<i data-lucide="file-text"></i>' +
+                            '<span class="file-name"></span>' +
+                            '<span class="file-size text-muted"></span>' +
+                        "</div>" +
+                    "</div>" +
+                "</div>" +
+                '<div class="form-group">' +
+                    '<label class="form-label" for="imp_content">Or paste content</label>' +
+                    '<textarea id="imp_content" class="form-control" rows="6" placeholder="Paste GIFT or XML content here…"></textarea>' +
+                "</div>" +
+                '<div class="form-group mb-0">' +
+                    '<label class="form-label" for="imp_bloom">Default Bloom Level</label>' +
+                    '<select id="imp_bloom" class="form-control">' + bloomOptions + "</select>" +
+                "</div>"
+        });
+
+        // Widen for the form
+        var panel = modal.querySelector(".nexam-modal");
+        if (panel) panel.classList.add("nexam-modal--question");
+
+        importFormat = 'gift';
+
+        // Format tabs
+        modal.querySelectorAll("[data-imp-fmt]").forEach(function (tab) {
+            tab.addEventListener("click", function () {
+                importFormat = tab.dataset.impFmt;
+                modal.querySelectorAll("[data-imp-fmt]").forEach(function (t) {
+                    var active = t.dataset.impFmt === importFormat;
+                    t.classList.toggle("is-active", active);
+                    t.setAttribute("aria-selected", active);
+                });
+            });
+        });
+
+        // File drop
+        var fileDrop = modal.querySelector("#imp-file-drop");
+        var fileInput = modal.querySelector("#imp_file");
+        var contentArea = modal.querySelector("#imp_content");
+
+        if (fileDrop && fileInput) {
+            fileDrop.addEventListener("click", function () { fileInput.click(); });
+            fileInput.addEventListener("change", function () {
+                if (fileInput.files && fileInput.files[0]) handleFile(fileInput.files[0]);
+            });
+            fileDrop.addEventListener("dragover", function (e) {
+                e.preventDefault();
+                fileDrop.classList.add("is-dragover");
+            });
+            fileDrop.addEventListener("dragleave", function () {
+                fileDrop.classList.remove("is-dragover");
+            });
+            fileDrop.addEventListener("drop", function (e) {
+                e.preventDefault();
+                fileDrop.classList.remove("is-dragover");
+                if (e.dataTransfer.files && e.dataTransfer.files[0]) handleFile(e.dataTransfer.files[0]);
+            });
+        }
+
+        function handleFile(file) {
+            var prompt = fileDrop.querySelector(".file-drop-prompt");
+            var selected = fileDrop.querySelector(".file-drop-selected");
+            var nameEl = fileDrop.querySelector(".file-name");
+            var sizeEl = fileDrop.querySelector(".file-size");
+            prompt.hidden = true;
+            selected.hidden = false;
+            nameEl.textContent = file.name;
+            sizeEl.textContent = (file.size / 1024).toFixed(1) + " KB";
+            var reader = new FileReader();
+            reader.onload = function (e) { contentArea.value = e.target.result; };
+            reader.readAsText(file);
+        }
+
+        // Submit handler
+        var saveBtn = modal.querySelector('[data-btn-index="1"]');
+        saveBtn.addEventListener("click", function () {
+            var subject = modal.querySelector("#imp_subject").value;
+            var content = contentArea.value.trim();
+            var bloom = modal.querySelector("#imp_bloom").value;
+
+            if (!subject) {
+                NexamToast.warning("Please select a subject.");
+                return;
+            }
+            if (!content) {
+                NexamToast.warning("Please upload a file or paste content.");
+                return;
+            }
+
+            var body = new FormData();
+            body.append("format", importFormat);
+            body.append("content", content);
+            body.append("subject_id", subject);
+            body.append("bloom", bloom);
+            csrfField(body);
+
+            saveBtn.disabled = true;
+            var orig = saveBtn.innerHTML;
+            saveBtn.textContent = "Importing…";
+
+            postJson(config.importUrl, body)
+                .then(function (result) {
+                    if (!result.ok) {
+                        NexamToast.error(result.payload.error || "Import failed.");
+                        return;
+                    }
+                    NexamModal.close(modal);
+                    NexamToast.success("Imported " + (result.payload.imported || 0) + " question(s) as drafts.");
+                    setTimeout(function () { window.location.reload(); }, 800);
+                })
+                .catch(function () {
+                    NexamToast.error("Could not reach the server.");
+                })
+                .then(function () {
+                    saveBtn.disabled = false;
+                    saveBtn.innerHTML = orig;
+                });
+        });
+    }
+
+    /* ------------------------------------------------------------------
        Wire up buttons
        ------------------------------------------------------------------ */
 
     document.addEventListener("DOMContentLoaded", function () {
         initOptionEditor();
+
         var newBtn = document.getElementById("new-question-btn");
         if (newBtn) newBtn.addEventListener("click", openNewQuestionDialog);
 
         var newBtnEmpty = document.getElementById("new-question-btn-empty");
         if (newBtnEmpty) newBtnEmpty.addEventListener("click", openNewQuestionDialog);
+
+        var importBtn = document.getElementById("btn-import-questions");
+        if (importBtn) importBtn.addEventListener("click", openImportModal);
 
         // ── Approve / Reject AI-drafted questions ────────
         document.querySelectorAll(".btn-approve-q").forEach(function (btn) {

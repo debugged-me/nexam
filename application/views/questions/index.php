@@ -51,6 +51,9 @@ $facets[] = [
             <p class="list-head-desc">One reusable bank. Tag each item with a topic and Bloom level so blueprints can draw from it.</p>
         </div>
         <div class="list-head-actions">
+            <button type="button" class="btn btn-outline" id="btn-import-questions">
+                <i data-lucide="upload"></i> Import
+            </button>
             <a href="<?php echo site_url('questions/create' . ($scoped ? '?subject=' . rawurlencode($subject_context->id) : '')); ?>" class="btn btn-primary">
                 <i data-lucide="plus"></i> New question
             </a>
@@ -186,6 +189,7 @@ $facets[] = [
 <script id="questions-config" type="application/json"><?php
     echo json_encode([
         'storeUrl'      => site_url('questions/store'),
+        'importUrl'     => site_url('questions/import'),
         'subjects'      => array_map(function ($s) {
             return ['id' => $s->id, 'name' => $s->name, 'code' => $s->code];
         }, $subjects),
@@ -195,3 +199,6 @@ $facets[] = [
         'filters'       => $filters,
     ], JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT);
 ?></script>
+
+<!-- Import Questions Modal (uses NexamModal shell, body injected by JS) -->
+<!-- The modal is opened by questions.js via NexamModal.open() -->

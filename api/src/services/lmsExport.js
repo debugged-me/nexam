@@ -221,4 +221,271 @@ function parseMatchingAnswer(answer) {
   return Object.values(pairs);
 }
 
-export default { toGIFT, toCanvasXML };
+export default { toGIFT, toCanvasXML, parseGIFT, parseCanvasXML };
+
+// ── GIFT parser ──────────────────────────────────────
+
+/**
+ * Parse Moodle GIFT format text into question objects.
+ *
+ * Supports: MCQ, True/False, Short Answer (identification), Matching.
+ * Handles ::title::, escaped chars, =correct/~wrong, T/F, and feedback.
+ *
+ * @param {string} text — GIFT format text
+ * @returns {Array} questions — [{ type, stem, options, answer, explanation }]
+ */
+export function parseGIFT(text) {
+  const questions = [];
+  // GIFT spec separates questions with blank lines, but many exporters use
+  // single newlines. Normalize: ensure each ::Title:: or stem{...} starts on
+  // its own line, then split on blank lines OR on ::Q boundaries.
+  let blocks;
+
+  if (/\n\s*\n/.test(text)) {
+    // Has blank-line separators — use them
+    blocks = text.split(/\n\s*\n/);
+  } else {
+    // No blank lines — split on ::Q patterns (each question starts with ::)
+    // This handles single-newline-separated GIFT files
+    blocks = text.split(/(?=^::)/m);
+    // If no :: prefixes found, try splitting on lines that contain { and }
+    if (blocks.length <= 1) {
+      blocks = text.split(/\n/).reduce((acc, line) => {
+        if (line.trim() && !line.trim().startsWith('//')) {
+          acc.push(line);
+        }
+        return acc;
+      }, []);
+    }
+  }
+
+  for (const block of blocks) {
+    const trimmed = block.trim();
+    if (!trimmed || trimmed.startsWith('//')) continue;
+    const q = parseGIFTBlock(trimmed);
+    if (q) questions.push(q);
+  }
+  return questions;
+}
+
+function parseGIFTBlock(block) {
+  // Pattern: ::title::stem{answers} with optional #### feedback
+  // The title is optional; the stem is everything between ::title:: and {
+  let title = '';
+  let stem = '';
+  let answerPart = '';
+  let feedback = '';
+
+  // Extract feedback (#### ...) — appears before closing }
+  const feedbackMatch = block.match(/####\s*(.+?)\}/);
+  if (feedbackMatch) {
+    feedback = unescapeGIFT(feedbackMatch[1].trim());
+  }
+
+  // Try ::Title::stem{...}
+  const titled = block.match(/^::(.*?)::(.*)\{(.*)\}\s*$/s);
+  if (titled) {
+    title = unescapeGIFT(titled[1].trim());
+    stem = unescapeGIFT(titled[2].trim());
+    answerPart = titled[3].replace(/####.*$/, '').trim();
+  } else {
+    // Untitled: stem{...}
+    const untitled = block.match(/^(.*)\{(.*)\}\s*$/s);
+    if (!untitled) return null;
+    stem = unescapeGIFT(untitled[1].trim());
+    answerPart = untitled[2].replace(/####.*$/, '').trim();
+  }
+
+  if (!stem) return null;
+
+  // Detect question type from answer part
+  // True/False: just T or F
+  if (/^(T|F|TRUE|FALSE)\s*$/i.test(answerPart)) {
+    return {
+      type: 'true_false',
+      stem,
+      options: null,
+      answer: /^T/i.test(answerPart) ? 'True' : 'False',
+      explanation: feedback || null,
+    };
+  }
+
+  // Matching: =item -> match (contains -> arrows)
+  if (/->/.test(answerPart)) {
+    const pairs = answerPart.split(/\s+(?==)/);
+    const options = [];
+    const matches = [];
+    for (const pair of pairs) {
+      const m = pair.match(/^=(.+?)\s*->\s*(.+)$/);
+      if (m) {
+        options.push(unescapeGIFT(m[1].trim()));
+        matches.push(unescapeGIFT(m[2].trim()));
+      }
+    }
+    if (options.length > 0) {
+      // Answer format: "1-B, 2-A, 3-D, 4-C"
+      const answer = matches.map((m, i) => `${i + 1}-${m}`).join(', ');
+      return { type: 'matching', stem, options, answer, explanation: feedback || null };
+    }
+  }
+
+  // MCQ: =correct ~wrong ~wrong
+  if (answerPart.includes('~') || answerPart.startsWith('=')) {
+    const parts = answerPart.split(/(?<=[^\\])\s+/);
+    const options = [];
+    let answer = '';
+    for (const part of parts) {
+      const isCorrect = part.startsWith('=');
+      const text = unescapeGIFT(part.replace(/^[=~]/, '').trim());
+      if (!text) continue;
+      options.push(text);
+      if (isCorrect) answer = text;
+    }
+    if (options.length > 0) {
+      return { type: 'mcq', stem, options, answer, explanation: feedback || null };
+    }
+  }
+
+  // Short answer: =answer
+  if (answerPart.startsWith('=')) {
+    const answer = unescapeGIFT(answerPart.replace(/^=/, '').trim());
+    return { type: 'identification', stem, options: null, answer, explanation: feedback || null };
+  }
+
+  // Fallback: try as short answer with the whole answer part
+  if (answerPart) {
+    return {
+      type: 'identification',
+      stem,
+      options: null,
+      answer: unescapeGIFT(answerPart),
+      explanation: feedback || null,
+    };
+  }
+
+  return null;
+}
+
+function unescapeGIFT(text) {
+  if (!text) return '';
+  return String(text)
+    .replace(/\\([\\~=#{}:])/g, '$1')
+    .replace(/\\n/g, '\n')
+    .trim();
+}
+
+// ── Canvas QTI XML parser ────────────────────────────
+
+/**
+ * Parse Canvas QTI XML into question objects.
+ *
+ * Supports: MCQ, True/False, Short Answer (identification), Matching.
+ * Uses the browser DOMParser or Node's xmldom-style API.
+ *
+ * @param {string} xmlText — QTI XML text
+ * @returns {Array} questions — [{ type, stem, options, answer, explanation }]
+ */
+export function parseCanvasXML(xmlText) {
+  // Lightweight XML parser — no external dependency needed for well-formed QTI
+  const questions = [];
+
+  // Extract all <item> blocks
+  const itemRegex = /<item\b[^>]*>([\s\S]*?)<\/item>/gi;
+  let itemMatch;
+
+  while ((itemMatch = itemRegex.exec(xmlText)) !== null) {
+    const itemXml = itemMatch[1];
+    const q = parseQTIItem(itemXml);
+    if (q) questions.push(q);
+  }
+
+  return questions;
+}
+
+function parseQTIItem(itemXml) {
+  // Extract stem from <mattext> inside <presentation>
+  const stemMatch = itemXml.match(/<presentation>[\s\S]*?<mattext[^>]*>([\s\S]*?)<\/mattext>/i);
+  const stem = stemMatch ? decodeXmlEntities(stemMatch[1].trim()) : '';
+  if (!stem) return null;
+
+  // Extract feedback
+  const feedbackMatch = itemXml.match(/<itemfeedback[\s\S]*?<mattext[^>]*>([\s\S]*?)<\/mattext>/i);
+  const explanation = feedbackMatch ? decodeXmlEntities(feedbackMatch[1].trim()) : null;
+
+  // Detect type: response_lid = MCQ/TrueFalse/Matching, response_str = short answer
+  if (/<response_str/i.test(itemXml)) {
+    // Short answer / identification
+    const answerMatch = itemXml.match(/<varequal[^>]*>([\s\S]*?)<\/varequal>/i);
+    return {
+      type: 'identification',
+      stem,
+      options: null,
+      answer: answerMatch ? decodeXmlEntities(answerMatch[1].trim()) : '',
+      explanation,
+    };
+  }
+
+  if (/<response_lid/i.test(itemXml)) {
+    // Extract all response_label texts
+    const labelRegex = /<response_label\b[^>]*>[\s\S]*?<mattext[^>]*>([\s\S]*?)<\/mattext>/gi;
+    const options = [];
+    let labelMatch;
+    while ((labelMatch = labelRegex.exec(itemXml)) !== null) {
+      options.push(decodeXmlEntities(labelMatch[1].trim()));
+    }
+
+    // Extract correct answer from <varequal respident="...">
+    // Handle both self-closing (<varequal respident="2"/>) and content tags
+    let correctMatch = itemXml.match(/<varequal\s+respident="([^"]*)"\s*\/>/i);
+    if (!correctMatch) {
+      correctMatch = itemXml.match(/<varequal\s+respident="([^"]*)"[^>]*>([\s\S]*?)<\/varequal>/i);
+    }
+    let answer = '';
+
+    // Check if it's True/False (options are "True" and "False")
+    if (options.length === 2 && /true/i.test(options[0]) && /false/i.test(options[1])) {
+      const isTrue = correctMatch && /T/i.test(correctMatch[1]);
+      return {
+        type: 'true_false',
+        stem,
+        options: null,
+        answer: isTrue ? 'True' : 'False',
+        explanation,
+      };
+    }
+
+    // MCQ: correct answer is the option at the respident index
+    if (correctMatch) {
+      const respId = correctMatch[1];
+      // respId could be a number (1-based) or a letter
+      let idx = parseInt(respId, 10) - 1;
+      if (isNaN(idx)) {
+        idx = respId.charCodeAt(0) - 65; // A=0, B=1, etc.
+      }
+      if (idx >= 0 && idx < options.length) {
+        answer = options[idx];
+      }
+    }
+
+    return {
+      type: 'mcq',
+      stem,
+      options,
+      answer,
+      explanation,
+    };
+  }
+
+  return null;
+}
+
+function decodeXmlEntities(text) {
+  if (!text) return '';
+  return String(text)
+    .replace(/</g, '<')
+    .replace(/>/g, '>')
+    .replace(/"/g, '"')
+    .replace(/'/g, "'")
+    .replace(/&/g, '&')
+    .trim();
+}

@@ -465,6 +465,101 @@ class Questions extends MY_Controller
     }
 
     /**
+     * AJAX: import questions from GIFT or QTI XML format.
+     * Calls the Node API to parse and insert questions as drafts.
+     */
+    public function import()
+    {
+        if (!$this->session->userdata('logged_in')) {
+            $this->output->set_status_header(403)->set_content_type('application/json')
+                ->set_output(json_encode(['error' => 'Unauthorized']));
+            return;
+        }
+        if ($this->input->method(true) !== 'POST') {
+            show_404();
+        }
+
+        $format    = $this->input->post('format', true);
+        $content   = $this->input->post('content');           // raw — validated by API
+        $subjectId = $this->input->post('subject_id', true);
+        $bloom     = $this->input->post('bloom', true);
+
+        if (!in_array($format, ['gift', 'xml'], true)) {
+            $this->_json(400, ['error' => 'Invalid format.']);
+            return;
+        }
+        if (!$subjectId || !$this->Subject_model->get_owned($subjectId, $this->user_id)) {
+            $this->_json(400, ['error' => 'Subject not found.']);
+            return;
+        }
+        if (!$content || strlen(trim($content)) < 10) {
+            $this->_json(400, ['error' => 'Content is too short.']);
+            return;
+        }
+        if ($bloom && !in_array($bloom, $this->bloom_levels, true)) {
+            $bloom = 'remember';
+        }
+
+        // Build JWT for the Node API
+        $token = $this->_get_node_token();
+
+        $ch = curl_init('http://localhost:3000/api/questions/import');
+        curl_setopt_array($ch, [
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_POST           => true,
+            CURLOPT_POSTFIELDS     => json_encode([
+                'format'    => $format,
+                'content'   => $content,
+                'subjectId' => $subjectId,
+                'bloom'     => $bloom,
+            ]),
+            CURLOPT_HTTPHEADER     => [
+                'Content-Type: application/json',
+                'Authorization: Bearer ' . $token,
+            ],
+            CURLOPT_TIMEOUT        => 60,
+        ]);
+
+        $response = curl_exec($ch);
+        $status   = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $error    = curl_error($ch);
+        curl_close($ch);
+
+        if ($error) {
+            $this->_json(500, ['error' => 'Failed to connect to import service.']);
+            return;
+        }
+
+        $decoded = json_decode($response, true);
+        if ($status !== 201 || !$decoded) {
+            $msg = $decoded['error'] ?? 'Import failed.';
+            $this->_json($status ?: 500, ['error' => $msg]);
+            return;
+        }
+
+        $this->_json(200, [
+            'ok'        => true,
+            'imported'  => $decoded['imported'] ?? 0,
+        ]);
+    }
+
+    /** Generate a JWT for the Node API using the session user. */
+    private function _get_node_token()
+    {
+        $secret = getenv('JWT_SECRET') ?: 'change-me-in-production';
+        $header = rtrim(strtr(base64_encode(json_encode(['alg' => 'HS256', 'typ' => 'JWT'])), '+/', '-_'), '=');
+        $payload = rtrim(strtr(base64_encode(json_encode([
+            'id'    => $this->user_id,
+            'email' => $this->email,
+            'role'  => $this->role,
+            'iat'   => time(),
+            'exp'   => time() + 3600,
+        ])), '+/', '-_'), '=');
+        $sig = rtrim(strtr(base64_encode(hash_hmac('sha256', "$header.$payload", $secret, true)), '+/', '-_'), '=');
+        return "$header.$payload.$sig";
+    }
+
+    /**
      * Similarity review page — shows a flagged question alongside its
      * near-duplicate candidates so the instructor can decide whether to
      * keep, edit, or reject it.

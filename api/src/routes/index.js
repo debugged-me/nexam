@@ -7,6 +7,7 @@ import examsRouter from './exams.js';
 import scansRouter from './scans.js';
 import analyticsRouter from './analytics.js';
 import aiEvalRouter from './ai_eval.js';
+import questionsRouter from './questions.js';
 
 const router = Router();
 
@@ -22,5 +23,6 @@ router.use('/exams', examsRouter);
 router.use('/scans', scansRouter);
 router.use('/analytics', analyticsRouter);
 router.use('/ai-eval', aiEvalRouter);
+router.use('/questions', questionsRouter);
 
 export default router;

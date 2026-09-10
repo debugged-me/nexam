@@ -31,11 +31,14 @@ class Notifications extends CI_Controller
         $user_id = $this->session->userdata('user_id');
         $items   = $this->_build_items($user_id);
 
-        // Compare against the last-seen count stored in session.
-        // Items are "unread" only if the total count has grown since
-        // the instructor last opened / dismissed the bell.
-        $last_seen = (int) $this->session->userdata('bell_last_seen');
-        $unread   = max(0, count($items) - $last_seen);
+        // Compare against the last-seen count stored in the database.
+        // This persists across logout/login, unlike session storage.
+        $last_seen = (int) $this->db
+            ->select('bell_last_seen')
+            ->where('id', $user_id)
+            ->get('users')
+            ->row('bell_last_seen');
+        $unread = max(0, count($items) - $last_seen);
 
         return $this->_json(200, [
             'count'  => count($items),
@@ -57,8 +60,10 @@ class Notifications extends CI_Controller
         $user_id = $this->session->userdata('user_id');
         $items   = $this->_build_items($user_id);
 
-        // Store the count so the bell shows 0 unread until new items appear.
-        $this->session->set_userdata('bell_last_seen', count($items));
+        // Persist in the users table so it survives logout/login.
+        $this->db->where('id', $user_id)->update('users', [
+            'bell_last_seen' => count($items),
+        ]);
 
         return $this->_json(200, ['ok' => true, 'unread' => 0]);
     }

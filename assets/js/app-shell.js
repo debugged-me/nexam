@@ -68,6 +68,18 @@
 
     if (railToggle) railToggle.addEventListener("click", toggleRail);
 
+    // Global back button — uses browser history, falls back to dashboard.
+    var backBtn = document.getElementById("topbar-back");
+    if (backBtn) {
+        backBtn.addEventListener("click", function () {
+            if (window.history.length > 1) {
+                window.history.back();
+            } else {
+                window.location.href = SITE_URL + "/dashboard";
+            }
+        });
+    }
+
     document.querySelectorAll("[data-sidebar-toggle]").forEach(function (el) {
         el.addEventListener("click", function (ev) {
             ev.preventDefault();

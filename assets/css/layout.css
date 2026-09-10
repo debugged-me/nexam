@@ -487,6 +487,26 @@ body.rail-collapsed .nav-item:hover::after { opacity: 1; }
 .rail-toggle:hover { background: var(--surface-2); border-color: var(--line); color: var(--ink); }
 .rail-toggle:focus-visible { outline: 2px solid var(--brand-accent); outline-offset: 2px; }
 
+/* ---- Global back button ---- */
+
+.topbar-back {
+    display: inline-flex;
+    width: 36px;
+    height: 36px;
+    flex-shrink: 0;
+    align-items: center;
+    justify-content: center;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    border: 1px solid transparent;
+    color: var(--ink-2);
+    cursor: pointer;
+    transition: background-color .15s ease, border-color .15s ease, color .15s ease;
+}
+.topbar-back svg { width: 18px !important; height: 18px !important; display: block; }
+.topbar-back:hover { background: var(--surface-2); border-color: var(--line); color: var(--ink); }
+.topbar-back:focus-visible { outline: 2px solid var(--brand-accent); outline-offset: 2px; }
+
 /* ---- Breadcrumb + title ---- */
 
 .topbar-heading { min-width: 0; }

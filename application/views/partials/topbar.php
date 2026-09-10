@@ -47,6 +47,11 @@ function nexam_avatar($src, $initials, $id, $class = 'avatar')
             <i data-lucide="menu"></i>
         </button>
 
+        <button class="topbar-back" id="topbar-back" type="button"
+                aria-label="Go back" title="Go back">
+            <i data-lucide="arrow-left"></i>
+        </button>
+
         <nav class="topbar-heading crumbs" aria-label="Breadcrumb">
             <ol class="crumb-list">
                 <li class="crumb-item">

@@ -20,7 +20,7 @@
         <div class="empty-state">
             <i data-lucide="folder-open" aria-hidden="true"></i>
             <h2>No materials yet</h2>
-            <p>Upload syllabi, lecture slides, documents, URLs, or YouTube videos to generate questions from.</p>
+            <p>Upload a <strong>syllabus</strong> to auto-generate a blueprint (TOS), or upload lecture slides, documents, URLs, or YouTube videos to generate questions from.</p>
             <a href="<?php echo site_url('materials/upload'); ?>" class="btn btn-primary">
                 <i data-lucide="upload"></i> Upload your first material
             </a>
@@ -49,8 +49,8 @@
                                     <?php if (!empty($m['is_syllabus'])): ?>
                                         <span class="badge badge-gray">Syllabus</span>
                                         <?php if ($m['status'] === 'processed'): ?>
-                                            <button class="btn btn-primary btn-xs btn-generate-tos" data-id="<?php echo htmlspecialchars($m['id'], ENT_QUOTES, 'UTF-8'); ?>">
-                                                <i data-lucide="sparkles"></i> Generate TOS
+                                            <button class="btn btn-primary btn-xs btn-generate-tos" data-id="<?php echo htmlspecialchars($m['id'], ENT_QUOTES, 'UTF-8'); ?>" title="Auto-create a Table of Specification blueprint from this syllabus">
+                                                <i data-lucide="sparkles"></i> Auto-generate Blueprint
                                             </button>
                                         <?php endif; ?>
                                     <?php endif; ?>

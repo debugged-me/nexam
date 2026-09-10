@@ -64,12 +64,20 @@ $facets[] = [
         <div class="empty-state">
             <?php if ($scoped): ?>
                 <h4>No questions for this subject</h4>
-                <p>Add the first item here and it becomes available to every blueprint and exam in this subject.</p>
-                <a href="<?php echo site_url('questions/create?subject=' . rawurlencode($subject_context->id)); ?>" class="btn btn-primary"><i data-lucide="plus"></i> New question</a>
+                <p>Add a question manually, import from GIFT/XML, or auto-generate from a blueprint (TOS) using your uploaded materials.</p>
+                <div class="empty-state-actions">
+                    <a href="<?php echo site_url('questions/create?subject=' . rawurlencode($subject_context->id)); ?>" class="btn btn-primary"><i data-lucide="plus"></i> New Question</a>
+                    <button type="button" class="btn btn-outline" id="btn-import-questions-empty"><i data-lucide="upload"></i> Import</button>
+                    <a href="<?php echo site_url('tos?subject_id=' . rawurlencode($subject_context->id)); ?>" class="btn btn-outline"><i data-lucide="sparkles"></i> Auto-generate from Blueprint</a>
+                </div>
             <?php else: ?>
                 <h4>Your question bank is empty</h4>
-                <p>Questions live independently of exams, so one well-tagged item can serve many papers.</p>
-                <a href="<?php echo site_url('questions/create'); ?>" class="btn btn-primary"><i data-lucide="plus"></i> New question</a>
+                <p>Add a question manually, import from GIFT/XML, or auto-generate from a blueprint (TOS) using your uploaded materials.</p>
+                <div class="empty-state-actions">
+                    <a href="<?php echo site_url('questions/create'); ?>" class="btn btn-primary"><i data-lucide="plus"></i> New Question</a>
+                    <button type="button" class="btn btn-outline" id="btn-import-questions-empty"><i data-lucide="upload"></i> Import</button>
+                    <a href="<?php echo site_url('tos'); ?>" class="btn btn-outline"><i data-lucide="sparkles"></i> Auto-generate from Blueprint</a>
+                </div>
             <?php endif; ?>
         </div>
     <?php else: ?>

@@ -5,8 +5,8 @@
             <p class="page-sub">Performance insights from scanned OMR answer sheets.</p>
         </div>
         <div class="header-actions">
-            <a href="<?php echo site_url('analytics/ai-eval'); ?>" class="btn btn-outline btn-sm">
-                <i data-lucide="sparkles"></i> AI Evaluation
+            <a href="<?php echo site_url('analytics/ai-eval'); ?>" class="btn btn-outline btn-sm" title="View AI accuracy, precision, recall, and Bloom-level classification metrics">
+                <i data-lucide="sparkles"></i> AI Evaluation Metrics
             </a>
         </div>
     </div>

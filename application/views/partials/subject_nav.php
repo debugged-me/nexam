@@ -4,7 +4,7 @@
         'overview'  => ['label' => 'Overview',   'url' => site_url('subjects/view/' . rawurlencode($subject_context->id))],
         'materials' => ['label' => 'Materials',  'url' => site_url('materials?subject_id=' . rawurlencode($subject_context->id))],
         'questions' => ['label' => 'Questions',  'url' => site_url('questions?subject_id=' . rawurlencode($subject_context->id))],
-        'tos'       => ['label' => 'Blueprints', 'url' => site_url('tos?subject_id=' . rawurlencode($subject_context->id))],
+        'tos'       => ['label' => 'Blueprints (TOS)', 'url' => site_url('tos?subject_id=' . rawurlencode($subject_context->id))],
         'exams'     => ['label' => 'Exams',      'url' => site_url('exams?subject_id=' . rawurlencode($subject_context->id))],
     ];
     ?>

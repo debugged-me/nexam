@@ -14,11 +14,11 @@
             <?php endif; ?>
         </div>
         <div class="header-actions">
-            <button type="button" class="btn btn-primary btn-sm" id="btn-generate-questions" data-tos-id="<?php echo rawurlencode($tos->id); ?>">
-                <i data-lucide="sparkles"></i> Generate Questions
+            <button type="button" class="btn btn-primary btn-sm" id="btn-generate-questions" data-tos-id="<?php echo rawurlencode($tos->id); ?>" title="AI drafts questions from your materials based on this blueprint">
+                <i data-lucide="sparkles"></i> Auto-generate Questions
             </button>
             <a href="<?php echo site_url('exams/create?tos=' . rawurlencode($tos->id)); ?>" class="btn btn-outline btn-sm">
-                <i data-lucide="file-text"></i> Generate Exam
+                <i data-lucide="file-text"></i> Build Exam
             </a>
             <a href="<?php echo site_url('tos/edit/' . rawurlencode($tos->id)); ?>" class="btn btn-outline btn-sm"><i data-lucide="pencil"></i> Edit</a>
         </div>

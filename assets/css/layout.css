@@ -1736,6 +1736,15 @@ textarea.form-control { resize: vertical; min-height: 92px; height: auto; paddin
     color: var(--ink-3);
 }
 
+.empty-state-actions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: var(--space-2);
+}
+
+.empty-state-actions .btn { margin: 0; }
+
 .empty-state .btn { margin: 0 4px; }
 
 /* Kept for pages that still pass an illustration glyph of their own. */

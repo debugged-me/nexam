@@ -27,6 +27,7 @@ class Dashboard extends MY_Controller
         /* ---- Totals ---- */
         $data['stats'] = [
             'subjects'  => $this->Subject_model->count_by_user($user_id),
+            'materials' => $this->db->where('created_by', $user_id)->count_all_results('materials'),
             'questions' => $this->Question_model->count_by_user($user_id),
             'tos'       => $this->Tos_model->count_by_user($user_id),
             'exams'     => $this->Exam_model->count_by_user($user_id),

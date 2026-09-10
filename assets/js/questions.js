@@ -549,6 +549,9 @@
         var importBtn = document.getElementById("btn-import-questions");
         if (importBtn) importBtn.addEventListener("click", openImportModal);
 
+        var importBtnEmpty = document.getElementById("btn-import-questions-empty");
+        if (importBtnEmpty) importBtnEmpty.addEventListener("click", openImportModal);
+
         // ── Approve / Reject AI-drafted questions ────────
         document.querySelectorAll(".btn-approve-q").forEach(function (btn) {
             btn.addEventListener("click", async function () {

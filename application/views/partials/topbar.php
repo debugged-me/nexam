@@ -7,16 +7,20 @@ $bar_avatar    = !empty($avatar_path) ? base_url($avatar_path) : '';
 $sections = [
     'dashboard' => 'Dashboard',
     'subjects'  => 'Subjects',
+    'materials' => 'Materials',
     'questions' => 'Questions',
-    'tos'       => 'Blueprints',
+    'tos'       => 'Blueprints (TOS)',
     'exams'     => 'Exams',
+    'analytics' => 'Analytics',
 ];
 $section_roots = [
     'dashboard' => 'dashboard',
     'subjects'  => 'subjects',
+    'materials' => 'materials',
     'questions' => 'questions',
     'tos'       => 'tos',
     'exams'     => 'exams',
+    'analytics' => 'analytics',
 ];
 
 $nav_key      = isset($active_nav) ? $active_nav : '';

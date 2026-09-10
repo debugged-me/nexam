@@ -10,7 +10,7 @@ if ($first_name === '') $first_name = 'there';
 $kpis = [
     ['key' => 'subjects',  'label' => 'Subjects',       'value' => $stats['subjects'],  'icon' => 'book-open',   'variant' => 'info',    'url' => site_url('subjects')],
     ['key' => 'questions', 'label' => 'Questions',      'value' => $stats['questions'], 'icon' => 'help-circle', 'variant' => 'success', 'url' => site_url('questions')],
-    ['key' => 'tos',       'label' => 'TOS Blueprints', 'value' => $stats['tos'],       'icon' => 'table',       'variant' => 'warning', 'url' => site_url('tos')],
+    ['key' => 'tos',       'label' => 'Blueprints (TOS)', 'value' => $stats['tos'],       'icon' => 'table',       'variant' => 'warning', 'url' => site_url('tos')],
     ['key' => 'exams',     'label' => 'Exams',          'value' => $stats['exams'],     'icon' => 'file-text',   'variant' => 'purple',  'url' => site_url('exams')],
 ];
 
@@ -47,6 +47,70 @@ foreach ($initial_activity as $day) {
             </a>
         </div>
     </div>
+
+    <?php
+    // Show a Getting Started checklist when the instructor has no exams yet.
+    // Once they've created at least one exam, the checklist hides itself.
+    $show_onboarding = $stats['exams'] === 0;
+    $step_done = [
+        1 => $stats['subjects'] > 0,
+        2 => $stats['materials'] > 0,
+        3 => $stats['tos'] > 0,
+        4 => $stats['questions'] > 0,
+        5 => $stats['exams'] > 0,
+    ];
+    $done_count = count(array_filter($step_done));
+    ?>
+    <?php if ($show_onboarding): ?>
+    <div class="card getting-started-card">
+        <div class="card-header">
+            <div>
+                <span class="card-title">Getting Started</span>
+                <div class="card-sub"><?= $done_count ?> of 5 steps complete — follow the path from upload to exam</div>
+            </div>
+            <span class="getting-started-progress"><?= $done_count ?>/5</span>
+        </div>
+        <div class="card-body">
+            <div class="onboarding-steps">
+                <a href="<?= site_url('subjects/create') ?>" class="onboarding-step<?= $step_done[1] ? ' is-done' : '' ?>">
+                    <span class="onboarding-num"><?= $step_done[1] ? '<i data-lucide="check"></i>' : '1' ?></span>
+                    <span class="onboarding-body">
+                        <strong>Create a Subject</strong>
+                        <small>Add the course you teach — it groups everything else.</small>
+                    </span>
+                </a>
+                <a href="<?= site_url('materials/upload') ?>" class="onboarding-step<?= $step_done[2] ? ' is-done' : '' ?>">
+                    <span class="onboarding-num"><?= $step_done[2] ? '<i data-lucide="check"></i>' : '2' ?></span>
+                    <span class="onboarding-body">
+                        <strong>Upload a Syllabus</strong>
+                        <small>Check "This is a syllabus" when uploading — the AI extracts topics and hours from it.</small>
+                    </span>
+                </a>
+                <a href="<?= site_url('materials') ?>" class="onboarding-step<?= $step_done[3] ? ' is-done' : '' ?>">
+                    <span class="onboarding-num"><?= $step_done[3] ? '<i data-lucide="check"></i>' : '3' ?></span>
+                    <span class="onboarding-body">
+                        <strong>Generate a Blueprint (TOS)</strong>
+                        <small>Click "Generate TOS" on a processed syllabus to auto-create a Table of Specification.</small>
+                    </span>
+                </a>
+                <a href="<?= site_url('tos') ?>" class="onboarding-step<?= $step_done[4] ? ' is-done' : '' ?>">
+                    <span class="onboarding-num"><?= $step_done[4] ? '<i data-lucide="check"></i>' : '4' ?></span>
+                    <span class="onboarding-body">
+                        <strong>Generate Questions</strong>
+                        <small>From a blueprint, click "Generate Questions" — AI drafts questions from your materials for review.</small>
+                    </span>
+                </a>
+                <a href="<?= site_url('exams/create') ?>" class="onboarding-step<?= $step_done[5] ? ' is-done' : '' ?>">
+                    <span class="onboarding-num"><?= $step_done[5] ? '<i data-lucide="check"></i>' : '5' ?></span>
+                    <span class="onboarding-body">
+                        <strong>Build an Exam</strong>
+                        <small>Create an exam from your approved question bank — generate PDFs, OMR sheets, and exports.</small>
+                    </span>
+                </a>
+            </div>
+        </div>
+    </div>
+    <?php endif; ?>
 
     <!-- ================= Totals ================= -->
     <div class="kpi-grid">
@@ -148,7 +212,7 @@ foreach ($initial_activity as $day) {
             <div class="card-footer">
                 <span class="text-muted gauge-foot-note">
                     <?php if ($blueprint['planned'] > 0): ?>
-                        Blueprints call for <?= number_format($blueprint['planned']) ?> items — bank covers <?= (int) $blueprint['fill_pct'] ?>%
+                        Blueprints (TOS) call for <?= number_format($blueprint['planned']) ?> items — bank covers <?= (int) $blueprint['fill_pct'] ?>%
                     <?php else: ?>
                         No blueprint targets set yet
                     <?php endif; ?>
@@ -264,7 +328,7 @@ foreach ($initial_activity as $day) {
                 <div class="dash-empty">
                     <div class="empty-icon"><i data-lucide="file-text" aria-hidden="true"></i></div>
                     <h4>No exams generated yet</h4>
-                    <p>Build a blueprint, then generate a paper from your bank.</p>
+                    <p>Build a blueprint (TOS), generate questions, then create an exam from your bank.</p>
                     <a href="<?= site_url('exams/create') ?>" class="btn btn-primary btn-sm">
                         <i data-lucide="file-plus-2"></i> New Exam
                     </a>

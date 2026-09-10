@@ -499,3 +499,81 @@
     .bloom-tier-label { width: 70px; font-size: var(--text-xs); }
     .bloom-tier-bar { height: 28px; font-size: var(--text-xs); }
 }
+
+/* ── Getting Started checklist ────────────────────── */
+
+.getting-started-card { margin-bottom: var(--space-4); }
+
+.getting-started-progress {
+    font-size: var(--text-sm);
+    font-weight: 600;
+    color: var(--ink-2);
+    background: var(--surface-2);
+    padding: var(--space-1) var(--space-3);
+    border-radius: var(--radius-sm);
+}
+
+.onboarding-steps {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: var(--space-3);
+}
+
+.onboarding-step {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--space-2);
+    padding: var(--space-3);
+    border-radius: var(--radius-md);
+    border: 1px solid var(--line);
+    background: var(--surface);
+    text-decoration: none;
+    color: var(--ink-2);
+    transition: border-color .15s ease, background .15s ease;
+    min-height: 100px;
+}
+
+.onboarding-step:hover {
+    border-color: var(--brand-accent);
+    background: var(--surface-2);
+}
+
+.onboarding-step.is-done {
+    border-color: var(--green-600);
+    background: var(--green-50);
+}
+
+.onboarding-step.is-done .onboarding-body strong { color: var(--green-700); }
+
+.onboarding-num {
+    display: inline-flex;
+    width: 28px;
+    height: 28px;
+    flex-shrink: 0;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    background: var(--surface-3);
+    color: var(--ink-2);
+    font-size: var(--text-sm);
+    font-weight: 600;
+}
+
+.onboarding-step.is-done .onboarding-num {
+    background: var(--green-600);
+    color: #fff;
+}
+
+.onboarding-num svg { width: 14px !important; height: 14px !important; }
+
+.onboarding-body { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.onboarding-body strong { font-size: var(--text-sm); color: var(--ink); font-weight: 600; }
+.onboarding-body small { font-size: var(--text-xs); color: var(--ink-3); line-height: 1.4; }
+
+@media (max-width: 991.98px) {
+    .onboarding-steps { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@media (max-width: 640px) {
+    .onboarding-steps { grid-template-columns: minmax(0, 1fr); }
+}

@@ -5,16 +5,16 @@
     <header class="list-head">
         <div class="list-head-main">
             <h1 class="list-head-title">
-                Blueprints
+                Blueprints (TOS)
                 <?php if (!empty($tos_list)): ?>
                     <span class="list-head-count"><?php echo number_format($total); ?></span>
                 <?php endif; ?>
             </h1>
-            <p class="list-head-desc">A Table of Specification fixes how many items each topic and Bloom level contributes to a paper.</p>
+            <p class="list-head-desc">A Table of Specification (TOS) defines how many items each topic and Bloom level contributes to an exam. Upload a syllabus and auto-generate one, or create it manually.</p>
         </div>
         <div class="list-head-actions">
             <a href="<?php echo site_url('tos/create' . (!empty($subject_context) ? '?subject=' . rawurlencode($subject_context->id) : '')); ?>" class="btn btn-primary">
-                <i data-lucide="plus"></i> New blueprint
+                <i data-lucide="plus"></i> New Blueprint
             </a>
         </div>
     </header>
@@ -22,10 +22,15 @@
     <?php if (empty($tos_list)): ?>
         <div class="empty-state">
             <h4><?php echo !empty($subject_context) ? 'No blueprints for this subject' : 'No blueprints yet'; ?></h4>
-            <p>Set the item count and Bloom weights once, then generate exams that match it every time.</p>
-            <a href="<?php echo site_url('tos/create' . (!empty($subject_context) ? '?subject=' . rawurlencode($subject_context->id) : '')); ?>" class="btn btn-primary">
-                <i data-lucide="plus"></i> New blueprint
-            </a>
+            <p>Upload a syllabus and click "Auto-generate Blueprint" to create one automatically, or create one manually and set the item count and Bloom weights yourself.</p>
+            <div class="empty-state-actions">
+                <a href="<?php echo site_url('materials/upload'); ?>" class="btn btn-outline">
+                    <i data-lucide="upload"></i> Upload Syllabus
+                </a>
+                <a href="<?php echo site_url('tos/create' . (!empty($subject_context) ? '?subject=' . rawurlencode($subject_context->id) : '')); ?>" class="btn btn-primary">
+                    <i data-lucide="plus"></i> New Blueprint
+                </a>
+            </div>
         </div>
     <?php else: ?>
         <?php
@@ -100,7 +105,7 @@
                                 <div class="g-menu-panel">
                                     <a href="<?php echo site_url('tos/view/' . rawurlencode($t->id)); ?>" class="g-menu-item"><i data-lucide="eye"></i> Open</a>
                                     <a href="<?php echo site_url('tos/edit/' . rawurlencode($t->id)); ?>" class="g-menu-item"><i data-lucide="pencil"></i> Edit</a>
-                                    <a href="<?php echo site_url('exams/create?tos=' . rawurlencode($t->id)); ?>" class="g-menu-item"><i data-lucide="file-plus-2"></i> Generate exam</a>
+                                    <a href="<?php echo site_url('exams/create?tos=' . rawurlencode($t->id)); ?>" class="g-menu-item"><i data-lucide="file-plus-2"></i> Build exam</a>
                                     <div class="g-menu-sep"></div>
                                     <form action="<?php echo site_url('tos/delete/' . rawurlencode($t->id)); ?>" method="post" class="g-menu-form">
                                         <input type="hidden" name="<?php echo $csrf_name; ?>" value="<?php echo $csrf_hash; ?>">

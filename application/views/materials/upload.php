@@ -107,6 +107,7 @@
                             <input type="checkbox" name="is_syllabus" value="1">
                             <span>This is a <strong>syllabus</strong> — use it to auto-generate a TOS blueprint</span>
                         </label>
+                        <small class="form-hint">When checked, the AI will extract topics, instructional hours, and learning outcomes from this material to automatically create a Table of Specification (TOS) blueprint.</small>
                     </div>
 
                     <div class="form-actions form-actions--sticky">

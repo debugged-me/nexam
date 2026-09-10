@@ -31,7 +31,7 @@
         <div class="card">
             <div class="card-header">
                 <span class="card-title">Questions</span>
-                <a href="<?php echo site_url('questions/create?subject=' . rawurlencode($subject->id)); ?>" class="btn btn-primary btn-sm"><i data-lucide="plus"></i> Add</a>
+                <a href="<?php echo site_url('questions?subject_id=' . rawurlencode($subject->id)); ?>" class="btn btn-primary btn-sm"><i data-lucide="plus"></i> Add</a>
             </div>
             <?php if (empty($questions)): ?>
                 <div class="empty-state empty-state-md"><i data-lucide="help-circle" aria-hidden="true"></i><p>No questions yet.</p></div>

@@ -39,7 +39,7 @@ foreach ($initial_activity as $day) {
             </p>
         </div>
         <div class="page-header-actions">
-            <a href="<?= site_url('questions/create') ?>" class="btn btn-outline">
+            <a href="<?= site_url('questions') ?>" class="btn btn-outline">
                 <i data-lucide="plus"></i> New Question
             </a>
             <a href="<?= site_url('exams/create') ?>" class="btn btn-primary">
@@ -72,7 +72,7 @@ foreach ($initial_activity as $day) {
         </div>
         <div class="card-body">
             <div class="onboarding-steps">
-                <a href="<?= site_url('subjects/create') ?>" class="onboarding-step<?= $step_done[1] ? ' is-done' : '' ?>">
+                <a href="<?= site_url('subjects') ?>" class="onboarding-step<?= $step_done[1] ? ' is-done' : '' ?>">
                     <span class="onboarding-num"><?= $step_done[1] ? '<i data-lucide="check"></i>' : '1' ?></span>
                     <span class="onboarding-body">
                         <strong>Create a Subject</strong>
@@ -237,7 +237,7 @@ foreach ($initial_activity as $day) {
                     <div class="empty-icon"><i data-lucide="layers" aria-hidden="true"></i></div>
                     <h4>Nothing classified yet</h4>
                     <p>Tag questions with a Bloom level to see coverage here.</p>
-                    <a href="<?= site_url('questions/create') ?>" class="btn btn-primary btn-sm">
+                    <a href="<?= site_url('questions') ?>" class="btn btn-primary btn-sm">
                         <i data-lucide="plus"></i> New Question
                     </a>
                 </div>
@@ -293,7 +293,7 @@ foreach ($initial_activity as $day) {
                     <div class="empty-icon"><i data-lucide="book-open" aria-hidden="true"></i></div>
                     <h4>No subjects yet</h4>
                     <p>Subjects group your questions, blueprints and exams.</p>
-                    <a href="<?= site_url('subjects/create') ?>" class="btn btn-primary btn-sm">
+                    <a href="<?= site_url('subjects') ?>" class="btn btn-primary btn-sm">
                         <i data-lucide="plus"></i> New Subject
                     </a>
                 </div>

@@ -8,12 +8,10 @@
                     <span class="list-head-count"><?php echo number_format($total); ?></span>
                 <?php endif; ?>
             </h1>
-            <p class="list-head-desc">Courses you teach. Each subject owns its own question bank, blueprints and exams.</p>
-        </div>
-        <div class="list-head-actions">
-            <button type="button" class="btn btn-primary" id="new-subject-btn">
-                <i data-lucide="plus"></i> New Subject
-            </button>
+            <details class="list-head-info">
+                <summary aria-label="What are subjects?"><i data-lucide="info"></i></summary>
+                <p>Courses you teach. Each subject owns its own question bank, blueprints and exams.</p>
+            </details>
         </div>
     </header>
 
@@ -32,6 +30,7 @@
             'label'       => 'subjects',
             'placeholder' => 'Search by name or code…',
             'bulk_url'    => site_url('subjects/bulk-delete'),
+            'action'      => '<button type="button" class="btn btn-primary btn-sm" id="new-subject-btn"><i data-lucide="plus"></i> New Subject</button>',
         ];
         $this->load->view('partials/grid_open', ['grid' => $grid, 'csrf_name' => $csrf_name, 'csrf_hash' => $csrf_hash]);
         ?>

@@ -1673,6 +1673,46 @@ textarea.form-control { resize: vertical; min-height: 92px; height: auto; paddin
     line-height: 1.5;
 }
 
+/* Collapsible info dropdown on list headers */
+.list-head-info {
+    margin-top: 4px;
+    position: relative;
+}
+
+.list-head-info > summary {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    cursor: pointer;
+    color: var(--ink-3);
+    font-size: var(--text-sm);
+    list-style: none;
+    user-select: none;
+}
+
+.list-head-info > summary::-webkit-details-marker { display: none; }
+
+.list-head-info > summary i {
+    width: 16px;
+    height: 16px;
+}
+
+.list-head-info > summary:hover { color: var(--ink-2); }
+
+.list-head-info[open] > summary { color: var(--ink-2); }
+
+.list-head-info p {
+    max-width: 68ch;
+    margin: 8px 0 0;
+    padding: 10px 14px;
+    background: var(--surface-2);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    color: var(--ink-3);
+    font-size: var(--text-sm);
+    line-height: 1.5;
+}
+
 .list-head-actions {
     display: flex;
     align-items: center;

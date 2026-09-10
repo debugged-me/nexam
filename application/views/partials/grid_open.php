@@ -15,6 +15,7 @@ $g_label       = isset($grid['label']) ? $grid['label'] : 'records';
 $g_placeholder = isset($grid['placeholder']) ? $grid['placeholder'] : 'Search…';
 $g_facets      = isset($grid['facets']) ? $grid['facets'] : [];
 $g_bulk        = isset($grid['bulk_url']) ? $grid['bulk_url'] : '';
+$g_action      = isset($grid['action']) ? $grid['action'] : '';
 ?>
 <section class="dataset" data-dataset data-density="comfortable" data-selecting="false">
 
@@ -53,6 +54,9 @@ $g_bulk        = isset($grid['bulk_url']) ? $grid['bulk_url'] : '';
                 </button>
                 <div class="ds-menu-panel" role="group" aria-label="Table options" hidden data-grid-view-panel></div>
             </div>
+            <?php if ($g_action !== ''): ?>
+                <?php echo $g_action; ?>
+            <?php endif; ?>
         </div>
     </div>
 

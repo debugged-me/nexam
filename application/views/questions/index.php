@@ -47,15 +47,10 @@ $facets[] = [
                     <span class="list-head-count"><?php echo number_format($total); ?></span>
                 <?php endif; ?>
             </h1>
-            <p class="list-head-desc">One reusable bank. Tag each item with a topic and Bloom level so blueprints can draw from it.</p>
-        </div>
-        <div class="list-head-actions">
-            <button type="button" class="btn btn-outline" id="btn-import-questions">
-                <i data-lucide="upload"></i> Import
-            </button>
-            <button type="button" class="btn btn-primary" id="new-question-btn">
-                <i data-lucide="plus"></i> New Question
-            </button>
+            <details class="list-head-info">
+                <summary aria-label="About questions"><i data-lucide="info"></i></summary>
+                <p>One reusable bank. Tag each item with a topic and Bloom level so blueprints can draw from it.</p>
+            </details>
         </div>
     </header>
 
@@ -87,6 +82,7 @@ $facets[] = [
             'placeholder' => 'Search stems and topics…',
             'bulk_url'    => site_url('questions/bulk-delete'),
             'facets'      => $facets,
+            'action'      => '<button type="button" class="btn btn-outline btn-sm" id="btn-import-questions"><i data-lucide="upload"></i> Import</button><button type="button" class="btn btn-primary btn-sm" id="new-question-btn"><i data-lucide="plus"></i> New Question</button>',
         ];
         $this->load->view('partials/grid_open', ['grid' => $grid, 'csrf_name' => $csrf_name, 'csrf_hash' => $csrf_hash]);
         ?>

@@ -1,6 +1,5 @@
 <div class="page-content page-content--wide">
 
-
     <header class="list-head">
         <div class="list-head-main">
             <h1 class="list-head-title">
@@ -9,12 +8,10 @@
                     <span class="list-head-count"><?php echo number_format($total); ?></span>
                 <?php endif; ?>
             </h1>
-            <p class="list-head-desc">A Table of Specification (TOS) defines how many items each topic and Bloom level contributes to an exam. Upload a syllabus and auto-generate one, or create it manually.</p>
-        </div>
-        <div class="list-head-actions">
-            <a href="<?php echo site_url('tos/create' . (!empty($subject_context) ? '?subject=' . rawurlencode($subject_context->id) : '')); ?>" class="btn btn-primary">
-                <i data-lucide="plus"></i> New Blueprint
-            </a>
+            <details class="list-head-info">
+                <summary aria-label="What is a blueprint?"><i data-lucide="info"></i></summary>
+                <p>A Table of Specification (TOS) defines how many items each topic and Bloom level contributes to an exam. Upload a syllabus and auto-generate one, or create it manually.</p>
+            </details>
         </div>
     </header>
 
@@ -38,6 +35,7 @@
             'label'       => 'blueprints',
             'placeholder' => 'Search blueprints…',
             'bulk_url'    => site_url('tos/bulk-delete'),
+            'action'      => '<a href="' . site_url('tos/create' . (!empty($subject_context) ? '?subject=' . rawurlencode($subject_context->id) : '')) . '" class="btn btn-primary btn-sm"><i data-lucide="plus"></i> New Blueprint</a>',
         ];
         $this->load->view('partials/grid_open', ['grid' => $grid, 'csrf_name' => $csrf_name, 'csrf_hash' => $csrf_hash]);
         ?>

@@ -9,12 +9,10 @@
                     <span class="list-head-count"><?php echo number_format($total); ?></span>
                 <?php endif; ?>
             </h1>
-            <p class="list-head-desc">Draft and published papers assembled from your question bank.</p>
-        </div>
-        <div class="list-head-actions">
-            <a href="<?php echo site_url('exams/create' . (!empty($subject_context) ? '?subject=' . rawurlencode($subject_context->id) : '')); ?>" class="btn btn-primary">
-                <i data-lucide="plus"></i> New exam
-            </a>
+            <details class="list-head-info">
+                <summary aria-label="About exams"><i data-lucide="info"></i></summary>
+                <p>Draft and published papers assembled from your question bank.</p>
+            </details>
         </div>
     </header>
 
@@ -37,6 +35,7 @@
                 ['name' => 'Status', 'column' => 4, 'options' => ['Published' => 'Published', 'Draft' => 'Draft']],
                 ['name' => 'Format', 'column' => 3, 'options' => ['Print' => 'Print', 'Digital' => 'Digital']],
             ],
+            'action'      => '<a href="' . site_url('exams/create' . (!empty($subject_context) ? '?subject=' . rawurlencode($subject_context->id) : '')) . '" class="btn btn-primary btn-sm"><i data-lucide="plus"></i> New Exam</a>',
         ];
         $this->load->view('partials/grid_open', ['grid' => $grid, 'csrf_name' => $csrf_name, 'csrf_hash' => $csrf_hash]);
         ?>

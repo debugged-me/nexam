@@ -218,6 +218,7 @@
     var bellList = document.getElementById("bell-list");
     var bellCount = document.getElementById("bell-count");
     var bellSub = document.getElementById("bell-sub");
+    var bellMarkRead = document.getElementById("bell-mark-read");
 
     function setBell(open) {
         if (!bellTrigger || !bellPanel) return;
@@ -230,16 +231,21 @@
         if (!bellList) return;
 
         var items = data.items || [];
+        var unread = data.unread || 0;
 
         if (bellCount) {
-            bellCount.textContent = items.length > 9 ? "9+" : String(items.length);
-            bellCount.hidden = items.length === 0;
+            bellCount.textContent = unread > 9 ? "9+" : String(unread);
+            bellCount.hidden = unread === 0;
         }
 
         if (bellSub) {
             bellSub.textContent = items.length === 0
                 ? "Everything looks in order"
                 : items.length + (items.length === 1 ? " item needs a look" : " items need a look");
+        }
+
+        if (bellMarkRead) {
+            bellMarkRead.hidden = unread === 0;
         }
 
         if (items.length === 0) {
@@ -276,6 +282,31 @@
             });
     }
 
+    function markAllRead() {
+        var body = new FormData();
+        var csrfName = meta("csrf-name");
+        var csrfHash = meta("csrf-hash");
+        if (csrfName && csrfHash) body.append(csrfName, csrfHash);
+
+        fetch(meta("alerts-url") + "/mark-read", {
+            method: "POST",
+            body: body,
+            credentials: "same-origin",
+            headers: { "X-Requested-With": "XMLHttpRequest" }
+        })
+            .then(function (res) { return res.ok ? res.json() : null; })
+            .then(function (data) {
+                if (data && data.ok) {
+                    if (bellCount) {
+                        bellCount.textContent = "0";
+                        bellCount.hidden = true;
+                    }
+                    if (bellMarkRead) bellMarkRead.hidden = true;
+                }
+            })
+            .catch(function () { /* silent */ });
+    }
+
     if (bellTrigger && bellPanel) {
         bellTrigger.addEventListener("click", function (ev) {
             ev.stopPropagation();
@@ -286,6 +317,13 @@
         document.addEventListener("click", function (ev) {
             if (!bellPanel.hidden && !bellPanel.contains(ev.target)) setBell(false);
         });
+
+        if (bellMarkRead) {
+            bellMarkRead.addEventListener("click", function (ev) {
+                ev.stopPropagation();
+                markAllRead();
+            });
+        }
 
         loadAlerts();
     }

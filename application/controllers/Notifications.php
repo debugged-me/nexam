@@ -29,7 +29,44 @@ class Notifications extends CI_Controller
         }
 
         $user_id = $this->session->userdata('user_id');
-        $items   = [];
+        $items   = $this->_build_items($user_id);
+
+        // Compare against the last-seen count stored in session.
+        // Items are "unread" only if the total count has grown since
+        // the instructor last opened / dismissed the bell.
+        $last_seen = (int) $this->session->userdata('bell_last_seen');
+        $unread   = max(0, count($items) - $last_seen);
+
+        return $this->_json(200, [
+            'count'  => count($items),
+            'unread' => $unread,
+            'items'  => $items,
+        ]);
+    }
+
+    /** POST: mark all current notifications as read. */
+    public function mark_read()
+    {
+        if (!$this->session->userdata('logged_in')) {
+            return $this->_json(403, ['message' => 'Unauthorized']);
+        }
+        if ($this->input->method(true) !== 'POST') {
+            show_404();
+        }
+
+        $user_id = $this->session->userdata('user_id');
+        $items   = $this->_build_items($user_id);
+
+        // Store the count so the bell shows 0 unread until new items appear.
+        $this->session->set_userdata('bell_last_seen', count($items));
+
+        return $this->_json(200, ['ok' => true, 'unread' => 0]);
+    }
+
+    /** Build the derived alert list from the instructor's own data. */
+    private function _build_items($user_id)
+    {
+        $items = [];
 
         $q_status = $this->Question_model->status_distribution($user_id);
         $drafts   = isset($q_status['draft']) ? $q_status['draft'] : 0;
@@ -102,7 +139,7 @@ class Notifications extends CI_Controller
 
         $items = array_slice($items, 0, self::MAX_ITEMS);
 
-        return $this->_json(200, ['count' => count($items), 'items' => $items]);
+        return $items;
     }
 
     private function _json($status, $payload)

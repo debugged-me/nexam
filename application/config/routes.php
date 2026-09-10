@@ -23,6 +23,7 @@ $route['account/password']   = 'account/password';
 $route['account/avatar']     = 'account/avatar';
 $route['account/avatar/remove'] = 'account/avatar_remove';
 $route['alerts']             = 'notifications/index';
+$route['alerts/mark-read']   = 'notifications/mark_read';
 $route['subjects']                = 'subjects';
 $route['subjects/create']         = 'subjects/create';
 $route['subjects/edit/(:any)']    = 'subjects/edit/$1';

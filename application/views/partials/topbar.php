@@ -86,6 +86,9 @@ function nexam_avatar($src, $initials, $id, $class = 'avatar')
                 <div class="bell-head">
                     <span class="card-title" id="bell-title">Needs Attention</span>
                     <span class="bell-sub" id="bell-sub">Checking…</span>
+                    <button type="button" class="bell-mark-read" id="bell-mark-read" hidden title="Mark all as read">
+                        <i data-lucide="check-check"></i> Mark all read
+                    </button>
                 </div>
                 <div class="bell-list" id="bell-list"></div>
             </div>

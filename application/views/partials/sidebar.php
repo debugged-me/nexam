@@ -31,10 +31,6 @@ $nav_groups = [
     ],
 ];
 
-$rail_name     = isset($full_name) && $full_name !== '' ? $full_name : 'nexam user';
-$rail_initials = name_initials($rail_name);
-$rail_avatar   = !empty($avatar_path) ? base_url($avatar_path) : '';
-$rail_role     = isset($role) && $role !== '' ? ucfirst($role) : 'Instructor';
 ?>
 <aside class="sidebar" id="sidebar">
     <div class="sidebar-brand">
@@ -65,22 +61,6 @@ $rail_role     = isset($role) && $role !== '' ? ucfirst($role) : 'Instructor';
             </div>
         <?php endforeach; ?>
     </nav>
-
-    <div class="sidebar-footer">
-        <button type="button" class="sidebar-user" data-account-action="profile">
-            <?php if ($rail_avatar !== ''): ?>
-                <span class="avatar avatar-sm has-photo"><img src="<?= htmlspecialchars($rail_avatar) ?>" alt="User profile photo"></span>
-            <?php else: ?>
-                <span class="avatar avatar-sm"><?= htmlspecialchars($rail_initials) ?></span>
-            <?php endif; ?>
-            <span class="sidebar-user-meta">
-                <strong><?= htmlspecialchars($rail_name) ?></strong>
-                <small><?= htmlspecialchars($rail_role) ?></small>
-            </span>
-            <i data-lucide="settings-2" aria-hidden="true"></i>
-            <span class="sr-only">Open account settings</span>
-        </button>
-    </div>
 </aside>
 
 <div class="mobile-sidebar-overlay" id="mobileSidebarOverlay"></div>

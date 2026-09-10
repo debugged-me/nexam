@@ -18,6 +18,24 @@ if (!fs.existsSync(STORAGE_DIR)) {
   fs.mkdirSync(STORAGE_DIR, { recursive: true });
 }
 
+// ── Helpers ──────────────────────────────────────────
+
+/** Strip a leading "A)" or "A." prefix that AI sometimes bakes into options. */
+function cleanOption(text) {
+  if (typeof text !== 'string') return String(text ?? '');
+  return text.replace(/^\s*[A-Z][).]\s*/i, '');
+}
+
+/** Draw a horizontal line across the page at the current Y position. */
+function drawLine(doc, y, x1, x2) {
+  doc.moveTo(x1, y).lineTo(x2, y).strokeColor('#999999').lineWidth(0.5).stroke();
+}
+
+/** Page dimensions for A4 with 72pt margins. */
+const PAGE = { left: 72, right: 523, width: 451 };
+
+// ── Exam PDF ─────────────────────────────────────────
+
 /**
  * Generate an exam PDF for a set of questions.
  *
@@ -39,12 +57,19 @@ export function generateExamPDF(opts) {
     const stream = fs.createWriteStream(filePath);
     doc.pipe(stream);
 
-    // ── Header ──────────────────────────────────────
-    doc.fontSize(16).font('Helvetica-Bold').text(opts.examTitle, { align: 'center' });
-    if (opts.subjectCode) {
-      doc.fontSize(11).font('Helvetica').text(`Subject Code: ${opts.subjectCode}`, { align: 'center' });
+    // ── Institution header ───────────────────────────
+    doc.fontSize(14).font('Helvetica-Bold').text('NEXAM', { align: 'center' });
+    doc.fontSize(9).font('Helvetica').text('AI-Assisted Examination System', { align: 'center' });
+    drawLine(doc, doc.y + 8, PAGE.left, PAGE.right);
+    doc.moveDown(1.5);
+
+    // ── Exam title ──────────────────────────────────
+    doc.fontSize(15).font('Helvetica-Bold').text(opts.examTitle, { align: 'center' });
+    if (opts.subjectName || opts.subjectCode) {
+      const subtitle = [opts.subjectName, opts.subjectCode && `Code: ${opts.subjectCode}`]
+        .filter(Boolean).join('  |  ');
+      doc.fontSize(10).font('Helvetica').text(subtitle, { align: 'center' });
     }
-    doc.fontSize(11).text(`${opts.subjectName || ''}`, { align: 'center' });
     doc.fontSize(11).font('Helvetica-Bold').text(`Set ${opts.setLabel}`, { align: 'center' });
     doc.moveDown(0.5);
 
@@ -55,64 +80,76 @@ export function generateExamPDF(opts) {
     doc.fontSize(10).font('Helvetica').text(infoParts.join('   |   '), { align: 'center' });
     doc.moveDown(0.5);
 
-    // ── Name/Score line ─────────────────────────────
+    // ── Name/Score/Date/Section ─────────────────────
     doc.fontSize(10).font('Helvetica');
-    doc.text('Name: _________________________________', { continued: true });
+    doc.text('Name: _________________________________________', { continued: true });
     doc.text('    Score: ______ / ' + opts.questions.length);
     doc.moveDown(0.3);
-    doc.text('Date: _________________________________', { continued: true });
+    doc.text('Date: _________________________________________', { continued: true });
     doc.text('    Section: ____________');
     doc.moveDown(1);
 
     // ── Instructions ────────────────────────────────
     if (opts.instructions) {
-      doc.font('Helvetica-Bold').text('Instructions:', { underline: true });
-      doc.font('Helvetica').text(opts.instructions, { width: 450 });
+      doc.font('Helvetica-Bold').fontSize(10).text('Instructions:', { underline: true });
+      doc.moveDown(0.2);
+      doc.font('Helvetica').text(opts.instructions, { width: PAGE.width });
       doc.moveDown(1);
     }
 
     // ── Questions ───────────────────────────────────
     let itemNum = 1;
     for (const q of opts.questions) {
-      // Check if we need a new page
-      if (doc.y > 700) doc.addPage();
+      if (doc.y > 720) doc.addPage();
 
       doc.fontSize(10).font('Helvetica-Bold');
       doc.text(`${itemNum}. `, { continued: true });
-      doc.font('Helvetica').text(q.stem, { width: 450 });
+      doc.font('Helvetica').text(q.stem, { width: PAGE.width - 15 });
 
       if (q.type === 'mcq' && q.options) {
         const options = typeof q.options === 'string' ? JSON.parse(q.options) : q.options;
         if (Array.isArray(options)) {
           for (let i = 0; i < options.length; i++) {
             const letter = String.fromCharCode(65 + i);
-            doc.text(`   ${letter}) ${options[i]}`, { width: 430, indent: 20 });
+            const text = cleanOption(options[i]);
+            doc.font('Helvetica').text(`     ${letter})  ${text}`, { width: PAGE.width - 30, indent: 20 });
           }
         }
       } else if (q.type === 'true_false') {
-        doc.text('   [  ] True    [  ] False', { indent: 20 });
+        doc.font('Helvetica').text('     [  ] True      [  ] False', { indent: 20 });
       } else if (q.type === 'matching') {
         const options = typeof q.options === 'string' ? JSON.parse(q.options) : q.options;
         if (Array.isArray(options)) {
-          doc.text('   Match the following:', { indent: 20 });
+          doc.font('Helvetica').text('     Match the following:', { indent: 20 });
           for (let i = 0; i < options.length; i++) {
-            doc.text(`   ${i + 1}. ______`, { width: 200, indent: 20, continued: true });
-            doc.text(`     ${options[i]}`);
+            const text = cleanOption(options[i]);
+            doc.text(`     ${i + 1}. ______  ${text}`, { width: 300, indent: 20 });
           }
         }
       } else if (q.type === 'identification') {
-        doc.text('   Answer: _________________________________', { indent: 20 });
+        doc.font('Helvetica').text('     Answer: _________________________________________', { indent: 20 });
       }
 
-      doc.moveDown(0.5);
+      doc.moveDown(0.6);
       itemNum++;
     }
+
+    // ── Footer ──────────────────────────────────────
+    if (doc.y > 740) doc.addPage();
+    doc.moveDown(1);
+    drawLine(doc, doc.y, PAGE.left, PAGE.right);
+    doc.moveDown(0.3);
+    doc.fontSize(8).font('Helvetica-Oblique').fillColor('#666666')
+      .text('— End of Examination —', { align: 'center' });
+    doc.text(`Generated by NEXAM  |  Set ${opts.setLabel}`, { align: 'center' });
 
     doc.end();
     stream.on('finish', () => resolve(filePath));
     stream.on('error', reject);
   });
 }
+
+// ── Answer Key PDF ───────────────────────────────────
 
 /**
  * Generate an answer key PDF.
@@ -128,35 +165,67 @@ export function generateAnswerKeyPDF(opts) {
     const stream = fs.createWriteStream(filePath);
     doc.pipe(stream);
 
-    // Header
-    doc.fontSize(16).font('Helvetica-Bold').text(`${opts.examTitle} — Answer Key`, { align: 'center' });
-    doc.fontSize(11).font('Helvetica').text(`Set ${opts.setLabel}`, { align: 'center' });
+    // ── Header ──────────────────────────────────────
+    doc.fontSize(14).font('Helvetica-Bold').text('NEXAM', { align: 'center' });
+    doc.fontSize(9).font('Helvetica').text('AI-Assisted Examination System', { align: 'center' });
+    drawLine(doc, doc.y + 8, PAGE.left, PAGE.right);
+    doc.moveDown(1.5);
+
+    // ── Title ───────────────────────────────────────
+    doc.fontSize(15).font('Helvetica-Bold').text(`${opts.examTitle}`, { align: 'center' });
+    doc.fontSize(11).font('Helvetica-Bold').fillColor('#B91C1C')
+      .text(`ANSWER KEY — Set ${opts.setLabel}`, { align: 'center' });
+    doc.fillColor('#000000');
     doc.moveDown(1);
 
-    // Answer table
+    // ── Answer table ────────────────────────────────
     let itemNum = 1;
     for (const q of opts.questions) {
-      if (doc.y > 750) doc.addPage();
+      if (doc.y > 740) doc.addPage();
 
       doc.fontSize(10).font('Helvetica-Bold');
       doc.text(`${itemNum}. `, { continued: true });
-      doc.font('Helvetica').text(q.stem, { width: 380, continued: true });
-      doc.font('Helvetica-Bold').text(`  Answer: ${q.answer || 'N/A'}`);
+      doc.font('Helvetica').text(q.stem, { width: 340, continued: true });
+
+      // Format the answer based on question type
+      let answerText = q.answer || 'N/A';
+      if (q.type === 'mcq' && q.options) {
+        const options = typeof q.options === 'string' ? JSON.parse(q.options) : q.options;
+        if (Array.isArray(options)) {
+          const idx = typeof answerText === 'string' ? answerText.charCodeAt(0) - 65 : -1;
+          if (idx >= 0 && idx < options.length) {
+            answerText = `${answerText}) ${cleanOption(options[idx])}`;
+          }
+        }
+      }
+      doc.font('Helvetica-Bold').fillColor('#B91C1C').text(`  → ${answerText}`);
+      doc.fillColor('#000000');
 
       if (q.explanation) {
-        doc.font('Helvetica-Oblique').fontSize(9).text(`   ${q.explanation}`, { width: 430, indent: 20 });
-        doc.fontSize(10);
+        doc.font('Helvetica-Oblique').fontSize(9).fillColor('#444444')
+          .text(`     ${q.explanation}`, { width: PAGE.width - 20, indent: 20 });
+        doc.fillColor('#000000').fontSize(10);
       }
 
-      doc.moveDown(0.3);
+      doc.moveDown(0.4);
       itemNum++;
     }
+
+    // ── Footer ──────────────────────────────────────
+    if (doc.y > 740) doc.addPage();
+    doc.moveDown(1);
+    drawLine(doc, doc.y, PAGE.left, PAGE.right);
+    doc.moveDown(0.3);
+    doc.fontSize(8).font('Helvetica-Oblique').fillColor('#666666')
+      .text('— End of Answer Key —', { align: 'center' });
 
     doc.end();
     stream.on('finish', () => resolve(filePath));
     stream.on('error', reject);
   });
 }
+
+// ── TOS Report PDF ──────────────────────────────────
 
 /**
  * Generate a TOS summary report PDF showing the blueprint alignment.
@@ -175,20 +244,27 @@ export function generateTOSReportPDF(opts) {
     const stream = fs.createWriteStream(filePath);
     doc.pipe(stream);
 
-    // Header
-    doc.fontSize(16).font('Helvetica-Bold').text('Table of Specification Report', { align: 'center' });
+    // ── Header ──────────────────────────────────────
+    doc.fontSize(14).font('Helvetica-Bold').text('NEXAM', { align: 'center' });
+    doc.fontSize(9).font('Helvetica').text('AI-Assisted Examination System', { align: 'center' });
+    drawLine(doc, doc.y + 8, PAGE.left, PAGE.right);
+    doc.moveDown(1.5);
+
+    // ── Title ───────────────────────────────────────
+    doc.fontSize(15).font('Helvetica-Bold').text('Table of Specification Report', { align: 'center' });
     doc.fontSize(12).font('Helvetica').text(opts.examTitle, { align: 'center' });
     doc.moveDown(1);
 
-    // Summary stats
+    // ── Summary stats ───────────────────────────────
     doc.fontSize(10).font('Helvetica-Bold').text('Summary', { underline: true });
+    doc.moveDown(0.2);
     doc.font('Helvetica').text(`Total Items: ${opts.tos.total_items}`);
     doc.text(`Topics: ${opts.topics.length}`);
     const totalHours = opts.topics.reduce((s, t) => s + (t.instructional_hours || 0), 0);
     doc.text(`Total Instructional Hours: ${totalHours}`);
     doc.moveDown(1);
 
-    // Bloom distribution table
+    // ── Bloom distribution table ────────────────────
     doc.font('Helvetica-Bold').text('Bloom Taxonomy Distribution', { underline: true });
     doc.moveDown(0.3);
 
@@ -204,7 +280,9 @@ export function generateTOSReportPDF(opts) {
     doc.text('Planned %', colX.planned, doc.y - 12, { width: 80 });
     doc.text('Actual Count', colX.actual, doc.y, { width: 80 });
     doc.text('Match', colX.match, doc.y, { width: 60 });
-    doc.moveDown(0.5);
+    doc.moveDown(0.3);
+    drawLine(doc, doc.y, PAGE.left, PAGE.right);
+    doc.moveDown(0.2);
 
     doc.font('Helvetica').fontSize(9);
     for (const dist of opts.actualDistribution) {
@@ -220,7 +298,7 @@ export function generateTOSReportPDF(opts) {
 
     doc.moveDown(1);
 
-    // Topics table
+    // ── Topics table ────────────────────────────────
     if (doc.y > 650) doc.addPage();
     doc.font('Helvetica-Bold').fontSize(10).text('Topics', { underline: true });
     doc.moveDown(0.3);
@@ -230,17 +308,27 @@ export function generateTOSReportPDF(opts) {
     doc.text('Topic', 110, doc.y - 12, { width: 280 });
     doc.text('Hours', 400, doc.y, { width: 60 });
     doc.text('Items', 470, doc.y, { width: 50 });
-    doc.moveDown(0.5);
+    doc.moveDown(0.3);
+    drawLine(doc, doc.y, PAGE.left, PAGE.right);
+    doc.moveDown(0.2);
 
     doc.font('Helvetica').fontSize(9);
     opts.topics.forEach((t, i) => {
-      if (doc.y > 750) doc.addPage();
+      if (doc.y > 740) doc.addPage();
       doc.text(String(i + 1), 72, doc.y, { width: 30 });
       doc.text(t.title, 110, doc.y - 12, { width: 280 });
       doc.text(String(t.instructional_hours || 0), 400, doc.y, { width: 60 });
       doc.text(String(t.item_count || 0), 470, doc.y, { width: 50 });
       doc.moveDown(0.3);
     });
+
+    // ── Footer ──────────────────────────────────────
+    if (doc.y > 740) doc.addPage();
+    doc.moveDown(1);
+    drawLine(doc, doc.y, PAGE.left, PAGE.right);
+    doc.moveDown(0.3);
+    doc.fontSize(8).font('Helvetica-Oblique').fillColor('#666666')
+      .text('Generated by NEXAM  |  Table of Specification Report', { align: 'center' });
 
     doc.end();
     stream.on('finish', () => resolve(filePath));

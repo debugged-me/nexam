@@ -29,7 +29,7 @@
   width: 100%;
   max-width: 40px;
   background: var(--surface-2, #f1f5f9);
-  border-radius: 4px 4px 0 0;
+  border-radius: var(--radius-xs) var(--radius-xs) 0 0;
   display: flex;
   align-items: flex-end;
   overflow: hidden;
@@ -37,8 +37,8 @@
 
 .dist-bar-fill {
   width: 100%;
-  background: linear-gradient(180deg, var(--primary, #4f46e5), #6366f1);
-  border-radius: 4px 4px 0 0;
+  background: linear-gradient(180deg, var(--action-600), var(--action-700));
+  border-radius: var(--radius-xs) var(--radius-xs) 0 0;
   min-height: 2px;
   transition: height 0.3s ease;
 }
@@ -54,8 +54,8 @@
   position: relative;
   width: 100px;
   height: 20px;
-  background: var(--surface-2, #f1f5f9);
-  border-radius: 10px;
+  background: var(--surface-2);
+  border-radius: var(--radius-lg);
   overflow: hidden;
 }
 
@@ -64,8 +64,8 @@
   left: 0;
   top: 0;
   bottom: 0;
-  background: linear-gradient(90deg, #10b981, #34d399);
-  border-radius: 10px;
+  background: linear-gradient(90deg, var(--green-600), var(--green-700));
+  border-radius: var(--radius-lg);
   transition: width 0.3s ease;
 }
 
@@ -73,7 +73,7 @@
   position: relative;
   z-index: 1;
   font: 600 0.7rem var(--font-display, sans-serif);
-  color: var(--ink, #1e293b);
+  color: var(--ink);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -94,13 +94,13 @@
   align-items: center;
   padding: 0.2rem 0.4rem;
   background: var(--surface-2, #f1f5f9);
-  border-radius: 4px;
+  border-radius: var(--radius-xs);
   min-width: 32px;
 }
 
 .answer-dist-letter {
   font: 600 0.7rem var(--font-display, sans-serif);
-  color: var(--ink, #1e293b);
+  color: var(--ink);
 }
 
 .answer-dist-count {
@@ -110,8 +110,8 @@
 
 /* ── Badge colors for difficulty ───────────────────── */
 .badge-red {
-  background: #fee2e2;
-  color: #dc2626;
+  background: var(--red-50);
+  color: var(--red-600);
 }
 
 /* ── Responsive ──────────────────────────────────── */
@@ -124,4 +124,54 @@
   .dist-bar {
     min-width: 30px;
   }
+}
+
+/* ── Confusion matrix table ────────────────────────── */
+.confusion-matrix-table {
+  table-layout: fixed;
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.confusion-matrix-table th,
+.confusion-matrix-table td {
+  text-align: center;
+  padding: 0.5rem 0.25rem;
+  font-size: 0.85rem;
+}
+
+.confusion-matrix-table .cm-axis-label {
+  font-size: 0.75rem;
+  color: var(--ink-2, #475569);
+  text-align: left;
+  vertical-align: bottom;
+}
+
+.confusion-matrix-table .cm-col-header {
+  font-size: 0.75rem;
+  text-transform: capitalize;
+  white-space: nowrap;
+}
+
+.confusion-matrix-table .cm-row-header {
+  text-align: left;
+  font-size: 0.75rem;
+  text-transform: capitalize;
+  white-space: nowrap;
+  font-weight: 600;
+  background: var(--surface);
+}
+
+.confusion-matrix-table .cm-cell {
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
+}
+
+.confusion-matrix-table .cm-diagonal {
+  background: color-mix(in srgb, var(--success) 18%, transparent);
+  font-weight: 700;
+}
+
+.confusion-matrix-table .cm-zero {
+  color: var(--ink-3, #94a3b8);
 }

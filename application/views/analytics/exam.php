@@ -38,7 +38,7 @@
                 $bins = [0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100];
                 $dist_map = [];
                 foreach ($distribution as $d) { $dist_map[(int)$d->bin_start] = (int)$d->count; }
-                $max_count = max(1, max($dist_map));
+                $max_count = max(1, $dist_map ? max($dist_map) : 0);
                 for ($i = 0; $i < 10; $i++):
                     $bin_start = $i * 10;
                     $count = $dist_map[$bin_start] ?? 0;

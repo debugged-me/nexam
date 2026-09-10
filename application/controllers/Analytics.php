@@ -22,8 +22,8 @@ class Analytics extends MY_Controller
     {
         $response = $this->nexam_api->get('analytics/overview');
         $data['overview'] = $response['body']['overview'] ?? [];
-        $data['recent_scans'] = $response['body']['recentScans'] ?? [];
-        $data['exam_averages'] = $response['body']['examAverages'] ?? [];
+        $data['recent_scans'] = array_map(fn($s) => (object) $s, $response['body']['recentScans'] ?? []);
+        $data['exam_averages'] = array_map(fn($e) => (object) $e, $response['body']['examAverages'] ?? []);
         $data['page_css'] = ['analytics.css'];
         $data['page_js'] = ['analytics.js'];
         $this->render('analytics/index', $data);
@@ -39,10 +39,10 @@ class Analytics extends MY_Controller
             return;
         }
 
-        $data['exam'] = $response['body']['exam'] ?? null;
-        $data['stats'] = $response['body']['stats'] ?? [];
-        $data['distribution'] = $response['body']['distribution'] ?? [];
-        $data['students'] = $response['body']['students'] ?? [];
+        $data['exam'] = (object) ($response['body']['exam'] ?? []);
+        $data['stats'] = (object) ($response['body']['stats'] ?? []);
+        $data['distribution'] = array_map(fn($d) => (object) $d, $response['body']['distribution'] ?? []);
+        $data['students'] = array_map(fn($s) => (object) $s, $response['body']['students'] ?? []);
         $data['page_css'] = ['analytics.css'];
         $data['page_js'] = ['analytics.js'];
         $this->render('analytics/exam', $data);
@@ -58,7 +58,7 @@ class Analytics extends MY_Controller
             return;
         }
 
-        $data['items'] = $response['body']['items'] ?? [];
+        $data['items'] = json_decode(json_encode($response['body']['items'] ?? []));
         $data['exam_id'] = $exam_id;
         $data['page_css'] = ['analytics.css'];
         $data['page_js'] = ['analytics.js'];
@@ -75,9 +75,9 @@ class Analytics extends MY_Controller
             return;
         }
 
-        $data['student'] = $response['body']['student'] ?? null;
-        $data['scans'] = $response['body']['scans'] ?? [];
-        $data['stats'] = $response['body']['stats'] ?? [];
+        $data['student'] = (object) ($response['body']['student'] ?? []);
+        $data['scans'] = array_map(fn($s) => (object) $s, $response['body']['scans'] ?? []);
+        $data['stats'] = (object) ($response['body']['stats'] ?? []);
         $data['page_css'] = ['analytics.css'];
         $data['page_js'] = ['analytics.js'];
         $this->render('analytics/student', $data);
@@ -93,6 +93,7 @@ class Analytics extends MY_Controller
         $data['providers'] = $response['body']['providers'] ?? [];
         $data['bloom_distribution'] = $response['body']['bloomDistribution'] ?? [];
         $data['type_distribution'] = $response['body']['typeDistribution'] ?? [];
+        $data['confusion_matrix'] = $response['body']['confusionMatrix'] ?? [];
         $data['page_css'] = ['analytics.css'];
         $data['page_js'] = ['analytics.js'];
         $this->render('analytics/ai_eval', $data);

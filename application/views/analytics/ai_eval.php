@@ -86,8 +86,11 @@
                         <tbody>
                             <?php foreach ($bloom_distribution as $b): ?>
                                 <tr>
-                                    <td><span class="g-bloom"><?php echo ucfirst(htmlspecialchars($b->bloom)); ?></span></td>
-                                    <td class="text-muted"><?php echo (int) $b->count; ?></td>
+                                    <td><span class="g-bloom" data-level="<?php
+                                        $bl = ['remember'=>1,'understand'=>2,'apply'=>3,'analyze'=>4,'evaluate'=>5,'create'=>6];
+                                        echo $bl[$b['bloom']] ?? 0;
+                                    ?>"><?php echo ucfirst(htmlspecialchars($b['bloom'])); ?></span></td>
+                                    <td class="text-muted"><?php echo (int) $b['count']; ?></td>
                                 </tr>
                             <?php endforeach; ?>
                         </tbody>
@@ -105,10 +108,17 @@
                     <table class="data-table">
                         <thead><tr><th>Type</th><th>Count</th></tr></thead>
                         <tbody>
-                            <?php foreach ($type_distribution as $t): ?>
+                            <?php
+                            $type_labels = [
+                                'mcq' => 'Multiple choice',
+                                'true_false' => 'True / false',
+                                'matching' => 'Matching type',
+                                'identification' => 'Identification',
+                            ];
+                            foreach ($type_distribution as $t): ?>
                                 <tr>
-                                    <td><?php echo ucfirst(htmlspecialchars($t->type)); ?></td>
-                                    <td class="text-muted"><?php echo (int) $t->count; ?></td>
+                                    <td><?php echo htmlspecialchars($type_labels[$t['type']] ?? ucfirst($t['type'])); ?></td>
+                                    <td class="text-muted"><?php echo (int) $t['count']; ?></td>
                                 </tr>
                             <?php endforeach; ?>
                         </tbody>
@@ -127,13 +137,144 @@
                 <tbody>
                     <?php foreach ($providers as $p): ?>
                         <tr>
-                            <td><span class="badge badge-gray"><?php echo htmlspecialchars($p->provider ?? 'unknown'); ?></span></td>
-                            <td class="text-muted"><?php echo htmlspecialchars($p->model ?? '—'); ?></td>
-                            <td><?php echo (int) $p->count; ?></td>
+                            <td><span class="badge badge-gray"><?php echo htmlspecialchars($p['provider'] ?? 'unknown'); ?></span></td>
+                            <td class="text-muted"><?php echo htmlspecialchars($p['model'] ?? '—'); ?></td>
+                            <td><?php echo (int) $p['count']; ?></td>
                         </tr>
                     <?php endforeach; ?>
                 </tbody>
             </table>
+        </div>
+    </div>
+    <?php endif; ?>
+
+    <?php if (!empty($confusion_matrix) && !empty($confusion_matrix['sampleSize'])): ?>
+    <?php $cm = $confusion_matrix; ?>
+    <div class="card mb-3">
+        <div class="card-header">
+            <span class="card-title">Bloom's Taxonomy Classification — Confusion Matrix</span>
+            <span class="text-muted meta-sm">Sample size: <?php echo (int) $cm['sampleSize']; ?> reviewed questions</span>
+        </div>
+        <div class="card-body">
+            <div class="stats-grid mb-3">
+                <div class="stat-card">
+                    <div class="stat-icon green"><i data-lucide="target"></i></div>
+                    <div class="stat-info">
+                        <div class="stat-value"><?php echo number_format(($cm['overall']['accuracy'] ?? 0) * 100, 1); ?>%</div>
+                        <div class="stat-label">Accuracy</div>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon blue"><i data-lucide="crosshair"></i></div>
+                    <div class="stat-info">
+                        <div class="stat-value"><?php echo number_format(($cm['overall']['precision'] ?? 0) * 100, 1); ?>%</div>
+                        <div class="stat-label">Precision</div>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon amber"><i data-lucide="search"></i></div>
+                    <div class="stat-info">
+                        <div class="stat-value"><?php echo number_format(($cm['overall']['recall'] ?? 0) * 100, 1); ?>%</div>
+                        <div class="stat-label">Recall</div>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon purple"><i data-lucide="git-merge"></i></div>
+                    <div class="stat-info">
+                        <div class="stat-value"><?php echo number_format(($cm['overall']['f1'] ?? 0) * 100, 1); ?>%</div>
+                        <div class="stat-label">F1-Score</div>
+                    </div>
+                </div>
+            </div>
+
+            <p class="text-muted meta-sm mb-2">
+                Compares the AI's predicted Bloom level against the instructor's confirmed Bloom level for each reviewed question.
+                Diagonal cells (highlighted) are correct predictions; off-diagonal cells are misclassifications.
+            </p>
+
+            <?php $classes = $cm['classes'] ?? []; ?>
+            <?php if (!empty($classes)): ?>
+            <div class="table-wrap">
+                <table class="data-table confusion-matrix-table">
+                    <thead>
+                        <tr>
+                            <th rowspan="2" class="cm-axis-label">AI Predicted &darr;</th>
+                            <th colspan="<?php echo count($classes); ?>">Instructor Confirmed &rarr;</th>
+                        </tr>
+                        <tr>
+                            <?php foreach ($classes as $cls): ?>
+                                <th class="cm-col-header"><?php echo ucfirst(htmlspecialchars($cls)); ?></th>
+                            <?php endforeach; ?>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php foreach ($classes as $predicted): ?>
+                        <tr>
+                            <td class="cm-row-header"><?php echo ucfirst(htmlspecialchars($predicted)); ?></td>
+                            <?php foreach ($classes as $actual): ?>
+                                <?php
+                                $cell = (int)($cm['matrix'][$predicted][$actual] ?? 0);
+                                $isDiagonal = ($predicted === $actual);
+                                $cellClass = $isDiagonal ? 'cm-cell cm-diagonal' : 'cm-cell';
+                                if ($cell === 0) $cellClass .= ' cm-zero';
+                                ?>
+                                <td class="<?php echo $cellClass; ?>"><?php echo $cell > 0 ? $cell : '·'; ?></td>
+                            <?php endforeach; ?>
+                        </tr>
+                        <?php endforeach; ?>
+                    </tbody>
+                </table>
+            </div>
+            <?php endif; ?>
+
+            <?php if (!empty($cm['perClass'])): ?>
+            <h3 class="mt-3 mb-1">Per-Class Metrics</h3>
+            <div class="table-wrap">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Bloom Level</th>
+                            <th>TP</th>
+                            <th>FP</th>
+                            <th>FN</th>
+                            <th>TN</th>
+                            <th>Accuracy</th>
+                            <th>Precision</th>
+                            <th>Recall</th>
+                            <th>F1-Score</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php foreach ($cm['perClass'] as $pc): ?>
+                        <tr>
+                            <td><span class="g-bloom" data-level="<?php
+                                $bl = ['remember'=>1,'understand'=>2,'apply'=>3,'analyze'=>4,'evaluate'=>5,'create'=>6];
+                                echo $bl[$pc['bloom']] ?? 0;
+                            ?>"><?php echo ucfirst(htmlspecialchars($pc['bloom'])); ?></span></td>
+                            <td class="text-right"><?php echo (int) $pc['tp']; ?></td>
+                            <td class="text-right"><?php echo (int) $pc['fp']; ?></td>
+                            <td class="text-right"><?php echo (int) $pc['fn']; ?></td>
+                            <td class="text-right"><?php echo (int) $pc['tn']; ?></td>
+                            <td class="text-right"><?php echo number_format($pc['accuracy'] * 100, 2); ?>%</td>
+                            <td class="text-right"><?php echo number_format($pc['precision'] * 100, 2); ?>%</td>
+                            <td class="text-right"><?php echo number_format($pc['recall'] * 100, 2); ?>%</td>
+                            <td class="text-right"><strong><?php echo number_format($pc['f1'] * 100, 2); ?>%</strong></td>
+                        </tr>
+                        <?php endforeach; ?>
+                    </tbody>
+                </table>
+            </div>
+            <?php endif; ?>
+        </div>
+    </div>
+    <?php else: ?>
+    <div class="card mb-3">
+        <div class="card-header"><span class="card-title">Bloom's Taxonomy Classification — Confusion Matrix</span></div>
+        <div class="card-body">
+            <div class="empty-state empty-state-md">
+                <i data-lucide="grid-3x3" aria-hidden="true"></i>
+                <p>No reviewed AI questions yet. The confusion matrix will appear once instructors review and approve or reject AI-generated questions, confirming or correcting the AI's Bloom level assignment.</p>
+            </div>
         </div>
     </div>
     <?php endif; ?>

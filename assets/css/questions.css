@@ -12,7 +12,7 @@
     height: 18px;
     padding: 0 5px;
     margin-left: 2px;
-    border-radius: 9px;
+    border-radius: var(--radius-lg);
     background: var(--blue-600);
     color: #fff;
     font-size: var(--text-xs);
@@ -99,3 +99,24 @@
     .question-form-grid { grid-template-columns: 1fr; }
     .option-row { grid-template-columns: 24px 44px minmax(0, 1fr) 44px; gap: 4px; }
 }
+
+/* Similarity review page */
+.sim-question { padding: 0; }
+.sim-question-meta { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; flex-wrap: wrap; }
+.sim-question-stem { font-size: 1rem; line-height: 1.5; margin-bottom: 12px; }
+.sim-question-options { list-style: none; padding: 0; margin: 0; }
+.sim-question-options li { padding: 6px 12px; border-radius: var(--radius-xs); margin-bottom: 4px; font-size: .9rem; }
+.sim-question-options li.is-correct { background: var(--green-50); font-weight: 500; }
+.sim-question-options li i { width: 14px; height: 14px; color: var(--green-600); }
+.sim-question-answer { padding: 8px 12px; background: var(--surface-2); border-radius: var(--radius-xs); font-size: .9rem; }
+
+.sim-matches { display: flex; flex-direction: column; gap: 16px; }
+.sim-match { padding: 12px; border: 1px solid var(--border); border-radius: var(--radius); }
+.sim-match-header { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; flex-wrap: wrap; }
+.sim-match-score { font-size: .8rem; font-weight: 600; color: var(--amber-700); }
+.sim-match-stem { font-size: .9rem; line-height: 1.4; }
+
+.sim-decision-actions { display: flex; gap: 12px; flex-wrap: wrap; }
+.sim-decision-actions .btn { min-width: 200px; justify-content: center; }
+.btn.is-danger { color: var(--red-600); border-color: var(--red-600); }
+.btn.is-danger:hover { background: var(--red-600); color: #fff; }

@@ -1,9 +1,11 @@
 /**
  * Exam generation routes — Set A/Set B, answer keys, TOS reports, PDFs.
  *
- * POST /api/exams/:id/generate-sets  — generate Set A and Set B PDFs
- * GET  /api/exams/:id/sets           — list generated sets
- * GET  /api/exams/:id/tos-report     — generate/download TOS report
+ * GET  /api/exams                     — list exams for the authenticated instructor
+ * POST /api/exams/:id/generate-sets   — generate Set A and Set B PDFs
+ * GET  /api/exams/:id/sets            — list generated sets
+ * GET  /api/exams/:id/download/:type  — download a PDF (exam, answerkey, omr, tos-report)
+ * GET  /api/exams/:id/export/:format  — export questions as GIFT or XML
  *
  * All routes require auth (JWT). Ownership is checked against
  * subjects.instructor_id == req.user.id.
@@ -17,6 +19,26 @@ import { toGIFT, toCanvasXML } from '../services/lmsExport.js';
 import { generateOMRSheet } from '../services/omrService.js';
 
 const router = Router();
+
+/** GET /api/exams — list exams for the authenticated instructor. */
+router.get('/', requireAuth, async (req, res, next) => {
+  try {
+    const [exams] = await pool.query(
+      `SELECT e.id, e.title, e.subject_id, s.name AS subject_name,
+              e.status, e.set_count, e.format, e.duration_minutes,
+              (SELECT COUNT(*) FROM exam_questions eq WHERE eq.exam_id = e.id) AS question_count,
+              (SELECT COUNT(*) FROM exam_sets es WHERE es.exam_id = e.id) AS set_item_count
+       FROM exams e
+       JOIN subjects s ON s.id = e.subject_id
+       WHERE s.instructor_id = :userId
+       ORDER BY e.created_at DESC`,
+      { userId: req.user.id }
+    );
+    res.json({ exams });
+  } catch (err) {
+    next(err);
+  }
+});
 
 /** POST /api/exams/:id/generate-sets — generate Set A and Set B PDFs. */
 router.post('/:id/generate-sets', requireAuth, async (req, res, next) => {
@@ -70,7 +92,7 @@ router.post('/:id/generate-sets', requireAuth, async (req, res, next) => {
     await pool.query(`DELETE FROM exam_set_questions WHERE exam_set_id IN (SELECT id FROM exam_sets WHERE exam_id = :examId)`, { examId });
     await pool.query(`DELETE FROM exam_sets WHERE exam_id = :examId`, { examId });
 
-    const setCount = exam.set_count || 1;
+    const setCount = Math.min(Math.max(parseInt(req.body.setCount, 10) || exam.set_count || 1, 1), 2);
     const generatedSets = [];
 
     for (let setIdx = 0; setIdx < setCount; setIdx++) {

@@ -79,8 +79,8 @@ export async function generate(systemPrompt, userPrompt, opts = {}) {
         };
       }
       const res = await gemini.models.generateContent(params);
-      const text = res.response.text();
-      return { text, provider: 'gemini', model: env.ai.gemini.model, usage: res.response.usageMetadata || null };
+      const text = typeof res.text === 'function' ? res.text() : res.text;
+      return { text, provider: 'gemini', model: env.ai.gemini.model, usage: res.usageMetadata || res.response?.usageMetadata || null };
     } catch (err) {
       console.warn(`[aiProvider] Gemini failed: ${err.message}. Falling back to Groq...`);
       if (!isRetryable(err)) throw err;

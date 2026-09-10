@@ -21,7 +21,8 @@ router.get('/exam/:examId', requireAuth, async (req, res, next) => {
 
     // Ownership check
     const [examRows] = await pool.query(
-      `SELECT e.id, e.title, e.total_items FROM exams e
+      `SELECT e.id, e.title
+       FROM exams e
        JOIN subjects s ON s.id = e.subject_id
        WHERE e.id = :examId AND s.instructor_id = :userId`,
       { examId, userId: req.user.id }

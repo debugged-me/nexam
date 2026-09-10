@@ -70,6 +70,7 @@ ALTER TABLE `questions`
   ADD COLUMN `similarity_flag` VARCHAR(20) NOT NULL DEFAULT 'none' COMMENT 'none|similar|flagged' AFTER `embedding`,
   ADD COLUMN `similarity_score` DECIMAL(5,4) NULL AFTER `similarity_flag`,
   ADD COLUMN `generation_meta` LONGTEXT CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NULL COMMENT 'JSON: prompt, chunk ids, model, tokens' AFTER `similarity_score`,
+  ADD COLUMN `ai_predicted_bloom` VARCHAR(20) NULL COMMENT 'Original AI-assigned Bloom level, for confusion matrix evaluation' AFTER `similarity_score`,
   ADD COLUMN `approved_by` CHAR(36) NULL AFTER `generation_meta`,
   ADD COLUMN `approved_at` TIMESTAMP NULL AFTER `approved_by`,
   ADD KEY `idx_questions_tos` (`tos_id`),

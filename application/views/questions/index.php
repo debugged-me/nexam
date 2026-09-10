@@ -121,6 +121,11 @@ $facets[] = [
                         <td>
                             <span class="g-primary">
                                 <a href="<?php echo site_url('questions/edit/' . rawurlencode($q->id)); ?>" class="g-title" title="<?php echo htmlspecialchars($stem); ?>"><?php echo htmlspecialchars(mb_strimwidth($stem, 0, 120, '…')); ?></a>
+                                <?php if (!empty($q->similarity_flag) && $q->similarity_flag === 'flagged'): ?>
+                                    <a href="<?php echo site_url('questions/similarity/' . rawurlencode($q->id)); ?>" class="sim-flag" title="Possible duplicate — click to review">
+                                        <i data-lucide="copy"></i> Similar
+                                    </a>
+                                <?php endif; ?>
                                 <span class="g-meta"><?php echo $q->topic ? htmlspecialchars($q->topic) : 'No topic'; ?></span>
                             </span>
                         </td>

@@ -566,6 +566,24 @@ a.g-title:focus-visible { outline: 2px solid var(--brand-accent); outline-offset
 /* Compact density drops the second line rather than squashing it. */
 .dataset[data-density="compact"] .g-meta { display: none; }
 
+/* Similarity flag badge on question title */
+.sim-flag {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    margin-left: 6px;
+    padding: 1px 6px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--warn-ink, #92400e);
+    background: var(--warn-bg, #fef3c7);
+    text-decoration: none;
+    vertical-align: middle;
+}
+.sim-flag:hover { text-decoration: underline; }
+.sim-flag i { width: 12px; height: 12px; }
+
 /* ---- Secondary cell text --------------------------------------------- */
 
 .g-text { color: var(--ink-2); }

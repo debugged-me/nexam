@@ -994,6 +994,8 @@ body.rail-collapsed .nav-item:hover::after { opacity: 1; }
 
 .btn-sm { min-height: 40px; padding: 0 .8rem; font-size: .8125rem; }
 .btn-sm svg { width: 14px !important; height: 14px !important; }
+.btn-xs { min-height: 28px; padding: 0 .5rem; font-size: .75rem; }
+.btn-xs svg { width: 12px !important; height: 12px !important; }
 .btn-lg { height: 46px; padding: 0 1.4rem; font-size: .9375rem; }
 .btn-block { width: 100%; }
 
@@ -1623,7 +1625,7 @@ textarea.form-control { resize: vertical; min-height: 92px; height: auto; paddin
    ========================================================================== */
 
 /* Action button group in a page-header (replaces inline flex) */
-.header-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.header-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 
 /* Two-column grid for side-by-side cards on detail pages */
 .detail-grid-2 {

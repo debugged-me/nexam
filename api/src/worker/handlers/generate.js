@@ -103,10 +103,10 @@ export default async function generateHandler(job) {
     const questionId = uuid();
     await pool.query(
       `INSERT INTO questions
-         (id, subject_id, tos_id, topic, bloom, type, stem, options, answer,
+         (id, subject_id, tos_id, topic, bloom, ai_predicted_bloom, type, stem, options, answer,
           explanation, status, source, generation_meta, created_by)
        VALUES
-         (:id, :subjectId, :tosId, :topic, :bloom, :type, :stem, :options, :answer,
+         (:id, :subjectId, :tosId, :topic, :bloom, :aiPredictedBloom, :type, :stem, :options, :answer,
           :explanation, 'draft', 'ai', :meta, :createdBy)`,
       {
         id: questionId,
@@ -114,6 +114,7 @@ export default async function generateHandler(job) {
         tosId: tos.id,
         topic: q.topic || null,
         bloom: q.bloom,
+        aiPredictedBloom: q.bloom,
         type: q.type,
         stem: q.stem,
         options: q.options ? JSON.stringify(q.options) : null,
@@ -228,8 +229,10 @@ ${context}
     usage: result.usage,
   };
 
+  const ALLOWED_TYPES = new Set(['mcq', 'true_false', 'matching', 'identification']);
+
   const validQuestions = questions
-    .filter((q) => q && q.stem && q.type)
+    .filter((q) => q && q.stem && q.type && ALLOWED_TYPES.has(q.type))
     .map((q) => ({
       ...q,
       bloom,

@@ -463,4 +463,83 @@ class Questions extends MY_Controller
                 'csrf_hash' => $this->security->get_csrf_hash(),
             ]));
     }
+
+    /**
+     * Similarity review page — shows a flagged question alongside its
+     * near-duplicate candidates so the instructor can decide whether to
+     * keep, edit, or reject it.
+     */
+    public function similarity($question_id)
+    {
+        $question = $this->Question_model->get_owned($question_id, $this->user_id);
+        if (!$question) {
+            $this->session->set_flashdata('toast', ['type' => 'error', 'message' => 'Question not found.']);
+            redirect('questions');
+            return;
+        }
+
+        // Load similarity_results joined with the matching question
+        $this->db->select('sr.score, sr.decision, q.id AS match_id, q.stem, q.type, q.bloom, q.status, q.topic');
+        $this->db->from('similarity_results sr');
+        $this->db->join('questions q', 'q.id = sr.similar_question_id', 'left');
+        $this->db->where('sr.question_id', $question_id);
+        $this->db->order_by('sr.score', 'DESC');
+        $matches = $this->db->get()->result();
+
+        $data['question']  = $question;
+        $data['matches']   = $matches;
+        $data['page_css']  = ['questions.css'];
+        $data['page_js']   = ['questions.js'];
+        $this->render('questions/similarity', $data);
+    }
+
+    /**
+     * AJAX: record the instructor's similarity decision (keep / reject).
+     */
+    public function similarity_decide($question_id)
+    {
+        if (!$this->session->userdata('logged_in')) {
+            $this->output->set_status_header(403)->set_content_type('application/json')
+                ->set_output(json_encode(['error' => 'Unauthorized']));
+            return;
+        }
+        if ($this->input->method(true) !== 'POST') {
+            show_404();
+        }
+
+        $question = $this->Question_model->get_owned($question_id, $this->user_id);
+        if (!$question) {
+            $this->output->set_status_header(404)->set_content_type('application/json')
+                ->set_output(json_encode(['error' => 'Question not found.']));
+            return;
+        }
+
+        $decision = $this->input->post('decision', true);
+        if (!in_array($decision, ['keep', 'reject'], true)) {
+            $this->output->set_status_header(400)->set_content_type('application/json')
+                ->set_output(json_encode(['error' => 'Invalid decision.']));
+            return;
+        }
+
+        // Mark the similarity_results as decided
+        $this->db->where('question_id', $question_id);
+        $this->db->update('similarity_results', [
+            'decision'   => $decision,
+            'decided_by' => $this->user_id,
+            'decided_at'  => date('Y-m-d H:i:s'),
+        ]);
+
+        // Clear the flag so it stops showing in the list
+        $this->Question_model->update($question_id, [
+            'similarity_flag' => $decision === 'reject' ? 'rejected' : 'none',
+        ]);
+
+        $this->output->set_content_type('application/json')
+            ->set_output(json_encode([
+                'ok'         => true,
+                'decision'   => $decision,
+                'csrf_name'  => $this->security->get_csrf_token_name(),
+                'csrf_hash'  => $this->security->get_csrf_hash(),
+            ]));
+    }
 }

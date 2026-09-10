@@ -24,7 +24,7 @@ class Nexam_api
 
     public function __construct()
     {
-        $this->jwt_secret = getenv('JWT_SECRET') ?: 'dev-insecure-secret-change-me';
+        $this->jwt_secret = getenv('JWT_SECRET') ?: 'change-me-in-production';
     }
 
     /**

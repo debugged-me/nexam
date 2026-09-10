@@ -4,7 +4,7 @@
 
 A standalone Node.js (Express 5) backend lives in `api/`. It shares the same
 `nexam` MySQL database as the CodeIgniter PHP app, and is designed to serve
-both the web frontend and a future Flutter mobile app (OMR scanning).
+both the web frontend and the Flutter mobile app (OMR scanning).
 
 ### Running the API
 
@@ -56,6 +56,47 @@ api/
 - **Security** — the same security checklist (auth, IDOR, input validation,
   no secrets in responses) applies to every Node route. Use parameterized
   queries via the `mysql2` named placeholders (`:name`), never string-concat.
+
+## Flutter Mobile App (`mobile/`)
+
+A Flutter companion app for OMR answer-sheet scanning lives in `mobile/`.
+It authenticates against the Node.js API (JWT), scans the QR code on the
+OMR sheet to identify the exam, captures a photo of the filled answer
+sheet, detects filled bubbles using the OMR algorithm, and submits the
+score to the Node API.
+
+### Running the Flutter app
+
+```bash
+cd mobile
+flutter pub get
+flutter run                    # requires a connected device or emulator
+```
+
+### Structure
+
+```
+mobile/lib/
+├── main.dart                  # entry point
+├── app/app.dart               # root widget — auth state router
+├── core/
+│   ├── network/api_exception.dart
+│   └── theme/app_theme.dart
+└── features/
+    ├── auth/                  # login, JWT session, session storage
+    ├── exams/                 # exam list, exam sets, QR payload model
+    └── scanner/               # QR scanner, bubble detection, scan submission
+```
+
+### Conventions
+
+- **Feature-based structure** — each feature has `data/`, `domain/`, and
+  `presentation/` layers, following the SRMS Flutter project pattern.
+- **Auth** — JWT token stored in SharedPreferences, sent as
+  `Authorization: Bearer <token>` on every API call.
+- **OMR algorithm** — bubble detection via pixel-density analysis using the
+  `image` package. QR code decoding via `mobile_scanner`.
+- **Camera** — `camera` package for photo capture, `mobile_scanner` for QR.
 
 ## Icons
 

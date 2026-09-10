@@ -1,6 +1,5 @@
 <div class="page-content page-content--wide">
 
-    <?php $this->load->view('partials/subject_nav'); ?>
 
     <header class="list-head">
         <div class="list-head-main">
@@ -38,7 +37,6 @@
             'key'         => 'blueprints',
             'label'       => 'blueprints',
             'placeholder' => 'Search blueprints…',
-            'bulk_url'    => site_url('tos/bulk-delete'),
         ];
         $this->load->view('partials/grid_open', ['grid' => $grid, 'csrf_name' => $csrf_name, 'csrf_hash' => $csrf_hash]);
         ?>
@@ -47,18 +45,11 @@
             <caption class="sr-only">Table of Specification blueprints in your workspace</caption>
             <thead>
                 <tr>
-                    <th class="col-select wp-4">
-                        <label class="ds-check">
-                            <input type="checkbox" data-check-all>
-                            <span aria-hidden="true"></span>
-                            <span class="sr-only">Select all rows on this page</span>
-                        </label>
-                    </th>
-                    <th class="col-primary wp-36" data-name="Blueprint" data-locked>Blueprint</th>
-                    <th class="wp-22" data-name="Subject">Subject</th>
+                    <th class="col-primary wp-40" data-name="Blueprint" data-locked>Blueprint</th>
+                    <th class="wp-25" data-name="Subject">Subject</th>
                     <th class="is-num wp-10" data-name="Topics">Topics</th>
                     <th class="is-num wp-10" data-name="Items">Items</th>
-                    <th class="wp-13" data-name="Updated">Updated</th>
+                    <th class="wp-15" data-name="Updated">Updated</th>
                     <th class="col-actions wp-5"><span class="sr-only">Actions</span></th>
                 </tr>
             </thead>
@@ -70,13 +61,6 @@
                     $touched = !empty($t->updated_at) ? $t->updated_at : $t->created_at;
                     ?>
                     <tr data-id="<?php echo htmlspecialchars($t->id); ?>">
-                        <td class="col-select">
-                            <label class="ds-check">
-                                <input type="checkbox" data-row-check>
-                                <span aria-hidden="true"></span>
-                                <span class="sr-only">Select <?php echo htmlspecialchars($t->title); ?></span>
-                            </label>
-                        </td>
                         <td>
                             <span class="g-primary">
                                 <a href="<?php echo site_url('tos/view/' . rawurlencode($t->id)); ?>" class="g-title"><?php echo htmlspecialchars($t->title); ?></a>

@@ -1,6 +1,5 @@
 <div class="page-content">
 
-    <?php $this->load->view('partials/subject_nav'); ?>
 
     <div class="page-header">
         <div>

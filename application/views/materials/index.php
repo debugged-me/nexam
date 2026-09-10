@@ -1,7 +1,6 @@
 <div class="page-content">
 
     <?php if (isset($subject_context)): ?>
-        <?php $this->load->view('partials/subject_nav'); ?>
     <?php endif; ?>
 
     <div class="page-header">

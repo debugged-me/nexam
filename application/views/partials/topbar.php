@@ -59,14 +59,38 @@ function nexam_avatar($src, $initials, $id, $class = 'avatar')
         <nav class="topbar-heading crumbs" aria-label="Breadcrumb">
             <ol class="crumb-list">
                 <li class="crumb-item">
-                    <?php if ($is_section_root): ?>
-                        <a href="<?= site_url('dashboard') ?>">Workspace</a>
-                    <?php elseif ($section_url !== ''): ?>
-                        <a href="<?= $section_url ?>"><?= htmlspecialchars($section) ?></a>
-                    <?php else: ?>
-                        <span>Workspace</span>
-                    <?php endif; ?>
+                    <div class="workspace-menu" id="workspace-menu">
+                        <button type="button" class="workspace-trigger" id="workspace-trigger"
+                                aria-haspopup="menu" aria-expanded="false">
+                            Workspace
+                            <i data-lucide="chevron-down"></i>
+                        </button>
+                        <div class="workspace-dropdown" id="workspace-dropdown" role="menu" hidden>
+                            <?php
+                            $workspace_items = [
+                                ['label' => 'Dashboard',        'key' => 'dashboard', 'icon' => 'layout-dashboard', 'url' => 'dashboard'],
+                                ['label' => 'Subjects',         'key' => 'subjects',  'icon' => 'book-open',        'url' => 'subjects'],
+                                ['label' => 'Materials',        'key' => 'materials', 'icon' => 'folder-open',      'url' => 'materials'],
+                                ['label' => 'Questions',        'key' => 'questions', 'icon' => 'circle-help',      'url' => 'questions'],
+                                ['label' => 'Blueprints (TOS)', 'key' => 'tos',       'icon' => 'panels-top-left',  'url' => 'tos'],
+                                ['label' => 'Exams',            'key' => 'exams',     'icon' => 'file-text',        'url' => 'exams'],
+                                ['label' => 'Analytics',       'key' => 'analytics', 'icon' => 'bar-chart-3',     'url' => 'analytics'],
+                            ];
+                            foreach ($workspace_items as $item):
+                                $is_active = $nav_key === $item['key'];
+                            ?>
+                                <a href="<?= site_url($item['url']) ?>" class="workspace-dropdown-item<?= $is_active ? ' active' : '' ?>" role="menuitem">
+                                    <i data-lucide="<?= $item['icon'] ?>"></i>
+                                    <?= htmlspecialchars($item['label']) ?>
+                                </a>
+                            <?php endforeach; ?>
+                        </div>
+                    </div>
                 </li>
+                <?php if (!$is_section_root && $section !== ''): ?>
+                <li class="crumb-sep" aria-hidden="true"><i data-lucide="chevron-right"></i></li>
+                <li class="crumb-item"><a href="<?= $section_url ?>"><?= htmlspecialchars($section) ?></a></li>
+                <?php endif; ?>
                 <li class="crumb-sep" aria-hidden="true"><i data-lucide="chevron-right"></i></li>
                 <li class="crumb-item crumb-current" aria-current="page"><span class="topbar-title"><?= htmlspecialchars($current_page) ?></span></li>
             </ol>

@@ -785,6 +785,77 @@ body.rail-collapsed .nav-item:hover::after { opacity: 1; }
 .user-dropdown-form { margin: 0; }
 
 /* ==========================================================================
+   Workspace dropdown (breadcrumb)
+   ========================================================================== */
+
+.workspace-menu { position: relative; }
+
+.workspace-trigger {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 8px;
+    border: 1px solid transparent;
+    border-radius: var(--radius);
+    background: transparent;
+    color: var(--ink-2);
+    font-family: var(--font-display, "Google Sans", sans-serif);
+    font-size: var(--text-sm);
+    font-weight: 500;
+    cursor: pointer;
+    transition: background-color .15s ease, border-color .15s ease;
+}
+
+.workspace-trigger svg { width: 14px !important; height: 14px !important; color: var(--ink-faint); }
+
+.workspace-trigger:hover { background: var(--surface-2); border-color: var(--line); color: var(--ink); }
+.workspace-trigger:hover svg { color: var(--ink-2); }
+
+.workspace-trigger.is-open { background: var(--surface-3); border-color: var(--line); color: var(--ink); }
+.workspace-trigger.is-open svg { color: var(--ink-2); transform: rotate(180deg); }
+
+.workspace-dropdown {
+    position: absolute;
+    top: calc(100% + 6px);
+    left: 0;
+    min-width: 220px;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-lg);
+    padding: 6px;
+    z-index: 300;
+}
+
+.workspace-dropdown[hidden] { display: none; }
+
+.workspace-dropdown-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 10px;
+    border-radius: var(--radius-sm);
+    color: var(--ink-2);
+    font-size: var(--text-sm);
+    font-weight: 500;
+    text-decoration: none;
+    cursor: pointer;
+    transition: background-color .12s ease, color .12s ease;
+}
+
+.workspace-dropdown-item svg { width: 16px !important; height: 16px !important; color: var(--ink-faint); flex-shrink: 0; }
+
+.workspace-dropdown-item:hover { background: var(--surface-2); color: var(--ink); }
+.workspace-dropdown-item:hover svg { color: var(--ink-2); }
+
+.workspace-dropdown-item.active { background: var(--surface-3); color: var(--action-700); }
+.workspace-dropdown-item.active svg { color: var(--action-600); }
+
+@media (max-width: 640px) {
+    .workspace-dropdown { min-width: 180px; }
+}
+
+/* ==========================================================================
    Page scaffolding
    ========================================================================== */
 

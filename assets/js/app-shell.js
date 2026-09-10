@@ -187,12 +187,42 @@
         if (ev.key !== "Escape") return;
         var restoreUser = dropdown && !dropdown.hidden;
         var restoreBell = bellPanel && !bellPanel.hidden;
+        var restoreWorkspace = wsDropdown && !wsDropdown.hidden;
         setDrawer(false);
         setMenu(false);
         setBell(false);
+        setWorkspace(false);
         if (restoreUser && trigger) trigger.focus();
         else if (restoreBell && bellTrigger) bellTrigger.focus();
+        else if (restoreWorkspace && wsTrigger) wsTrigger.focus();
     });
+
+    /* ------------------------------------------------------------------
+       Workspace breadcrumb dropdown
+       ------------------------------------------------------------------ */
+
+    var wsTrigger = document.getElementById("workspace-trigger");
+    var wsDropdown = document.getElementById("workspace-dropdown");
+
+    function setWorkspace(open) {
+        if (!wsTrigger || !wsDropdown) return;
+        wsDropdown.hidden = !open;
+        wsTrigger.setAttribute("aria-expanded", open ? "true" : "false");
+        wsTrigger.classList.toggle("is-open", open);
+    }
+
+    if (wsTrigger && wsDropdown) {
+        wsTrigger.addEventListener("click", function (ev) {
+            ev.stopPropagation();
+            setWorkspace(wsDropdown.hidden);
+        });
+
+        document.addEventListener("click", function (ev) {
+            if (!wsDropdown.hidden && !wsDropdown.contains(ev.target) && ev.target !== wsTrigger) {
+                setWorkspace(false);
+            }
+        });
+    }
 
     /* ------------------------------------------------------------------
        Shared helpers

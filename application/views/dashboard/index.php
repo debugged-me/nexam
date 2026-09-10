@@ -42,7 +42,7 @@ foreach ($initial_activity as $day) {
             <a href="<?= site_url('questions/create') ?>" class="btn btn-outline">
                 <i data-lucide="plus"></i> New Question
             </a>
-            <a href="<?= site_url('exams/create') ?>" class="btn btn-accent">
+            <a href="<?= site_url('exams/create') ?>" class="btn btn-primary">
                 <i data-lucide="file-plus-2"></i> New Exam
             </a>
         </div>
@@ -265,7 +265,7 @@ foreach ($initial_activity as $day) {
                     <div class="empty-icon"><i data-lucide="file-text" aria-hidden="true"></i></div>
                     <h4>No exams generated yet</h4>
                     <p>Build a blueprint, then generate a paper from your bank.</p>
-                    <a href="<?= site_url('exams/create') ?>" class="btn btn-accent btn-sm">
+                    <a href="<?= site_url('exams/create') ?>" class="btn btn-primary btn-sm">
                         <i data-lucide="file-plus-2"></i> New Exam
                     </a>
                 </div>

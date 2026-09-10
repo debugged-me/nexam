@@ -60,6 +60,23 @@ body.auth-page {
         linear-gradient(180deg, #EEF4FB 0%, #E4EDF6 100%);
 }
 
+/* Skip link — visible on focus only */
+.skip-link {
+    position: fixed;
+    top: 10px;
+    left: 10px;
+    z-index: 100000;
+    padding: 10px 14px;
+    border-radius: var(--radius-sm);
+    background: var(--auth-ink);
+    color: #fff;
+    font-family: var(--font-display);
+    font-weight: 600;
+    transform: translateY(-160%);
+    transition: transform .15s ease;
+}
+.skip-link:focus { transform: translateY(0); }
+
 /* Soft floating orbs behind the card, echoing the reference's wave asset. */
 body.auth-page::before {
     content: "";

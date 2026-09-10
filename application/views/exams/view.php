@@ -75,7 +75,7 @@
                 <div class="empty-icon"><i data-lucide="help-circle" aria-hidden="true"></i></div>
                 <h4>No questions in this exam</h4>
                 <p>Generate a new exam from a TOS blueprint to populate it.</p>
-                <a href="<?php echo site_url('tos'); ?>" class="btn btn-accent btn-sm">
+                <a href="<?php echo site_url('tos'); ?>" class="btn btn-primary btn-sm">
                     <i data-lucide="sparkles"></i> Generate from TOS
                 </a>
             </div>

@@ -641,12 +641,12 @@ a.g-link:hover { color: var(--ink); text-decoration: underline; text-underline-o
     background: var(--line-strong);
 }
 
-.g-bloom[data-level="1"]::before { background: #DCEDFB; }
-.g-bloom[data-level="2"]::before { background: #B5DAF8; }
-.g-bloom[data-level="3"]::before { background: #87C2F2; }
-.g-bloom[data-level="4"]::before { background: #57A6EA; }
-.g-bloom[data-level="5"]::before { background: #2383E2; }
-.g-bloom[data-level="6"]::before { background: #1A6CBD; }
+.g-bloom[data-level="1"]::before { background: var(--bloom-1); }
+.g-bloom[data-level="2"]::before { background: var(--bloom-2); }
+.g-bloom[data-level="3"]::before { background: var(--bloom-3); }
+.g-bloom[data-level="4"]::before { background: var(--bloom-4); }
+.g-bloom[data-level="5"]::before { background: var(--bloom-5); }
+.g-bloom[data-level="6"]::before { background: var(--bloom-6); }
 
 /* ---- Code chip — the one thing that stays a chip ---------------------- */
 

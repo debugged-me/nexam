@@ -115,6 +115,14 @@
     --blue-600: #2383E2;
     --blue-700: #1A6CBD;
 
+    /* ---- Bloom ramp: sequential blue, ordinal 1 (Remember) → 6 (Create) ---- */
+    --bloom-1: #DCEDFB;
+    --bloom-2: #B5DAF8;
+    --bloom-3: #87C2F2;
+    --bloom-4: #57A6EA;
+    --bloom-5: #2383E2;
+    --bloom-6: #1A6CBD;
+
     /* ---- Status ---- */
     --green-50:  #ECFDF5;
     --green-100: #D1FAE5;

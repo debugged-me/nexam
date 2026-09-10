@@ -15,8 +15,9 @@
     <script src="https://unpkg.com/lucide@latest" defer></script>
 </head>
 <body class="auth-page">
+    <a class="skip-link" href="#main-content">Skip to main content</a>
 
-    <main class="auth-wrap">
+    <main class="auth-wrap" id="main-content" tabindex="-1">
         <!-- Left brand panel -->
         <div class="auth-panel">
             <div class="panel-badge">Account Recovery</div>

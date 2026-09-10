@@ -23,6 +23,7 @@
 /* ---- Modal form layout ---------------------------------------------- */
 
 .nexam-modal--question { max-width: 560px; }
+.nexam-modal--import { max-width: 600px; }
 
 .qf-grid {
     display: grid;

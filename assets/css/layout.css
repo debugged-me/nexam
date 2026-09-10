@@ -1266,6 +1266,102 @@ textarea.form-control { resize: vertical; min-height: 92px; height: auto; paddin
 
 .form-label .req { color: var(--red-600); font-weight: 600; }
 
+/* ---- Shared: Source type tabs (used by materials upload + import modal) ---- */
+
+.source-tabs {
+    display: flex;
+    gap: var(--space-1);
+    flex-wrap: wrap;
+}
+
+.source-tab {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+    padding: var(--space-2) var(--space-4);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    background: transparent;
+    color: var(--ink-2);
+    cursor: pointer;
+    font: 500 var(--text-sm) var(--font-display);
+    transition: all 0.15s;
+}
+
+.source-tab:hover {
+    border-color: var(--line-strong);
+    color: var(--ink);
+}
+
+.source-tab.is-active {
+    background: var(--action-600);
+    border-color: var(--action-600);
+    color: #fff;
+}
+
+.source-tab i { width: 16px; height: 16px; }
+
+/* ---- Shared: File drop zone (used by materials upload + import modal) ---- */
+
+.file-drop {
+    border: 2px dashed var(--line-strong);
+    border-radius: var(--radius-lg);
+    padding: var(--space-6) var(--space-4);
+    text-align: center;
+    cursor: pointer;
+    transition: border-color 0.2s, background 0.2s;
+}
+
+.file-drop:hover,
+.file-drop.is-dragover {
+    border-color: var(--action-600);
+    background: var(--action-50);
+}
+
+.file-drop-prompt i {
+    width: 40px;
+    height: 40px;
+    color: var(--ink-3);
+    margin-bottom: var(--space-2);
+}
+
+.file-drop-prompt p {
+    margin: var(--space-1) 0;
+    font: 500 var(--text-base) var(--font-display);
+}
+
+.file-drop-prompt .link {
+    color: var(--action-600);
+    text-decoration: underline;
+}
+
+.file-drop-selected {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    justify-content: center;
+}
+
+.file-drop-selected i {
+    width: 24px;
+    height: 24px;
+    color: var(--action-600);
+}
+
+.file-drop-selected .file-name {
+    font: 500 var(--text-base) var(--font-display);
+}
+
+@media (max-width: 640px) {
+    .source-tab {
+        flex: 1;
+        justify-content: center;
+        padding: var(--space-2) var(--space-3);
+        font-size: var(--text-xs);
+    }
+    .source-tab i { display: none; }
+}
+
 .form-alert {
     display: flex;
     align-items: flex-start;

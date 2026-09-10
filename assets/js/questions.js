@@ -432,7 +432,7 @@
 
         // Widen for the form
         var panel = modal.querySelector(".nexam-modal");
-        if (panel) panel.classList.add("nexam-modal--question");
+        if (panel) panel.classList.add("nexam-modal--import");
 
         importFormat = 'gift';
 

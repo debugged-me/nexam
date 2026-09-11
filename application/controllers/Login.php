@@ -404,6 +404,11 @@ class Login extends CI_Controller
         $subject = $is_reset ? 'nexam — Password Reset Code' : 'nexam — Email Verification Code';
         $action  = $is_reset ? 'reset your password' : 'verify your email';
 
+        if ($this->email->smtp_pass === '') {
+            log_message('error', 'OTP email was not attempted because NEXAM_SMTP_PASS is not configured.');
+            return false;
+        }
+
         $message = '<!DOCTYPE html><html><body style="font-family:Inter,Arial,sans-serif;max-width:480px;margin:0 auto;padding:24px;color:#1e293b">';
         $message .= '<h2 style="color:#1B3A5B;font-family:Google Sans,sans-serif">nexam</h2>';
         $message .= '<p>Hi ' . htmlspecialchars($name) . ',</p>';
@@ -416,21 +421,39 @@ class Login extends CI_Controller
         $message .= '<p style="color:#94a3b8;font-size:12px">nexam — TOS-aligned Exam Builder</p>';
         $message .= '</body></html>';
 
+        $plain_message = "Hi {$name},\n\n";
+        $plain_message .= "Use this code to {$action}: {$otp}\n\n";
+        $plain_message .= "This code expires in 15 minutes. If you did not request this, you can safely ignore this email.\n";
+
+        // The envelope sender must match the authenticated mailbox. Email
+        // library config is not merged into CI's global config, so looking up
+        // a custom "from_email" item there silently used the old fallback.
+        $from_email = trim((string) $this->email->smtp_user);
+        $from_name  = 'nexam';
+
+        if (!filter_var($from_email, FILTER_VALIDATE_EMAIL)) {
+            log_message('error', 'OTP email was not attempted because the SMTP sender is invalid.');
+            return false;
+        }
+
         $this->email->clear(true);
-        $this->email->from(
-            $this->config->item('from_email') ?: 'noreply@nexam.app',
-            $this->config->item('from_name') ?: 'nexam'
-        );
+        $this->email->from($from_email, $from_name, $from_email);
+        $this->email->reply_to($from_email, $from_name);
         $this->email->to($email);
         $this->email->subject($subject);
         $this->email->message($message);
+        $this->email->set_alt_message($plain_message);
 
         if ($this->email->send(false)) {
             return true;
         }
 
-        // Log headers only — the body carries the OTP and must never be logged.
-        log_message('error', 'OTP email failed for ' . $email . ' — ' . $this->email->print_debugger(array('headers')));
+        // SMTP responses are useful for diagnosis. Do not log headers, the
+        // recipient address, or the message body because they contain PII/OTP.
+        $recipient_domain = substr(strrchr($email, '@') ?: '', 1) ?: 'unknown';
+        $smtp_debug = strip_tags($this->email->print_debugger(array()));
+        $smtp_debug = trim(preg_replace('/\s+/', ' ', $smtp_debug));
+        log_message('error', 'OTP email failed for recipient domain ' . $recipient_domain . ' — ' . $smtp_debug);
 
         return false;
     }

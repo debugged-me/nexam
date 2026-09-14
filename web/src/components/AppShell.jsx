@@ -13,7 +13,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
   GraduationCap, LayoutDashboard, BookOpen, FolderOpen, CircleHelp,
   PanelsTopLeft, FileText, BarChart3, Menu, ChevronDown, ChevronRight,
-  LogOut, User, Lock, X,
+  LogOut, User, Lock, X, Sparkles,
 } from 'lucide-react';
 import { useAuth } from '../features/auth/AuthContext.jsx';
 
@@ -22,6 +22,7 @@ const NAV_GROUPS = [
     label: 'Overview',
     items: [
       { label: 'Dashboard', key: 'dashboard', icon: LayoutDashboard, to: '/dashboard' },
+      { label: 'Exam Wizard', key: 'wizard', icon: Sparkles, to: '/wizard' },
     ],
   },
   {
@@ -44,6 +45,7 @@ const NAV_GROUPS = [
 
 const SECTION_TITLES = {
   dashboard: 'Dashboard',
+  wizard: 'Exam Wizard',
   subjects: 'Subjects',
   materials: 'Materials',
   questions: 'Questions',
@@ -56,6 +58,7 @@ const SECTION_TITLES = {
 /** Derive the active nav key from the current pathname. */
 function deriveActiveKey(pathname) {
   if (pathname.startsWith('/dashboard')) return 'dashboard';
+  if (pathname.startsWith('/wizard')) return 'wizard';
   if (pathname.startsWith('/subjects')) return 'subjects';
   if (pathname.startsWith('/materials')) return 'materials';
   if (pathname.startsWith('/questions')) return 'questions';

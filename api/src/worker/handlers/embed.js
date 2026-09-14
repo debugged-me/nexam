@@ -16,6 +16,7 @@ import { v4 as uuid } from 'uuid';
 import pool from '../../config/db.js';
 import { chunk } from '../../services/chunker.js';
 import { addChunks } from '../../services/vectorStore.js';
+import { enqueue } from '../../services/jobs.js';
 
 export default async function embedHandler(job) {
   const { materialId } = job.payload;
@@ -87,5 +88,16 @@ export default async function embedHandler(job) {
     { count: chunks.length, id: materialId }
   );
 
-  return { materialId, chunkCount: chunks.length };
+  // Auto-chain: if this is a syllabus, auto-enqueue TOS generation
+  if (material.is_syllabus) {
+    const tosJobId = await enqueue({
+      type: 'syllabus_tos',
+      payload: { materialId, userId: material.created_by },
+      userId: material.created_by,
+      subjectId: material.subject_id,
+    });
+    console.log(`[worker] Auto-chained syllabus_tos job ${tosJobId} for material ${materialId}`);
+  }
+
+  return { materialId, chunkCount: chunks.length, autoChainedTos: !!material.is_syllabus };
 }

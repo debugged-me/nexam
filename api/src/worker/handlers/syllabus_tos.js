@@ -14,6 +14,7 @@
 import { v4 as uuid } from 'uuid';
 import pool from '../../config/db.js';
 import { generate } from '../../services/aiProvider.js';
+import { enqueue } from '../../services/jobs.js';
 
 /** Default Bloom distribution (same as PHP Tos controller). */
 const DEFAULT_BLOOM = {
@@ -174,6 +175,15 @@ ${material.content.slice(0, 30000)}
     );
   }
 
+  // Auto-chain: enqueue question generation for this TOS
+  const genJobId = await enqueue({
+    type: 'generate',
+    payload: { tosId, userId },
+    userId,
+    subjectId: material.subject_id,
+  });
+  console.log(`[worker] Auto-chained generate job ${genJobId} for TOS ${tosId}`);
+
   return {
     tosId,
     title: tosTitle,
@@ -181,5 +191,6 @@ ${material.content.slice(0, 30000)}
     totalItems,
     provider: result.provider,
     model: result.model,
+    autoChainedGenerate: true,
   };
 }

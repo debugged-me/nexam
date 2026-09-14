@@ -25,13 +25,16 @@ import TosPage from './pages/TosPage.jsx';
 import TosDetailPage from './pages/TosDetailPage.jsx';
 import ExamsPage from './pages/ExamsPage.jsx';
 import ExamDetailPage from './pages/ExamDetailPage.jsx';
+import ExamFormPage from './pages/ExamFormPage.jsx';
 import MaterialsPage from './pages/MaterialsPage.jsx';
 import AnalyticsPage from './pages/AnalyticsPage.jsx';
 import AccountPage from './pages/AccountPage.jsx';
+import WizardPage from './pages/WizardPage.jsx';
 
 import './styles/tokens.css';
 import './styles/auth.css';
 import './styles/app.css';
+import './styles/grid.css';
 import './styles/toast.css';
 import './styles/modal.css';
 import './styles/dashboard.css';
@@ -42,6 +45,7 @@ import './styles/exams.css';
 import './styles/materials.css';
 import './styles/analytics.css';
 import './styles/account.css';
+import './styles/wizard.css';
 
 function RequireAuth({ children }) {
   const { user, loading } = useAuth();
@@ -80,6 +84,7 @@ export default function App() {
             <Route path="/reset" element={<ResetPage />} />
 
             {/* App (protected) */}
+            <Route path="/wizard" element={<RequireAuth><WizardPage /></RequireAuth>} />
             <Route path="/dashboard" element={<RequireAuth><DashboardPage /></RequireAuth>} />
             <Route path="/subjects" element={<RequireAuth><SubjectsPage /></RequireAuth>} />
             <Route path="/questions" element={<RequireAuth><QuestionsPage /></RequireAuth>} />
@@ -87,7 +92,9 @@ export default function App() {
             <Route path="/tos" element={<RequireAuth><TosPage /></RequireAuth>} />
             <Route path="/tos/:id" element={<RequireAuth><TosDetailPage /></RequireAuth>} />
             <Route path="/exams" element={<RequireAuth><ExamsPage /></RequireAuth>} />
+            <Route path="/exams/new" element={<RequireAuth><ExamFormPage /></RequireAuth>} />
             <Route path="/exams/:id" element={<RequireAuth><ExamDetailPage /></RequireAuth>} />
+            <Route path="/exams/:id/edit" element={<RequireAuth><ExamFormPage /></RequireAuth>} />
             <Route path="/materials" element={<RequireAuth><MaterialsPage /></RequireAuth>} />
             <Route path="/analytics" element={<RequireAuth><AnalyticsPage /></RequireAuth>} />
             <Route path="/account" element={<RequireAuth><AccountPage /></RequireAuth>} />

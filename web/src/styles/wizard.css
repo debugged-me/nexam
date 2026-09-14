@@ -1,0 +1,203 @@
+/* ==========================================================================
+   Wizard page — guided syllabus-to-exam pipeline
+   ========================================================================== */
+.wizard-pipeline {
+  display: flex;
+  gap: var(--space-6);
+  flex-wrap: wrap;
+}
+
+/* Stage indicators (horizontal stepper) */
+.wizard-stages {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  min-width: 260px;
+  flex-shrink: 0;
+}
+
+.wizard-stage {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  position: relative;
+  padding: var(--space-2) 0;
+}
+
+.wizard-stage-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  background: var(--surface-2);
+  color: var(--ink-faint);
+  border: 2px solid var(--surface-3);
+  transition: all 0.2s;
+}
+
+.wizard-stage.done .wizard-stage-icon {
+  background: var(--action-600);
+  color: white;
+  border-color: var(--action-600);
+}
+
+.wizard-stage.active .wizard-stage-icon,
+.wizard-stage.current .wizard-stage-icon {
+  background: var(--surface-3);
+  color: var(--action-600);
+  border-color: var(--action-600);
+}
+
+.wizard-stage.failed .wizard-stage-icon {
+  background: #fee2e2;
+  color: #dc2626;
+  border-color: #dc2626;
+}
+
+.wizard-stage-label {
+  display: flex;
+  flex-direction: column;
+  padding-top: 4px;
+}
+
+.wizard-stage-name {
+  font-family: var(--font-display);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.wizard-stage.done .wizard-stage-name {
+  color: var(--ink-2);
+}
+
+.wizard-stage.pending .wizard-stage-name {
+  color: var(--ink-faint);
+}
+
+.wizard-stage-status {
+  font-size: var(--text-xs);
+  color: var(--ink-faint);
+}
+
+.wizard-stage-connector {
+  position: absolute;
+  left: 18px;
+  top: 40px;
+  bottom: -4px;
+  width: 2px;
+  background: var(--surface-3);
+}
+
+.wizard-stage.done .wizard-stage-connector {
+  background: var(--action-600);
+}
+
+/* Detail card */
+.wizard-detail {
+  flex: 1;
+  min-width: 300px;
+}
+
+.wizard-card {
+  background: var(--surface-1);
+  border: 1px solid var(--surface-3);
+  border-radius: var(--radius-lg);
+  padding: var(--space-6);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.wizard-card h3 {
+  font-family: var(--font-display);
+  font-size: var(--text-lg);
+  font-weight: 600;
+  margin: 0;
+}
+
+.wizard-card p {
+  color: var(--ink-2);
+  line-height: 1.6;
+  margin: 0;
+}
+
+.wizard-card-error {
+  border-color: #fca5a5;
+  background: #fef2f2;
+}
+
+.wizard-card-success {
+  border-color: #86efac;
+  background: #f0fdf4;
+}
+
+.wizard-info {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+
+.wizard-stats {
+  display: flex;
+  gap: var(--space-4);
+  flex-wrap: wrap;
+}
+
+.wizard-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: var(--space-3) var(--space-4);
+  background: var(--surface-2);
+  border-radius: var(--radius-md);
+  min-width: 80px;
+}
+
+.wizard-stat-num {
+  font-family: var(--font-display);
+  font-size: var(--text-2xl);
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.wizard-stat-label {
+  font-size: var(--text-xs);
+  color: var(--ink-faint);
+  text-align: center;
+}
+
+/* Spinner */
+.spin {
+  animation: wizard-spin 1s linear infinite;
+}
+
+@keyframes wizard-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .wizard-pipeline {
+    flex-direction: column;
+  }
+  .wizard-stages {
+    flex-direction: row;
+    overflow-x: auto;
+    min-width: 0;
+  }
+  .wizard-stage {
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    min-width: 80px;
+  }
+  .wizard-stage-connector {
+    display: none;
+  }
+}

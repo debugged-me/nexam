@@ -1,14 +1,13 @@
 /**
  * AccountPage — profile view/edit and password change.
- *
- * Shows the current user's profile (name, email, role, verification status)
- * with forms to update name fields and change password.
+ * Uses the PHP design system classes (card, form-group, form-control, etc.)
  */
 import { useEffect, useState } from 'react';
 import { useToast } from '../components/Toast.jsx';
 import api, { ApiError } from '../lib/api.js';
 import AppShell from '../components/AppShell.jsx';
 import { useAuth } from '../features/auth/AuthContext.jsx';
+import { User, Lock, Mail, Calendar, Check, Save } from 'lucide-react';
 import '../styles/account.css';
 
 export default function AccountPage() {
@@ -72,115 +71,148 @@ export default function AccountPage() {
     }
   }
 
-  if (!profile) return <AppShell activeNav="account" pageTitle="Account"><p className="placeholder">Loading…</p></AppShell>;
+  if (!profile) return <AppShell activeNav="account" pageTitle="Account"><div className="page-content"><p className="text-muted">Loading…</p></div></AppShell>;
 
   const initials = (profile.full_name || 'U').split(' ').map((p) => p[0]).slice(0, 2).join('').toUpperCase();
 
   return (
     <AppShell activeNav="account" pageTitle="Account">
-      <div className="page-header"><h1>Account</h1></div>
-          <div className="account-layout">
-            {/* Profile card */}
-            <div className="account-card">
-              <div className="account-avatar">{initials}</div>
-              <div className="account-name">{profile.full_name}</div>
-              <div className="account-email">{profile.email}</div>
-              <div style={{ textAlign: 'center', marginBottom: 16 }}>
-                <span className="account-badge">{profile.role}</span>
-                {profile.email_verified ? (
-                  <span className="account-badge" style={{ marginLeft: 6, background: 'var(--green-50)', color: 'var(--green-700)' }}>Verified</span>
-                ) : (
-                  <span className="account-badge" style={{ marginLeft: 6, background: 'var(--amber-50)', color: 'var(--amber-700)' }}>Unverified</span>
-                )}
-              </div>
-              <div className="account-info-row">
-                <span className="account-info-label">Member since</span>
-                <span className="account-info-value">{new Date(profile.created_at).toLocaleDateString()}</span>
-              </div>
+      <div className="page-content">
+
+        <div className="page-header">
+          <div>
+            <h1>Account</h1>
+            <p className="page-sub">Manage your profile and password.</p>
+          </div>
+        </div>
+
+        {/* Profile summary stats */}
+        <div className="stats-grid mb-3">
+          <div className="stat-card">
+            <div className="stat-icon blue"><User size={20} /></div>
+            <div className="stat-info">
+              <div className="stat-value stat-value-sm">{profile.full_name}</div>
+              <div className="stat-label">Name</div>
             </div>
+          </div>
+          <div className="stat-card">
+            <div className="stat-icon green"><Mail size={20} /></div>
+            <div className="stat-info">
+              <div className="stat-value stat-value-sm">{profile.email}</div>
+              <div className="stat-label">Email{profile.email_verified ? ' (Verified)' : ''}</div>
+            </div>
+          </div>
+          <div className="stat-card">
+            <div className="stat-icon amber"><Calendar size={20} /></div>
+            <div className="stat-info">
+              <div className="stat-value stat-value-sm">{new Date(profile.created_at).toLocaleDateString('en', { month: 'short', day: 'numeric', year: 'numeric' })}</div>
+              <div className="stat-label">Member Since</div>
+            </div>
+          </div>
+        </div>
 
-            {/* Edit forms */}
-            <div>
-              {/* Name section */}
-              <div className="account-section">
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-                  <h2 style={{ margin: 0 }}>Profile</h2>
-                  {!editingName && (
-                    <button className="btn" onClick={() => setEditingName(true)}>Edit</button>
-                  )}
-                </div>
-                {editingName ? (
-                  <form onSubmit={handleSaveName} noValidate>
-                    <div className="form-row">
-                      <div className="form-group">
-                        <label className="form-label">First Name <span className="req">*</span></label>
-                        <input className="form-input" style={{ paddingLeft: 16 }} value={nameForm.first_name || ''} required
-                          onChange={(e) => setNameForm({ ...nameForm, first_name: e.target.value })} />
-                      </div>
-                      <div className="form-group">
-                        <label className="form-label">Middle Name</label>
-                        <input className="form-input" style={{ paddingLeft: 16 }} value={nameForm.middle_name || ''}
-                          onChange={(e) => setNameForm({ ...nameForm, middle_name: e.target.value })} />
-                      </div>
-                    </div>
-                    <div className="form-row">
-                      <div className="form-group">
-                        <label className="form-label">Last Name <span className="req">*</span></label>
-                        <input className="form-input" style={{ paddingLeft: 16 }} value={nameForm.last_name || ''} required
-                          onChange={(e) => setNameForm({ ...nameForm, last_name: e.target.value })} />
-                      </div>
-                      <div className="form-group">
-                        <label className="form-label">Name Extension</label>
-                        <input className="form-input" style={{ paddingLeft: 16 }} value={nameForm.name_ext || ''} placeholder="Jr., Sr., III"
-                          onChange={(e) => setNameForm({ ...nameForm, name_ext: e.target.value })} />
-                      </div>
-                    </div>
-                    <div style={{ display: 'flex', gap: 10 }}>
-                      <button type="button" className="btn" onClick={() => setEditingName(false)}>Cancel</button>
-                      <button type="submit" className="btn btn-primary" disabled={savingName}>
-                        {savingName && <span className="btn-spinner" />}Save
-                      </button>
-                    </div>
-                  </form>
-                ) : (
-                  <div>
-                    <div className="account-info-row"><span className="account-info-label">First Name</span><span className="account-info-value">{profile.first_name || '—'}</span></div>
-                    <div className="account-info-row"><span className="account-info-label">Middle Name</span><span className="account-info-value">{profile.middle_name || '—'}</span></div>
-                    <div className="account-info-row"><span className="account-info-label">Last Name</span><span className="account-info-value">{profile.last_name || '—'}</span></div>
-                    <div className="account-info-row"><span className="account-info-label">Extension</span><span className="account-info-value">{profile.name_ext || '—'}</span></div>
-                    <div className="account-info-row"><span className="account-info-label">Email</span><span className="account-info-value">{profile.email}</span></div>
-                  </div>
-                )}
-              </div>
+        <div className="detail-grid-2">
 
-              {/* Password section */}
-              <div className="account-section">
-                <h2>Change Password</h2>
-                <form onSubmit={handleChangePw} noValidate>
-                  <div className="form-group">
-                    <label className="form-label">Current Password <span className="req">*</span></label>
-                    <input type="password" className="form-input" style={{ paddingLeft: 16 }} value={pwForm.current_password} required
-                      onChange={(e) => setPwForm({ ...pwForm, current_password: e.target.value })} />
+          {/* Profile card */}
+          <div className="card">
+            <div className="card-header">
+              <span className="card-title">Profile</span>
+              {!editingName && (
+                <button type="button" className="btn btn-outline btn-sm" onClick={() => setEditingName(true)}>
+                  <Lock size={16} /> Edit
+                </button>
+              )}
+            </div>
+            <div className="card-body">
+              {editingName ? (
+                <form onSubmit={handleSaveName} noValidate>
+                  <div className="form-row">
+                    <div className="form-group">
+                      <label className="form-label">First Name <span className="req">*</span></label>
+                      <input className="form-control" value={nameForm.first_name || ''} required
+                        onChange={(e) => setNameForm({ ...nameForm, first_name: e.target.value })} />
+                    </div>
+                    <div className="form-group">
+                      <label className="form-label">Middle Name</label>
+                      <input className="form-control" value={nameForm.middle_name || ''}
+                        onChange={(e) => setNameForm({ ...nameForm, middle_name: e.target.value })} />
+                    </div>
                   </div>
                   <div className="form-row">
                     <div className="form-group">
-                      <label className="form-label">New Password <span className="req">*</span></label>
-                      <input type="password" className="form-input" style={{ paddingLeft: 16 }} value={pwForm.new_password} minLength={8} required
-                        onChange={(e) => setPwForm({ ...pwForm, new_password: e.target.value })} />
+                      <label className="form-label">Last Name <span className="req">*</span></label>
+                      <input className="form-control" value={nameForm.last_name || ''} required
+                        onChange={(e) => setNameForm({ ...nameForm, last_name: e.target.value })} />
                     </div>
                     <div className="form-group">
-                      <label className="form-label">Confirm New Password <span className="req">*</span></label>
-                      <input type="password" className="form-input" style={{ paddingLeft: 16 }} value={pwForm.confirm} required
-                        onChange={(e) => setPwForm({ ...pwForm, confirm: e.target.value })} />
+                      <label className="form-label">Name Extension</label>
+                      <input className="form-control" value={nameForm.name_ext || ''} placeholder="Jr., Sr., III"
+                        onChange={(e) => setNameForm({ ...nameForm, name_ext: e.target.value })} />
                     </div>
                   </div>
-                  <button type="submit" className="btn btn-primary" disabled={savingPw}>
-                    {savingPw && <span className="btn-spinner" />}Change password
-                  </button>
+                  <div className="form-group">
+                    <label className="form-label">Email</label>
+                    <input className="form-control" value={profile.email} disabled />
+                  </div>
+                  <div className="form-actions form-actions--sticky">
+                    <button type="submit" className="btn btn-primary" disabled={savingName}>
+                      <Save size={16} /> {savingName ? 'Saving…' : 'Save Changes'}
+                    </button>
+                    <button type="button" className="btn btn-outline" onClick={() => setEditingName(false)}>Cancel</button>
+                  </div>
                 </form>
-              </div>
+              ) : (
+                <div className="table-wrap table-bare">
+                  <table className="data-table">
+                    <tbody>
+                      <tr><td className="text-muted">First Name</td><td>{profile.first_name || '—'}</td></tr>
+                      <tr><td className="text-muted">Middle Name</td><td>{profile.middle_name || '—'}</td></tr>
+                      <tr><td className="text-muted">Last Name</td><td>{profile.last_name || '—'}</td></tr>
+                      <tr><td className="text-muted">Extension</td><td>{profile.name_ext || '—'}</td></tr>
+                      <tr><td className="text-muted">Email</td><td>{profile.email}</td></tr>
+                      <tr><td className="text-muted">Verified</td><td>{profile.email_verified ? <span className="badge badge-green">Yes</span> : <span className="badge badge-amber">No</span>}</td></tr>
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </div>
           </div>
+
+          {/* Password card */}
+          <div className="card">
+            <div className="card-header">
+              <span className="card-title">Change Password</span>
+            </div>
+            <div className="card-body">
+              <form onSubmit={handleChangePw} noValidate>
+                <div className="form-group">
+                  <label className="form-label">Current Password <span className="req">*</span></label>
+                  <input type="password" className="form-control" value={pwForm.current_password} required
+                    onChange={(e) => setPwForm({ ...pwForm, current_password: e.target.value })} />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">New Password <span className="req">*</span></label>
+                  <input type="password" className="form-control" value={pwForm.new_password} minLength={8} required
+                    placeholder="At least 8 characters"
+                    onChange={(e) => setPwForm({ ...pwForm, new_password: e.target.value })} />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Confirm New Password <span className="req">*</span></label>
+                  <input type="password" className="form-control" value={pwForm.confirm} required
+                    onChange={(e) => setPwForm({ ...pwForm, confirm: e.target.value })} />
+                </div>
+                <div className="form-actions form-actions--sticky">
+                  <button type="submit" className="btn btn-primary" disabled={savingPw}>
+                    <Check size={16} /> {savingPw ? 'Changing…' : 'Change Password'}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+
+        </div>
+
+      </div>
     </AppShell>
   );
 }

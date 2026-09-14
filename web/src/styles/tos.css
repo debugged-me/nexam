@@ -1,120 +1,146 @@
-/* tos.css — TOS list + builder */
-.tos-list { display: flex; flex-direction: column; gap: 12px; }
-.tos-card {
-  background: var(--surface);
-  border: 1px solid var(--line);
-  border-radius: var(--radius-lg);
-  padding: 18px 22px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  transition: border-color .15s ease, box-shadow .15s ease;
-}
-.tos-card:hover { border-color: var(--line-strong); box-shadow: var(--shadow-sm); }
-.tos-card-title {
-  font-family: var(--font-display);
-  font-size: var(--text-md);
-  font-weight: 700;
-  color: var(--ink);
-  margin: 0 0 4px;
-}
-.tos-card-meta { font-size: var(--text-sm); color: var(--ink-3); }
-.tos-card-stats { display: flex; gap: 20px; }
-.tos-stat { text-align: center; }
-.tos-stat-value {
-  font-family: var(--font-display);
-  font-size: var(--text-md);
-  font-weight: 700;
-  color: var(--ink);
-}
-.tos-stat-label {
-  font-size: var(--text-xs);
-  color: var(--ink-3);
-  text-transform: uppercase;
-  letter-spacing: .04em;
-}
-.tos-card-actions { display: flex; gap: 8px; }
+/* ==========================================================================
+   tos.css — TOS blueprint form + view styles
+   --------------------------------------------------------------------------
+   Bloom weight grid (form), Bloom distribution bars (view), topic add-form.
+   Ported from assets/css/tos.css to match the PHP CodeIgniter design exactly.
+   ========================================================================== */
 
-/* TOS builder (view page) */
-.tos-builder { display: grid; grid-template-columns: 1fr 320px; gap: 20px; }
-.tos-main, .tos-side {
-  background: var(--surface);
-  border: 1px solid var(--line);
-  border-radius: var(--radius-lg);
-  padding: 20px 24px;
-}
-.tos-main h2, .tos-side h2 {
-  font-family: var(--font-display);
-  font-size: var(--text-md);
-  font-weight: 700;
-  margin: 0 0 16px;
-}
+/* ---- Bloom weight grid (TOS form) ----------------------------------- */
 
-/* Bloom weight editor */
-.bloom-editor { display: flex; flex-direction: column; gap: 12px; }
-.bloom-weight-row {
-  display: flex;
-  align-items: center;
-  gap: 12px;
+.bloom-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 14px;
+    margin-bottom: 14px;
 }
-.bloom-weight-label {
-  width: 100px;
-  font-size: var(--text-sm);
-  font-weight: 500;
-  color: var(--ink-2);
+.bloom-cell .form-label { margin-bottom: 4px; font-size: var(--text-xs); }
+.bloom-input-wrap { position: relative; }
+.bloom-input { padding-right: 28px; }
+.bloom-pct {
+    position: absolute;
+    right: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--ink-3);
+    font-size: var(--text-sm);
+    pointer-events: none;
 }
-.bloom-weight-bar {
-  flex: 1;
-  height: 8px;
-  background: var(--surface-3);
-  border-radius: 999px;
-  overflow: hidden;
-}
-.bloom-weight-fill { height: 100%; border-radius: 999px; transition: width .3s ease; }
-.bloom-weight-input {
-  width: 60px;
-  height: 32px;
-  text-align: center;
-  border: 1px solid var(--line);
-  border-radius: var(--radius-sm);
-  font-family: var(--font-display);
-  font-weight: 600;
-  color: var(--ink);
-  outline: none;
-}
-.bloom-weight-input:focus { border-color: var(--action-600); box-shadow: 0 0 0 3px var(--ring); }
 .bloom-total {
-  margin-top: 8px;
-  padding-top: 12px;
-  border-top: 1px solid var(--line);
-  font-size: var(--text-sm);
-  font-weight: 600;
-  text-align: right;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: var(--text-base);
+    font-weight: 600;
+    color: var(--ink);
+    padding: 10px 14px;
+    background: var(--surface-2);
+    border-radius: var(--radius-sm);
 }
-.bloom-total.ok { color: var(--green-600); }
-.bloom-total.bad { color: var(--red-600); }
+.bloom-total-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 2px 10px;
+    border-radius: 999px;
+    font-size: var(--text-xs);
+    font-weight: 600;
+}
+.bloom-total-badge.ok   { background: var(--green-50); color: var(--green-700); }
+.bloom-total-badge.warn { background: var(--red-50);   color: var(--red-700); }
 
-/* Topics list */
-.topic-list { list-style: none; padding: 0; margin: 0; }
-.topic-item {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 12px 0;
-  border-bottom: 1px solid var(--line);
-  gap: 12px;
+/* ---- Bloom distribution bars (TOS view) ----------------------------- */
+
+.bloom-bar-row {
+    display: grid;
+    grid-template-columns: 120px 1fr 130px;
+    align-items: center;
+    gap: 14px;
+    margin-bottom: 12px;
 }
-.topic-item:last-child { border-bottom: none; }
-.topic-info { flex: 1; }
-.topic-title { font-size: var(--text-sm); font-weight: 500; color: var(--ink); }
-.topic-meta { font-size: var(--text-xs); color: var(--ink-3); margin-top: 2px; }
-.topic-hours {
-  font-family: var(--font-display);
-  font-weight: 600;
-  color: var(--ink-2);
-  font-size: var(--text-sm);
+.bloom-bar-row:last-child { margin-bottom: 0; }
+.bloom-bar-label {
+    font-size: var(--text-sm);
+    font-weight: 600;
+    color: var(--ink);
+}
+.bloom-bar-track {
+    height: 10px;
+    background: var(--surface-3);
+    border-radius: 999px;
+    overflow: hidden;
+}
+.bloom-bar-fill {
+    height: 100%;
+    background: var(--action-600);
+    border-radius: 999px;
+    transition: width .3s ease;
+    min-width: 2px;
+}
+.bloom-bar-meta {
+    display: flex;
+    align-items: center;
+    gap: 8px;
 }
 
-@media (max-width: 1024px) { .tos-builder { grid-template-columns: 1fr; } }
-@media (max-width: 560px) { .tos-card { flex-direction: column; align-items: stretch; } .tos-card-stats { justify-content: space-around; } }
+/* ---- Responsive ------------------------------------------------------ */
+
+@media (max-width: 600px) {
+    .bloom-grid { grid-template-columns: repeat(2, 1fr); }
+    .bloom-bar-row { grid-template-columns: 1fr; gap: 6px; }
+    .bloom-bar-meta { justify-content: flex-start; }
+}
+
+/* ── Workflow callout (3-step guide) ───────────────── */
+
+.tos-workflow-callout {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    padding: var(--space-3) var(--space-4);
+    margin-bottom: var(--space-4);
+    background: var(--surface-2);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-md);
+}
+
+.tos-workflow-step {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    flex: 1;
+    min-width: 0;
+}
+
+.tos-workflow-num {
+    display: inline-flex;
+    width: 24px;
+    height: 24px;
+    flex-shrink: 0;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    background: var(--brand-accent);
+    color: #fff;
+    font-size: var(--text-xs);
+    font-weight: 700;
+}
+
+.tos-workflow-text {
+    font-size: var(--text-sm);
+    color: var(--ink-2);
+    line-height: 1.4;
+}
+
+.tos-workflow-text strong { color: var(--ink); font-weight: 600; }
+
+.tos-workflow-arrow {
+    width: 18px !important;
+    height: 18px !important;
+    flex-shrink: 0;
+    color: var(--ink-faint);
+}
+
+@media (max-width: 768px) {
+    .tos-workflow-callout { flex-direction: column; align-items: flex-start; }
+    .tos-workflow-arrow { transform: rotate(90deg); margin: -4px 0; }
+    .tos-workflow-step { width: 100%; }
+}

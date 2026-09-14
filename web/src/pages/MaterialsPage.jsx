@@ -5,7 +5,7 @@
  * Shows processing status (pending/processing/completed/failed).
  */
 import { useEffect, useState, useCallback, useRef } from 'react';
-import { Upload, Link2, Video, FileText, Trash2, RotateCw, FileStack } from 'lucide-react';
+import { Upload, Link2, Video, FileText, Trash2, RotateCw, FileStack, Sparkles } from 'lucide-react';
 import { useToast } from '../components/Toast.jsx';
 import Modal from '../components/Modal.jsx';
 import api, { ApiError } from '../lib/api.js';
@@ -115,6 +115,15 @@ export default function MaterialsPage() {
     catch (err) { toast.error(err.message || 'Reprocess failed.'); }
   }
 
+  async function handleGenerateTos(mat) {
+    try {
+      await api.post('/ai/syllabus-tos', { materialId: mat.id });
+      toast.success('TOS generation queued. Check the Blueprints (TOS) page shortly.');
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : 'TOS generation failed.');
+    }
+  }
+
   const SOURCE_ICONS = { pdf: FileText, docx: FileText, pptx: FileText, text: FileText, url: Link2, youtube: Video, file: FileStack };
 
   return (
@@ -155,6 +164,11 @@ export default function MaterialsPage() {
                       </div>
                     </div>
                     <div className="mat-card-actions">
+                      {m.is_syllabus && m.status === 'processed' && (
+                        <button className="btn btn-primary btn-sm" onClick={() => handleGenerateTos(m)} title="Auto-create a Table of Specification blueprint from this syllabus">
+                          <Sparkles size={14} /> Auto-generate Blueprint
+                        </button>
+                      )}
                       {m.status === 'failed' && (
                         <button className="btn" onClick={() => handleReprocess(m)} title="Reprocess">
                           <RotateCw size={14} />

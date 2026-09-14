@@ -113,3 +113,120 @@ router.post('/generate-questions', requireAuth, async (req, res, next) => {
 });
 
 export default router;
+
+/**
+ * GET /api/ai/pipeline/:subjectId — aggregated pipeline status for the wizard.
+ * Returns the state of each stage: syllabus upload → extract → embed → TOS →
+ * question generation → approval → exam.
+ */
+router.get('/pipeline/:subjectId', requireAuth, async (req, res, next) => {
+  try {
+    const { subjectId } = req.params;
+
+    // Ownership check
+    const [subj] = await pool.query(
+      `SELECT id FROM subjects WHERE id = :id AND instructor_id = :userId`,
+      { id: subjectId, userId: req.user.id }
+    );
+    if (!subj.length) return res.status(404).json({ error: 'Subject not found.' });
+
+    // 1. Syllabus material
+    const [syllabusRows] = await pool.query(
+      `SELECT id, title, status, source_type, chunk_count, is_syllabus,
+              created_at, error
+       FROM materials
+       WHERE subject_id = :id AND is_syllabus = 1
+       ORDER BY created_at DESC LIMIT 1`,
+      { id: subjectId }
+    );
+    const syllabus = syllabusRows[0] || null;
+
+    // 2. Recent jobs for this subject (extract, embed, syllabus_tos, generate)
+    const [jobRows] = await pool.query(
+      `SELECT id, type, status, error, created_at, started_at, finished_at, result
+       FROM ai_jobs
+       WHERE subject_id = :id
+       ORDER BY created_at DESC
+       LIMIT 20`,
+      { id: subjectId }
+    );
+
+    // Find the latest job of each type
+    const latestJob = (type) => jobRows.find((j) => j.type === type) || null;
+    const extractJob = latestJob('extract');
+    const embedJob = latestJob('embed');
+    const tosJob = latestJob('syllabus_tos');
+    const generateJob = latestJob('generate');
+
+    // 3. TOS created from this subject
+    const [tosRows] = await pool.query(
+      `SELECT id, title, total_items, created_at
+       FROM tos WHERE subject_id = :id
+       ORDER BY created_at DESC LIMIT 1`,
+      { id: subjectId }
+    );
+    const tos = tosRows[0] || null;
+
+    // 4. Questions for this subject
+    const [qStats] = await pool.query(
+      `SELECT
+         COUNT(*) AS total,
+         SUM(CASE WHEN status = 'draft' THEN 1 ELSE 0 END) AS draft,
+         SUM(CASE WHEN status = 'approved' THEN 1 ELSE 0 END) AS approved,
+         SUM(CASE WHEN status = 'rejected' THEN 1 ELSE 0 END) AS rejected
+       FROM questions WHERE subject_id = :id`,
+      { id: subjectId }
+    );
+    const questionStats = qStats[0] || { total: 0, draft: 0, approved: 0, rejected: 0 };
+
+    // 5. Exams for this subject
+    const [examRows] = await pool.query(
+      `SELECT id, title, status, created_at
+       FROM exams WHERE subject_id = :id
+       ORDER BY created_at DESC LIMIT 1`,
+      { id: subjectId }
+    );
+    const exam = examRows[0] || null;
+
+    // Determine the current stage
+    let stage = 'upload'; // default
+    if (syllabus && syllabus.status === 'pending') stage = 'extracting';
+    else if (syllabus && syllabus.status === 'processing') stage = 'extracting';
+    else if (syllabus && syllabus.status === 'failed') stage = 'extract_failed';
+    else if (syllabus && syllabus.status === 'processed') {
+      if (embedJob && embedJob.status === 'running') stage = 'embedding';
+      else if (embedJob && embedJob.status === 'queued') stage = 'embedding';
+      else if (embedJob && embedJob.status === 'failed') stage = 'embed_failed';
+      else if (tosJob && tosJob.status === 'queued') stage = 'tos_generating';
+      else if (tosJob && tosJob.status === 'running') stage = 'tos_generating';
+      else if (tosJob && tosJob.status === 'failed') stage = 'tos_failed';
+      else if (tos) {
+        if (generateJob && generateJob.status === 'queued') stage = 'question_generating';
+        else if (generateJob && generateJob.status === 'running') stage = 'question_generating';
+        else if (generateJob && generateJob.status === 'failed') stage = 'generate_failed';
+        else if (generateJob && generateJob.status === 'done') {
+          if (Number(questionStats.draft) > 0) stage = 'review';
+          else if (Number(questionStats.approved) > 0) stage = 'exam_ready';
+          else stage = 'review';
+        } else stage = 'review';
+      } else stage = 'processed';
+    }
+
+    res.json({
+      subjectId,
+      stage,
+      syllabus,
+      jobs: { extract: extractJob, embed: embedJob, tos: tosJob, generate: generateJob },
+      tos,
+      questions: {
+        total: Number(questionStats.total),
+        draft: Number(questionStats.draft),
+        approved: Number(questionStats.approved),
+        rejected: Number(questionStats.rejected),
+      },
+      exam,
+    });
+  } catch (err) {
+    next(err);
+  }
+});

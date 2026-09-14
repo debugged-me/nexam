@@ -77,12 +77,14 @@ export async function addChunks(subjectId, chunks) {
   if (exists) {
     const store = await HNSWLib.load(dir, embeddings, { space: 'cosine' });
     await store.addDocuments(docs);
+    await store.save(dir);
   } else {
     await fs.mkdir(dir, { recursive: true });
-    await HNSWLib.fromDocuments(docs, embeddings, {
+    const store = await HNSWLib.fromDocuments(docs, embeddings, {
       space: 'cosine',
       directory: dir,
     });
+    await store.save(dir);
   }
 }
 
@@ -136,12 +138,14 @@ export async function addQuestion(subjectId, questionId, text) {
   if (exists) {
     const store = await HNSWLib.load(dir, embeddings, { space: 'cosine' });
     await store.addDocuments([doc]);
+    await store.save(dir);
   } else {
     await fs.mkdir(dir, { recursive: true });
-    await HNSWLib.fromDocuments([doc], embeddings, {
+    const store = await HNSWLib.fromDocuments([doc], embeddings, {
       space: 'cosine',
       directory: dir,
     });
+    await store.save(dir);
   }
 }
 

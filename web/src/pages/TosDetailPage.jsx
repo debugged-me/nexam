@@ -1,29 +1,27 @@
 /**
  * TosDetailPage — TOS builder with topic management.
  *
- * Shows the TOS blueprint (title, subject, total items, Bloom weights) and
- * a list of topics with instructional hours. Topics can be added/removed.
+ * Matches the PHP CodeIgniter design (application/views/tos/view.php) exactly:
+ * page-header, tos-workflow-callout, stats-grid, Bloom distribution card with
+ * bloom-bar-row, topics card with data-table + inline-form.
  */
 import { useEffect, useState, useCallback } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { ArrowLeft, Plus, Trash2, Clock, BookOpen } from 'lucide-react';
+import { Plus, Trash2, BookOpen, ChevronRight, Sparkles, FileText, Pencil, ListOrdered, Layers, Clock } from 'lucide-react';
 import { useToast } from '../components/Toast.jsx';
-import Modal from '../components/Modal.jsx';
 import api, { ApiError } from '../lib/api.js';
 import AppShell from '../components/AppShell.jsx';
 import '../styles/tos.css';
 
 const BLOOM_LABELS = { remember: 'Remember', understand: 'Understand', apply: 'Apply', analyze: 'Analyze', evaluate: 'Evaluate', create: 'Create' };
 const BLOOM_ORDER = ['remember', 'understand', 'apply', 'analyze', 'evaluate', 'create'];
-const BLOOM_COLORS = ['var(--bloom-1)', 'var(--bloom-2)', 'var(--bloom-3)', 'var(--bloom-4)', 'var(--bloom-5)', 'var(--bloom-6)'];
 
 export default function TosDetailPage() {
   const { id } = useParams();
   const toast = useToast();
   const navigate = useNavigate();
   const [data, setData] = useState(null);
-  const [addingTopic, setAddingTopic] = useState(false);
-  const [newTopic, setNewTopic] = useState({ title: '', instructional_hours: 0, learning_outcomes: '' });
+  const [newTopic, setNewTopic] = useState({ title: '', instructional_hours: 0 });
   const [savingTopic, setSavingTopic] = useState(false);
 
   const load = useCallback(() => {
@@ -39,12 +37,12 @@ export default function TosDetailPage() {
 
   async function handleAddTopic(e) {
     e.preventDefault();
+    if (!newTopic.title.trim()) { toast.error('Topic title is required.'); return; }
     setSavingTopic(true);
     try {
       await api.post(`/tos/${id}/topics`, newTopic);
       toast.success('Topic added.');
-      setAddingTopic(false);
-      setNewTopic({ title: '', instructional_hours: 0, learning_outcomes: '' });
+      setNewTopic({ title: '', instructional_hours: 0 });
       load();
     } catch (err) {
       toast.error(err instanceof ApiError ? err.message : 'Could not add topic.');
@@ -54,7 +52,7 @@ export default function TosDetailPage() {
   }
 
   async function handleDeleteTopic(topicId) {
-    if (!confirm('Remove this topic?')) return;
+    if (!confirm('Remove this topic? This cannot be undone.')) return;
     try {
       await api.del(`/tos/${id}/topics/${topicId}`);
       toast.success('Topic removed.');
@@ -66,125 +64,154 @@ export default function TosDetailPage() {
 
   if (!data) return <AppShell activeNav="tos" pageTitle="Blueprint"><p className="placeholder">Loading…</p></AppShell>;
   const { tos, topics } = data;
-  const totalHours = topics.reduce((s, t) => s + (t.instructional_hours || 0), 0);
+  const totalHours = topics.reduce((s, t) => s + (Number(t.instructional_hours) || 0), 0);
 
   return (
     <AppShell activeNav="tos" pageTitle={tos.title}>
+
       <div className="page-header">
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-              <Link to="/tos" className="btn"><ArrowLeft size={16} /> Back</Link>
-              <div>
-                <h1 style={{ margin: 0 }}>{tos.title}</h1>
-                <p style={{ margin: '4px 0 0', fontSize: 'var(--text-sm)', color: 'var(--ink-3)' }}>
-                  {tos.subject_code || tos.subject_name} · {tos.total_items} items
-                </p>
+        <div>
+          <h1>{tos.title}</h1>
+          {tos.subject_name && (
+            <Link to="/subjects" className="crumb-link">
+              <BookOpen size={14} />
+              {tos.subject_name}
+              {tos.subject_code && <span className="badge badge-gray ml-1">{tos.subject_code}</span>}
+            </Link>
+          )}
+        </div>
+        <div className="header-actions">
+          <button type="button" className="btn btn-primary btn-sm" title="AI drafts questions from your materials based on this blueprint">
+            <Sparkles size={14} /> Auto-generate Questions
+          </button>
+          <Link to="/exams" className="btn btn-outline btn-sm">
+            <FileText size={14} /> Build Exam
+          </Link>
+          <Link to="/tos" className="btn btn-outline btn-sm"><Pencil size={14} /> Edit</Link>
+        </div>
+      </div>
+
+      <div className="tos-workflow-callout">
+        <div className="tos-workflow-step">
+          <span className="tos-workflow-num">1</span>
+          <span className="tos-workflow-text"><strong>Auto-generate Questions</strong> — AI drafts questions from your uploaded materials, aligned to this blueprint's Bloom distribution.</span>
+        </div>
+        <ChevronRight className="tos-workflow-arrow" />
+        <div className="tos-workflow-step">
+          <span className="tos-workflow-num">2</span>
+          <span className="tos-workflow-text"><strong>Review & Approve</strong> — Drafts appear on the Questions page. Approve the good ones to make them active.</span>
+        </div>
+        <ChevronRight className="tos-workflow-arrow" />
+        <div className="tos-workflow-step">
+          <span className="tos-workflow-num">3</span>
+          <span className="tos-workflow-text"><strong>Build Exam</strong> — Pulls from your approved (active) question bank to fill this blueprint.</span>
+        </div>
+      </div>
+
+      <div className="stats-grid mb-2">
+        <div className="stat-card">
+          <div className="stat-icon blue"><ListOrdered size={18} /></div>
+          <div className="stat-info"><div className="stat-value">{Number(tos.total_items)}</div><div className="stat-label">Total Items</div></div>
+        </div>
+        <div className="stat-card">
+          <div className="stat-icon amber"><Layers size={18} /></div>
+          <div className="stat-info"><div className="stat-value">{topics.length}</div><div className="stat-label">Topics</div></div>
+        </div>
+        <div className="stat-card">
+          <div className="stat-icon green"><Clock size={18} /></div>
+          <div className="stat-info"><div className="stat-value">{totalHours}</div><div className="stat-label">Instructional Hours</div></div>
+        </div>
+      </div>
+
+      <div className="card mb-2">
+        <div className="card-header">
+          <span className="card-title">Bloom's Taxonomy Distribution</span>
+        </div>
+        <div className="card-body">
+          {BLOOM_ORDER.map((k) => {
+            const pct = Number(tos.bloom_weights?.[k]) || 0;
+            const itemCount = Math.round((pct / 100) * Number(tos.total_items));
+            return (
+              <div key={k} className="bloom-bar-row">
+                <div className="bloom-bar-label">{BLOOM_LABELS[k]}</div>
+                <div className="bloom-bar-track">
+                  <div className="bloom-bar-fill" style={{ width: `${pct}%` }} />
+                </div>
+                <div className="bloom-bar-meta">
+                  <span className="badge badge-gray">{pct}%</span>
+                  <span className="text-muted meta-xs">~{itemCount} items</span>
+                </div>
               </div>
-            </div>
-            <div className="page-header-actions">
-              <button className="btn btn-primary" onClick={() => setAddingTopic(true)}>
-                <Plus size={16} /> Add topic
+            );
+          })}
+        </div>
+      </div>
+
+      <div className="card">
+        <div className="card-header">
+          <span className="card-title">Topics</span>
+          <span className="text-muted meta-sm">{topics.length} topic{topics.length === 1 ? '' : 's'}</span>
+        </div>
+        {topics.length === 0 ? (
+          <div className="empty-state empty-state-md">
+            <Layers aria-hidden="true" />
+            <p>No topics added yet. Add topics below to define what this TOS covers.</p>
+          </div>
+        ) : (
+          <div className="table-wrap table-bare">
+            <table className="data-table">
+              <caption className="sr-only">Topics in this Table of Specification</caption>
+              <thead>
+                <tr>
+                  <th className="col-num">#</th>
+                  <th>Topic</th>
+                  <th className="col-medium">Instructional Hours</th>
+                  <th className="col-actions">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {topics.map((tp, i) => (
+                  <tr key={tp.id}>
+                    <td className="text-muted">{i + 1}</td>
+                    <td className="cell-primary">{tp.title}</td>
+                    <td><span className="badge badge-amber">{Number(tp.instructional_hours)} hrs</span></td>
+                    <td>
+                      <div className="action-icons">
+                        <button className="action-icon danger" aria-label={`Remove ${tp.title}`} onClick={() => handleDeleteTopic(tp.id)}>
+                          <Trash2 size={15} />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        <div className="card-body card-body-divider">
+          <form onSubmit={handleAddTopic}>
+            <div className="inline-form">
+              <div className="inline-form-grow">
+                <label className="form-label" htmlFor="topic_title">Topic Title <span className="req">*</span></label>
+                <input type="text" id="topic_title" className="form-control" required maxLength={255}
+                  placeholder="e.g. Introduction to Algorithms"
+                  value={newTopic.title}
+                  onChange={(e) => setNewTopic({ ...newTopic, title: e.target.value })} />
+              </div>
+              <div className="inline-form-fixed">
+                <label className="form-label" htmlFor="topic_hours">Instructional Hours</label>
+                <input type="number" id="topic_hours" className="form-control" min={0} max={1000} value={newTopic.instructional_hours}
+                  onChange={(e) => setNewTopic({ ...newTopic, instructional_hours: Number(e.target.value) })} />
+              </div>
+              <button type="submit" className="btn btn-primary" disabled={savingTopic}>
+                {savingTopic ? <span className="btn-spinner" /> : <Plus size={16} />} Add Topic
               </button>
             </div>
-          </div>
-          <div className="tos-builder">
-            {/* Main: topics */}
-            <div className="tos-main">
-              <h2>Topics ({topics.length})</h2>
-              {topics.length === 0 ? (
-                <div className="empty-state">
-                  <BookOpen size={36} style={{ color: 'var(--ink-faint)', marginBottom: 12 }} />
-                  <h3>No topics yet</h3>
-                  <p>Add topics from your syllabus to drive question generation.</p>
-                  <button className="btn btn-primary" onClick={() => setAddingTopic(true)}>
-                    <Plus size={16} /> Add first topic
-                  </button>
-                </div>
-              ) : (
-                <>
-                  <ul className="topic-list">
-                    {topics.map((t) => (
-                      <li key={t.id} className="topic-item">
-                        <div className="topic-info">
-                          <div className="topic-title">{t.title}</div>
-                          <div className="topic-meta">
-                            {t.learning_outcomes ? `${t.learning_outcomes.slice(0, 80)}${t.learning_outcomes.length > 80 ? '…' : ''}` : 'No outcomes specified'}
-                          </div>
-                        </div>
-                        <div className="topic-hours">
-                          <Clock size={14} style={{ verticalAlign: 'middle', marginRight: 4 }} />
-                          {t.instructional_hours}h
-                        </div>
-                        <button className="btn btn-danger" onClick={() => handleDeleteTopic(t.id)} title="Remove">
-                          <Trash2 size={14} />
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
-                  <div style={{ marginTop: 16, paddingTop: 16, borderTop: '1px solid var(--line)', fontSize: 'var(--text-sm)', color: 'var(--ink-3)' }}>
-                    Total instructional hours: <strong>{totalHours}h</strong>
-                  </div>
-                </>
-              )}
-            </div>
+          </form>
+        </div>
+      </div>
 
-            {/* Side: Bloom distribution */}
-            <div className="tos-side">
-              <h2>Bloom distribution</h2>
-              <div className="bloom-editor">
-                {BLOOM_ORDER.map((k, i) => (
-                  <div key={k} className="bloom-weight-row">
-                    <span className="bloom-weight-label">{BLOOM_LABELS[k]}</span>
-                    <div className="bloom-weight-bar">
-                      <div className="bloom-weight-fill" style={{ width: `${tos.bloom_weights?.[k] || 0}%`, background: BLOOM_COLORS[i] }} />
-                    </div>
-                    <span style={{ fontFamily: 'var(--font-display)', fontWeight: 600, fontSize: 'var(--text-sm)', width: 40, textAlign: 'right' }}>
-                      {tos.bloom_weights?.[k] || 0}%
-                    </span>
-                  </div>
-                ))}
-              </div>
-              <div style={{ marginTop: 20, paddingTop: 16, borderTop: '1px solid var(--line)' }}>
-                <div style={{ fontSize: 'var(--text-sm)', color: 'var(--ink-3)', marginBottom: 8 }}>Target items per Bloom level</div>
-                {BLOOM_ORDER.map((k, i) => {
-                  const pct = tos.bloom_weights?.[k] || 0;
-                  const items = Math.round((pct / 100) * tos.total_items);
-                  return (
-                    <div key={k} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 'var(--text-sm)', padding: '4px 0' }}>
-                      <span style={{ color: 'var(--ink-2)' }}>{BLOOM_LABELS[k]}</span>
-                      <span style={{ fontWeight: 600, color: BLOOM_COLORS[i] }}>{items} items</span>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          </div>
-
-      <Modal open={addingTopic} title="Add topic" subtitle="Add a topic from your syllabus." onClose={() => setAddingTopic(false)}
-        footer={<>
-          <button className="btn" onClick={() => setAddingTopic(false)}>Cancel</button>
-          <button className="btn btn-primary" form="topic-form" type="submit" disabled={savingTopic}>
-            {savingTopic && <span className="btn-spinner" />}Add topic
-          </button>
-        </>}>
-        <form id="topic-form" onSubmit={handleAddTopic} noValidate>
-          <div className="form-group">
-            <label className="form-label">Title <span className="req">*</span></label>
-            <input className="form-input" style={{ paddingLeft: 16 }} value={newTopic.title} maxLength={255} required
-              onChange={(e) => setNewTopic({ ...newTopic, title: e.target.value })} />
-          </div>
-          <div className="form-group">
-            <label className="form-label">Instructional Hours</label>
-            <input type="number" className="form-input" style={{ paddingLeft: 16 }} min={0} value={newTopic.instructional_hours}
-              onChange={(e) => setNewTopic({ ...newTopic, instructional_hours: Number(e.target.value) })} />
-          </div>
-          <div className="form-group">
-            <label className="form-label">Learning Outcomes</label>
-            <textarea className="form-input" style={{ minHeight: 80, padding: '12px 16px', resize: 'vertical' }}
-              value={newTopic.learning_outcomes} maxLength={2000}
-              onChange={(e) => setNewTopic({ ...newTopic, learning_outcomes: e.target.value })} />
-          </div>
-        </form>
-      </Modal>
     </AppShell>
   );
 }

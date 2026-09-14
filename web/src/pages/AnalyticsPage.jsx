@@ -1,22 +1,58 @@
 /**
  * AnalyticsPage — performance dashboard with exam overview, score
- * distributions, item analysis, and recent scans.
+ * distributions, and student scores.
  *
  * Data comes from GET /api/analytics/overview. Exam-level detail is loaded
- * on demand when an exam is selected.
+ * on demand when an exam is selected (GET /api/analytics/exam/:id).
+ *
+ * Mirrors the PHP CodeIgniter views (analytics/index.php + analytics/exam.php)
+ * using the same class names so the ported app.css + analytics.css apply.
  */
 import { useEffect, useState, useCallback } from 'react';
-import { BarChart3, Users, FileCheck, AlertTriangle, TrendingUp } from 'lucide-react';
+import {
+  FileText, ScanLine, Users, AlertCircle, BarChart3,
+  TrendingUp, TrendingDown, Sparkles, ListChecks, ArrowLeft,
+  CheckCircle,
+} from 'lucide-react';
 import { useToast } from '../components/Toast.jsx';
 import api from '../lib/api.js';
 import AppShell from '../components/AppShell.jsx';
 import '../styles/analytics.css';
 
+/** Format a score with one decimal, e.g. 87.5%. */
+function fmtPct1(v) {
+  if (v === null || v === undefined || Number.isNaN(Number(v))) return null;
+  return Number(v).toFixed(1);
+}
+
+/** Format a score with no decimals, e.g. 87%. */
+function fmtPct0(v) {
+  if (v === null || v === undefined || Number.isNaN(Number(v))) return null;
+  return Math.round(Number(v));
+}
+
+/** Format a scanned_at timestamp like the PHP "M j, g:i A". */
+function fmtScanned(iso) {
+  if (!iso) return '—';
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '—';
+  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const hr = d.getHours() % 12 || 12;
+  const min = String(d.getMinutes()).padStart(2, '0');
+  const ampm = d.getHours() >= 12 ? 'PM' : 'AM';
+  return `${months[d.getMonth()]} ${d.getDate()}, ${hr}:${min} ${ampm}`;
+}
+
+/** Truncate a string to n chars with ellipsis (mirrors mb_strimwidth). */
+function trimwd(s, n = 30) {
+  if (!s) return '';
+  return s.length > n ? s.slice(0, n) + '...' : s;
+}
+
 export default function AnalyticsPage() {
   const toast = useToast();
   const [overview, setOverview] = useState(null);
   const [examDetail, setExamDetail] = useState(null);
-  const [itemAnalysis, setItemAnalysis] = useState(null);
   const [selectedExam, setSelectedExam] = useState(null);
 
   const load = useCallback(() => {
@@ -30,152 +66,289 @@ export default function AnalyticsPage() {
   async function selectExam(examId) {
     setSelectedExam(examId);
     setExamDetail(null);
-    setItemAnalysis(null);
     try {
-      const [detail, items] = await Promise.all([
-        api.get(`/analytics/exam/${examId}`),
-        api.get(`/analytics/exam/${examId}/items`),
-      ]);
+      const detail = await api.get(`/analytics/exam/${examId}`);
       setExamDetail(detail);
-      setItemAnalysis(items);
     } catch (err) {
       toast.error(err.message || 'Could not load exam analytics.');
     }
   }
 
-  if (!overview) return <AppShell activeNav="analytics" pageTitle="Analytics" wide><p className="placeholder">Loading…</p></AppShell>;
-  const o = overview.overview;
+  function backToOverview() {
+    setSelectedExam(null);
+    setExamDetail(null);
+  }
+
+  // ── Loading ──────────────────────────────────────────
+  if (!overview) {
+    return (
+      <AppShell activeNav="analytics" pageTitle="Analytics" wide>
+        <p className="placeholder">Loading…</p>
+      </AppShell>
+    );
+  }
+
+  // ── Exam detail view ─────────────────────────────────
+  if (selectedExam) {
+    return (
+      <AppShell activeNav="analytics" pageTitle="Analytics" wide>
+        <ExamDetail
+          examId={selectedExam}
+          detail={examDetail}
+          onBack={backToOverview}
+        />
+      </AppShell>
+    );
+  }
+
+  // ── Index view ───────────────────────────────────────
+  const o = overview.overview || {};
+  const examAverages = overview.examAverages || [];
+  const recentScans = overview.recentScans || [];
 
   return (
-    <AppShell activeNav="analytics" pageTitle="Analytics" wide>
+    <>
       <div className="page-header">
-            <h1>Analytics</h1>
-          </div>
-          {/* Overview KPIs */}
-          <div className="analytics-grid">
-            <div className="stat-card">
-              <div className="stat-label">Total Exams</div>
-              <div className="stat-value">{o.total_exams || 0}</div>
-            </div>
-            <div className="stat-card">
-              <div className="stat-label">Total Scans</div>
-              <div className="stat-value">{o.total_scans || 0}</div>
-            </div>
-            <div className="stat-card">
-              <div className="stat-label">Students</div>
-              <div className="stat-value">{o.total_students || 0}</div>
-            </div>
-            <div className="stat-card">
-              <div className="stat-label">Needs Review</div>
-              <div className="stat-value" style={{ color: o.needs_review > 0 ? 'var(--amber-600)' : 'var(--ink)' }}>
-                {o.needs_review || 0}
-              </div>
-            </div>
-          </div>
+        <div>
+          <h1>Analytics</h1>
+          <p className="page-sub">Performance insights from scanned OMR answer sheets.</p>
+        </div>
+        <div className="header-actions">
+          <a href="/analytics/ai-eval" className="btn btn-outline btn-sm" title="View AI accuracy, precision, recall, and Bloom-level classification metrics">
+            <Sparkles size={16} /> AI Evaluation Metrics
+          </a>
+        </div>
+      </div>
 
-          <div className="analytics-cols">
-            {/* Exam averages */}
-            <div className="analytics-card">
-              <h2>Exam averages</h2>
-              {overview.examAverages.length === 0 ? (
-                <p className="recent-empty">No scan data yet.</p>
-              ) : (
-                <table className="avg-table">
-                  <thead><tr><th>Exam</th><th>Scans</th><th>Avg</th><th>Min</th><th>Max</th></tr></thead>
-                  <tbody>
-                    {overview.examAverages.map((e) => (
-                      <tr key={e.id} style={{ cursor: 'pointer' }} onClick={() => selectExam(e.id)}>
-                        <td>{e.title}</td>
-                        <td>{e.scan_count}</td>
-                        <td className="score">{e.avg_score ? `${Math.round(e.avg_score)}%` : '—'}</td>
-                        <td>{e.min_score ? `${Math.round(e.min_score)}%` : '—'}</td>
-                        <td>{e.max_score ? `${Math.round(e.max_score)}%` : '—'}</td>
+      <div className="stats-grid mb-3">
+        <div className="stat-card">
+          <div className="stat-icon blue"><FileText size={18} /></div>
+          <div className="stat-info"><div className="stat-value">{parseInt(o.total_exams || 0, 10)}</div><div className="stat-label">Exams</div></div>
+        </div>
+        <div className="stat-card">
+          <div className="stat-icon green"><ScanLine size={18} /></div>
+          <div className="stat-info"><div className="stat-value">{parseInt(o.total_scans || 0, 10)}</div><div className="stat-label">Scanned Sheets</div></div>
+        </div>
+        <div className="stat-card">
+          <div className="stat-icon purple"><Users size={18} /></div>
+          <div className="stat-info"><div className="stat-value">{parseInt(o.total_students || 0, 10)}</div><div className="stat-label">Students</div></div>
+        </div>
+        <div className="stat-card">
+          <div className="stat-icon amber"><AlertCircle size={18} /></div>
+          <div className="stat-info"><div className="stat-value">{parseInt(o.needs_review || 0, 10)}</div><div className="stat-label">Need Review</div></div>
+        </div>
+      </div>
+
+      <div className="detail-grid-2 mb-3">
+        {/* Exam Averages */}
+        <div className="card">
+          <div className="card-header">
+            <span className="card-title">Exam Averages</span>
+          </div>
+          {examAverages.length === 0 ? (
+            <div className="empty-state empty-state-md"><BarChart3 aria-hidden="true" /><p>No scan data yet.</p></div>
+          ) : (
+            <div className="table-wrap table-bare">
+              <table className="data-table">
+                <thead>
+                  <tr><th>Exam</th><th>Scans</th><th>Average</th><th>Range</th></tr>
+                </thead>
+                <tbody>
+                  {examAverages.map((ea) => {
+                    if (!ea.avg_score && !ea.scan_count) return null;
+                    const avg = ea.avg_score !== null ? Number(ea.avg_score) : null;
+                    return (
+                      <tr key={ea.id}>
+                        <td>
+                          <button type="button" className="cell-title" onClick={() => selectExam(ea.id)}>
+                            {ea.title}
+                          </button>
+                        </td>
+                        <td className="text-muted">{parseInt(ea.scan_count || 0, 10)}</td>
+                        <td>
+                          {avg !== null ? (
+                            <span className={`badge badge-${avg >= 75 ? 'green' : 'amber'}`}>
+                              {avg.toFixed(1)}%
+                            </span>
+                          ) : (
+                            <span className="text-muted">—</span>
+                          )}
+                        </td>
+                        <td className="text-muted meta-sm">
+                          {ea.min_score !== null
+                            ? `${Math.round(Number(ea.min_score))}–${Math.round(Number(ea.max_score))}%`
+                            : '—'}
+                        </td>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              )}
-            </div>
-
-            {/* Recent scans */}
-            <div className="analytics-card">
-              <h2>Recent scans</h2>
-              {overview.recentScans.length === 0 ? (
-                <p className="recent-empty">No scans yet.</p>
-              ) : (
-                <ul className="scan-list">
-                  {overview.recentScans.map((s) => (
-                    <li key={s.id} className="scan-item">
-                      <div>
-                        <div className="scan-name">{s.student_name || 'Unknown'}</div>
-                        <div className="scan-meta">{s.exam_title} · {new Date(s.scanned_at).toLocaleDateString()}</div>
-                      </div>
-                      <span className={`scan-score ${s.score >= 75 ? 'pass' : 'fail'}`}>
-                        {Math.round(s.score)}%
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
-          </div>
-
-          {/* Exam detail (when selected) */}
-          {selectedExam && examDetail && (
-            <div className="analytics-cols">
-              <div className="analytics-card">
-                <h2>{examDetail.exam.title} — Score distribution</h2>
-                {examDetail.distribution.length === 0 ? (
-                  <p className="recent-empty">No scan data for this exam.</p>
-                ) : (
-                  <>
-                    <div className="histogram">
-                      {Array.from({ length: 10 }, (_, i) => {
-                        const bin = i * 10;
-                        const found = examDetail.distribution.find((d) => d.bin_start === bin);
-                        const count = found?.count || 0;
-                        const maxCount = Math.max(...examDetail.distribution.map((d) => d.count), 1);
-                        const h = (count / maxCount) * 100;
-                        return (
-                          <div key={bin} className={`histogram-bar ${bin >= 70 ? 'passing' : ''}`}
-                            style={{ height: `${Math.max(h, count > 0 ? 4 : 0)}%` }}
-                            title={`${bin}-${bin + 9}: ${count} students`} />
-                        );
-                      })}
-                    </div>
-                    <div style={{ display: 'flex', gap: 4, marginTop: 4 }}>
-                      {Array.from({ length: 10 }, (_, i) => (
-                        <div key={i} className="histogram-label" style={{ flex: 1 }}>{i * 10}</div>
-                      ))}
-                    </div>
-                    <div style={{ marginTop: 16, fontSize: 'var(--text-sm)', color: 'var(--ink-3)' }}>
-                      Avg: <strong>{examDetail.stats.avg_score ? Math.round(examDetail.stats.avg_score) : 0}%</strong>
-                      {' · '}Passing: <strong>{examDetail.stats.passing_count || 0}</strong>
-                      {' · '}Failing: <strong>{examDetail.stats.failing_count || 0}</strong>
-                    </div>
-                  </>
-                )}
-              </div>
-
-              <div className="analytics-card">
-                <h2>Item analysis</h2>
-                {!itemAnalysis || itemAnalysis.items.length === 0 ? (
-                  <p className="recent-empty">No item-level data.</p>
-                ) : (
-                  itemAnalysis.items.map((item) => (
-                    <div key={item.itemNumber} className="item-row">
-                      <span className="item-num">{item.itemNumber}</span>
-                      <div className="item-bar">
-                        <div className="item-bar-correct" style={{ width: `${item.correctRate}%` }} />
-                      </div>
-                      <span className="item-pct">{item.correctRate}%</span>
-                      <span className={`difficulty-badge ${item.difficulty}`}>{item.difficulty}</span>
-                    </div>
-                  ))
-                )}
-              </div>
+                    );
+                  })}
+                </tbody>
+              </table>
             </div>
           )}
-    </AppShell>
+        </div>
+
+        {/* Recent Scans */}
+        <div className="card">
+          <div className="card-header">
+            <span className="card-title">Recent Scans</span>
+          </div>
+          {recentScans.length === 0 ? (
+            <div className="empty-state empty-state-md"><ScanLine aria-hidden="true" /><p>No scans yet. Use the mobile app to scan OMR sheets.</p></div>
+          ) : (
+            <div className="table-wrap table-bare">
+              <table className="data-table">
+                <thead>
+                  <tr><th>Student</th><th>Exam</th><th>Score</th><th>Scanned</th></tr>
+                </thead>
+                <tbody>
+                  {recentScans.map((rs) => {
+                    const score = Number(rs.score || 0);
+                    return (
+                      <tr key={rs.id}>
+                        <td className="cell-primary">{rs.student_name || 'Unknown'}</td>
+                        <td className="text-muted">{trimwd(rs.exam_title, 30)}</td>
+                        <td>
+                          <span className={`badge badge-${score >= 75 ? 'green' : 'amber'}`}>
+                            {score.toFixed(1)}%
+                          </span>
+                        </td>
+                        <td className="text-muted meta-sm">{fmtScanned(rs.scanned_at)}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      </div>
+    </>
+  );
+}
+
+/**
+ * ExamDetail — the exam-level analytics view (score distribution + student scores).
+ * Mirrors application/views/analytics/exam.php.
+ */
+function ExamDetail({ examId, detail, onBack }) {
+  if (!detail) {
+    return <p className="placeholder">Loading exam analytics…</p>;
+  }
+
+  const { exam, stats, distribution, students } = detail;
+  const s = stats || {};
+  const dist = distribution || [];
+  const studs = students || [];
+
+  // Build the 10-bin distribution map (0-9, 10-19, ... 90-99)
+  const distMap = {};
+  for (const d of dist) distMap[parseInt(d.bin_start, 10)] = parseInt(d.count, 10);
+  const maxCount = Math.max(1, dist.length ? Math.max(...dist.map((d) => Number(d.count))) : 0);
+
+  return (
+    <>
+      <div className="page-header">
+        <div>
+          <h1>{exam?.title || 'Exam Analytics'}</h1>
+          <p className="page-sub">Class performance and score distribution.</p>
+        </div>
+        <div className="header-actions">
+          <a href={`/analytics/items/${encodeURIComponent(examId)}`} className="btn btn-outline btn-sm">
+            <ListChecks size={16} /> Item Analysis
+          </a>
+          <button type="button" className="btn btn-outline btn-sm" onClick={onBack}>
+            <ArrowLeft size={16} /> Back
+          </button>
+        </div>
+      </div>
+
+      <div className="stats-grid mb-3">
+        <div className="stat-card">
+          <div className="stat-icon blue"><Users size={18} /></div>
+          <div className="stat-info"><div className="stat-value">{parseInt(s.total_scans || 0, 10)}</div><div className="stat-label">Students</div></div>
+        </div>
+        <div className="stat-card">
+          <div className="stat-icon green"><TrendingUp size={18} /></div>
+          <div className="stat-info"><div className="stat-value">{fmtPct1(s.avg_score ?? 0)}%</div><div className="stat-label">Class Average</div></div>
+        </div>
+        <div className="stat-card">
+          <div className="stat-icon amber"><TrendingDown size={18} /></div>
+          <div className="stat-info"><div className="stat-value">{fmtPct0(s.min_score ?? 0)}%</div><div className="stat-label">Lowest</div></div>
+        </div>
+        <div className="stat-card">
+          <div className="stat-icon purple"><TrendingUp size={18} /></div>
+          <div className="stat-info"><div className="stat-value">{fmtPct0(s.max_score ?? 0)}%</div><div className="stat-label">Highest</div></div>
+        </div>
+      </div>
+
+      {/* Score Distribution */}
+      <div className="card mb-3">
+        <div className="card-header"><span className="card-title">Score Distribution</span></div>
+        <div className="card-body">
+          <div className="score-distribution">
+            {Array.from({ length: 10 }, (_, i) => {
+              const binStart = i * 10;
+              const count = distMap[binStart] || 0;
+              const heightPct = (count / maxCount) * 100;
+              return (
+                <div className="dist-bar" key={binStart}>
+                  <div className="dist-bar-count">{count}</div>
+                  <div className="dist-bar-track">
+                    <div className="dist-bar-fill" style={{ height: `${heightPct}%` }} />
+                  </div>
+                  <div className="dist-bar-label">{binStart}-{binStart + 9}</div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+
+      {/* Student Scores */}
+      <div className="card">
+        <div className="card-header">
+          <span className="card-title">Student Scores</span>
+          <span className="text-muted meta-sm">{studs.length} students</span>
+        </div>
+        {studs.length === 0 ? (
+          <div className="empty-state empty-state-md"><ScanLine aria-hidden="true" /><p>No scans for this exam yet.</p></div>
+        ) : (
+          <div className="table-wrap">
+            <table className="data-table">
+              <thead>
+                <tr><th>#</th><th>Student</th><th>Set</th><th>Score</th><th>Correct</th><th>Status</th><th>Scanned</th></tr>
+              </thead>
+              <tbody>
+                {studs.map((st, i) => {
+                  const score = Number(st.score || 0);
+                  return (
+                    <tr key={st.scan_id || i}>
+                      <td className="text-muted">{i + 1}</td>
+                      <td className="cell-primary">{st.student_name || 'Unknown'}</td>
+                      <td><span className="badge badge-gray">{st.set_label || '—'}</span></td>
+                      <td>
+                        <span className={`badge badge-${score >= 75 ? 'green' : 'amber'}`}>
+                          {score.toFixed(1)}%
+                        </span>
+                      </td>
+                      <td className="text-muted">{parseInt(st.correct_count || 0, 10)} / {parseInt(st.total_items || 0, 10)}</td>
+                      <td>
+                        {st.needs_review ? (
+                          <span className="g-state is-draft"><AlertCircle size={14} /> Needs Review</span>
+                        ) : (
+                          <span className="g-state is-live"><CheckCircle size={14} /> Reviewed</span>
+                        )}
+                      </td>
+                      <td className="text-muted meta-sm">{fmtScanned(st.scanned_at)}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+    </>
   );
 }

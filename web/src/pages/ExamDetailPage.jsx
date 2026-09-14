@@ -1,10 +1,17 @@
 /**
  * ExamDetailPage — exam detail with question attachment, PDF generation,
  * download, and LMS export.
+ *
+ * Matches the PHP CodeIgniter design (application/views/exams/view.php)
+ * exactly: page-header with badges + header-actions, stats-grid, cards for
+ * Instructions / Questions / Downloads / LMS Export.
  */
 import { useEffect, useState, useCallback } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { ArrowLeft, Plus, Trash2, FileDown, FileText, FileCheck, Download, Sparkles } from 'lucide-react';
+import {
+  Plus, Trash2, FileText, FileCheck, Download, Sparkles, Send, Printer,
+  Pencil, HelpCircle, Clock, Monitor,
+} from 'lucide-react';
 import { useToast } from '../components/Toast.jsx';
 import Modal from '../components/Modal.jsx';
 import api, { ApiError } from '../lib/api.js';
@@ -24,6 +31,7 @@ export default function ExamDetailPage() {
   const [selected, setSelected] = useState(new Set());
   const [attaching, setAttaching] = useState(false);
   const [generating, setGenerating] = useState(false);
+  const [downloadsVisible, setDownloadsVisible] = useState(false);
 
   const load = useCallback(() => {
     api.get(`/exams/${id}`)
@@ -37,7 +45,6 @@ export default function ExamDetailPage() {
     if (!data) return;
     try {
       const qData = await api.get(`/questions?subject_id=${data.exam.subject_id}&status=active`);
-      // Filter out already-attached
       const attachedIds = new Set(data.questions.map((q) => q.id));
       setAvailableQs(qData.questions.filter((q) => !attachedIds.has(q.id)));
       setSelected(new Set());
@@ -78,6 +85,7 @@ export default function ExamDetailPage() {
     try {
       const result = await api.post(`/exams/${id}/generate-sets`, { setCount: data.exam.set_count });
       toast.success(`Generated ${result.sets.length} set(s).`);
+      setDownloadsVisible(true);
       load();
     } catch (err) {
       toast.error(err instanceof ApiError ? err.message : 'Generation failed.');
@@ -86,10 +94,20 @@ export default function ExamDetailPage() {
     }
   }
 
+  async function handlePublish() {
+    if (!confirm('Publish exam? The exam will be marked as published and ready for use.')) return;
+    try {
+      await api.put(`/exams/${id}`, { ...data.exam, status: 'published' });
+      toast.success('Exam published.');
+      load();
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : 'Publish failed.');
+    }
+  }
+
   function downloadUrl(type, set) {
     const base = import.meta.env.VITE_API_BASE || '/api';
     const url = `${base}/exams/${id}/download/${type}${set ? `?set=${set}` : ''}`;
-    // Append JWT as query param for download links (can't set headers on <a> tags)
     const token = localStorage.getItem('nexam_token');
     return `${url}&token=${token}`;
   }
@@ -102,109 +120,176 @@ export default function ExamDetailPage() {
 
   if (!data) return <AppShell activeNav="exams" pageTitle="Exam"><p className="placeholder">Loading…</p></AppShell>;
   const { exam, questions, tos } = data;
+  const published = exam.status === 'published';
+  const print = exam.format === 'print';
 
   return (
     <AppShell activeNav="exams" pageTitle={exam.title}>
       <div className="page-header">
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-              <Link to="/exams" className="btn"><ArrowLeft size={16} /> Back</Link>
-              <div>
-                <h1 style={{ margin: 0 }}>{exam.title}</h1>
-                <p style={{ margin: '4px 0 0', fontSize: 'var(--text-sm)', color: 'var(--ink-3)' }}>
-                  {exam.subject_code || exam.subject_name} · {questions.length} questions · {exam.status}
-                  {tos && ` · TOS: ${tos.title}`}
-                </p>
-              </div>
-            </div>
-            <div className="page-header-actions">
-              <button className="btn" onClick={openPicker}><Plus size={16} /> Add questions</button>
-              <button className="btn btn-primary" onClick={handleGenerate} disabled={generating || !questions.length}>
-                {generating ? <span className="btn-spinner" /> : <Sparkles size={16} />}
-                Generate PDFs
+        <div>
+          <h1>{exam.title}</h1>
+          {exam.subject_name && <span className="badge badge-gray">{exam.subject_name}</span>}
+          {published
+            ? <span className="badge badge-green">Published</span>
+            : <span className="badge badge-amber">Draft</span>}
+        </div>
+        <div className="header-actions">
+          {!published && (
+            <button className="btn btn-primary btn-sm" onClick={handlePublish}>
+              <Send size={14} /> Publish
+            </button>
+          )}
+          <button className="btn btn-primary btn-sm" onClick={handleGenerate} disabled={generating || !questions.length}>
+            {generating ? <span className="btn-spinner" /> : <FileText size={14} />}
+            Generate PDFs
+          </button>
+          {print && (
+            <button className="btn btn-outline btn-sm" onClick={() => window.print()}>
+              <Printer size={14} /> Print
+            </button>
+          )}
+          <Link to={`/exams/${id}/edit`} className="btn btn-outline btn-sm">
+            <Pencil size={14} /> Edit
+          </Link>
+        </div>
+      </div>
+
+      <div className="stats-grid mb-2">
+        <div className="stat-card">
+          <div className="stat-icon blue"><FileText size={18} /></div>
+          <div className="stat-info"><div className="stat-value">{questions.length}</div><div className="stat-label">Questions</div></div>
+        </div>
+        <div className="stat-card">
+          <div className={`stat-icon ${print ? 'amber' : 'green'}`}>
+            {print ? <Printer size={18} /> : <Monitor size={18} />}
+          </div>
+          <div className="stat-info"><div className="stat-value stat-value-sm">{exam.format}</div><div className="stat-label">Format</div></div>
+        </div>
+        {exam.duration_minutes && (
+          <div className="stat-card">
+            <div className="stat-icon purple"><Clock size={18} /></div>
+            <div className="stat-info"><div className="stat-value">{exam.duration_minutes}</div><div className="stat-label">Minutes</div></div>
+          </div>
+        )}
+      </div>
+
+      {exam.instructions && (
+        <div className="card mb-2">
+          <div className="card-header"><span className="card-title">Instructions</span></div>
+          <div className="card-body">
+            <p className="preserve-lines">{exam.instructions}</p>
+          </div>
+        </div>
+      )}
+
+      <div className="card">
+        <div className="card-header">
+          <span className="card-title">Questions</span>
+          {questions.length > 0 && (
+            <>
+              <span className="text-muted meta-sm">{questions.length} total</span>
+              <button className="btn btn-outline btn-sm" onClick={openPicker}>
+                <Plus size={14} /> Add questions
               </button>
-            </div>
+            </>
+          )}
+        </div>
+        {questions.length === 0 ? (
+          <div className="empty-state empty-state-lg">
+            <div className="empty-icon"><HelpCircle size={26} /></div>
+            <h4>No questions in this exam</h4>
+            <p>Add approved questions from your question bank or generate from a TOS blueprint.</p>
+            <button className="btn btn-primary btn-sm" onClick={openPicker}>
+              <Plus size={14} /> Add questions
+            </button>
           </div>
-          <div className="exam-detail">
-            {/* Main: attached questions */}
-            <div className="exam-main">
-              <h2>Questions ({questions.length})</h2>
-              {questions.length === 0 ? (
-                <div className="empty-state">
-                  <FileText size={36} style={{ color: 'var(--ink-faint)', marginBottom: 12 }} />
-                  <h3>No questions attached</h3>
-                  <p>Add approved questions from your question bank to build this exam.</p>
-                  <button className="btn btn-primary" onClick={openPicker}><Plus size={16} /> Add questions</button>
-                </div>
-              ) : (
-                questions.map((q, i) => (
-                  <div key={q.id} className="attached-q">
-                    <div style={{ flex: 1 }}>
-                      <div className="attached-q-stem">{i + 1}. {q.stem}</div>
-                      <div className="attached-q-meta">
-                        {TYPE_LABELS[q.type] || q.type} · {q.bloom ? BLOOM_LABELS[q.bloom] : '—'} · {q.topic || 'No topic'}
-                      </div>
-                    </div>
-                    <button className="btn btn-danger" onClick={() => handleRemoveQ(q.id)} title="Remove">
-                      <Trash2 size={14} />
-                    </button>
-                  </div>
-                ))
-              )}
-            </div>
+        ) : (
+          <div className="table-wrap table-bare">
+            <table className="data-table">
+              <caption className="sr-only">Questions included in {exam.title}</caption>
+              <thead>
+                <tr>
+                  <th className="col-num">#</th>
+                  <th>Question</th>
+                  <th>Type</th>
+                  <th>Bloom</th>
+                  <th style={{ width: 50 }}><span className="sr-only">Actions</span></th>
+                </tr>
+              </thead>
+              <tbody>
+                {questions.map((q, i) => (
+                  <tr key={q.id}>
+                    <td className="text-muted">{i + 1}</td>
+                    <td className="cell-medium">{q.stem}</td>
+                    <td><span className="badge badge-gray">{TYPE_LABELS[q.type] || q.type}</span></td>
+                    <td>{q.bloom
+                      ? <span className="badge badge-purple">{BLOOM_LABELS[q.bloom] || q.bloom}</span>
+                      : <span className="g-mute">—</span>}
+                    </td>
+                    <td>
+                      <button className="action-icon danger" onClick={() => handleRemoveQ(q.id)} title="Remove question">
+                        <Trash2 size={15} />
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
 
-            {/* Side: downloads + export */}
-            <div className="exam-side">
-              <h2>Downloads</h2>
-              {questions.length === 0 ? (
-                <p style={{ fontSize: 'var(--text-sm)', color: 'var(--ink-3)' }}>
-                  Generate PDFs after attaching questions.
-                </p>
-              ) : (
-                <div className="download-grid">
-                  {Array.from({ length: exam.set_count }, (_, i) => {
-                    const label = String.fromCharCode(65 + i);
-                    return (
-                      <div key={label}>
-                        <div style={{ fontSize: 'var(--text-xs)', fontWeight: 600, color: 'var(--ink-3)', textTransform: 'uppercase', margin: '10px 0 6px' }}>
-                          Set {label}
-                        </div>
-                        <a className="download-btn" href={downloadUrl('exam', label)} target="_blank" rel="noreferrer">
-                          <FileText size={16} className="download-btn-icon" /> Exam PDF
-                        </a>
-                        <a className="download-btn" href={downloadUrl('answerkey', label)} target="_blank" rel="noreferrer">
-                          <FileCheck size={16} className="download-btn-icon" /> Answer Key
-                        </a>
-                        <a className="download-btn" href={downloadUrl('omr', label)} target="_blank" rel="noreferrer">
-                          <Download size={16} className="download-btn-icon" /> OMR Sheet
-                        </a>
-                      </div>
-                    );
-                  })}
-                  {tos && (
-                    <a className="download-btn" href={downloadUrl('tos-report')} target="_blank" rel="noreferrer" style={{ marginTop: 10 }}>
-                      <FileText size={16} className="download-btn-icon" /> TOS Report
+      {downloadsVisible && (
+        <div className="card" id="exam-downloads">
+          <div className="card-header">
+            <span className="card-title">Downloads</span>
+            <span className="text-muted meta-sm">Generated PDFs</span>
+          </div>
+          <div className="card-body">
+            <div className="download-list">
+              {Array.from({ length: exam.set_count }, (_, i) => {
+                const label = String.fromCharCode(65 + i);
+                return (
+                  <div key={label} className="download-group">
+                    <h4>Set {label}</h4>
+                    <a className="btn btn-outline btn-sm" href={downloadUrl('exam', label)} target="_blank" rel="noreferrer">
+                      <FileText size={14} /> Exam PDF
                     </a>
-                  )}
-                </div>
-              )}
-
-              <h2 style={{ marginTop: 28 }}>LMS Export</h2>
-              {questions.length === 0 ? (
-                <p style={{ fontSize: 'var(--text-sm)', color: 'var(--ink-3)' }}>Add questions first.</p>
-              ) : (
-                <div className="download-grid">
-                  <a className="download-btn" href={exportUrl('gift')} target="_blank" rel="noreferrer">
-                    <Download size={16} className="download-btn-icon" /> GIFT (Moodle)
-                  </a>
-                  <a className="download-btn" href={exportUrl('xml')} target="_blank" rel="noreferrer">
-                    <Download size={16} className="download-btn-icon" /> QTI XML (Canvas)
-                  </a>
-                </div>
+                    <a className="btn btn-outline btn-sm" href={downloadUrl('answerkey', label)} target="_blank" rel="noreferrer">
+                      <FileCheck size={14} /> Answer Key
+                    </a>
+                    <a className="btn btn-outline btn-sm" href={downloadUrl('omr', label)} target="_blank" rel="noreferrer">
+                      <Download size={14} /> OMR Sheet
+                    </a>
+                  </div>
+                );
+              })}
+              {tos && (
+                <a className="btn btn-outline btn-sm" href={downloadUrl('tos-report')} target="_blank" rel="noreferrer">
+                  <FileText size={14} /> TOS Report
+                </a>
               )}
             </div>
           </div>
+        </div>
+      )}
 
-      {/* Question picker modal */}
+      <div className="card">
+        <div className="card-header">
+          <span className="card-title">LMS Export</span>
+          <span className="text-muted meta-sm">Moodle & Canvas</span>
+        </div>
+        <div className="card-body">
+          <p className="text-muted mb-2">Export this exam's questions to a learning management system.</p>
+          <a className="btn btn-outline btn-sm" href={exportUrl('gift')} target="_blank" rel="noreferrer">
+            <Download size={14} /> Moodle GIFT
+          </a>
+          <a className="btn btn-outline btn-sm" href={exportUrl('xml')} target="_blank" rel="noreferrer">
+            <Download size={14} /> Canvas XML
+          </a>
+        </div>
+      </div>
+
       <Modal open={pickerOpen} title="Add questions" subtitle={`From ${exam.subject_code || exam.subject_name}`} onClose={() => setPickerOpen(false)} size="lg"
         footer={<>
           <button className="btn" onClick={() => setPickerOpen(false)}>Cancel</button>

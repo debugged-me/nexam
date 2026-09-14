@@ -8,6 +8,9 @@ import scansRouter from './scans.js';
 import analyticsRouter from './analytics.js';
 import aiEvalRouter from './ai_eval.js';
 import questionsRouter from './questions.js';
+import dashboardRouter from './dashboard.js';
+import subjectsRouter from './subjects.js';
+import tosRouter from './tos.js';
 
 const router = Router();
 
@@ -24,5 +27,8 @@ router.use('/scans', scansRouter);
 router.use('/analytics', analyticsRouter);
 router.use('/ai-eval', aiEvalRouter);
 router.use('/questions', questionsRouter);
+router.use('/dashboard', dashboardRouter);
+router.use('/subjects', subjectsRouter);
+router.use('/tos', tosRouter);
 
 export default router;

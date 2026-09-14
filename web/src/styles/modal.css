@@ -1,0 +1,121 @@
+/* modal.css — shared modal/dialog styles */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(13, 46, 78, .45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10000;
+  padding: 20px;
+  animation: modalFade .15s ease;
+}
+@keyframes modalFade { from { opacity: 0; } to { opacity: 1; } }
+
+.modal-card {
+  background: var(--surface);
+  border-radius: 12px;
+  box-shadow: var(--shadow-lg);
+  width: 100%;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  animation: modalSlide .2s var(--ease);
+}
+@keyframes modalSlide {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.modal-sm { max-width: 420px; }
+.modal-md { max-width: 560px; }
+.modal-lg { max-width: 720px; }
+
+.modal-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  padding: 20px 24px 16px;
+  border-bottom: 1px solid var(--line);
+}
+.modal-title {
+  font-family: var(--font-display);
+  font-size: var(--text-md);
+  font-weight: 700;
+  color: var(--ink);
+  margin: 0;
+}
+.modal-subtitle {
+  font-size: var(--text-sm);
+  color: var(--ink-3);
+  margin: 4px 0 0;
+}
+.modal-close {
+  border: none;
+  background: transparent;
+  color: var(--ink-faint);
+  cursor: pointer;
+  padding: 4px;
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color .15s ease, color .15s ease;
+}
+.modal-close:hover { background: var(--surface-2); color: var(--ink-2); }
+
+.modal-body {
+  padding: 20px 24px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 16px 24px 20px;
+  border-top: 1px solid var(--line);
+}
+
+/* Shared button styles (used across app pages) */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 40px;
+  padding: 0 16px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--ink-2);
+  font-family: var(--font-display);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color .15s ease, border-color .15s ease, color .15s ease;
+}
+.btn:hover { background: var(--surface-2); border-color: var(--line-strong); color: var(--ink); }
+.btn-primary {
+  background: var(--action-600);
+  border-color: var(--action-600);
+  color: #fff;
+}
+.btn-primary:hover { background: var(--action-700); border-color: var(--action-700); color: #fff; }
+.btn-danger {
+  background: var(--red-600);
+  border-color: var(--red-600);
+  color: #fff;
+}
+.btn-danger:hover { background: var(--red-700); border-color: var(--red-700); color: #fff; }
+.btn:disabled { opacity: .5; cursor: not-allowed; }
+
+.btn-spinner {
+  width: 14px;
+  height: 14px;
+  border: 2px solid rgba(255, 255, 255, .35);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: btnSpin .7s linear infinite;
+}
+@keyframes btnSpin { to { transform: rotate(360deg); } }

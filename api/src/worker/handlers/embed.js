@@ -4,8 +4,10 @@
  * Receives a job with payload { materialId } and:
  *   1. Loads the processed material text.
  *   2. Splits into token-aware chunks (chunker.js).
- *   3. Embeds each chunk via Gemini (aiProvider.embedBatch).
- *   4. Stores chunks + embeddings in material_chunks.
+ *   3. Embeds each chunk and stores it in the HNSWLib vector index
+ *      via LangChain (vectorStore.js).
+ *   4. Stores chunk text + metadata in MySQL material_chunks (the
+ *      relational record; the embedding vector lives in the vector store).
  *   5. Updates materials.chunk_count + sets processed_at.
  *
  * This is the "R" of RAG — the searchable vector index scoped per subject.
@@ -13,7 +15,7 @@
 import { v4 as uuid } from 'uuid';
 import pool from '../../config/db.js';
 import { chunk } from '../../services/chunker.js';
-import { embedBatch } from '../../services/aiProvider.js';
+import { addChunks } from '../../services/vectorStore.js';
 
 export default async function embedHandler(job) {
   const { materialId } = job.payload;
@@ -43,38 +45,41 @@ export default async function embedHandler(job) {
     throw new Error('Chunking produced no chunks — material text may be empty.');
   }
 
-  // Embed all chunks in batches (Gemini handles parallel calls well)
-  const BATCH_SIZE = 10;
-  for (let i = 0; i < chunks.length; i += BATCH_SIZE) {
-    const batch = chunks.slice(i, i + BATCH_SIZE);
-    const texts = batch.map((c) => c.text);
+  // Store chunk text + metadata in MySQL (relational record)
+  const chunkRecords = chunks.map((c) => ({
+    id: uuid(),
+    materialId,
+    subjectId: material.subject_id,
+    ordinal: c.ordinal,
+    text: c.text,
+    tokenCount: c.tokenCount,
+  }));
 
-    let embeddings;
-    try {
-      const result = await embedBatch(texts);
-      embeddings = result.embeddings;
-    } catch (err) {
-      throw new Error(`Embedding failed for batch ${i / BATCH_SIZE}: ${err.message}`);
-    }
+  const values = chunkRecords.map((c) => [
+    c.id,
+    c.materialId,
+    c.subjectId,
+    c.ordinal,
+    c.text,
+    c.tokenCount,
+  ]);
 
-    // Store chunks with embeddings
-    const values = batch.map((c, j) => [
-      uuid(),
-      materialId,
-      material.subject_id,
-      c.ordinal,
-      c.text,
-      JSON.stringify(embeddings[j]),
-      c.tokenCount,
-    ]);
+  await pool.query(
+    `INSERT INTO material_chunks
+       (id, material_id, subject_id, ordinal, text, token_count)
+     VALUES ?`,
+    [values]
+  );
 
-    await pool.query(
-      `INSERT INTO material_chunks
-         (id, material_id, subject_id, ordinal, text, embedding, token_count)
-       VALUES ?`,
-      [values]
-    );
-  }
+  // Embed chunks and store vectors in the HNSWLib vector index via LangChain.
+  // The embedding model (GoogleGenerativeAIEmbeddings) is invoked internally
+  // by LangChain's HNSWLib addDocuments — no manual embed call needed.
+  await addChunks(material.subject_id, chunkRecords.map((c) => ({
+    id: c.id,
+    text: c.text,
+    materialId: c.materialId,
+    ordinal: c.ordinal,
+  })));
 
   // Update material with chunk count
   await pool.query(

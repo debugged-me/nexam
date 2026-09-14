@@ -36,6 +36,12 @@ export const env = {
       .filter(Boolean),
   },
 
+  vectorStore: {
+    // Directory where HNSWLib persists vector indices (one subdirectory per subject).
+    // This is the "dedicated vector database" — vectors live here, not in MySQL.
+    dir: process.env.VECTOR_STORE_DIR || 'storage/vectors',
+  },
+
   ai: {
     gemini: {
       apiKey: process.env.GEMINI_API_KEY || '',
@@ -55,6 +61,20 @@ export const env = {
       temperature: parseFloat(process.env.AI_TEMPERATURE || '0.4'),
     },
   },
+
+  // SMTP — same env vars as the PHP app (NEXAM_SMTP_*). Used by the email
+  // service to send OTP verification and password-reset codes.
+  smtp: {
+    host: process.env.NEXAM_SMTP_HOST || 'mail.mati.gov.ph',
+    port: parseInt(process.env.NEXAM_SMTP_PORT || '587', 10),
+    user: process.env.NEXAM_SMTP_USER || 'nexam@mati.gov.ph',
+    pass: process.env.NEXAM_SMTP_PASS || '',
+    secure: process.env.NEXAM_SMTP_CRYPTO === 'ssl',
+    from: process.env.NEXAM_SMTP_USER || 'nexam@mati.gov.ph',
+  },
+
+  // Public URL of the web app — used to build links in emails.
+  webUrl: process.env.WEB_URL || 'http://localhost:5173',
 };
 
 export default env;

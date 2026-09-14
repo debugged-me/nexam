@@ -10,12 +10,18 @@ export function requireAuth(req, res, next) {
   const header = req.headers.authorization || '';
   const token = header.startsWith('Bearer ') ? header.slice(7) : null;
 
-  if (!token) {
+  // Fall back to ?token= query param for download/export links (e.g. <a href> tags
+  // that can't set Authorization headers). This is safe because the token is still
+  // a signed JWT — it just travels in the URL instead of a header.
+  const queryToken = req.query?.token;
+  const finalToken = token || (typeof queryToken === 'string' ? queryToken : null);
+
+  if (!finalToken) {
     return res.status(401).json({ error: 'Missing authentication token.' });
   }
 
   try {
-    req.user = jwt.verify(token, env.jwt.secret);
+    req.user = jwt.verify(finalToken, env.jwt.secret);
     next();
   } catch {
     return res.status(401).json({ error: 'Invalid or expired token.' });

@@ -1,0 +1,61 @@
+/* account.css — account/profile page */
+.account-layout { display: grid; grid-template-columns: 320px 1fr; gap: 20px; }
+.account-card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  padding: 24px;
+}
+.account-avatar {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  background: var(--action-600);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-display);
+  font-size: var(--text-xl);
+  font-weight: 700;
+  margin: 0 auto 16px;
+}
+.account-name {
+  font-family: var(--font-display);
+  font-size: var(--text-md);
+  font-weight: 700;
+  color: var(--ink);
+  text-align: center;
+  margin: 0 0 4px;
+}
+.account-email { font-size: var(--text-sm); color: var(--ink-3); text-align: center; margin: 0 0 16px; }
+.account-badge {
+  display: inline-block;
+  font-size: var(--text-xs);
+  font-weight: 600;
+  padding: 2px 10px;
+  border-radius: var(--radius-xs);
+  background: var(--action-50);
+  color: var(--action-700);
+  text-transform: capitalize;
+}
+.account-info-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 10px 0;
+  border-top: 1px solid var(--line);
+  font-size: var(--text-sm);
+}
+.account-info-label { color: var(--ink-3); }
+.account-info-value { font-weight: 500; color: var(--ink); }
+
+.account-section h2 {
+  font-family: var(--font-display);
+  font-size: var(--text-md);
+  font-weight: 700;
+  margin: 0 0 16px;
+}
+.account-section { margin-bottom: 32px; }
+.account-section:last-child { margin-bottom: 0; }
+
+@media (max-width: 768px) { .account-layout { grid-template-columns: 1fr; } }

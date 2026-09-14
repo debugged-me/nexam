@@ -1,28 +1,50 @@
 /**
  * AI provider abstraction with automatic fallback.
  *
- * Primary:   Google Gemini 2.0 Flash (generation + embeddings)
- * Fallback:  Groq Llama 3.3 70B (generation only)
+ * Primary:   Google Gemini (generation + embeddings) — via LangChain's
+ *            ChatGoogleGenerativeAI and GoogleGenerativeAIEmbeddings
+ * Fallback:  Groq Llama 3.3 70B (generation only, direct SDK call)
  *
- * If Gemini fails (quota, rate limit, network), generation automatically
+ * LangChain manages the interaction between the vector retrieval process
+ * and the Google Gemini API, as described in §3.1 of the capstone. If
+ * Gemini fails (quota, rate limit, network), generation automatically
  * retries on Groq. Embeddings are Gemini-only (Groq has no embedding API).
  *
  * Every call returns a normalized result with the provider that served it,
  * so callers can record provenance in generation_meta.
  */
-import { GoogleGenAI, Type } from '@google/genai';
+import { ChatGoogleGenerativeAI } from '@langchain/google-genai';
+import { GoogleGenerativeAIEmbeddings } from '@langchain/google-genai';
+import { SystemMessage, HumanMessage } from '@langchain/core/messages';
 import Groq from 'groq-sdk';
 import env from '../config/env.js';
 
-let geminiClient = null;
+let geminiChatModel = null;
+let geminiEmbeddings = null;
 let groqClient = null;
 
-/** Lazily initialize Gemini — only if a key is configured. */
-function getGemini() {
-  if (geminiClient) return geminiClient;
+/** Lazily initialize the LangChain Gemini chat model — only if a key is configured. */
+function getGeminiChat() {
+  if (geminiChatModel) return geminiChatModel;
   if (!env.ai.gemini.apiKey) return null;
-  geminiClient = new GoogleGenAI({ apiKey: env.ai.gemini.apiKey });
-  return geminiClient;
+  geminiChatModel = new ChatGoogleGenerativeAI({
+    apiKey: env.ai.gemini.apiKey,
+    model: env.ai.gemini.model,
+    temperature: env.ai.generation.temperature,
+    maxOutputTokens: env.ai.generation.maxTokens,
+  });
+  return geminiChatModel;
+}
+
+/** Lazily initialize the LangChain Gemini embeddings model. */
+export function getGeminiEmbeddings() {
+  if (geminiEmbeddings) return geminiEmbeddings;
+  if (!env.ai.gemini.apiKey) return null;
+  geminiEmbeddings = new GoogleGenerativeAIEmbeddings({
+    apiKey: env.ai.gemini.apiKey,
+    model: env.ai.gemini.embeddingModel,
+  });
+  return geminiEmbeddings;
 }
 
 /** Lazily initialize Groq — only if a key is configured. */
@@ -43,7 +65,7 @@ function isRetryable(err) {
 
 /**
  * Generate text from a prompt, with structured JSON output.
- * Tries Gemini first, falls back to Groq on failure.
+ * Tries Gemini first (via LangChain), falls back to Groq on failure.
  *
  * @param {string} systemPrompt
  * @param {string} userPrompt
@@ -57,37 +79,61 @@ export async function generate(systemPrompt, userPrompt, opts = {}) {
     maxTokens = env.ai.generation.maxTokens,
   } = opts;
 
-  // ── Try Gemini first ──────────────────────────────
-  const gemini = getGemini();
+  // ── Try Gemini first (via LangChain) ───────────────
+  const gemini = getGeminiChat();
   if (gemini) {
     try {
-      const params = {
-        model: env.ai.gemini.model,
-        contents: [{ role: 'user', parts: [{ text: userPrompt }] }],
-        config: {
-          systemInstruction: systemPrompt,
+      // Build the model with per-call overrides if needed
+      let model = gemini;
+      if (temperature !== env.ai.generation.temperature || maxTokens !== env.ai.generation.maxTokens) {
+        model = new ChatGoogleGenerativeAI({
+          apiKey: env.ai.gemini.apiKey,
+          model: env.ai.gemini.model,
           temperature,
           maxOutputTokens: maxTokens,
-        },
-      };
-      if (jsonSchema) {
-        params.config.responseMimeType = 'application/json';
-        params.config.responseSchema = {
-          type: Type.OBJECT,
-          properties: jsonSchema.properties,
-          required: jsonSchema.required,
-        };
+        });
       }
-      const res = await gemini.models.generateContent(params);
-      const text = typeof res.text === 'function' ? res.text() : res.text;
-      return { text, provider: 'gemini', model: env.ai.gemini.model, usage: res.usageMetadata || res.response?.usageMetadata || null };
+
+      const messages = [
+        new SystemMessage(systemPrompt),
+        new HumanMessage(userPrompt),
+      ];
+
+      // For JSON output, append an instruction to the system prompt
+      // (LangChain's ChatGoogleGenerativeAI doesn't expose responseSchema
+      // directly in the same way as the raw SDK; the instruction approach
+      // is reliable across Gemini model versions).
+      if (jsonSchema) {
+        const schemaHint = `\n\nYou MUST respond with ONLY valid JSON matching this structure: ${JSON.stringify(jsonSchema)}. Do not include markdown code fences or any text outside the JSON.`;
+        messages[0] = new SystemMessage(systemPrompt + schemaHint);
+      }
+
+      const response = await model.invoke(messages);
+      let text = typeof response.content === 'string'
+        ? response.content
+        : Array.isArray(response.content)
+          ? response.content.map((c) => (typeof c === 'string' ? c : c.text || '')).join('')
+          : '';
+
+      // Strip markdown code fences if present
+      text = text.trim();
+      if (text.startsWith('```')) {
+        text = text.replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '').trim();
+      }
+
+      return {
+        text,
+        provider: 'gemini',
+        model: env.ai.gemini.model,
+        usage: response.usage_metadata || response.additional_kwargs?.usage || null,
+      };
     } catch (err) {
-      console.warn(`[aiProvider] Gemini failed: ${err.message}. Falling back to Groq...`);
+      console.warn(`[aiProvider] Gemini (LangChain) failed: ${err.message}. Falling back to Groq...`);
       if (!isRetryable(err)) throw err;
     }
   }
 
-  // ── Fallback: Groq ────────────────────────────────
+  // ── Fallback: Groq (direct SDK) ─────────────────────
   const groq = getGroq();
   if (!groq) throw new Error('All AI providers failed and no fallback is configured.');
 
@@ -117,20 +163,16 @@ export async function generate(systemPrompt, userPrompt, opts = {}) {
 
 /**
  * Generate an embedding vector for a piece of text.
- * Gemini-only — Groq does not offer embeddings.
+ * Uses LangChain's GoogleGenerativeAIEmbeddings (Gemini-only — Groq has no embeddings).
  *
  * @param {string} text
  * @returns {Promise<{embedding:number[], provider:string, model:string}>}
  */
 export async function embed(text) {
-  const gemini = getGemini();
-  if (!gemini) throw new Error('Embedding requires GEMINI_API_KEY (no fallback available).');
+  const embeddings = getGeminiEmbeddings();
+  if (!embeddings) throw new Error('Embedding requires GEMINI_API_KEY (no fallback available).');
 
-  const res = await gemini.models.embedContent({
-    model: env.ai.gemini.embeddingModel,
-    contents: text,
-  });
-  const embedding = res.embeddings?.[0]?.values;
+  const embedding = await embeddings.embedQuery(text);
   if (!embedding || !embedding.length) throw new Error('Embedding returned empty vector.');
   return { embedding, provider: 'gemini', model: env.ai.gemini.embeddingModel };
 }
@@ -143,13 +185,12 @@ export async function embed(text) {
  * @returns {Promise<{embeddings:number[][], provider:string, model:string}>}
  */
 export async function embedBatch(texts) {
-  const gemini = getGemini();
-  if (!gemini) throw new Error('Embedding requires GEMINI_API_KEY (no fallback available).');
+  const embeddings = getGeminiEmbeddings();
+  if (!embeddings) throw new Error('Embedding requires GEMINI_API_KEY (no fallback available).');
 
-  // Gemini embedContent accepts a single content; batch by parallel calls.
-  const results = await Promise.all(texts.map((t) => embed(t)));
+  const results = await embeddings.embedDocuments(texts);
   return {
-    embeddings: results.map((r) => r.embedding),
+    embeddings: results,
     provider: 'gemini',
     model: env.ai.gemini.embeddingModel,
   };
@@ -163,7 +204,8 @@ export function status() {
     geminiModel: env.ai.gemini.model,
     groqModel: env.ai.groq.model,
     embeddingModel: env.ai.gemini.embeddingModel,
+    vectorStore: env.vectorStore.dir,
   };
 }
 
-export default { generate, embed, embedBatch, status };
+export default { generate, embed, embedBatch, status, getGeminiEmbeddings };

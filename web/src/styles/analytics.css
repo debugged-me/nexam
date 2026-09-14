@@ -1,0 +1,124 @@
+/* analytics.css — analytics dashboard */
+.analytics-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 24px; }
+.stat-card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  padding: 18px 20px;
+}
+.stat-label {
+  font-family: var(--font-display);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  color: var(--ink-3);
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  margin-bottom: 6px;
+}
+.stat-value {
+  font-family: var(--font-display);
+  font-size: var(--text-xl);
+  font-weight: 700;
+  color: var(--ink);
+  line-height: 1;
+}
+
+.analytics-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 24px; }
+.analytics-card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  padding: 20px 24px;
+}
+.analytics-card h2 {
+  font-family: var(--font-display);
+  font-size: var(--text-md);
+  font-weight: 700;
+  margin: 0 0 16px;
+}
+
+/* Score distribution histogram */
+.histogram { display: flex; align-items: flex-end; gap: 4px; height: 160px; }
+.histogram-bar {
+  flex: 1;
+  background: var(--action-100);
+  border-radius: 3px 3px 0 0;
+  min-height: 2px;
+  position: relative;
+  transition: background-color .15s ease;
+}
+.histogram-bar:hover { background: var(--action-300); }
+.histogram-bar.passing { background: var(--green-100); }
+.histogram-bar.passing:hover { background: var(--green-300); }
+.histogram-label {
+  font-size: 10px;
+  color: var(--ink-3);
+  text-align: center;
+  margin-top: 4px;
+}
+
+/* Exam averages table */
+.avg-table { width: 100%; border-collapse: collapse; }
+.avg-table th, .avg-table td { padding: 10px 12px; text-align: left; border-bottom: 1px solid var(--line); font-size: var(--text-sm); }
+.avg-table th { font-family: var(--font-display); font-weight: 600; color: var(--ink-3); font-size: var(--text-xs); text-transform: uppercase; }
+.avg-table td.score { font-family: var(--font-display); font-weight: 700; }
+
+/* Recent scans */
+.scan-list { list-style: none; padding: 0; margin: 0; }
+.scan-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--line);
+}
+.scan-item:last-child { border-bottom: none; }
+.scan-name { font-size: var(--text-sm); font-weight: 500; color: var(--ink); }
+.scan-meta { font-size: var(--text-xs); color: var(--ink-3); }
+.scan-score {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: var(--text-md);
+  padding: 2px 10px;
+  border-radius: var(--radius-xs);
+}
+.scan-score.pass { background: var(--green-50); color: var(--green-700); }
+.scan-score.fail { background: var(--red-50); color: var(--red-700); }
+
+/* Item analysis */
+.item-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--line);
+}
+.item-row:last-child { border-bottom: none; }
+.item-num {
+  font-family: var(--font-display);
+  font-weight: 700;
+  width: 32px;
+  text-align: center;
+  color: var(--ink-2);
+}
+.item-bar { flex: 1; height: 24px; background: var(--surface-3); border-radius: var(--radius-xs); overflow: hidden; position: relative; }
+.item-bar-correct { height: 100%; background: var(--green-500); }
+.item-bar-wrong { height: 100%; background: var(--red-400); position: absolute; top: 0; }
+.item-pct {
+  font-family: var(--font-display);
+  font-weight: 700;
+  width: 50px;
+  text-align: right;
+}
+.difficulty-badge {
+  font-size: var(--text-xs);
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: var(--radius-xs);
+}
+.difficulty-badge.easy { background: var(--green-50); color: var(--green-700); }
+.difficulty-badge.medium { background: var(--amber-50); color: var(--amber-700); }
+.difficulty-badge.hard { background: var(--red-50); color: var(--red-700); }
+
+@media (max-width: 1024px) { .analytics-grid { grid-template-columns: repeat(2, 1fr); } .analytics-cols { grid-template-columns: 1fr; } }
+@media (max-width: 560px) { .analytics-grid { grid-template-columns: 1fr; } }

@@ -3,15 +3,19 @@
  *
  * Receives a job with payload { questionId, userId } and:
  *   1. Loads the question (must be owned by the user).
- *   2. Embeds the question stem (+ options for MCQ).
- *   3. Compares cosine similarity vs all status='active' questions in
- *      the same subject.
- *   4. If score >= similarity_threshold, flags the question and writes
+ *   2. Builds the embed text (stem + options for MCQ + answer).
+ *   3. Adds the question embedding to the subject's question vector
+ *      index via LangChain's HNSWLib vector store.
+ *   4. Searches the vector index for similar approved questions.
+ *   5. If score >= similarity_threshold, flags the question and writes
  *      similarity_results rows for instructor review.
- *   5. Stores the embedding on the question row for future comparisons.
+ *
+ * The embedding and similarity search are managed by LangChain through
+ * the HNSWLib vector store (see vectorStore.js) — no in-memory cosine
+ * computation needed.
  */
 import pool from '../../config/db.js';
-import { embed } from '../../services/aiProvider.js';
+import { addQuestion, searchQuestions } from '../../services/vectorStore.js';
 
 export default async function similarityHandler(job) {
   const { questionId, userId } = job.payload;
@@ -25,7 +29,7 @@ export default async function similarityHandler(job) {
   const question = rows[0];
   if (!question) throw new Error(`Question ${questionId} not found or not owned.`);
 
-  // Build the text to embed (stem + options for MCQ)
+  // Build the text to embed (stem + options for MCQ + answer)
   let embedText = question.stem;
   if (question.type === 'mcq' && question.options) {
     try {
@@ -35,14 +39,8 @@ export default async function similarityHandler(job) {
   }
   if (question.answer) embedText += ' ' + question.answer;
 
-  // Embed the question
-  const { embedding } = await embed(embedText);
-
-  // Store the embedding on the question
-  await pool.query(
-    `UPDATE questions SET embedding = :embedding WHERE id = :id`,
-    { id: questionId, embedding: JSON.stringify(embedding) }
-  );
+  // Add the question embedding to the vector index (LangChain handles embedding)
+  await addQuestion(question.subject_id, questionId, embedText);
 
   // Get the similarity threshold from settings
   const [settings] = await pool.query(
@@ -50,19 +48,16 @@ export default async function similarityHandler(job) {
   );
   const threshold = settings.length ? parseFloat(settings[0].setting_value) : 0.85;
 
-  // Load all active questions in the same subject (excluding this one)
-  const [candidates] = await pool.query(
-    `SELECT id, stem, options, answer, embedding
-     FROM questions
-     WHERE subject_id = :subjectId
-       AND status = 'active'
-       AND id != :questionId
-       AND embedding IS NOT NULL`,
-    { subjectId: question.subject_id, questionId }
+  // Search the vector index for similar active questions (excluding this one)
+  const candidates = await searchQuestions(
+    question.subject_id,
+    embedText,
+    10,
+    questionId
   );
 
   if (candidates.length === 0) {
-    // No active questions to compare against — clear any flag
+    // No other questions in the index — clear any flag
     await pool.query(
       `UPDATE questions SET similarity_flag = 'none', similarity_score = NULL WHERE id = :id`,
       { id: questionId }
@@ -70,24 +65,16 @@ export default async function similarityHandler(job) {
     return { questionId, flag: 'none', comparisons: 0 };
   }
 
-  // Compute cosine similarity against each candidate
+  // Filter candidates by threshold
   let maxScore = 0;
-  let similarPairs = [];
+  const similarPairs = [];
 
   for (const candidate of candidates) {
-    let candidateVec;
-    try {
-      candidateVec = JSON.parse(candidate.embedding);
-    } catch {
-      continue; // skip invalid embeddings
-    }
-
-    const score = cosineSimilarity(embedding, candidateVec);
-    if (score > maxScore) maxScore = score;
-    if (score >= threshold) {
+    if (candidate.score > maxScore) maxScore = candidate.score;
+    if (candidate.score >= threshold) {
       similarPairs.push({
         candidateId: candidate.id,
-        score: parseFloat(score.toFixed(4)),
+        score: parseFloat(candidate.score.toFixed(4)),
       });
     }
   }
@@ -131,17 +118,4 @@ export default async function similarityHandler(job) {
       comparisons: candidates.length,
     };
   }
-}
-
-/** Cosine similarity between two vectors. */
-function cosineSimilarity(a, b) {
-  if (!a || !b || a.length !== b.length) return 0;
-  let dot = 0, magA = 0, magB = 0;
-  for (let i = 0; i < a.length; i++) {
-    dot += a[i] * b[i];
-    magA += a[i] * a[i];
-    magB += b[i] * b[i];
-  }
-  const denom = Math.sqrt(magA) * Math.sqrt(magB);
-  return denom === 0 ? 0 : dot / denom;
 }

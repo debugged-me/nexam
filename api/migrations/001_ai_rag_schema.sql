@@ -21,7 +21,10 @@ ALTER TABLE `materials`
   ADD KEY `idx_materials_subject_status` (`subject_id`, `status`);
 
 -- ─────────────────────────────────────────────────────────
--- 2. material_chunks — chunked text + embeddings per subject
+-- 2. material_chunks — chunked text per subject
+--    Embedding vectors are stored in the HNSWLib vector index (disk),
+--    NOT in MySQL. This table holds the relational record (text + metadata)
+--    that backs each vector in the index.
 -- ─────────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS `material_chunks` (
   `id` CHAR(36) NOT NULL,
@@ -29,7 +32,6 @@ CREATE TABLE IF NOT EXISTS `material_chunks` (
   `subject_id` CHAR(36) NOT NULL,
   `ordinal` INT NOT NULL DEFAULT 0,
   `text` MEDIUMTEXT NOT NULL,
-  `embedding` LONGTEXT CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NULL COMMENT 'JSON array of floats',
   `token_count` INT NOT NULL DEFAULT 0,
   `created_at` TIMESTAMP NOT NULL DEFAULT current_timestamp(),
   PRIMARY KEY (`id`),
@@ -63,11 +65,13 @@ CREATE TABLE IF NOT EXISTS `ai_jobs` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 -- ─────────────────────────────────────────────────────────
--- 4. questions — add embedding + similarity + provenance
+-- 4. questions — add similarity + provenance
+--    Embedding vectors are stored in the HNSWLib vector index (disk),
+--    NOT in MySQL. The similarity_flag/similarity_score columns store
+--    the result of the vector comparison for UI display.
 -- ─────────────────────────────────────────────────────────
 ALTER TABLE `questions`
-  ADD COLUMN `embedding` LONGTEXT CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NULL AFTER `explanation`,
-  ADD COLUMN `similarity_flag` VARCHAR(20) NOT NULL DEFAULT 'none' COMMENT 'none|similar|flagged' AFTER `embedding`,
+  ADD COLUMN `similarity_flag` VARCHAR(20) NOT NULL DEFAULT 'none' COMMENT 'none|similar|flagged' AFTER `explanation`,
   ADD COLUMN `similarity_score` DECIMAL(5,4) NULL AFTER `similarity_flag`,
   ADD COLUMN `generation_meta` LONGTEXT CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NULL COMMENT 'JSON: prompt, chunk ids, model, tokens' AFTER `similarity_score`,
   ADD COLUMN `ai_predicted_bloom` VARCHAR(20) NULL COMMENT 'Original AI-assigned Bloom level, for confusion matrix evaluation' AFTER `similarity_score`,
@@ -212,6 +216,8 @@ CREATE TABLE IF NOT EXISTS `ai_evaluations` (
 -- ─────────────────────────────────────────────────────────
 -- `settings` already exists in the nexam DB (setting_key / setting_value).
 -- Seed the AI-related keys idempotently.
+-- Note: embedding vectors are stored in the HNSWLib vector index on disk
+-- (VECTOR_STORE_DIR), not in MySQL. These settings control retrieval params.
 INSERT INTO `settings` (`setting_key`, `setting_value`) VALUES
   ('similarity_threshold', '0.85'),
   ('chunk_size_tokens', '500'),

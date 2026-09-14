@@ -131,7 +131,7 @@ router.get('/summary', requireAuth, async (req, res, next) => {
          SUM(CASE WHEN similarity_flag = 'flagged' THEN 1 ELSE 0 END) AS flagged,
          SUM(CASE WHEN similarity_flag = 'none' THEN 1 ELSE 0 END) AS not_flagged
        FROM questions
-       WHERE created_by = :userId AND embedding IS NOT NULL`,
+       WHERE created_by = :userId AND similarity_flag IS NOT NULL`,
       { userId }
     );
 
@@ -290,7 +290,7 @@ router.get('/similarity', requireAuth, async (req, res, next) => {
          COUNT(*) AS count,
          AVG(similarity_score) AS avg_score
        FROM questions
-       WHERE created_by = :userId AND embedding IS NOT NULL
+       WHERE created_by = :userId AND similarity_flag IS NOT NULL
        GROUP BY similarity_flag`,
       { userId }
     );

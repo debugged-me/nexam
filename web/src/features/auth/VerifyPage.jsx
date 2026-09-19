@@ -12,10 +12,12 @@ import { useState, useRef, useEffect } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { AlertCircle, ShieldCheck, RotateCw } from 'lucide-react';
 import api, { ApiError } from '../../lib/api.js';
+import { useAuth } from './AuthContext.jsx';
 
 export default function VerifyPage() {
   const navigate = useNavigate();
   const location = useLocation();
+  const { logout } = useAuth();
   const { verifyToken, email, unverified } = location.state || {};
 
   const [code, setCode] = useState('');
@@ -43,6 +45,9 @@ export default function VerifyPage() {
     setLoading(true);
     try {
       await api.post('/auth/verify', { verifyToken, code });
+      // Drop any stale session — if another account was logged in while this
+      // one registered/verified, its token must not survive into the next.
+      logout();
       navigate('/login', { state: { toast: 'Email verified! You can now log in.' } });
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Verification failed.');

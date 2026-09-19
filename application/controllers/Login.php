@@ -90,6 +90,10 @@ class Login extends CI_Controller
     /** Process registration form submission. */
     public function register_submit()
     {
+        if ($this->session->userdata('logged_in')) {
+            redirect('dashboard');
+        }
+
         $this->form_validation->set_rules('first_name', 'First Name', 'required|trim|max_length[100]');
         $this->form_validation->set_rules('middle_name', 'Middle Name', 'trim|max_length[100]');
         $this->form_validation->set_rules('last_name', 'Last Name', 'required|trim|max_length[100]');
@@ -187,7 +191,13 @@ class Login extends CI_Controller
 
         $this->User_model->mark_email_verified($user_id);
 
-        $this->session->unset_userdata(['pending_otp_user_id', 'pending_otp_email']);
+        // Drop every auth key, not just the OTP session — a register started
+        // while still logged in as another account must not leave the old
+        // logged_in state active behind the new account's verify flow.
+        $this->session->unset_userdata([
+            'pending_otp_user_id', 'pending_otp_email',
+            'user_id', 'email', 'full_name', 'role', 'logged_in', 'avatar_path',
+        ]);
         $this->session->set_flashdata('toast', ['type' => 'success', 'message' => 'Email verified! You can now log in.']);
         redirect('login');
     }
@@ -338,9 +348,14 @@ class Login extends CI_Controller
 
         $this->User_model->update_password($user_id, $password);
 
-        // Set flashdata BEFORE clearing session vars so the toast survives the redirect.
+        // Set flashdata BEFORE clearing session vars so the toast survives the
+        // redirect. Auth keys are cleared too — a reset run while still logged
+        // in as another account must not keep that identity active.
         $this->session->set_flashdata('toast', ['type' => 'success', 'message' => 'Password reset successfully! You can now log in.']);
-        $this->session->unset_userdata(['reset_user_id', 'reset_email']);
+        $this->session->unset_userdata([
+            'reset_user_id', 'reset_email',
+            'user_id', 'email', 'full_name', 'role', 'logged_in', 'avatar_path',
+        ]);
         redirect('login');
     }
 

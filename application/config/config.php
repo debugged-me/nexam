@@ -413,9 +413,14 @@ $config['encryption_key'] = getenv('NEXAM_ENCRYPTION_KEY') ?: '9f4a7b62e1a6c390f
 |
 */
 $config['sess_driver'] = 'files';
-$config['sess_cookie_name'] = 'ci_session';
+// App-specific name — the CI default 'ci_session' is shared by every other
+// CodeIgniter app on this host (same cookie domain/path), so a session
+// created by a sister app would be read as this app's own.
+$config['sess_cookie_name'] = 'nexam_session';
 $config['sess_expiration'] = 7200;
-$config['sess_save_path'] = NULL;
+// Private save path — NULL falls back to the shared XAMPP temp dir where
+// every other local app's session files also live.
+$config['sess_save_path'] = APPPATH . 'cache/sessions/';
 $config['sess_match_ip'] = FALSE;
 $config['sess_time_to_update'] = 300;
 $config['sess_regenerate_destroy'] = TRUE;
@@ -437,7 +442,10 @@ $config['sess_regenerate_destroy'] = TRUE;
 */
 $config['cookie_prefix']    = '';
 $config['cookie_domain']    = '';
-$config['cookie_path']        = '/';
+// Scope cookies to this app's own URL path (e.g. /nexam/) so they are never
+// sent to sibling apps sharing the localhost domain — and vice versa.
+$appCookiePath = rtrim((string) parse_url($config['base_url'], PHP_URL_PATH), '/');
+$config['cookie_path']        = ($appCookiePath === '' ? '' : $appCookiePath) . '/';
 $config['cookie_secure']    = ci_is_https();
 $config['cookie_httponly']     = TRUE;
 $config['cookie_samesite']     = 'Lax';

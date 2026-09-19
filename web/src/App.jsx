@@ -57,6 +57,16 @@ function RequireAuth({ children }) {
   return children;
 }
 
+/** Auth pages (login/register/forgot/reset) — bounce authenticated users to
+ *  the dashboard so a stale token can't leak one account's data into another
+ *  account's registration flow. Log out first to switch accounts. */
+function RedirectIfAuthed({ children }) {
+  const { user, loading } = useAuth();
+  if (loading) return <div className="app-loading">Loading…</div>;
+  if (user) return <Navigate to="/dashboard" replace />;
+  return children;
+}
+
 /** Reads a `toast` from router state and shows it once on mount. */
 function ToastOnMount() {
   const location = useLocation();
@@ -79,11 +89,11 @@ export default function App() {
           <ToastOnMount />
           <Routes>
             {/* Auth */}
-            <Route path="/login" element={<LoginPage />} />
-            <Route path="/register" element={<RegisterPage />} />
+            <Route path="/login" element={<RedirectIfAuthed><LoginPage /></RedirectIfAuthed>} />
+            <Route path="/register" element={<RedirectIfAuthed><RegisterPage /></RedirectIfAuthed>} />
             <Route path="/verify" element={<VerifyPage />} />
-            <Route path="/forgot" element={<ForgotPage />} />
-            <Route path="/reset" element={<ResetPage />} />
+            <Route path="/forgot" element={<RedirectIfAuthed><ForgotPage /></RedirectIfAuthed>} />
+            <Route path="/reset" element={<RedirectIfAuthed><ResetPage /></RedirectIfAuthed>} />
 
             {/* App (protected) */}
             <Route path="/wizard" element={<RequireAuth><WizardPage /></RequireAuth>} />

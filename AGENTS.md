@@ -146,6 +146,18 @@ deny-all `.htaccess` files block direct web access. Files are served only
 through authenticated API download endpoints (`?token=` supported for
 `<a href>` downloads). Do not re-expose them.
 
+**PHP session isolation** — this host runs many CodeIgniter apps under one
+localhost domain. `sess_cookie_name` must stay `nexam_session` (never the CI
+default `ci_session`), `sess_save_path` must stay `APPPATH/cache/sessions/`
+(never NULL → shared XAMPP temp), and `cookie_path` is derived from
+`base_url` so cookies are only sent to this app's own path. Changing any of
+these re-opens cross-app session collision. Register/reset endpoints must
+not run while `logged_in` — `register_submit` bounces authed users to the
+dashboard, and `verify_submit`/`reset_submit` clear all auth keys on
+success. The React app mirrors this: `RedirectIfAuthed` guards /login,
+/register, /forgot, /reset, and `VerifyPage` calls `logout()` on success so
+a stale `nexam.token` cannot survive an account switch.
+
 ## Verification commands
 
 ```bash

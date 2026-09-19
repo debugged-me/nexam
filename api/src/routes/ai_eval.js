@@ -330,8 +330,8 @@ router.post('/record', requireAuth, async (req, res, next) => {
 
     const id = uuid();
     await pool.query(
-      `INSERT INTO ai_evaluations (id, component, metric, value, sample_size, meta)
-       VALUES (:id, :component, :metric, :value, :sampleSize, :meta)`,
+      `INSERT INTO ai_evaluations (id, component, metric, value, sample_size, meta, created_by)
+       VALUES (:id, :component, :metric, :value, :sampleSize, :meta, :userId)`,
       {
         id,
         component,
@@ -339,6 +339,7 @@ router.post('/record', requireAuth, async (req, res, next) => {
         value: parseFloat(value),
         sampleSize: parseInt(sampleSize, 10) || 0,
         meta: meta ? JSON.stringify(meta) : null,
+        userId: req.user.id,
       }
     );
 
@@ -352,7 +353,11 @@ router.post('/record', requireAuth, async (req, res, next) => {
 router.get('/history', requireAuth, async (req, res, next) => {
   try {
     const [rows] = await pool.query(
-      `SELECT * FROM ai_evaluations ORDER BY created_at DESC LIMIT 50`
+      `SELECT * FROM ai_evaluations
+       WHERE created_by = :userId
+       ORDER BY created_at DESC
+       LIMIT 50`,
+      { userId: req.user.id }
     );
     res.json({ evaluations: rows });
   } catch (err) {

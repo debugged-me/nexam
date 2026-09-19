@@ -27,10 +27,16 @@ export class ApiError extends Error {
   }
 }
 
+const REQUEST_TIMEOUT_MS = 30000;
+
 async function request(method, path, body) {
   const headers = { 'Content-Type': 'application/json' };
   const token = getToken();
   if (token) headers.Authorization = `Bearer ${token}`;
+
+  // Abort requests that never settle so UI spinners can't hang forever.
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
 
   let res;
   try {
@@ -38,9 +44,15 @@ async function request(method, path, body) {
       method,
       headers,
       body: body ? JSON.stringify(body) : undefined,
+      signal: controller.signal,
     });
   } catch (err) {
+    if (err?.name === 'AbortError') {
+      throw new ApiError('The request timed out. Is the API server running?', 0, null);
+    }
     throw new ApiError('Network error — could not reach the server.', 0, null);
+  } finally {
+    clearTimeout(timer);
   }
 
   let data = null;

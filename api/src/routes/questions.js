@@ -23,6 +23,7 @@ import { requireAuth } from '../middleware/auth.js';
 import { parseGIFT, parseCanvasXML } from '../services/lmsExport.js';
 import { enqueue } from '../services/jobs.js';
 import { indexQuestionIfActive, removeQuestionFromIndex } from '../services/questionIndex.js';
+import { answerOptionIndex } from '../services/scoring.js';
 
 const router = Router();
 router.use(requireAuth);
@@ -53,14 +54,15 @@ function validate(body) {
   if (bloom && !BLOOM_LEVELS.includes(bloom)) return { error: 'Invalid Bloom level.' };
   if (status && !STATUSES.includes(status)) return { error: 'Invalid status.' };
 
-  // MCQ needs ≥2 options and a matching answer
+  // MCQ needs ≥2 options and an answer that resolves to one of them —
+  // accepts a bare letter ('B'), 'B) text', or the option text itself.
   if (type === 'mcq') {
-    const opts = Array.isArray(options) ? options : [];
+    const opts = Array.isArray(options) ? options.filter((o) => String(o).trim()) : [];
     if (opts.length < 2) return { error: 'Multiple-choice questions need at least two options.' };
-    if (!answer || !opts.includes(answer)) return { error: 'Answer must match one of the options.' };
+    if (answerOptionIndex(opts, answer) < 0) return { error: 'Answer must resolve to one of the options.' };
   }
-  // true_false needs True or False
-  if (type === 'true_false' && answer && !['True', 'False'].includes(answer)) {
+  // true_false needs True or False (accept T/F too, normalized on scoring)
+  if (type === 'true_false' && answer && !['True', 'False', 'T', 'F', 'true', 'false'].includes(answer)) {
     return { error: 'Answer must be "True" or "False".' };
   }
   return { ok: true };

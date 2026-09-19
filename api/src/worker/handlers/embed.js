@@ -17,6 +17,7 @@ import pool from '../../config/db.js';
 import { chunk } from '../../services/chunker.js';
 import { addChunks } from '../../services/vectorStore.js';
 import { enqueue } from '../../services/jobs.js';
+import { getNumber } from '../../services/settings.js';
 
 export default async function embedHandler(job) {
   const { materialId } = job.payload;
@@ -36,10 +37,11 @@ export default async function embedHandler(job) {
     throw new Error(`Material ${materialId} has no extracted text to embed.`);
   }
 
-  // Chunk the text
+  // Chunk the text — sizes come from the `settings` table so the admin can
+  // tune chunking without redeploying (falls back to 500/50 like before).
   const chunks = chunk(material.content, {
-    chunkSizeTokens: 500,
-    overlapTokens: 50,
+    chunkSizeTokens: await getNumber('chunk_size_tokens', 500),
+    overlapTokens: await getNumber('chunk_overlap_tokens', 50),
   });
 
   if (chunks.length === 0) {

@@ -2,16 +2,36 @@
  * OMR answer sheet generation service.
  *
  * Generates printable PDF answer sheets using Puppeteer (headless Chrome → PDF):
- * - QR code containing exam/set identity (for mobile scanning)
- * - Student name and ID fields
- * - One bubble per item (A/B/C/D for MCQ, T/F for true_false)
- * - Grid layout optimized for mobile camera scanning
+ * - 4 corner anchor markers the mobile scanner uses for perspective correction
+ * - QR code containing exam/set identity AND the per-item layout descriptor
+ * - Per-type bubble rows: A–D MCQ, T/F true-false, per-premise rows for
+ *   matching, and instructor-grade CORRECT/INCORRECT bubbles for identification
+ *
+ * SHEET LAYOUT CONTRACT (shared with mobile/lib/.../omr_layout.dart — the
+ * Dart scanner mirrors these exact constants; keep them in sync):
+ *
+ *   Design space      794 × 1123 px  (A4 @ 96dpi — matches PDF 595×842 pt × 4/3)
+ *   Anchors           22×22 px solid squares, centers at
+ *                     (41,41) (753,41) (41,1082) (753,1082)
+ *   Grid              2 columns × 25 rows
+ *     Column X        col 0 → x=64, col 1 → x=424  (bubble-row left edge)
+ *     First row Y     y=310  (row top edge)
+ *     Row pitch       30 px
+ *     Item number     x = colX, width 34, row vertically centered
+ *     Bubbles start   x = colX + 36
+ *     Bubble size     18 px, gap 8 px → pitch 26 px
+ *
+ * Row assignment: items are laid out top-to-bottom, column 0 first then
+ * column 1. An item occupies 1 row (mcq/true_false/identification) or N rows
+ * (matching, one per premise). A matching item never splits across columns —
+ * if it doesn't fit in the remaining rows it starts the next column.
  */
 import puppeteer from 'puppeteer';
 import QRCode from 'qrcode';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { parseOptions } from './scoring.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const STORAGE_DIR = path.join(__dirname, '..', '..', 'storage', 'exams');
@@ -20,71 +40,163 @@ if (!fs.existsSync(STORAGE_DIR)) {
   fs.mkdirSync(STORAGE_DIR, { recursive: true });
 }
 
-const COLS_PER_PAGE = 25; // items per column
-const BUBBLE_SIZE = 14;   // px
+// ── Shared layout contract (keep in sync with omr_layout.dart) ──
+const PAGE_W = 794;
+const PAGE_H = 1123;
+const ANCHOR_OFFSET = 30;   // anchor square top-left distance from page edge
+const ANCHOR_SIZE = 22;
+const COLS = 2;
+const ROWS_PER_COL = 25;
+const COL_X = [64, 424];
+const GRID_Y = 310;
+const ROW_H = 30;
+const NUM_W = 34;
+const BUBBLE = 18;
+const BUBBLE_GAP = 8;
+const BUBBLE_PITCH = BUBBLE + BUBBLE_GAP; // 26
 
 /** Escape text for safe HTML rendering. */
 function esc(text) {
   if (text == null) return '';
   return String(text)
-    .replace(/&/g, '&')
-    .replace(/</g, '<')
-    .replace(/>/g, '>')
-    .replace(/"/g, '"');
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
 }
 
-/** Get the bubble choices for a question type. */
-function getBubbleChoices(type) {
-  switch (type) {
-    case 'mcq':       return ['A', 'B', 'C', 'D'];
-    case 'true_false': return ['T', 'F'];
-    case 'identification': return ['✎'];
-    case 'matching':  return ['A', 'B', 'C', 'D', 'E'];
-    default:          return ['A', 'B', 'C', 'D'];
+const LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+
+/**
+ * Compact per-item layout descriptor embedded in the QR payload so the
+ * scanner knows each item's row structure without hitting the API.
+ *   mcq        → 'm4'  (letter = option count)
+ *   true_false → 't'
+ *   matching   → 'M4'  (digit = premise count, i.e. number of A–E rows)
+ *   identification → 'i'
+ */
+function typeCode(question) {
+  switch (question.type) {
+    case 'mcq': {
+      const n = Math.min(Math.max(parseOptions(question.options).length, 2), 8);
+      return `m${n}`;
+    }
+    case 'true_false': return 't';
+    case 'matching': {
+      const n = Math.min(Math.max(parseOptions(question.options).length, 1), 8);
+      return `M${n}`;
+    }
+    case 'identification': return 'i';
+    default: return 'm4';
   }
+}
+
+/** Choices for one bubble row of the given item. */
+function rowChoices(question, subRow) {
+  switch (question.type) {
+    case 'mcq': {
+      const n = Math.min(Math.max(parseOptions(question.options).length, 2), 8);
+      return LETTERS.slice(0, n).split('');
+    }
+    case 'true_false': return ['T', 'F'];
+    case 'matching': return LETTERS.slice(0, 5).split(''); // A–E per premise
+    case 'identification': return ['✓', '✗'];              // instructor grade
+    default: return ['A', 'B', 'C', 'D'];
+  }
+}
+
+/** Number of grid rows an item consumes. */
+function rowsFor(question) {
+  if (question.type === 'matching') {
+    return Math.min(Math.max(parseOptions(question.options).length, 1), 8);
+  }
+  return 1;
+}
+
+/**
+ * Assign grid rows to items with the same rules the Dart scanner uses:
+ * fill column 0 top-to-bottom, then column 1. A multi-row (matching) item
+ * never splits across a column boundary.
+ * @returns {Array<{item:number, sub:number, col:number, row:number}>}
+ */
+function assignRows(questions) {
+  const rows = [];
+  let col = 0;
+  let row = 0;
+
+  for (let i = 0; i < questions.length; i++) {
+    const need = rowsFor(questions[i]);
+    if (row + need > ROWS_PER_COL) {
+      col++;
+      row = 0;
+      if (col >= COLS) break; // overflow — extra items not renderable
+    }
+    for (let s = 0; s < need; s++) {
+      rows.push({ item: i + 1, sub: s, col, row: row + s });
+    }
+    row += need;
+  }
+  return rows;
+}
+
+/** Row label shown next to the bubbles ("7." or "7a", "7b" for matching). */
+function rowLabel(item, sub, isMulti) {
+  if (!isMulti) return `${item}.`;
+  return `${item}${String.fromCharCode(97 + sub)}`; // 7a, 7b, 7c…
 }
 
 /**
  * Generate an OMR answer sheet PDF for an exam set.
+ *
+ * @param {object} opts
+ * @param {string} opts.examId
+ * @param {string} opts.examSetId — embeds set identity in the QR payload
+ * @param {string} opts.examTitle
+ * @param {string} opts.setLabel — 'A' | 'B'
+ * @param {Array}  opts.questions — ordered items (type + options drive layout)
+ * @param {string} opts.filename
  */
 export async function generateOMRSheet(opts) {
   const filePath = path.join(STORAGE_DIR, opts.filename);
 
-  // Generate QR code as a data URL
+  // Self-describing QR payload: exam + set id (no server lookup needed) and
+  // the per-item layout so the scanner reconstructs the grid exactly.
   const qrPayload = JSON.stringify({
     examId: opts.examId,
+    setId: opts.examSetId || null,
     set: opts.setLabel,
     count: opts.questions.length,
+    types: opts.questions.map(typeCode),
   });
   const qrDataUrl = await QRCode.toDataURL(qrPayload, {
-    width: 120,
+    width: 220,
     margin: 1,
     errorCorrectionLevel: 'M',
   });
 
-  // Build the bubble grid HTML
-  const columns = [];
-  let itemNum = 1;
+  // ── Bubble rows (absolutely positioned — deterministic geometry) ──
+  const assignments = assignRows(opts.questions);
+  const rowsHtml = assignments.map(({ item, sub, col, row }) => {
+    const q = opts.questions[item - 1];
+    const multi = rowsFor(q) > 1;
+    const choices = rowChoices(q, sub);
+    const top = GRID_Y + row * ROW_H;
+    const left = COL_X[col];
 
-  for (let col = 0; col < 2 && itemNum <= opts.questions.length; col++) {
-    const rows = [];
-    for (let row = 0; row < COLS_PER_PAGE && itemNum <= opts.questions.length; row++) {
-      const question = opts.questions[itemNum - 1];
-      const choices = getBubbleChoices(question.type);
-      const bubbles = choices.map((choice) => `
-        <span class="bubble">${esc(choice)}</span>
-      `).join('');
+    const bubbles = choices.map((choice, c) => {
+      const bx = left + NUM_W + c * BUBBLE_PITCH;
+      return `<div class="bubble" style="left:${bx}px;top:${top}px">${esc(choice)}</div>`;
+    }).join('');
 
-      rows.push(`
-        <div class="item-row">
-          <span class="item-num">${itemNum}.</span>
-          <span class="bubbles">${bubbles}</span>
-        </div>
-      `);
-      itemNum++;
-    }
-    columns.push(`<div class="col">${rows.join('')}</div>`);
-  }
+    return `<div class="num" style="left:${left}px;top:${top}px">${esc(rowLabel(item, sub, multi))}</div>${bubbles}`;
+  }).join('\n');
+
+  // Items that didn't fit (sheet capacity = 2 × 25 rows)
+  const renderedItems = new Set(assignments.map((a) => a.item));
+  const overflow = opts.questions.length - renderedItems.size;
+  const overflowHtml = overflow > 0
+    ? `<div class="overflow">⚠ ${overflow} item(s) exceed sheet capacity — print a second sheet.</div>`
+    : '';
 
   const css = `
     @page { margin: 0; }
@@ -93,60 +205,84 @@ export async function generateOMRSheet(opts) {
       font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
       font-size: 10pt;
       color: #1a1a1a;
-      padding: 50px;
+      width: ${PAGE_W}px;
+      height: ${PAGE_H}px;
+      position: relative;
     }
-    .header { display: flex; justify-content: space-between; margin-bottom: 16px; }
+    .anchor {
+      position: absolute;
+      width: ${ANCHOR_SIZE}px;
+      height: ${ANCHOR_SIZE}px;
+      background: #000;
+    }
+    .header { position: absolute; left: 70px; top: 40px; right: 200px; }
     .header .title { font-size: 14pt; font-weight: bold; }
     .header .subtitle { font-size: 11pt; margin-top: 4px; }
-    .header .meta { font-size: 9pt; margin-top: 2px; }
-    .header .qr { width: 100px; height: 100px; }
-    .header .qr img { width: 100px; height: 100px; }
-    .student-info { font-size: 10pt; line-height: 2.2; margin-bottom: 16px; }
+    .header .meta { font-size: 9pt; margin-top: 2px; color: #444; }
+    .qr { position: absolute; left: 620px; top: 36px; width: 120px; height: 120px; }
+    .qr img { width: 120px; height: 120px; }
+    .student-info {
+      position: absolute; left: 70px; top: 190px; right: 70px;
+      font-size: 10pt; line-height: 2.1;
+    }
     .student-info div { margin-bottom: 4px; }
-    .bubble-grid { display: flex; gap: 80px; margin-top: 10px; }
-    .col { flex: 1; }
-    .item-row { display: flex; align-items: center; margin-bottom: 8px; page-break-inside: avoid; }
-    .item-num { font-weight: bold; width: 24px; font-size: 9pt; }
-    .bubbles { display: flex; gap: 6px; }
+    .num {
+      position: absolute;
+      width: ${NUM_W}px;
+      height: ${BUBBLE}px;
+      font-weight: bold;
+      font-size: 9pt;
+      line-height: ${BUBBLE}px;
+      text-align: right;
+      padding-right: 4px;
+    }
     .bubble {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      width: ${BUBBLE_SIZE}px;
-      height: ${BUBBLE_SIZE}px;
-      border: 1px solid #333;
+      position: absolute;
+      width: ${BUBBLE}px;
+      height: ${BUBBLE}px;
+      border: 1.4px solid #111;
       border-radius: 50%;
       font-size: 7pt;
-      font-weight: normal;
+      line-height: ${BUBBLE - 2}px;
+      text-align: center;
     }
-    .footer { position: fixed; bottom: 20px; left: 50px; right: 50px; font-size: 8pt; color: #888; font-style: italic; }
-    .footer div { margin-top: 4px; }
+    .overflow {
+      position: absolute; left: 70px; top: ${GRID_Y + ROWS_PER_COL * ROW_H + 12}px;
+      font-size: 9pt; color: #B91C1C; font-weight: bold;
+    }
+    .footer {
+      position: absolute; left: 70px; right: 70px; bottom: 14px;
+      font-size: 8pt; color: #666; font-style: italic;
+    }
+    .footer div { margin-top: 3px; }
   `;
 
   const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><style>${css}</style></head>
 <body>
+  <!-- Corner anchors: the mobile scanner locates these for registration -->
+  <div class="anchor" style="left:${ANCHOR_OFFSET}px;top:${ANCHOR_OFFSET}px"></div>
+  <div class="anchor" style="left:${PAGE_W - ANCHOR_OFFSET - ANCHOR_SIZE}px;top:${ANCHOR_OFFSET}px"></div>
+  <div class="anchor" style="left:${ANCHOR_OFFSET}px;top:${PAGE_H - ANCHOR_OFFSET - ANCHOR_SIZE}px"></div>
+  <div class="anchor" style="left:${PAGE_W - ANCHOR_OFFSET - ANCHOR_SIZE}px;top:${PAGE_H - ANCHOR_OFFSET - ANCHOR_SIZE}px"></div>
+
   <div class="header">
-    <div>
-      <div class="title">${esc(opts.examTitle)}</div>
-      <div class="subtitle">Set ${esc(opts.setLabel)} — OMR Answer Sheet</div>
-      <div class="meta">Items: ${opts.questions.length}</div>
-    </div>
-    <div class="qr"><img src="${qrDataUrl}" alt="QR Code"></div>
+    <div class="title">${esc(opts.examTitle)}</div>
+    <div class="subtitle">Set ${esc(opts.setLabel)} — OMR Answer Sheet</div>
+    <div class="meta">Items: ${opts.questions.length}</div>
   </div>
+  <div class="qr"><img src="${qrDataUrl}" alt="QR Code"></div>
 
   <div class="student-info">
-    <div>Name: _________________________________</div>
-    <div>Student ID: ____________________________</div>
-    <div>Section: ____________   Date: _______________</div>
+    <div>Name: _________________________________&nbsp;&nbsp;&nbsp;Student ID: ____________________</div>
+    <div>Section: ____________________&nbsp;&nbsp;&nbsp;Date: ____________________</div>
   </div>
 
-  <div class="bubble-grid">
-    ${columns.join('')}
-  </div>
+  ${rowsHtml}
+  ${overflowHtml}
 
   <div class="footer">
-    <div>Instructions: Use a dark pen or pencil to fill the bubble completely. Do not make any stray marks.</div>
-    <div>For True/False: fill T for True, F for False.</div>
+    <div>Instructions: Fill one bubble per row completely with a dark pen. For matching items, fill one bubble per sub-row (a, b, c…). For True/False: T = True, F = False.</div>
+    <div>Identification items: the instructor marks ✓ (correct) or ✗ (incorrect) after grading the written answer.</div>
   </div>
 </body></html>`;
 

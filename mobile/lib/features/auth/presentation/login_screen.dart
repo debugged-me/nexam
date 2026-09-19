@@ -1,16 +1,24 @@
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../core/theme/app_theme.dart';
-import '../data/auth_api.dart';
-import '../data/session_store.dart';
 import 'auth_controller.dart';
 
 /// Login screen — the instructor enters the server address and their
 /// Nexam credentials. On success the app navigates to the dashboard.
+///
+/// The screen uses the SHARED [AuthController] owned by the app root —
+/// previously it created its own, so a successful login never reached the
+/// app's auth state and the user stayed stuck on this screen.
 class LoginScreen extends StatefulWidget {
-  const LoginScreen({super.key, required this.onLoginSuccess});
+  const LoginScreen({
+    super.key,
+    required this.controller,
+    required this.onLoginSuccess,
+  });
 
+  /// The app-level auth controller — login() here populates the session
+  /// that [NexamOmrApp] checks for routing.
+  final AuthController controller;
   final VoidCallback onLoginSuccess;
 
   @override
@@ -18,41 +26,19 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
-  late final AuthController _controller;
   final _formKey = GlobalKey<FormState>();
   final _serverController = TextEditingController();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _obscurePassword = true;
+  bool _submitting = false;
 
   @override
   void initState() {
     super.initState();
-    _controller = AuthController(
-      api: AuthApi(),
-      store: SessionStore(
-        // SharedPreferences not yet available in initState — we'll
-        // initialize it in didChangeDependencies.
-        _placeholderPrefs,
-      ),
-    );
-  }
-
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    _initStore();
-  }
-
-  Future<void> _initStore() async {
-    final prefs = await SharedPreferences.getInstance();
-    final store = SessionStore(prefs);
-    _controller = AuthController(api: AuthApi(), store: store);
-    final savedUrl = store.readBaseUrl();
-    if (savedUrl.isNotEmpty && _serverController.text.isEmpty) {
-      _serverController.text = savedUrl;
-    }
-    if (mounted) setState(() {});
+    // Pre-fill the server address used last time.
+    final saved = widget.controller.savedBaseUrl;
+    if (saved.isNotEmpty) _serverController.text = saved;
   }
 
   @override
@@ -65,19 +51,21 @@ class _LoginScreenState extends State<LoginScreen> {
 
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
+    setState(() => _submitting = true);
 
-    final success = await _controller.login(
+    final success = await widget.controller.login(
       baseUrl: _serverController.text,
       email: _emailController.text,
       password: _passwordController.text,
     );
 
     if (!mounted) return;
+    setState(() => _submitting = false);
 
     if (success) {
       widget.onLoginSuccess();
-    } else if (_controller.error != null) {
-      _showError(_controller.error!);
+    } else if (widget.controller.error != null) {
+      _showError(widget.controller.error!);
     }
   }
 
@@ -106,7 +94,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     // Logo / title
-                    Icon(Icons.qr_code_scanner, size: 64, color: AppTheme.primary),
+                    const Icon(Icons.qr_code_scanner, size: 64, color: AppTheme.primary),
                     const SizedBox(height: 16),
                     Text(
                       'Nexam OMR',
@@ -117,7 +105,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           ),
                     ),
                     const SizedBox(height: 4),
-                    Text(
+                    const Text(
                       'Scan answer sheets, sync scores',
                       textAlign: TextAlign.center,
                       style: TextStyle(color: AppTheme.textMuted, fontSize: 14),
@@ -186,8 +174,8 @@ class _LoginScreenState extends State<LoginScreen> {
 
                     // Login button
                     ElevatedButton(
-                      onPressed: _controller.isLoading ? null : _submit,
-                      child: _controller.isLoading
+                      onPressed: _submitting ? null : _submit,
+                      child: _submitting
                           ? const SizedBox(
                               height: 20,
                               width: 20,
@@ -207,13 +195,4 @@ class _LoginScreenState extends State<LoginScreen> {
       ),
     );
   }
-}
-
-// Placeholder until SharedPreferences is initialized in didChangeDependencies.
-// This is replaced immediately after the first frame.
-final _placeholderPrefs = _PlaceholderPrefs();
-
-class _PlaceholderPrefs implements SharedPreferences {
-  @override
-  dynamic noSuchMethod(Invocation invocation) => null;
 }

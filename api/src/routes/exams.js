@@ -20,6 +20,36 @@ import { generateOMRSheet } from '../services/omrService.js';
 
 const router = Router();
 
+const EXAM_FORMATS = ['print', 'digital'];
+const EXAM_STATUSES = ['draft', 'published'];
+
+/**
+ * Convert TOS percentage weights into exact item counts using largest
+ * remainders — identical to the PHP _allocation_from_tos() logic.
+ */
+function allocationFromTos(bloomWeights, totalItems) {
+  const weights = typeof bloomWeights === 'string' ? JSON.parse(bloomWeights) : bloomWeights;
+  if (!weights || typeof weights !== 'object' || totalItems < 1) return null;
+
+  const allocation = {};
+  const remainders = [];
+  let allocated = 0;
+  for (const [bloom, pct] of Object.entries(weights)) {
+    const exact = (parseFloat(pct) / 100) * totalItems;
+    const whole = Math.floor(exact);
+    allocation[bloom] = whole;
+    remainders.push({ bloom, remainder: exact - whole });
+    allocated += whole;
+  }
+  remainders.sort((a, b) => b.remainder - a.remainder);
+  for (const { bloom } of remainders) {
+    if (allocated >= totalItems) break;
+    allocation[bloom]++;
+    allocated++;
+  }
+  return allocation;
+}
+
 /** GET /api/exams — list exams for the authenticated instructor. */
 router.get('/', requireAuth, async (req, res, next) => {
   try {
@@ -47,6 +77,16 @@ router.post('/', requireAuth, async (req, res, next) => {
     const { title, subject_id, tos_id, format, set_count, duration_minutes, instructions, status } = req.body || {};
     if (!title || !String(title).trim()) return res.status(422).json({ error: 'Title is required.' });
     if (!subject_id) return res.status(422).json({ error: 'Subject is required.' });
+    if (format !== undefined && !EXAM_FORMATS.includes(format)) {
+      return res.status(422).json({ error: `Format must be one of: ${EXAM_FORMATS.join(', ')}.` });
+    }
+    if (status !== undefined && !EXAM_STATUSES.includes(status)) {
+      return res.status(422).json({ error: `Status must be one of: ${EXAM_STATUSES.join(', ')}.` });
+    }
+    if (duration_minutes !== undefined && duration_minutes !== null &&
+        (!Number.isInteger(Number(duration_minutes)) || Number(duration_minutes) <= 0 || Number(duration_minutes) > 600)) {
+      return res.status(422).json({ error: 'Duration must be a positive integer (max 600 minutes).' });
+    }
 
     // Verify subject ownership
     const [subjRows] = await pool.query(
@@ -55,13 +95,19 @@ router.post('/', requireAuth, async (req, res, next) => {
     );
     if (!subjRows.length) return res.status(403).json({ error: 'Subject not found or not owned by you.' });
 
-    // Verify TOS ownership if provided
+    // Verify TOS ownership if provided — and that it belongs to this subject
+    let tos = null;
     if (tos_id) {
       const [tosRows] = await pool.query(
-        `SELECT t.id FROM tos t JOIN subjects s ON s.id = t.subject_id WHERE t.id = :id AND s.instructor_id = :uid`,
+        `SELECT t.* FROM tos t JOIN subjects s ON s.id = t.subject_id
+         WHERE t.id = :id AND s.instructor_id = :uid`,
         { id: tos_id, uid: req.user.id }
       );
       if (!tosRows.length) return res.status(403).json({ error: 'TOS not found or not owned by you.' });
+      tos = tosRows[0];
+      if (tos.subject_id !== subject_id) {
+        return res.status(422).json({ error: 'The TOS blueprint must belong to the selected subject.' });
+      }
     }
 
     const id = uuid();
@@ -82,12 +128,44 @@ router.post('/', requireAuth, async (req, res, next) => {
       }
     );
 
+    // Auto-assemble questions from the TOS blueprint (same behavior as the
+    // PHP app): pick random ACTIVE questions per Bloom bucket. Shortages are
+    // reported but never silently ignored — the exam is created either way.
+    let shortages = [];
+    if (tos) {
+      const weights = JSON.parse(tos.bloom_weights || '{}');
+      if (Object.values(weights).reduce((s, v) => s + Number(v), 0) === 100) {
+        const allocation = allocationFromTos(weights, Number(tos.total_items));
+        if (allocation) {
+          let sortOrder = 1;
+          for (const [bloom, needed] of Object.entries(allocation)) {
+            if (needed <= 0) continue;
+            const [qs] = await pool.query(
+              `SELECT id FROM questions
+               WHERE subject_id = :sid AND created_by = :uid AND bloom = :bloom AND status = 'active'
+               ORDER BY RAND() LIMIT :lim`,
+              { sid: subject_id, uid: req.user.id, bloom, lim: needed }
+            );
+            if (qs.length < needed) {
+              shortages.push(`${bloom}: need ${needed}, available ${qs.length}`);
+            }
+            for (const q of qs) {
+              await pool.query(
+                `INSERT INTO exam_questions (exam_id, question_id, sort_order) VALUES (:eid, :qid, :ord)`,
+                { eid: id, qid: q.id, ord: sortOrder++ }
+              );
+            }
+          }
+        }
+      }
+    }
+
     const [rows] = await pool.query(
       `SELECT e.*, s.name AS subject_name, s.code AS subject_code
        FROM exams e JOIN subjects s ON s.id = e.subject_id WHERE e.id = :id`,
       { id }
     );
-    res.status(201).json({ exam: rows[0] });
+    res.status(201).json({ exam: rows[0], shortages });
   } catch (err) { next(err); }
 });
 
@@ -121,7 +199,15 @@ router.get('/:id', requireAuth, async (req, res, next) => {
       if (tos?.bloom_weights) { try { tos.bloom_weights = JSON.parse(tos.bloom_weights); } catch {} }
     }
 
-    res.json({ exam, questions, tos });
+    // Generated sets — the frontend uses this to decide whether to show
+    // the Downloads section on load (not only right after generation).
+    const [sets] = await pool.query(
+      `SELECT id, set_label, pdf_path, answer_key_path, omr_sheet_path
+       FROM exam_sets WHERE exam_id = :id ORDER BY set_label ASC`,
+      { id: exam.id }
+    );
+
+    res.json({ exam, questions, tos, sets });
   } catch (err) { next(err); }
 });
 
@@ -137,6 +223,28 @@ router.put('/:id', requireAuth, async (req, res, next) => {
     const exam = examRows[0];
 
     const { title, format, set_count, duration_minutes, instructions, status } = req.body || {};
+    if (format !== undefined && !EXAM_FORMATS.includes(format)) {
+      return res.status(422).json({ error: `Format must be one of: ${EXAM_FORMATS.join(', ')}.` });
+    }
+    if (status !== undefined && !EXAM_STATUSES.includes(status)) {
+      return res.status(422).json({ error: `Status must be one of: ${EXAM_STATUSES.join(', ')}.` });
+    }
+    if (duration_minutes !== undefined && duration_minutes !== null &&
+        (!Number.isInteger(Number(duration_minutes)) || Number(duration_minutes) <= 0 || Number(duration_minutes) > 600)) {
+      return res.status(422).json({ error: 'Duration must be a positive integer (max 600 minutes).' });
+    }
+
+    // Publishing guard: can't publish an exam that has no questions attached.
+    if (status === 'published') {
+      const [qRows] = await pool.query(
+        `SELECT COUNT(*) AS cnt FROM exam_questions WHERE exam_id = :id`,
+        { id: exam.id }
+      );
+      if (!qRows[0].cnt) {
+        return res.status(422).json({ error: 'Cannot publish an exam with no questions.' });
+      }
+    }
+
     await pool.query(
       `UPDATE exams SET title = :title, format = :format, set_count = :set_count,
                        duration_minutes = :duration_minutes, instructions = :instructions,
@@ -295,13 +403,12 @@ router.post('/:id/generate-sets', requireAuth, async (req, res, next) => {
       topics = topicRows;
     }
 
-    // Delete old sets if regenerating
-    await pool.query(`DELETE FROM exam_set_questions WHERE exam_set_id IN (SELECT id FROM exam_sets WHERE exam_id = :examId)`, { examId });
-    await pool.query(`DELETE FROM exam_sets WHERE exam_id = :examId`, { examId });
-
     const setCount = Math.min(Math.max(parseInt(req.body.setCount, 10) || exam.set_count || 1, 1), 2);
-    const generatedSets = [];
 
+    // Phase 1: generate all PDF files first (slow, can't be rolled back — so
+    // do it before opening the DB transaction). If PDF generation fails, no
+    // DB rows were touched.
+    const setPlans = [];
     for (let setIdx = 0; setIdx < setCount; setIdx++) {
       const setLabel = String.fromCharCode(65 + setIdx); // 'A', 'B'
       const setId = uuid();
@@ -312,7 +419,6 @@ router.post('/:id/generate-sets', requireAuth, async (req, res, next) => {
         setQuestions = shuffleQuestions(setQuestions);
       }
 
-      // Generate exam PDF
       const examFilename = `exam_${examId}_set${setLabel}.pdf`;
       await generateExamPDF({
         examTitle: exam.title,
@@ -325,7 +431,6 @@ router.post('/:id/generate-sets', requireAuth, async (req, res, next) => {
         filename: examFilename,
       });
 
-      // Generate answer key PDF
       const answerKeyFilename = `answerkey_${examId}_set${setLabel}.pdf`;
       await generateAnswerKeyPDF({
         examTitle: exam.title,
@@ -334,53 +439,61 @@ router.post('/:id/generate-sets', requireAuth, async (req, res, next) => {
         filename: answerKeyFilename,
       });
 
-      // Generate OMR answer sheet
       const omrFilename = `omr_${examId}_set${setLabel}.pdf`;
       await generateOMRSheet({
         examId,
+        examSetId: setId,
         examTitle: exam.title,
         setLabel,
         questions: setQuestions,
         filename: omrFilename,
       });
 
-      // Store the exam set
-      await pool.query(
-        `INSERT INTO exam_sets (id, exam_id, set_label, pdf_path, answer_key_path, omr_sheet_path)
-         VALUES (:id, :examId, :setLabel, :pdfPath, :answerKeyPath, :omrPath)`,
-        {
-          id: setId,
-          examId,
-          setLabel,
-          pdfPath: examFilename,
-          answerKeyPath: answerKeyFilename,
-          omrPath: omrFilename,
-        }
-      );
+      setPlans.push({ setId, setLabel, setQuestions, examFilename, answerKeyFilename, omrFilename });
+    }
 
-      // Store set questions
-      for (let i = 0; i < setQuestions.length; i++) {
-        await pool.query(
-          `INSERT INTO exam_set_questions (id, exam_set_id, question_id, sort_order)
-           VALUES (:id, :examSetId, :questionId, :sortOrder)`,
-          {
-            id: uuid(),
-            examSetId: setId,
-            questionId: setQuestions[i].id,
-            sortOrder: i + 1,
-          }
+    // Phase 2: replace sets + set questions atomically.
+    const conn = await pool.getConnection();
+    try {
+      await conn.beginTransaction();
+
+      await conn.query(
+        `DELETE FROM exam_set_questions WHERE exam_set_id IN (SELECT id FROM exam_sets WHERE exam_id = ?)`,
+        [examId]
+      );
+      await conn.query(`DELETE FROM exam_sets WHERE exam_id = ?`, [examId]);
+
+      for (const plan of setPlans) {
+        await conn.query(
+          `INSERT INTO exam_sets (id, exam_id, set_label, pdf_path, answer_key_path, omr_sheet_path)
+           VALUES (?, ?, ?, ?, ?, ?)`,
+          [plan.setId, examId, plan.setLabel, plan.examFilename, plan.answerKeyFilename, plan.omrFilename]
         );
+
+        for (let i = 0; i < plan.setQuestions.length; i++) {
+          await conn.query(
+            `INSERT INTO exam_set_questions (id, exam_set_id, question_id, sort_order) VALUES (?, ?, ?, ?)`,
+            [uuid(), plan.setId, plan.setQuestions[i].id, i + 1]
+          );
+        }
       }
 
-      generatedSets.push({
-        id: setId,
-        setLabel,
-        pdfPath: examFilename,
-        answerKeyPath: answerKeyFilename,
-        omrSheetPath: omrFilename,
-        questionCount: setQuestions.length,
-      });
+      await conn.commit();
+    } catch (err) {
+      try { await conn.rollback(); } catch (_) { /* ignore */ }
+      throw err;
+    } finally {
+      conn.release();
     }
+
+    const generatedSets = setPlans.map((p) => ({
+      id: p.setId,
+      setLabel: p.setLabel,
+      pdfPath: p.examFilename,
+      answerKeyPath: p.answerKeyFilename,
+      omrSheetPath: p.omrFilename,
+      questionCount: p.setQuestions.length,
+    }));
 
     // Generate TOS report if TOS is linked
     let tosReportPath = null;

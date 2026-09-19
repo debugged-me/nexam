@@ -13,8 +13,8 @@ defined('BASEPATH') or exit('No direct script access allowed');
  */
 class Nexam_api
 {
-    /** Base URL of the Node API. */
-    private $base_url = 'http://localhost:3000/api';
+    /** Base URL of the Node API — override with NEXAM_API_BASE_URL env var. */
+    private $base_url;
 
     /** JWT secret (shared with Node .env JWT_SECRET). */
     private $jwt_secret;
@@ -24,7 +24,40 @@ class Nexam_api
 
     public function __construct()
     {
-        $this->jwt_secret = getenv('JWT_SECRET') ?: 'change-me-in-production';
+        $this->jwt_secret = $this->_resolve_jwt_secret();
+        $base = getenv('NEXAM_API_BASE_URL');
+        $this->base_url = $base ? rtrim($base, '/') : 'http://localhost:3000/api';
+    }
+
+    /**
+     * Resolve the JWT secret the same way the Node API does:
+     *   1. JWT_SECRET environment variable
+     *   2. JWT_SECRET entry in api/.env (the file dotenv loads)
+     *   3. Hard fallback — must match env.js's default
+     */
+    private function _resolve_jwt_secret()
+    {
+        $env = getenv('JWT_SECRET');
+        if ($env) return $env;
+
+        $envFile = FCPATH . 'api/.env';
+        if (is_file($envFile) && is_readable($envFile)) {
+            foreach (file($envFile, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES) as $line) {
+                $line = trim($line);
+                if ($line === '' || $line[0] === '#' || strpos($line, '=') === false) continue;
+                list($k, $v) = explode('=', $line, 2);
+                if (trim($k) === 'JWT_SECRET') {
+                    $v = trim($v);
+                    // Strip surrounding quotes dotenv-style
+                    if (strlen($v) > 1 && ($v[0] === '"' || $v[0] === "'") && $v[strlen($v) - 1] === $v[0]) {
+                        $v = substr($v, 1, -1);
+                    }
+                    if ($v !== '') return $v;
+                }
+            }
+        }
+
+        return 'dev-insecure-secret-change-me';
     }
 
     /**
@@ -182,6 +215,20 @@ class Nexam_api
 
         if ($error) return ['status' => 0, 'body' => null, 'error' => $error];
         return ['status' => $status, 'body' => json_decode($response, true)];
+    }
+
+    /**
+     * Public accessors for callers that need the raw token/base URL
+     * (e.g. streaming a download through PHP with its own curl handle).
+     */
+    public function token()
+    {
+        return $this->get_token();
+    }
+
+    public function base_url()
+    {
+        return $this->base_url;
     }
 
     private function _base64url($data)

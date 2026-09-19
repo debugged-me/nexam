@@ -33,6 +33,63 @@ async function getOwned(id, userId) {
   return rows[0] || null;
 }
 
+/**
+ * Recalculate tos_topics.item_count from instructional_hours —
+ * item allocation is proportional to hours (largest remainder so the
+ * counts sum exactly to tos.total_items). Runs after any topic
+ * add/update/delete or total_items change.
+ */
+async function recalcTopicItemCounts(tosId) {
+  const [tosRows] = await pool.query(
+    `SELECT total_items FROM tos WHERE id = :id`, { id: tosId }
+  );
+  if (!tosRows.length) return;
+  const totalItems = Number(tosRows[0].total_items) || 0;
+
+  const [topics] = await pool.query(
+    `SELECT id, instructional_hours FROM tos_topics WHERE tos_id = :id ORDER BY sort_order ASC`,
+    { id: tosId }
+  );
+  if (!topics.length) return;
+
+  const totalHours = topics.reduce((s, t) => s + (Number(t.instructional_hours) || 0), 0);
+  const counts = {};
+  const remainders = [];
+  let allocated = 0;
+
+  for (const t of topics) {
+    const share = totalHours > 0 ? (Number(t.instructional_hours) || 0) / totalHours : 1 / topics.length;
+    const exact = share * totalItems;
+    const whole = Math.floor(exact);
+    counts[t.id] = whole;
+    remainders.push({ id: t.id, remainder: exact - whole });
+    allocated += whole;
+  }
+  remainders.sort((a, b) => b.remainder - a.remainder);
+  for (const { id } of remainders) {
+    if (allocated >= totalItems) break;
+    counts[id]++;
+    allocated++;
+  }
+
+  for (const t of topics) {
+    await pool.query(
+      `UPDATE tos_topics SET item_count = :n WHERE id = :id`,
+      { n: counts[t.id], id: t.id }
+    );
+  }
+}
+
+/** Normalize learning_outcomes input (array | JSON string | text) to JSON. */
+function normalizeOutcomes(value) {
+  if (value == null || value === '') return null;
+  if (Array.isArray(value)) return JSON.stringify(value);
+  if (typeof value === 'string') {
+    try { JSON.parse(value); return value; } catch { return JSON.stringify([value]); }
+  }
+  return null;
+}
+
 /** Validate TOS fields. Returns { error } or { ok }. */
 function validate(body) {
   const { title, subject_id, total_items, bloom_weights } = body || {};
@@ -161,7 +218,9 @@ router.put('/:id', async (req, res, next) => {
       if (!subjRows.length) return res.status(403).json({ error: 'Subject not owned by you.' });
     }
 
-    const bloom = req.body.bloom_weights || DEFAULT_BLOOM;
+    const existingWeights = typeof tos.bloom_weights === 'string'
+      ? JSON.parse(tos.bloom_weights || 'null') : tos.bloom_weights;
+    const bloom = req.body.bloom_weights || existingWeights || DEFAULT_BLOOM;
     await pool.query(
       `UPDATE tos SET subject_id = :subject_id, title = :title, total_items = :total_items,
                      bloom_weights = :bloom_weights, updated_at = NOW() WHERE id = :id`,
@@ -174,6 +233,9 @@ router.put('/:id', async (req, res, next) => {
       }
     );
 
+    // total_items may have changed — re-derive per-topic item counts.
+    await recalcTopicItemCounts(tos.id);
+
     const [rows] = await pool.query(`SELECT * FROM tos WHERE id = :id`, { id: tos.id });
     rows[0].bloom_weights = JSON.parse(rows[0].bloom_weights);
     res.json({ tos: rows[0] });
@@ -185,6 +247,7 @@ router.delete('/:id', async (req, res, next) => {
   try {
     const tos = await getOwned(req.params.id, req.user.id);
     if (!tos) return res.status(404).json({ error: 'TOS not found.' });
+    await pool.query(`DELETE FROM tos_topics WHERE tos_id = :id`, { id: tos.id });
     await pool.query(`DELETE FROM tos WHERE id = :id`, { id: tos.id });
     res.json({ message: 'TOS deleted.' });
   } catch (err) { next(err); }
@@ -233,11 +296,14 @@ router.post('/:id/topics', async (req, res, next) => {
         tos_id: tos.id,
         title: String(title).trim(),
         hours: Number(instructional_hours) || 0,
-        outcomes: learning_outcomes || null,
+        outcomes: normalizeOutcomes(learning_outcomes),
         item_count: Number(item_count) || 0,
         sort_order: maxRows[0].max_order + 1,
       }
     );
+
+    // Item counts are derived from instructional hours, not entered by hand.
+    await recalcTopicItemCounts(tos.id);
 
     const [rows] = await pool.query(`SELECT * FROM tos_topics WHERE id = :id`, { id: topicId });
     res.status(201).json({ topic: rows[0] });
@@ -254,6 +320,7 @@ router.delete('/:id/topics/:topicId', async (req, res, next) => {
       `DELETE FROM tos_topics WHERE id = :topicId AND tos_id = :tosId`,
       { topicId: req.params.topicId, tosId: tos.id }
     );
+    await recalcTopicItemCounts(tos.id);
     res.json({ message: 'Topic removed.' });
   } catch (err) { next(err); }
 });

@@ -9,12 +9,12 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import {
-  Plus, Trash2, FileText, FileCheck, Download, Sparkles, Send, Printer,
+  Plus, Trash2, FileText, FileCheck, Download, Send, Printer,
   Pencil, HelpCircle, Clock, Monitor,
 } from 'lucide-react';
 import { useToast } from '../components/Toast.jsx';
 import Modal from '../components/Modal.jsx';
-import api, { ApiError } from '../lib/api.js';
+import api, { ApiError, getToken } from '../lib/api.js';
 import AppShell from '../components/AppShell.jsx';
 import '../styles/exams.css';
 
@@ -107,21 +107,24 @@ export default function ExamDetailPage() {
 
   function downloadUrl(type, set) {
     const base = import.meta.env.VITE_API_BASE || '/api';
-    const url = `${base}/exams/${id}/download/${type}${set ? `?set=${set}` : ''}`;
-    const token = localStorage.getItem('nexam_token');
-    return `${url}&token=${token}`;
+    const params = new URLSearchParams();
+    if (set) params.set('set', set);
+    params.set('token', getToken());
+    return `${base}/exams/${id}/download/${type}?${params.toString()}`;
   }
 
   function exportUrl(format) {
     const base = import.meta.env.VITE_API_BASE || '/api';
-    const token = localStorage.getItem('nexam_token');
-    return `${base}/exams/${id}/export/${format}?token=${token}`;
+    const params = new URLSearchParams({ token: getToken() });
+    return `${base}/exams/${id}/export/${format}?${params.toString()}`;
   }
 
   if (!data) return <AppShell activeNav="exams" pageTitle="Exam"><p className="placeholder">Loading…</p></AppShell>;
-  const { exam, questions, tos } = data;
+  const { exam, questions, tos, sets } = data;
   const published = exam.status === 'published';
   const print = exam.format === 'print';
+  const hasSets = Array.isArray(sets) && sets.length > 0;
+  const showDownloads = downloadsVisible || hasSets;
 
   return (
     <AppShell activeNav="exams" pageTitle={exam.title}>
@@ -239,7 +242,7 @@ export default function ExamDetailPage() {
         )}
       </div>
 
-      {downloadsVisible && (
+      {showDownloads && (
         <div className="card" id="exam-downloads">
           <div className="card-header">
             <span className="card-title">Downloads</span>
@@ -247,8 +250,7 @@ export default function ExamDetailPage() {
           </div>
           <div className="card-body">
             <div className="download-list">
-              {Array.from({ length: exam.set_count }, (_, i) => {
-                const label = String.fromCharCode(65 + i);
+              {(hasSets ? sets.map((s) => s.set_label) : Array.from({ length: exam.set_count }, (_, i) => String.fromCharCode(65 + i))).map((label) => {
                 return (
                   <div key={label} className="download-group">
                     <h4>Set {label}</h4>

@@ -125,6 +125,50 @@ class Tos_model extends CI_Model
             ->delete($this->topics_table);
     }
 
+    /**
+     * Recalculate tos_topics.item_count from instructional_hours — item
+     * allocation is proportional to hours (largest-remainder rounding so the
+     * counts sum exactly to tos.total_items). Mirrors the Node API's
+     * recalcTopicItemCounts; run after any topic add/update/delete or a
+     * total_items change.
+     */
+    public function recalc_item_counts($tos_id)
+    {
+        $tos = $this->db->select('total_items')->where('id', $tos_id)->get($this->table)->row();
+        if (!$tos) return;
+
+        $total_items = (int) $tos->total_items;
+        $topics = $this->db->select('id, instructional_hours')
+            ->where('tos_id', $tos_id)->order_by('sort_order', 'ASC')
+            ->get($this->topics_table)->result();
+        if (empty($topics)) return;
+
+        $total_hours = 0;
+        foreach ($topics as $t) $total_hours += (int) $t->instructional_hours;
+
+        $counts = [];
+        $remainders = [];
+        $allocated = 0;
+        foreach ($topics as $t) {
+            $share = $total_hours > 0 ? ((int) $t->instructional_hours) / $total_hours : 1 / count($topics);
+            $exact = $share * $total_items;
+            $whole = (int) floor($exact);
+            $counts[$t->id] = $whole;
+            $remainders[] = ['id' => $t->id, 'remainder' => $exact - $whole];
+            $allocated += $whole;
+        }
+        usort($remainders, function ($a, $b) { return $b['remainder'] <=> $a['remainder']; });
+        foreach ($remainders as $r) {
+            if ($allocated >= $total_items) break;
+            $counts[$r['id']]++;
+            $allocated++;
+        }
+
+        foreach ($topics as $t) {
+            $this->db->where('id', $t->id)->update($this->topics_table, ['item_count' => $counts[$t->id]]);
+        }
+    }
+
     /* ------------------------------------------------------------------
        Dashboard analytics
        ------------------------------------------------------------------ */

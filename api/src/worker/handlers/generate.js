@@ -17,6 +17,8 @@ import pool from '../../config/db.js';
 import { generate } from '../../services/aiProvider.js';
 import { retrieve } from '../../services/retriever.js';
 import { enqueue } from '../../services/jobs.js';
+import { getNumber } from '../../services/settings.js';
+import { answerOptionIndex, parseMatchingLetters, parseOptions } from '../../services/scoring.js';
 
 /** Bloom level descriptions for the LLM prompt. */
 const BLOOM_DESCRIPTIONS = {
@@ -61,6 +63,7 @@ export default async function generateHandler(job) {
   // If no topics, we generate count questions for the subject generally.
   const generatedQuestions = [];
   const failedSlots = [];
+  let droppedInvalid = 0;
 
   for (const [bloom, count] of Object.entries(allocation)) {
     if (count <= 0) continue;
@@ -82,6 +85,9 @@ export default async function generateHandler(job) {
         if (result.questions.length > 0) {
           generatedQuestions.push(...result.questions);
         }
+        if (result.dropped) {
+          droppedInvalid += result.dropped;
+        }
         if (result.failed) {
           failedSlots.push({ topic: topic.title, bloom, count: actualCount, reason: result.reason });
         }
@@ -91,6 +97,9 @@ export default async function generateHandler(job) {
       const result = await generateForSlot(tos, null, bloom, count);
       if (result.questions.length > 0) {
         generatedQuestions.push(...result.questions);
+      }
+      if (result.dropped) {
+        droppedInvalid += result.dropped;
       }
       if (result.failed) {
         failedSlots.push({ topic: '(general)', bloom, count, reason: result.reason });
@@ -137,6 +146,7 @@ export default async function generateHandler(job) {
   return {
     tosId,
     generated: generatedQuestions.length,
+    droppedInvalid,
     failedSlots,
   };
 }
@@ -152,14 +162,32 @@ async function generateForSlot(tos, topic, bloom, count) {
     : '';
   const query = `${topicText} ${outcomesText} ${BLOOM_DESCRIPTIONS[bloom] || ''}`.trim();
 
-  // Retrieve top-k chunks scoped to this subject
-  const chunks = await retrieve(query, tos.subject_id, 5);
+  // Retrieve top-k chunks scoped to this subject (top-k is tunable via the
+  // `retrieval_top_k` settings key — defaults to 5).
+  const retrieved = await retrieve(query, tos.subject_id, await getNumber('retrieval_top_k', 5));
 
-  if (chunks.length === 0) {
+  if (retrieved.length === 0) {
     return { questions: [], failed: true, reason: 'No source material found for this topic. Upload instructional materials for this subject first.' };
   }
 
-  // Build the context from retrieved chunks
+  // Relevance floor — HNSWLib always returns top-k even when nothing is
+  // actually related to the topic. Chunks below the minimum cosine score
+  // are near-certainly off-topic; feeding them to the LLM produces
+  // "grounded" questions on the wrong content (a subtle hallucination).
+  // Tunable via `retrieval_min_score` (default 0.3).
+  const minScore = await getNumber('retrieval_min_score', 0.3);
+  const chunks = retrieved.filter((c) => c.score >= minScore);
+
+  if (chunks.length === 0) {
+    const best = retrieved[0]?.score ?? 0;
+    return {
+      questions: [],
+      failed: true,
+      reason: `No sufficiently relevant material for "${topic ? topic.title : 'this subject'}" (best match score ${best.toFixed(2)} < ${minScore}). Upload materials covering this topic.`,
+    };
+  }
+
+  // Build the context from relevant chunks only
   const context = chunks.map((c) => c.text).join('\n\n---\n\n');
 
   // Build the LLM prompt
@@ -229,18 +257,70 @@ ${context}
     usage: result.usage,
   };
 
-  const ALLOWED_TYPES = new Set(['mcq', 'true_false', 'matching', 'identification']);
+  const validQuestions = [];
+  let dropped = 0;
+  for (const q of questions) {
+    if (isValidGeneratedQuestion(q)) {
+      validQuestions.push({ ...q, bloom, topic: topic ? topic.title : null, meta });
+    } else {
+      dropped++;
+    }
+  }
 
-  const validQuestions = questions
-    .filter((q) => q && q.stem && q.type && ALLOWED_TYPES.has(q.type))
-    .map((q) => ({
-      ...q,
-      bloom,
-      topic: topic ? topic.title : null,
-      meta,
-    }));
+  // If the LLM produced only structurally invalid questions, the slot failed
+  // even though JSON parsed — report it so the job result is honest.
+  if (validQuestions.length === 0 && questions.length > 0) {
+    return {
+      questions: [],
+      failed: true,
+      reason: `LLM returned ${questions.length} question(s) but none passed validation (answers not resolvable against their own options).`,
+    };
+  }
 
-  return { questions: validQuestions, failed: false };
+  return { questions: validQuestions, dropped, failed: false };
+}
+
+const ALLOWED_TYPES = new Set(['mcq', 'true_false', 'matching', 'identification']);
+
+/**
+ * Validate a generated question's structure AND answer resolvability.
+ *
+ * An answer that cannot be resolved against the question's own options is
+ * the classic LLM failure mode (hallucinated key). Storing it silently makes
+ * every student score 0 on that item — drop it instead.
+ */
+function isValidGeneratedQuestion(q) {
+  if (!q || typeof q.stem !== 'string' || q.stem.trim().length < 5) return false;
+  if (!ALLOWED_TYPES.has(q.type)) return false;
+
+  switch (q.type) {
+    case 'mcq': {
+      const opts = parseOptions(q.options).filter((o) => typeof o === 'string' && o.trim());
+      if (opts.length < 3) return false;
+      q.options = opts; // normalize: strip empty options
+      return answerOptionIndex(opts, q.answer) >= 0;
+    }
+    case 'true_false': {
+      const a = String(q.answer ?? '').trim().toLowerCase();
+      return a === 'true' || a === 'false' || a === 't' || a === 'f';
+    }
+    case 'matching': {
+      // options[] are the premises (left column); the answer is "1-B, 2-A…"
+      // with letters indexing the implicit A–E match column on the OMR sheet.
+      const opts = parseOptions(q.options);
+      const letters = parseMatchingLetters(q.answer);
+      if (opts.length < 2 || !letters || letters.length !== opts.length) return false;
+      for (let i = 0; i < letters.length; i++) {
+        if (!letters[i]) return false; // every premise must have a match
+        if (letters[i].charCodeAt(0) - 65 > 4) return false; // A–E only
+      }
+      return true;
+    }
+    case 'identification':
+      return typeof q.answer === 'string' && q.answer.trim().length > 0;
+    default:
+      return false;
+  }
 }
 
 /** Convert percentage weights into item counts using largest remainders. */

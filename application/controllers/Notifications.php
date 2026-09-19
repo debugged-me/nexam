@@ -115,7 +115,7 @@ class Notifications extends CI_Controller
         }
 
         $planned  = $this->Tos_model->total_items_by_user($user_id);
-        $approved = isset($q_status['approved']) ? $q_status['approved'] : 0;
+        $approved = isset($q_status['active']) ? $q_status['active'] : 0;
 
         if ($planned > $approved) {
             $short = $planned - $approved;

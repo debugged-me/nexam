@@ -15,9 +15,90 @@ import { Router } from 'express';
 import { v4 as uuid } from 'uuid';
 import { requireAuth } from '../middleware/auth.js';
 import pool from '../config/db.js';
+import { deleteChunksIndex, deleteQuestionsIndex } from '../services/vectorStore.js';
 
 const router = Router();
 router.use(requireAuth);
+
+/**
+ * Cascade-delete a subject and everything that belongs to it, in one
+ * transaction: questions (+ similarity pairs), TOS (+ topics), exams
+ * (+ attached questions, sets, set questions, scans + answers), materials
+ * (+ chunks), and queued jobs. Vector indexes on disk are removed
+ * afterwards (best-effort — they're derived data).
+ */
+async function cascadeDeleteSubject(subjectId, userId) {
+  const conn = await pool.getConnection();
+  try {
+    await conn.beginTransaction();
+
+    // similarity pairs involving this subject's questions
+    await conn.query(
+      `DELETE sr FROM similarity_results sr
+       JOIN questions q ON q.id = sr.question_id OR q.id = sr.similar_question_id
+       WHERE q.subject_id = ?`, [subjectId]
+    );
+    // scans + answers (via exams of this subject)
+    await conn.query(
+      `DELETE sa FROM scan_answers sa
+       JOIN scan_results r ON r.id = sa.scan_result_id
+       JOIN exams e ON e.id = r.exam_id
+       WHERE e.subject_id = ?`, [subjectId]
+    );
+    await conn.query(
+      `DELETE r FROM scan_results r
+       JOIN exams e ON e.id = r.exam_id
+       WHERE e.subject_id = ?`, [subjectId]
+    );
+    // exam sets + their question mappings
+    await conn.query(
+      `DELETE esq FROM exam_set_questions esq
+       JOIN exam_sets es ON es.id = esq.exam_set_id
+       JOIN exams e ON e.id = es.exam_id
+       WHERE e.subject_id = ?`, [subjectId]
+    );
+    await conn.query(
+      `DELETE es FROM exam_sets es
+       JOIN exams e ON e.id = es.exam_id
+       WHERE e.subject_id = ?`, [subjectId]
+    );
+    await conn.query(
+      `DELETE eq FROM exam_questions eq
+       JOIN exams e ON e.id = eq.exam_id
+       WHERE e.subject_id = ?`, [subjectId]
+    );
+    await conn.query(`DELETE FROM exams WHERE subject_id = ?`, [subjectId]);
+    // tos topics then tos
+    await conn.query(
+      `DELETE tt FROM tos_topics tt
+       JOIN tos t ON t.id = tt.tos_id
+       WHERE t.subject_id = ?`, [subjectId]
+    );
+    await conn.query(`DELETE FROM tos WHERE subject_id = ?`, [subjectId]);
+    // material chunks then materials
+    await conn.query(
+      `DELETE mc FROM material_chunks mc
+       JOIN materials m ON m.id = mc.material_id
+       WHERE m.subject_id = ?`, [subjectId]
+    );
+    await conn.query(`DELETE FROM materials WHERE subject_id = ?`, [subjectId]);
+    // questions + queued jobs, then the subject itself (ownership-scoped)
+    await conn.query(`DELETE FROM questions WHERE subject_id = ? AND created_by = ?`, [subjectId, userId]);
+    await conn.query(`DELETE FROM ai_jobs WHERE subject_id = ? AND user_id = ?`, [subjectId, userId]);
+    await conn.query(`DELETE FROM subjects WHERE id = ? AND instructor_id = ?`, [subjectId, userId]);
+
+    await conn.commit();
+  } catch (err) {
+    try { await conn.rollback(); } catch (_) { /* ignore */ }
+    throw err;
+  } finally {
+    conn.release();
+  }
+
+  // Derived data — best-effort cleanup outside the transaction.
+  try { await deleteChunksIndex(subjectId); } catch { /* ignore */ }
+  try { await deleteQuestionsIndex(subjectId); } catch { /* ignore */ }
+}
 
 /** Validate subject fields. Returns an error string or null. */
 function validate(body) {
@@ -177,7 +258,7 @@ router.delete('/:id', async (req, res, next) => {
     const subject = await getOwned(req.params.id, req.user.id);
     if (!subject) return res.status(404).json({ error: 'Subject not found.' });
 
-    await pool.query(`DELETE FROM subjects WHERE id = :id`, { id: subject.id });
+    await cascadeDeleteSubject(subject.id, req.user.id);
     res.json({ message: 'Subject deleted.' });
   } catch (err) {
     next(err);
@@ -196,11 +277,16 @@ router.post('/bulk-delete', async (req, res, next) => {
 
     if (!validIds.length) return res.json({ deleted: 0 });
 
-    const [result] = await pool.query(
-      `DELETE FROM subjects WHERE id IN (:ids) AND instructor_id = :uid`,
+    // Ownership check first — only cascade what the caller actually owns.
+    const [owned] = await pool.query(
+      `SELECT id FROM subjects WHERE id IN (:ids) AND instructor_id = :uid`,
       { ids: validIds, uid: req.user.id }
     );
-    res.json({ deleted: result.affectedRows });
+
+    for (const row of owned) {
+      await cascadeDeleteSubject(row.id, req.user.id);
+    }
+    res.json({ deleted: owned.length });
   } catch (err) {
     next(err);
   }

@@ -172,8 +172,8 @@ router.get('/pipeline/:subjectId', requireAuth, async (req, res, next) => {
       `SELECT
          COUNT(*) AS total,
          SUM(CASE WHEN status = 'draft' THEN 1 ELSE 0 END) AS draft,
-         SUM(CASE WHEN status = 'approved' THEN 1 ELSE 0 END) AS approved,
-         SUM(CASE WHEN status = 'rejected' THEN 1 ELSE 0 END) AS rejected
+         SUM(CASE WHEN status = 'active' THEN 1 ELSE 0 END) AS approved,
+         SUM(CASE WHEN similarity_flag = 'rejected' THEN 1 ELSE 0 END) AS rejected
        FROM questions WHERE subject_id = :id`,
       { id: subjectId }
     );

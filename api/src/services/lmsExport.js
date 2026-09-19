@@ -7,6 +7,13 @@
  * Both formats only support the objective question types in scope:
  * mcq, true_false, matching, identification (short answer).
  */
+import { answerOptionIndex, parseMatchingLetters } from './scoring.js';
+
+/** Resolve an MCQ stored answer (letter or option text) to an option index. */
+function correctOptionIndex(options, answer) {
+  const opts = Array.isArray(options) ? options : JSON.parse(options || '[]');
+  return answerOptionIndex(opts, answer);
+}
 
 /**
  * Convert questions to Moodle GIFT format.
@@ -55,12 +62,12 @@ ${items}
 
 function formatMCQGIFT(title, stem, options, answer, feedback) {
   const opts = Array.isArray(options) ? options : JSON.parse(options || '[]');
-  const lines = opts.map((opt) => {
+  const correctIdx = correctOptionIndex(opts, answer);
+  const lines = opts.map((opt, i) => {
     const optText = escapeGIFT(stripOptionLetter(opt));
-    const isCorrect = optText === escapeGIFT(answer) || opt === answer || stripOptionLetter(opt) === answer;
-    return `${isCorrect ? '=' : '~'}${optText}`;
+    return `${i === correctIdx ? '=' : '~'}${optText}`;
   });
-  return `::${title}::${stem}{${opts.join(' ')}${feedback ? `\n${feedback}` : ''}}`;
+  return `::${title}::${stem}{\n${lines.join('\n')}${feedback ? `\n${feedback}` : ''}\n}`;
 }
 
 function formatTrueFalseGIFT(title, stem, answer, feedback) {
@@ -69,14 +76,16 @@ function formatTrueFalseGIFT(title, stem, answer, feedback) {
 }
 
 function formatMatchingGIFT(title, stem, options, answer, feedback) {
-  // GIFT matching: =item -> match
+  // GIFT matching: =item -> match. Stored answers use "1-B, 2-A" letter refs
+  // into an implicit A–E match column; text-pair answers export the text.
   const opts = Array.isArray(options) ? options : JSON.parse(options || '[]');
-  const pairs = parseMatchingAnswer(answer);
+  const letters = parseMatchingLetters(answer);
+  const pairs = letters || parseMatchingAnswer(answer);
   const lines = opts.map((opt, i) => {
     const match = pairs[i] || '';
     return `=${escapeGIFT(opt)} -> ${escapeGIFT(match)}`;
   });
-  return `::${title}::${stem}{${lines.join(' ')}${feedback ? `\n${feedback}` : ''}}`;
+  return `::${title}::${stem}{\n${lines.join('\n')}${feedback ? `\n${feedback}` : ''}\n}`;
 }
 
 function formatShortAnswerGIFT(title, stem, answer, feedback) {
@@ -108,14 +117,10 @@ function formatCanvasMCQ(ident, num, stem, options, answer, feedback) {
   const opts = Array.isArray(options) ? options : JSON.parse(options || '[]');
   const responses = opts.map((opt, i) => {
     const optText = escapeXML(stripOptionLetter(opt));
-    const isCorrect = optText === escapeXML(answer) || opt === answer || stripOptionLetter(opt) === answer;
     return `<response_label ident="${i + 1}"><flow_mat><material><mattext texttype="text/html">${optText}</mattext></material></flow_mat></response_label>`;
   }).join('');
 
-  const correctIdx = opts.findIndex((opt) => {
-    const optText = stripOptionLetter(opt);
-    return optText === answer || opt === answer || escapeXML(optText) === escapeXML(answer);
-  });
+  const correctIdx = correctOptionIndex(opts, answer);
   const correctResp = correctIdx >= 0 ? `<varequal respident="${correctIdx + 1}"/>` : '';
 
   return `<item ident="${ident}" title="Q${num}">
@@ -248,8 +253,9 @@ export function parseGIFT(text) {
     // No blank lines — split on ::Q patterns (each question starts with ::)
     // This handles single-newline-separated GIFT files
     blocks = text.split(/(?=^::)/m);
-    // If no :: prefixes found, try splitting on lines that contain { and }
-    if (blocks.length <= 1) {
+    // If no :: prefixes found at all, fall back to line blocks.
+    // (A single :: block is legitimate — don't shred it into lines.)
+    if (blocks.length === 1 && !blocks[0].trim().startsWith('::')) {
       blocks = text.split(/\n/).reduce((acc, line) => {
         if (line.trim() && !line.trim().startsWith('//')) {
           acc.push(line);
@@ -329,9 +335,12 @@ function parseGIFTBlock(block) {
     }
   }
 
-  // MCQ: =correct ~wrong ~wrong
-  if (answerPart.includes('~') || answerPart.startsWith('=')) {
-    const parts = answerPart.split(/(?<=[^\\])\s+/);
+  // MCQ: =correct ~wrong ~wrong — requires at least one ~ distractor,
+  // otherwise "=answer" is a short-answer (identification) question.
+  if (answerPart.includes('~')) {
+    // Split on whitespace that precedes a = or ~ marker, so multi-word
+    // options like "=New York ~Los Angeles" stay intact.
+    const parts = answerPart.split(/\s+(?=[=~])/);
     const options = [];
     let answer = '';
     for (const part of parts) {
@@ -481,11 +490,15 @@ function parseQTIItem(itemXml) {
 
 function decodeXmlEntities(text) {
   if (!text) return '';
+  // Decode named entities + numeric refs. &amp; must decode LAST so
+  // "&amp;lt;" → "&lt;" stays escaped rather than double-decoding to "<".
   return String(text)
-    .replace(/</g, '<')
-    .replace(/>/g, '>')
-    .replace(/"/g, '"')
-    .replace(/'/g, "'")
-    .replace(/&/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&apos;/g, "'")
+    .replace(/&#(\d+);/g, (_, n) => String.fromCodePoint(Number(n)))
+    .replace(/&#x([0-9a-fA-F]+);/g, (_, n) => String.fromCodePoint(parseInt(n, 16)))
+    .replace(/&amp;/g, '&')
     .trim();
 }

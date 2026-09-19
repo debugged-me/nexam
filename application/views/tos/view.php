@@ -115,6 +115,7 @@
                             <th class="col-num">#</th>
                             <th>Topic</th>
                             <th class="col-medium">Instructional Hours</th>
+                            <th class="col-medium">Items</th>
                             <th class="col-actions">Actions</th>
                         </tr>
                     </thead>
@@ -122,8 +123,24 @@
                         <?php foreach ($topics as $i => $tp): ?>
                             <tr>
                                 <td class="text-muted"><?php echo $i + 1; ?></td>
-                                <td class="cell-primary"><?php echo htmlspecialchars($tp->title); ?></td>
+                                <td class="cell-primary">
+                                    <?php echo htmlspecialchars($tp->title); ?>
+                                    <?php
+                                    $outcomes = [];
+                                    if (!empty($tp->learning_outcomes)) {
+                                        $decoded = json_decode($tp->learning_outcomes, true);
+                                        if (is_array($decoded)) $outcomes = $decoded;
+                                    }
+                                    if ($outcomes): ?>
+                                        <div class="meta-xs text-muted">
+                                            <?php foreach ($outcomes as $o): ?>
+                                                <div>&bull; <?php echo htmlspecialchars($o); ?></div>
+                                            <?php endforeach; ?>
+                                        </div>
+                                    <?php endif; ?>
+                                </td>
                                 <td><span class="badge badge-amber"><?php echo (int) $tp->instructional_hours; ?> hrs</span></td>
+                                <td><span class="badge badge-gray"><?php echo (int) ($tp->item_count ?? 0); ?></span></td>
                                 <td>
                                     <div class="action-icons">
                                         <form action="<?php echo site_url('tos/' . rawurlencode($tos->id) . '/delete-topic/' . rawurlencode($tp->id)); ?>" method="post" class="inline-action-form">
@@ -157,6 +174,10 @@
                     <button type="submit" class="btn btn-primary">
                         <i data-lucide="plus"></i> Add Topic
                     </button>
+                </div>
+                <div class="form-field" style="margin-top:0.75rem;">
+                    <label class="form-label" for="topic_outcomes">Learning Outcomes <span class="text-muted meta-xs">(optional — one per line)</span></label>
+                    <textarea id="topic_outcomes" name="learning_outcomes" class="form-control" rows="2" placeholder="e.g. Explain the difference between arrays and linked lists"></textarea>
                 </div>
             </form>
         </div>

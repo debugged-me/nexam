@@ -111,7 +111,7 @@ router.get('/summary', requireAuth, async (req, res, next) => {
       `SELECT
          COUNT(*) AS total_generated,
          SUM(CASE WHEN status = 'active' THEN 1 ELSE 0 END) AS approved,
-         SUM(CASE WHEN status = 'draft' AND created_at < DATE_SUB(NOW(), INTERVAL 1 DAY) THEN 1 ELSE 0 END) AS rejected_or_pending,
+         SUM(CASE WHEN status = 'rejected' THEN 1 ELSE 0 END) AS rejected_or_pending,
          SUM(CASE WHEN status = 'draft' THEN 1 ELSE 0 END) AS pending
        FROM questions
        WHERE source = 'ai' AND created_by = :userId`,
@@ -249,7 +249,8 @@ router.get('/generation', requireAuth, async (req, res, next) => {
          t.title AS tos_title,
          COUNT(q.id) AS generated,
          SUM(CASE WHEN q.status = 'active' THEN 1 ELSE 0 END) AS approved,
-         SUM(CASE WHEN q.status = 'draft' THEN 1 ELSE 0 END) AS pending_or_rejected
+         SUM(CASE WHEN q.status = 'rejected' THEN 1 ELSE 0 END) AS rejected,
+         SUM(CASE WHEN q.status = 'draft' THEN 1 ELSE 0 END) AS pending
        FROM tos t
        LEFT JOIN questions q ON q.tos_id = t.id AND q.source = 'ai'
        JOIN subjects s ON s.id = t.subject_id

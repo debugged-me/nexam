@@ -6,19 +6,18 @@
   "type": "module",
   "scripts": {
     "start": "node src/server.js",
-    "dev": "nodemon src/server.js"
+    "dev": "nodemon src/server.js",
+    "test": "node --test 'test/*.test.js'"
   },
   "engines": {
     "node": ">=20"
   },
   "dependencies": {
-    "@google/genai": "^2.21.0",
     "@langchain/community": "^1.1.29",
     "@langchain/core": "^1.2.11",
     "@langchain/google-genai": "^2.3.2",
     "bcryptjs": "^3.0.3",
     "cheerio": "^1.2.0",
-    "chromadb": "^3.5.0",
     "cors": "^2.8.6",
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
@@ -33,7 +32,6 @@
     "mysql2": "^3.24.3",
     "nodemailer": "^10.0.9",
     "pdf-parse": "^2.4.5",
-    "pptxtojson": "^2.1.0",
     "puppeteer": "^25.10.0",
     "qrcode": "^1.5.4",
     "uuid": "^14.0.2",

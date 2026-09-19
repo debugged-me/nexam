@@ -92,11 +92,76 @@ mobile/lib/
 
 - **Feature-based structure** — each feature has `data/`, `domain/`, and
   `presentation/` layers, following the SRMS Flutter project pattern.
-- **Auth** — JWT token stored in SharedPreferences, sent as
-  `Authorization: Bearer <token>` on every API call.
-- **OMR algorithm** — bubble detection via pixel-density analysis using the
-  `image` package. QR code decoding via `mobile_scanner`.
+- **Auth** — JWT token stored in `FlutterSecureStorage` (migrated off
+  SharedPreferences), sent as `Authorization: Bearer <token>` on every API
+  call. Only the non-secret API base URL lives in SharedPreferences.
+- **OMR algorithm** — corner-anchor fiducials → homography registration →
+  deterministic grid sampling via the `image` package. The sheet layout is
+  shared between `api/src/services/omrService.js` and
+  `mobile/lib/features/scanner/data/omr_layout.dart` — change them together.
 - **Camera** — `camera` package for photo capture, `mobile_scanner` for QR.
+
+## Cross-tier contracts (do not break)
+
+**Question statuses** — exactly `draft | active | rejected`. `active` is the
+only exam-usable state. Rejection is a *soft* status (row kept) so AI-eval
+metrics keep counting instructor decisions — never hard-delete via the
+reject path. `similarity_flag` vocabulary: `none | flagged | rejected`.
+
+**Canonical OMR answers** (`scan_answers.marked_answer`/`correct_answer`):
+- `mcq` → one option letter (`B`), resolved via `scoring.js` option index
+- `true_false` → `T` | `F`
+- `matching` → comma-joined letters in premise order (`B,A,D,C`)
+- `identification` → `CORRECT` | `INCORRECT` (instructor-marked verdict)
+
+The mobile scanner submits the same canonical forms; `scoring.js`
+`normalizeMarked()` also accepts legacy shapes (`B) Paris`, `1-B, 2-A`,
+`True`, `WRONG`).
+
+**OMR QR payload** (embedded in every generated sheet): `{ v, examId,
+setId, set, count, types[] }` — `types[]` carries per-item type codes
+(`m4`/`tf`/`m{cols}`/`id`). The app uses `setId` directly (falls back to a
+label lookup for legacy sheets).
+
+**JWT secret resolution** — Node: `process.env.JWT_SECRET` (dotenv loads
+`api/.env`) → default `dev-insecure-secret-change-me`. PHP `Nexam_api`
+resolves identically: `getenv('JWT_SECRET')` → `api/.env` → same default.
+Keep both defaults in sync if ever changed, and rotate the real secret in
+`api/.env` only — PHP reads it from there.
+
+**Similarity lifecycle** — the `questions/<subjectId>` vector index holds
+*active questions only*. On approve → index; on delete/reject → remove;
+on stem/options/answer change → re-check. Checks run for AI, manual, and
+imported questions alike (`questionIndex.js`).
+
+**Settings table** — tunables actually consumed by the API:
+`chunk_size_tokens`, `chunk_overlap_tokens`, `retrieval_top_k`,
+`retrieval_min_score`, `similarity_threshold` (read via
+`services/settings.js` at job start). `retrieval_min_score` (default 0.3)
+is the cosine floor — retrieved chunks below it are dropped, and a
+generation slot with zero relevant chunks fails rather than hallucinate.
+
+**Uploads/storage** — `api/upload/` and `api/storage/` are inside htdocs;
+deny-all `.htaccess` files block direct web access. Files are served only
+through authenticated API download endpoints (`?token=` supported for
+`<a href>` downloads). Do not re-expose them.
+
+## Verification commands
+
+```bash
+# Node API — syntax + unit tests
+cd api && npm test                      # node --test test/*.test.js
+for f in $(find src -name "*.js"); do node --check "$f"; done
+
+# React web app
+cd web && npm run build && npm run lint
+
+# Flutter app
+cd mobile && flutter test && flutter analyze
+
+# PHP — per file
+php -l application/controllers/<File>.php
+```
 
 ## Icons
 

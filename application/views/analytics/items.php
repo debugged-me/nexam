@@ -39,7 +39,7 @@
                     <tbody>
                         <?php foreach ($items as $item): ?>
                             <tr>
-                                <td class="text-muted"><?php echo (int) $item->item_number; ?></td>
+                                <td class="text-muted"><?php echo (int) $item->itemNumber; ?></td>
                                 <td><span class="badge badge-gray"><?php echo htmlspecialchars($item->correct_answer ?? '—'); ?></span></td>
                                 <td>
                                     <div class="correct-rate-bar">

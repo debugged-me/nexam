@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/network/api_exception.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../auth/domain/instructor_session.dart';
 import '../../exams/data/exam_api.dart';
@@ -7,6 +8,7 @@ import '../../exams/domain/exam.dart';
 import '../../scanner/data/scan_api.dart';
 import '../../scanner/presentation/bubble_scanner_screen.dart';
 import '../../scanner/presentation/qr_scanner_screen.dart';
+import '../../scanner/presentation/scan_detail_screen.dart';
 
 /// Dashboard — the main screen after login.
 ///
@@ -17,10 +19,15 @@ class DashboardScreen extends StatefulWidget {
     super.key,
     required this.session,
     required this.onLogout,
+    required this.onSessionExpired,
   });
 
   final InstructorSession session;
   final VoidCallback onLogout;
+
+  /// Called when any API call returns 401 — the app should drop the
+  /// session and return to login.
+  final VoidCallback onSessionExpired;
 
   @override
   State<DashboardScreen> createState() => _DashboardScreenState();
@@ -63,6 +70,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
           _loading = false;
         });
       }
+    } on ApiException catch (e) {
+      if (e.isSessionExpired) {
+        widget.onSessionExpired();
+        return;
+      }
+      if (mounted) {
+        setState(() {
+          _error = e.message;
+          _loading = false;
+        });
+      }
     } catch (e) {
       if (mounted) {
         setState(() {
@@ -88,18 +106,27 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   Future<void> _navigateToBubbleScanner(OmrQrPayload payload) async {
-    // Try to find the matching exam set ID.
-    String? examSetId;
-    try {
-      final sets = await _examApi.listExamSets(
-        baseUrl: widget.session.baseUrl,
-        token: widget.session.token,
-        examId: payload.examId,
-      );
-      final matching = sets.where((s) => s.label == payload.set).toList();
-      if (matching.isNotEmpty) examSetId = matching.first.id;
-    } catch (_) {
-      // If we can't find the set, we'll submit without it.
+    // The QR payload carries the exact set id — no lookup needed for
+    // new-format sheets. Legacy sheets only have the label, so resolve
+    // via the API as a fallback.
+    String? examSetId = payload.setId;
+    if (examSetId == null || examSetId.isEmpty) {
+      try {
+        final sets = await _examApi.listExamSets(
+          baseUrl: widget.session.baseUrl,
+          token: widget.session.token,
+          examId: payload.examId,
+        );
+        final matching = sets.where((s) => s.label == payload.set).toList();
+        if (matching.isNotEmpty) examSetId = matching.first.id;
+      } on ApiException catch (e) {
+        if (e.isSessionExpired) {
+          widget.onSessionExpired();
+          return;
+        }
+      } catch (_) {
+        // If we can't find the set, we'll submit without it.
+      }
     }
 
     if (!mounted) return;
@@ -164,9 +191,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       padding: const EdgeInsets.all(16),
                       child: Row(
                         children: [
-                          CircleAvatar(
+                          const CircleAvatar(
                             backgroundColor: AppTheme.primary,
-                            child: const Icon(Icons.person, color: Colors.white),
+                            child: Icon(Icons.person, color: Colors.white),
                           ),
                           const SizedBox(width: 12),
                           Expanded(
@@ -204,11 +231,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           ?.copyWith(fontWeight: FontWeight.w600)),
                   const SizedBox(height: 8),
                   if (_exams.isEmpty)
-                    Card(
+                    const Card(
                       child: ListTile(
-                        leading: const Icon(Icons.folder_open, color: AppTheme.textMuted),
-                        title: const Text('No exams yet'),
-                        subtitle: const Text(
+                        leading: Icon(Icons.folder_open, color: AppTheme.textMuted),
+                        title: Text('No exams yet'),
+                        subtitle: Text(
                           'Create exams on the web platform first.',
                         ),
                       ),
@@ -238,11 +265,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           ?.copyWith(fontWeight: FontWeight.w600)),
                   const SizedBox(height: 8),
                   if (_recentScans.isEmpty)
-                    Card(
+                    const Card(
                       child: ListTile(
-                        leading: const Icon(Icons.scanner, color: AppTheme.textMuted),
-                        title: const Text('No scans yet'),
-                        subtitle: const Text(
+                        leading: Icon(Icons.scanner, color: AppTheme.textMuted),
+                        title: Text('No scans yet'),
+                        subtitle: Text(
                           'Tap the scan button to scan an OMR answer sheet.',
                         ),
                       ),
@@ -252,7 +279,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       final score = double.tryParse(
                               scan['score']?.toString() ?? '0') ??
                           0;
-                      final needsReview = scan['needs_review'] == 1;
+                      final needsReview = scan['needs_review'] == 1 ||
+                          scan['needs_review'] == true;
                       return Card(
                         child: ListTile(
                           leading: Icon(
@@ -270,6 +298,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                             style: const TextStyle(
                                 color: AppTheme.textMuted, fontSize: 12),
                           ),
+                          onTap: () => _openScanDetail(scan),
                         ),
                       );
                     }),
@@ -280,6 +309,20 @@ class _DashboardScreenState extends State<DashboardScreen> {
         onPressed: _startScan,
         icon: const Icon(Icons.qr_code_scanner),
         label: const Text('Scan Sheet'),
+      ),
+    );
+  }
+
+  void _openScanDetail(Map<String, dynamic> scan) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => ScanDetailScreen(
+          scanId: scan['id']?.toString() ?? '',
+          baseUrl: widget.session.baseUrl,
+          token: widget.session.token,
+          onSessionExpired: widget.onSessionExpired,
+          onReviewed: _loadData,
+        ),
       ),
     );
   }

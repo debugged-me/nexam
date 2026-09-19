@@ -22,7 +22,7 @@ import * as cheerio from 'cheerio';
 import { YoutubeTranscript } from 'youtube-transcript';
 
 const require = createRequire(import.meta.url);
-// pdf-parse and pptxtojson are CommonJS/UMD — load via require.
+// pdf-parse is CommonJS/UMD — load via require.
 const pdfParse = require('pdf-parse');
 const JSZip = require('jszip');
 

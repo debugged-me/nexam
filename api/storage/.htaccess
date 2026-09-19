@@ -1,0 +1,9 @@
+# Deny direct web access — files are served only through the authenticated
+# Node API download endpoints (which stream from disk after a JWT check).
+<IfModule mod_authz_core.c>
+    Require all denied
+</IfModule>
+<IfModule !mod_authz_core.c>
+    Order Deny,Allow
+    Deny from all
+</IfModule>

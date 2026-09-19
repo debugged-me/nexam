@@ -19,6 +19,7 @@ class Questions extends MY_Controller
         $this->active_nav = 'questions';
         $this->load->model('Subject_model');
         $this->load->model('Question_model');
+        $this->load->library('nexam_api');
     }
 
     /**
@@ -415,7 +416,9 @@ class Questions extends MY_Controller
             return;
         }
 
-        $this->Question_model->delete($id);
+        // Soft-reject: keep the row so AI-eval metrics still count the
+        // instructor's decision. Mirrors the Node API reject endpoint.
+        $this->Question_model->update($id, ['status' => 'rejected']);
 
         $this->output->set_content_type('application/json')
             ->set_output(json_encode([
@@ -500,37 +503,20 @@ class Questions extends MY_Controller
             $bloom = 'remember';
         }
 
-        // Build JWT for the Node API
-        $token = $this->_get_node_token();
-
-        $ch = curl_init('http://localhost:3000/api/questions/import');
-        curl_setopt_array($ch, [
-            CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_POST           => true,
-            CURLOPT_POSTFIELDS     => json_encode([
-                'format'    => $format,
-                'content'   => $content,
-                'subjectId' => $subjectId,
-                'bloom'     => $bloom,
-            ]),
-            CURLOPT_HTTPHEADER     => [
-                'Content-Type: application/json',
-                'Authorization: Bearer ' . $token,
-            ],
-            CURLOPT_TIMEOUT        => 60,
+        $result = $this->nexam_api->post('questions/import', [
+            'format'    => $format,
+            'content'   => $content,
+            'subjectId' => $subjectId,
+            'bloom'     => $bloom,
         ]);
 
-        $response = curl_exec($ch);
-        $status   = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        $error    = curl_error($ch);
-        curl_close($ch);
-
-        if ($error) {
+        if (!empty($result['error'])) {
             $this->_json(500, ['error' => 'Failed to connect to import service.']);
             return;
         }
 
-        $decoded = json_decode($response, true);
+        $status  = $result['status'];
+        $decoded = $result['body'];
         if ($status !== 201 || !$decoded) {
             $msg = $decoded['error'] ?? 'Import failed.';
             $this->_json($status ?: 500, ['error' => $msg]);
@@ -541,22 +527,6 @@ class Questions extends MY_Controller
             'ok'        => true,
             'imported'  => $decoded['imported'] ?? 0,
         ]);
-    }
-
-    /** Generate a JWT for the Node API using the session user. */
-    private function _get_node_token()
-    {
-        $secret = getenv('JWT_SECRET') ?: 'change-me-in-production';
-        $header = rtrim(strtr(base64_encode(json_encode(['alg' => 'HS256', 'typ' => 'JWT'])), '+/', '-_'), '=');
-        $payload = rtrim(strtr(base64_encode(json_encode([
-            'id'    => $this->user_id,
-            'email' => $this->email,
-            'role'  => $this->role,
-            'iat'   => time(),
-            'exp'   => time() + 3600,
-        ])), '+/', '-_'), '=');
-        $sig = rtrim(strtr(base64_encode(hash_hmac('sha256', "$header.$payload", $secret, true)), '+/', '-_'), '=');
-        return "$header.$payload.$sig";
     }
 
     /**
@@ -624,10 +594,12 @@ class Questions extends MY_Controller
             'decided_at'  => date('Y-m-d H:i:s'),
         ]);
 
-        // Clear the flag so it stops showing in the list
-        $this->Question_model->update($question_id, [
-            'similarity_flag' => $decision === 'reject' ? 'rejected' : 'none',
-        ]);
+        // Clear the flag so it stops showing in the list. A 'reject'
+        // decision also retires the question (status='rejected'), matching
+        // the Node API's similarity-decide behavior.
+        $update = ['similarity_flag' => $decision === 'reject' ? 'rejected' : 'none'];
+        if ($decision === 'reject') $update['status'] = 'rejected';
+        $this->Question_model->update($question_id, $update);
 
         $this->output->set_content_type('application/json')
             ->set_output(json_encode([

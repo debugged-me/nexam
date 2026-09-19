@@ -134,6 +134,7 @@ class Tos extends MY_Controller
                     'total_items'  => (int) $this->input->post('total_items', true),
                     'bloom_weights' => json_encode($bloom),
                 ]);
+                $this->Tos_model->recalc_item_counts($id);
 
                 $this->session->set_flashdata('toast', ['type' => 'success', 'message' => 'TOS updated.']);
                 redirect('tos/view/' . $id);
@@ -214,12 +215,23 @@ class Tos extends MY_Controller
                     }
                 }
 
+                // Learning outcomes: one per line → JSON array (matches the
+                // Node API's normalizeOutcomes contract).
+                $raw_outcomes = trim((string) $this->input->post('learning_outcomes', true));
+                $outcomes = null;
+                if ($raw_outcomes !== '') {
+                    $lines = array_values(array_filter(array_map('trim', preg_split('/\r?\n/', $raw_outcomes)), 'strlen'));
+                    if ($lines) $outcomes = json_encode($lines);
+                }
+
                 $this->Tos_model->add_topic([
                     'tos_id'             => $tos_id,
                     'title'              => $this->input->post('title', true),
                     'instructional_hours' => (int) $this->input->post('instructional_hours', true) ?: 0,
+                    'learning_outcomes'  => $outcomes,
                     'sort_order'         => $max_order + 1,
                 ]);
+                $this->Tos_model->recalc_item_counts($tos_id);
                 $this->session->set_flashdata('toast', ['type' => 'success', 'message' => 'Topic added.']);
             } else {
                 $this->session->set_flashdata('toast', ['type' => 'error', 'message' => 'Please provide a topic title.']);
@@ -244,6 +256,7 @@ class Tos extends MY_Controller
         }
 
         $this->Tos_model->delete_topic($topic_id, $tos_id);
+        $this->Tos_model->recalc_item_counts($tos_id);
         $this->session->set_flashdata('toast', ['type' => 'delete', 'message' => 'Topic removed.']);
         redirect('tos/view/' . $tos_id);
     }

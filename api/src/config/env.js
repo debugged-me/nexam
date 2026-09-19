@@ -8,6 +8,14 @@ if (missing.length && process.env.NODE_ENV !== 'test') {
   // eslint-disable-next-line no-console
   console.warn(`[config] Missing env vars: ${missing.join(', ')}. Copy .env.example to .env.`);
 }
+if (!process.env.JWT_SECRET && process.env.NODE_ENV === 'production') {
+  // eslint-disable-next-line no-console
+  console.warn('[config] WARNING: JWT_SECRET is unset — the insecure development default is in use. Set JWT_SECRET in .env before deploying.');
+}
+if (process.env.JWT_SECRET === 'change-me-in-production' && process.env.NODE_ENV === 'production') {
+  // eslint-disable-next-line no-console
+  console.warn('[config] WARNING: JWT_SECRET is still the .env.example placeholder. Rotate it before deploying.');
+}
 
 export const env = {
   nodeEnv: process.env.NODE_ENV || 'development',
@@ -45,12 +53,12 @@ export const env = {
   ai: {
     gemini: {
       apiKey: process.env.GEMINI_API_KEY || '',
-      model: process.env.GEMINI_MODEL || 'gemini-2.0-flash',
-      embeddingModel: process.env.GEMINI_EMBEDDING_MODEL || 'text-embedding-004',
+      model: process.env.GEMINI_MODEL || 'gemini-3.6-flash',
+      embeddingModel: process.env.GEMINI_EMBEDDING_MODEL || 'gemini-embedding-001',
     },
     groq: {
       apiKey: process.env.GROQ_API_KEY || '',
-      model: process.env.GROQ_MODEL || 'llama-3.3-70b-versatile',
+      model: process.env.GROQ_MODEL || 'openai/gpt-oss-120b',
     },
     worker: {
       pollInterval: parseInt(process.env.WORKER_POLL_INTERVAL || '5000', 10),

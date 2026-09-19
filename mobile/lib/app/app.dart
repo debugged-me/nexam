@@ -52,6 +52,12 @@ class _NexamOmrAppState extends State<NexamOmrApp> {
     if (mounted) setState(() {});
   }
 
+  /// Any API call that returns 401 lands here — drop the session and
+  /// return to the login screen.
+  void _onSessionExpired() {
+    _onLogout();
+  }
+
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
@@ -70,13 +76,31 @@ class _NexamOmrAppState extends State<NexamOmrApp> {
     }
 
     final controller = _controller;
-    if (controller == null || !controller.isAuthenticated) {
-      return LoginScreen(onLoginSuccess: _onLoginSuccess);
+    if (controller == null) {
+      // Bootstrap failed to build the controller — offer a retry.
+      return Scaffold(
+        body: Center(
+          child: OutlinedButton(
+            onPressed: () {
+              setState(() => _bootstrapping = true);
+              _bootstrap();
+            },
+            child: const Text('Retry'),
+          ),
+        ),
+      );
+    }
+    if (!controller.isAuthenticated) {
+      return LoginScreen(
+        controller: controller,
+        onLoginSuccess: _onLoginSuccess,
+      );
     }
 
     return DashboardScreen(
       session: controller.session!,
       onLogout: _onLogout,
+      onSessionExpired: _onSessionExpired,
     );
   }
 }

@@ -24,12 +24,15 @@ class AuthController {
   String? get error => _error;
   bool get isAuthenticated => session != null;
 
+  /// The last server address used — lets the login form pre-fill it.
+  String get savedBaseUrl => _store.readBaseUrl();
+
   /// Try to restore a saved session on app start.
   Future<void> bootstrap() async {
     _loading = true;
     _error = null;
 
-    final saved = _store.readSession();
+    final saved = await _store.readSession();
     if (saved == null) {
       _loading = false;
       return;

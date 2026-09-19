@@ -21,13 +21,18 @@ import { v4 as uuid } from 'uuid';
 import pool from '../config/db.js';
 import { requireAuth } from '../middleware/auth.js';
 import { parseGIFT, parseCanvasXML } from '../services/lmsExport.js';
+import { enqueue } from '../services/jobs.js';
+import { indexQuestionIfActive, removeQuestionFromIndex } from '../services/questionIndex.js';
 
 const router = Router();
 router.use(requireAuth);
 
 const BLOOM_LEVELS = ['remember', 'understand', 'apply', 'analyze', 'evaluate', 'create'];
 const QUESTION_TYPES = ['mcq', 'true_false', 'matching', 'identification'];
-const STATUSES = ['draft', 'active'];
+// 'rejected' is a soft-delete status set via the reject endpoints; PUT may
+// also set it explicitly. Only draft/active questions may enter exams.
+const STATUSES = ['draft', 'active', 'rejected'];
+const LIST_STATUSES = STATUSES;
 
 /** Load a question and verify ownership. */
 async function getOwned(id, userId) {
@@ -71,7 +76,7 @@ router.get('/', async (req, res, next) => {
     if (subject_id) { where.push('q.subject_id = :subject_id'); params.subject_id = subject_id; }
     if (bloom && BLOOM_LEVELS.includes(bloom)) { where.push('q.bloom = :bloom'); params.bloom = bloom; }
     if (type && QUESTION_TYPES.includes(type)) { where.push('q.type = :type'); params.type = type; }
-    if (status && STATUSES.includes(status)) { where.push('q.status = :status'); params.status = status; }
+    if (status && LIST_STATUSES.includes(status)) { where.push('q.status = :status'); params.status = status; }
     if (tos_id) { where.push('q.tos_id = :tos_id'); params.tos_id = tos_id; }
 
     const [questions] = await pool.query(
@@ -141,6 +146,17 @@ router.post('/', async (req, res, next) => {
       }
     );
 
+    // Manual questions get the same similarity check as AI/imported ones —
+    // a duplicate is a duplicate regardless of provenance.
+    try {
+      await enqueue({
+        type: 'similarity',
+        payload: { questionId: id, userId: req.user.id },
+        userId: req.user.id,
+        subjectId: req.body.subject_id,
+      });
+    } catch { /* job queue failure must not fail the create */ }
+
     const [rows] = await pool.query(`SELECT * FROM questions WHERE id = :id`, { id });
     const q = rows[0];
     if (q.options) { try { q.options = JSON.parse(q.options); } catch { q.options = []; } }
@@ -172,11 +188,16 @@ router.put('/:id', async (req, res, next) => {
     const optionsJson = req.body.type === 'mcq' && Array.isArray(req.body.options)
       ? JSON.stringify(req.body.options) : null;
 
+    const newStatus = req.body.status || q.status;
+    // A direct status→active transition is an approval — record who/when.
+    const approving = q.status !== 'active' && newStatus === 'active';
+
     await pool.query(
       `UPDATE questions SET
          subject_id = :subject_id, tos_id = :tos_id, topic = :topic, bloom = :bloom,
          type = :type, stem = :stem, options = :options, answer = :answer,
-         explanation = :explanation, status = :status, updated_at = NOW()
+         explanation = :explanation, status = :status,
+         approved_by = :approvedBy, approved_at = :approvedAt, updated_at = NOW()
        WHERE id = :id`,
       {
         id: q.id,
@@ -189,12 +210,36 @@ router.put('/:id', async (req, res, next) => {
         options: optionsJson,
         answer: req.body.answer || null,
         explanation: req.body.explanation || null,
-        status: req.body.status || q.status,
+        status: newStatus,
+        approvedBy: approving ? req.user.id : q.approved_by,
+        approvedAt: approving ? new Date() : q.approved_at,
       }
     );
 
     const [rows] = await pool.query(`SELECT * FROM questions WHERE id = :id`, { id: q.id });
     const updated = rows[0];
+
+    // Keep the vector index + similarity state in sync with the lifecycle.
+    const contentChanged =
+      updated.stem !== q.stem || updated.options !== q.options ||
+      updated.answer !== q.answer || updated.type !== q.type;
+    if (approving || (contentChanged && updated.status === 'active')) {
+      await indexQuestionIfActive(updated);
+    }
+    if (contentChanged) {
+      try {
+        await enqueue({
+          type: 'similarity',
+          payload: { questionId: q.id, userId: req.user.id },
+          userId: req.user.id,
+          subjectId: updated.subject_id,
+        });
+      } catch { /* non-fatal */ }
+    }
+    if (newStatus === 'rejected' && q.status !== 'rejected') {
+      await removeQuestionFromIndex(updated.subject_id, q.id);
+    }
+
     if (updated.options) { try { updated.options = JSON.parse(updated.options); } catch { updated.options = []; } }
     res.json({ question: updated });
   } catch (err) { next(err); }
@@ -205,7 +250,14 @@ router.delete('/:id', async (req, res, next) => {
   try {
     const q = await getOwned(req.params.id, req.user.id);
     if (!q) return res.status(404).json({ error: 'Question not found.' });
+
+    await pool.query(
+      `DELETE FROM similarity_results WHERE question_id = :id OR similar_question_id = :id`,
+      { id: q.id }
+    );
     await pool.query(`DELETE FROM questions WHERE id = :id`, { id: q.id });
+    await removeQuestionFromIndex(q.subject_id, q.id);
+
     res.json({ message: 'Question deleted.' });
   } catch (err) { next(err); }
 });
@@ -222,17 +274,28 @@ router.post('/:id/approve', async (req, res, next) => {
        WHERE id = :id`,
       { id: q.id, uid: req.user.id }
     );
+
+    // Approved questions enter the similarity index.
+    await indexQuestionIfActive({ ...q, status: 'active' });
+
     res.json({ message: 'Question approved.', status: 'active' });
   } catch (err) { next(err); }
 });
 
-// ── Reject (delete a draft) ──────────────────────────
+// ── Reject (soft-delete: status → 'rejected') ────────
 router.post('/:id/reject', async (req, res, next) => {
   try {
     const q = await getOwned(req.params.id, req.user.id);
     if (!q) return res.status(404).json({ error: 'Question not found.' });
-    await pool.query(`DELETE FROM questions WHERE id = :id`, { id: q.id });
-    res.json({ message: 'Question rejected.' });
+
+    await pool.query(
+      `UPDATE questions SET status = 'rejected', similarity_flag = 'rejected', updated_at = NOW()
+       WHERE id = :id`,
+      { id: q.id }
+    );
+    await removeQuestionFromIndex(q.subject_id, q.id);
+
+    res.json({ message: 'Question rejected.', status: 'rejected' });
   } catch (err) { next(err); }
 });
 
@@ -250,6 +313,16 @@ router.post('/bulk-approve', async (req, res, next) => {
        WHERE id IN (:ids) AND created_by = :uid AND status = 'draft'`,
       { ids: validIds, uid: req.user.id }
     );
+
+    // Index the newly-active questions (best-effort, non-blocking order).
+    if (result.affectedRows > 0) {
+      const [active] = await pool.query(
+        `SELECT * FROM questions WHERE id IN (:ids) AND created_by = :uid AND status = 'active'`,
+        { ids: validIds, uid: req.user.id }
+      );
+      for (const q of active) await indexQuestionIfActive(q);
+    }
+
     res.json({ approved: result.affectedRows });
   } catch (err) { next(err); }
 });
@@ -263,10 +336,23 @@ router.post('/bulk-delete', async (req, res, next) => {
     );
     if (!validIds.length) return res.json({ deleted: 0 });
 
+    const [owned] = await pool.query(
+      `SELECT id, subject_id FROM questions WHERE id IN (:ids) AND created_by = :uid`,
+      { ids: validIds, uid: req.user.id }
+    );
+
+    await pool.query(
+      `DELETE FROM similarity_results
+       WHERE question_id IN (:ids) OR similar_question_id IN (:ids)`,
+      { ids: validIds }
+    );
     const [result] = await pool.query(
       `DELETE FROM questions WHERE id IN (:ids) AND created_by = :uid`,
       { ids: validIds, uid: req.user.id }
     );
+
+    for (const q of owned) await removeQuestionFromIndex(q.subject_id, q.id);
+
     res.json({ deleted: result.affectedRows });
   } catch (err) { next(err); }
 });
@@ -309,10 +395,21 @@ router.post('/:id/similarity/decide', async (req, res, next) => {
       { decision, uid: req.user.id, qid: q.id }
     );
 
-    await pool.query(
-      `UPDATE questions SET similarity_flag = :flag, updated_at = NOW() WHERE id = :id`,
-      { id: q.id, flag: decision === 'reject' ? 'rejected' : 'none' }
-    );
+    if (decision === 'reject') {
+      // Soft-reject: take the question out of circulation (and the index),
+      // keep the row so AI-evaluation metrics count the rejection.
+      await pool.query(
+        `UPDATE questions SET status = 'rejected', similarity_flag = 'rejected', updated_at = NOW()
+         WHERE id = :id`,
+        { id: q.id }
+      );
+      await removeQuestionFromIndex(q.subject_id, q.id);
+    } else {
+      await pool.query(
+        `UPDATE questions SET similarity_flag = 'none', updated_at = NOW() WHERE id = :id`,
+        { id: q.id }
+      );
+    }
 
     res.json({ message: 'Decision recorded.', decision });
   } catch (err) { next(err); }
@@ -357,6 +454,16 @@ router.post('/import', async (req, res, next) => {
           bloom: q.bloom || defaultBloom, topic: q.topic || topic || null, uid: req.user.id }
       );
       inserted.push({ id, type: q.type, stem: q.stem.slice(0, 80) });
+
+      // Imported questions get similarity-checked like manual/AI ones.
+      try {
+        await enqueue({
+          type: 'similarity',
+          payload: { questionId: id, userId: req.user.id },
+          userId: req.user.id,
+          subjectId,
+        });
+      } catch { /* non-fatal */ }
     }
     res.status(201).json({ imported: inserted.length, questions: inserted });
   } catch (err) { next(err); }

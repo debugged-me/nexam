@@ -279,13 +279,10 @@ class Exams extends MY_Controller
 
         $set = $this->input->get('set', true);
 
-        // Build the Node API URL
-        $url = "http://localhost:3000/api/exams/{$exam_id}/download/{$type}";
-        if ($set) $url .= '?set=' . rawurlencode($set);
-
-        // Generate a JWT for the Node API
         $this->load->library('nexam_api');
-        $token = $this->_get_node_token();
+        $url = $this->nexam_api->base_url() . "/exams/{$exam_id}/download/{$type}";
+        if ($set) $url .= '?set=' . rawurlencode($set);
+        $token = $this->nexam_api->token();
 
         $ch = curl_init($url);
         curl_setopt_array($ch, [
@@ -315,22 +312,6 @@ class Exams extends MY_Controller
             ->set_output($content);
     }
 
-    /** Generate a JWT for the Node API using the session user. */
-    private function _get_node_token()
-    {
-        $secret = getenv('JWT_SECRET') ?: 'change-me-in-production';
-        $header = rtrim(strtr(base64_encode(json_encode(['alg' => 'HS256', 'typ' => 'JWT'])), '+/', '-_'), '=');
-        $payload = rtrim(strtr(base64_encode(json_encode([
-            'id' => $this->user_id,
-            'email' => $this->email,
-            'role' => $this->role,
-            'iat' => time(),
-            'exp' => time() + 3600,
-        ])), '+/', '-_'), '=');
-        $sig = rtrim(strtr(base64_encode(hash_hmac('sha256', "$header.$payload", $secret, true)), '+/', '-_'), '=');
-        return "$header.$payload.$sig";
-    }
-
     /**
      * Export exam questions as GIFT (Moodle) or XML (Canvas).
      * Streams the export from the Node API to the browser.
@@ -355,8 +336,9 @@ class Exams extends MY_Controller
             return;
         }
 
-        $token = $this->_get_node_token();
-        $url = "http://localhost:3000/api/exams/{$exam_id}/export/{$format}";
+        $this->load->library('nexam_api');
+        $token = $this->nexam_api->token();
+        $url = $this->nexam_api->base_url() . "/exams/{$exam_id}/export/{$format}";
 
         $ch = curl_init($url);
         curl_setopt_array($ch, [

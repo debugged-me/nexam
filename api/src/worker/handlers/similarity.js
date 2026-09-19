@@ -4,18 +4,23 @@
  * Receives a job with payload { questionId, userId } and:
  *   1. Loads the question (must be owned by the user).
  *   2. Builds the embed text (stem + options for MCQ + answer).
- *   3. Adds the question embedding to the subject's question vector
- *      index via LangChain's HNSWLib vector store.
- *   4. Searches the vector index for similar approved questions.
- *   5. If score >= similarity_threshold, flags the question and writes
- *      similarity_results rows for instructor review.
+ *   3. Embeds the text and searches the subject's question vector index.
  *
- * The embedding and similarity search are managed by LangChain through
- * the HNSWLib vector store (see vectorStore.js) — no in-memory cosine
- * computation needed.
+ * The index only contains ACTIVE (approved) questions — drafts are checked
+ * AGAINST the index but are not themselves indexed (they enter the index on
+ * approval, via indexQuestionIfActive() in questionIndex.js). Candidates are
+ * re-validated in SQL so deleted/draft/rejected vectors can never produce a
+ * match even if they linger in the index.
+ *
+ *   4. If score >= similarity_threshold, flags the question and writes
+ *      similarity_results rows for instructor review (routing aid only —
+ *      the instructor decides keep/reject).
+ *   5. Prunes similarity_results rows that no longer meet the threshold so
+ *      stale/contradictory matches don't persist.
  */
 import pool from '../../config/db.js';
-import { addQuestion, searchQuestions } from '../../services/vectorStore.js';
+import { embedQuery, searchQuestionsByVector } from '../../services/vectorStore.js';
+import { getNumber } from '../../services/settings.js';
 
 export default async function similarityHandler(job) {
   const { questionId, userId } = job.payload;
@@ -29,6 +34,11 @@ export default async function similarityHandler(job) {
   const question = rows[0];
   if (!question) throw new Error(`Question ${questionId} not found or not owned.`);
 
+  // Rejected questions are out of circulation — nothing to check.
+  if (question.status === 'rejected') {
+    return { questionId, flag: 'rejected', skipped: true };
+  }
+
   // Build the text to embed (stem + options for MCQ + answer)
   let embedText = question.stem;
   if (question.type === 'mcq' && question.options) {
@@ -39,25 +49,39 @@ export default async function similarityHandler(job) {
   }
   if (question.answer) embedText += ' ' + question.answer;
 
-  // Add the question embedding to the vector index (LangChain handles embedding)
-  await addQuestion(question.subject_id, questionId, embedText);
-
   // Get the similarity threshold from settings
-  const [settings] = await pool.query(
-    `SELECT setting_value FROM settings WHERE setting_key = 'similarity_threshold'`
-  );
-  const threshold = settings.length ? parseFloat(settings[0].setting_value) : 0.85;
+  const threshold = await getNumber('similarity_threshold', 0.85);
 
-  // Search the vector index for similar active questions (excluding this one)
-  const candidates = await searchQuestions(
+  // Embed the query text (does NOT add the draft to the index) and search
+  // the index of active questions.
+  const vector = await embedQuery(embedText);
+  const rawCandidates = await searchQuestionsByVector(
     question.subject_id,
-    embedText,
+    vector,
     10,
     questionId
   );
 
+  // SQL-filter: candidates must be real, active questions owned by this user.
+  // This drops stale vectors from deleted/draft/rejected questions.
+  let candidates = [];
+  if (rawCandidates.length) {
+    const ids = rawCandidates.map((c) => c.id);
+    const [validRows] = await pool.query(
+      `SELECT id FROM questions
+       WHERE id IN (:ids) AND status = 'active' AND created_by = :userId`,
+      { ids, userId }
+    );
+    const validIds = new Set(validRows.map((r) => r.id));
+    candidates = rawCandidates.filter((c) => validIds.has(c.id));
+  }
+
   if (candidates.length === 0) {
-    // No other questions in the index — clear any flag
+    // Nothing to compare against — clear flag + stale results.
+    await pool.query(
+      `DELETE FROM similarity_results WHERE question_id = :qid`,
+      { qid: questionId }
+    );
     await pool.query(
       `UPDATE questions SET similarity_flag = 'none', similarity_score = NULL WHERE id = :id`,
       { id: questionId }
@@ -79,14 +103,29 @@ export default async function similarityHandler(job) {
     }
   }
 
-  // Flag the question if any similar pairs found
+  // Prune results that are no longer over threshold (stale/contradictory).
+  const keepIds = similarPairs.map((p) => p.candidateId);
+  if (keepIds.length) {
+    await pool.query(
+      `DELETE FROM similarity_results
+       WHERE question_id = :qid AND similar_question_id NOT IN (:keepIds)`,
+      { qid: questionId, keepIds }
+    );
+  } else {
+    await pool.query(
+      `DELETE FROM similarity_results WHERE question_id = :qid`,
+      { qid: questionId }
+    );
+  }
+
   if (similarPairs.length > 0) {
     await pool.query(
       `UPDATE questions SET similarity_flag = 'flagged', similarity_score = :score WHERE id = :id`,
       { id: questionId, score: maxScore.toFixed(4) }
     );
 
-    // Write similarity_results rows
+    // Write similarity_results rows (unique key on the pair makes this
+    // idempotent across re-runs).
     for (const pair of similarPairs) {
       await pool.query(
         `INSERT INTO similarity_results (question_id, similar_question_id, score)
@@ -106,16 +145,16 @@ export default async function similarityHandler(job) {
       maxScore: parseFloat(maxScore.toFixed(4)),
       similarCount: similarPairs.length,
     };
-  } else {
-    await pool.query(
-      `UPDATE questions SET similarity_flag = 'none', similarity_score = :score WHERE id = :id`,
-      { id: questionId, score: maxScore.toFixed(4) }
-    );
-    return {
-      questionId,
-      flag: 'none',
-      maxScore: parseFloat(maxScore.toFixed(4)),
-      comparisons: candidates.length,
-    };
   }
+
+  await pool.query(
+    `UPDATE questions SET similarity_flag = 'none', similarity_score = :score WHERE id = :id`,
+    { id: questionId, score: maxScore.toFixed(4) }
+  );
+  return {
+    questionId,
+    flag: 'none',
+    maxScore: parseFloat(maxScore.toFixed(4)),
+    comparisons: candidates.length,
+  };
 }

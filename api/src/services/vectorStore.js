@@ -177,6 +177,77 @@ export async function searchQuestions(subjectId, query, topK = 10, excludeId = n
 }
 
 /**
+ * Embed a text into a vector WITHOUT adding it to any index.
+ * Used by the similarity check: a draft is searched against the index of
+ * ACTIVE questions, but the draft itself only enters the index on approval.
+ */
+export async function embedQuery(text) {
+  return getEmbeddings().embedQuery(text);
+}
+
+/**
+ * Search the question index with a precomputed embedding vector.
+ * Falls back to text search when the store doesn't expose vector search.
+ * @returns {Promise<Array<{id, score}>>}
+ */
+export async function searchQuestionsByVector(subjectId, vector, topK = 10, excludeId = null) {
+  const dir = questionsDir(subjectId);
+  if (!(await dirExists(dir))) return [];
+
+  const store = await HNSWLib.load(dir, getEmbeddings(), { space: 'cosine' });
+  const fetchCount = excludeId ? topK + 5 : topK;
+  const results = await store.similaritySearchVectorWithScore(vector, fetchCount);
+
+  return results
+    .filter(([doc]) => doc.metadata.id !== excludeId)
+    .slice(0, topK)
+    .map(([doc, distance]) => ({
+      id: doc.metadata.id,
+      score: 1 - distance,
+    }));
+}
+
+/**
+ * Remove a question from the subject's question index (called on delete or
+ * reject). HNSWLib versions differ in delete support, so this walks the
+ * docstore to find the internal ids whose metadata.id matches, then uses
+ * whatever removal API the store exposes. Returns true if anything was
+ * removed; false when removal isn't possible — a stale vector is harmless
+ * because search results are always SQL-filtered to active questions.
+ */
+export async function removeQuestion(subjectId, questionId) {
+  const dir = questionsDir(subjectId);
+  if (!(await dirExists(dir))) return false;
+
+  try {
+    const store = await HNSWLib.load(dir, getEmbeddings(), { space: 'cosine' });
+    const docs = store.docstore?._docs;
+    if (!docs || typeof docs.entries !== 'function') return false;
+
+    const internalIds = [];
+    for (const [internalId, doc] of docs.entries()) {
+      if (doc?.metadata?.id === questionId) internalIds.push(internalId);
+    }
+    if (!internalIds.length) return false;
+
+    if (typeof store.delete === 'function') {
+      await store.delete({ ids: internalIds });
+    } else {
+      // Older LangChain: drop the docstore entries + mark vectors deleted.
+      for (const internalId of internalIds) {
+        const numericLabel = store.index?.getIdsList?.().indexOf?.(internalId);
+        try { store.index?.markDelete?.(numericLabel); } catch { /* best effort */ }
+        docs.delete(internalId);
+      }
+    }
+    await store.save(dir);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Delete the entire question index for a subject.
  */
 export async function deleteQuestionsIndex(subjectId) {
@@ -190,4 +261,7 @@ export default {
   addQuestion,
   searchQuestions,
   deleteQuestionsIndex,
+  embedQuery,
+  searchQuestionsByVector,
+  removeQuestion,
 };

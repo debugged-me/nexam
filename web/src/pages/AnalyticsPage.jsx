@@ -9,6 +9,7 @@
  * using the same class names so the ported app.css + analytics.css apply.
  */
 import { useEffect, useState, useCallback } from 'react';
+import { Link } from 'react-router-dom';
 import {
   FileText, ScanLine, Users, AlertCircle, BarChart3,
   TrendingUp, TrendingDown, Sparkles, ListChecks, ArrowLeft,
@@ -114,9 +115,9 @@ export default function AnalyticsPage() {
           <p className="page-sub">Performance insights from scanned OMR answer sheets.</p>
         </div>
         <div className="header-actions">
-          <a href="/analytics/ai-eval" className="btn btn-outline btn-sm" title="View AI accuracy, precision, recall, and Bloom-level classification metrics">
+          <Link to="/analytics/ai-eval" className="btn btn-outline btn-sm" title="View AI accuracy, precision, recall, and Bloom-level classification metrics">
             <Sparkles size={16} /> AI Evaluation Metrics
-          </a>
+          </Link>
         </div>
       </div>
 
@@ -254,9 +255,9 @@ function ExamDetail({ examId, detail, onBack }) {
           <p className="page-sub">Class performance and score distribution.</p>
         </div>
         <div className="header-actions">
-          <a href={`/analytics/items/${encodeURIComponent(examId)}`} className="btn btn-outline btn-sm">
+          <Link to={`/analytics/items/${encodeURIComponent(examId)}`} className="btn btn-outline btn-sm">
             <ListChecks size={16} /> Item Analysis
-          </a>
+          </Link>
           <button type="button" className="btn btn-outline btn-sm" onClick={onBack}>
             <ArrowLeft size={16} /> Back
           </button>

@@ -23,6 +23,7 @@ export default function TosDetailPage() {
   const [data, setData] = useState(null);
   const [newTopic, setNewTopic] = useState({ title: '', instructional_hours: 0 });
   const [savingTopic, setSavingTopic] = useState(false);
+  const [generating, setGenerating] = useState(false);
 
   const load = useCallback(() => {
     api.get(`/tos/${id}`)
@@ -62,6 +63,18 @@ export default function TosDetailPage() {
     }
   }
 
+  async function handleGenerate() {
+    setGenerating(true);
+    try {
+      const result = await api.post('/ai/generate-questions', { tosId: id });
+      toast.success(`Generation queued (job ${result.jobId}). Drafts will appear on the Questions page.`);
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : 'Generation failed to start.');
+    } finally {
+      setGenerating(false);
+    }
+  }
+
   if (!data) return <AppShell activeNav="tos" pageTitle="Blueprint"><p className="placeholder">Loading…</p></AppShell>;
   const { tos, topics } = data;
   const totalHours = topics.reduce((s, t) => s + (Number(t.instructional_hours) || 0), 0);
@@ -81,8 +94,9 @@ export default function TosDetailPage() {
           )}
         </div>
         <div className="header-actions">
-          <button type="button" className="btn btn-primary btn-sm" title="AI drafts questions from your materials based on this blueprint">
-            <Sparkles size={14} /> Auto-generate Questions
+          <button type="button" className="btn btn-primary btn-sm" onClick={handleGenerate} disabled={generating}
+            title="AI drafts questions from your materials based on this blueprint">
+            {generating ? <span className="btn-spinner" /> : <Sparkles size={14} />} Auto-generate Questions
           </button>
           <Link to="/exams" className="btn btn-outline btn-sm">
             <FileText size={14} /> Build Exam

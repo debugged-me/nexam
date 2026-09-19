@@ -28,6 +28,8 @@ import ExamDetailPage from './pages/ExamDetailPage.jsx';
 import ExamFormPage from './pages/ExamFormPage.jsx';
 import MaterialsPage from './pages/MaterialsPage.jsx';
 import AnalyticsPage from './pages/AnalyticsPage.jsx';
+import ItemAnalysisPage from './pages/ItemAnalysisPage.jsx';
+import AiEvalPage from './pages/AiEvalPage.jsx';
 import AccountPage from './pages/AccountPage.jsx';
 import WizardPage from './pages/WizardPage.jsx';
 
@@ -97,6 +99,8 @@ export default function App() {
             <Route path="/exams/:id/edit" element={<RequireAuth><ExamFormPage /></RequireAuth>} />
             <Route path="/materials" element={<RequireAuth><MaterialsPage /></RequireAuth>} />
             <Route path="/analytics" element={<RequireAuth><AnalyticsPage /></RequireAuth>} />
+            <Route path="/analytics/items/:examId" element={<RequireAuth><ItemAnalysisPage /></RequireAuth>} />
+            <Route path="/analytics/ai-eval" element={<RequireAuth><AiEvalPage /></RequireAuth>} />
             <Route path="/account" element={<RequireAuth><AccountPage /></RequireAuth>} />
 
             {/* Default → dashboard (which redirects to /login if not authed) */}

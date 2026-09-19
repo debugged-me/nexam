@@ -24,7 +24,7 @@ class ScannedAnswer {
       };
 }
 
-/// Result returned by POST /api/scans.
+/// Result returned by POST /api/scans and the review endpoint.
 class ScanResult {
   const ScanResult({
     required this.id,
@@ -49,15 +49,62 @@ class ScanResult {
   factory ScanResult.fromJson(Map<String, dynamic> json) {
     return ScanResult(
       id: json['id'] as String? ?? '',
-      examId: json['examId'] as String? ?? '',
-      studentName: json['studentName'] as String?,
-      totalItems: json['totalItems'] as int? ?? 0,
-      correctCount: json['correctCount'] as int? ?? 0,
+      examId: json['examId'] as String? ?? json['exam_id'] as String? ?? '',
+      studentName: json['studentName'] as String? ?? json['student_name'] as String?,
+      totalItems: json['totalItems'] as int? ?? json['total_items'] as int? ?? 0,
+      correctCount: json['correctCount'] as int? ?? json['correct_count'] as int? ?? 0,
       score: (json['score'] as num?)?.toDouble() ?? 0,
-      needsReview: json['needsReview'] == true || json['needsReview'] == 1,
-      ambiguousCount: json['ambiguousCount'] as int? ?? 0,
+      needsReview: json['needsReview'] == true ||
+          json['needsReview'] == 1 ||
+          json['needs_review'] == true ||
+          json['needs_review'] == 1,
+      ambiguousCount:
+          json['ambiguousCount'] as int? ?? json['ambiguous_count'] as int? ?? 0,
     );
   }
+}
+
+/// One stored answer row from GET /api/scans/:id.
+class ScanAnswerItem {
+  const ScanAnswerItem({
+    required this.itemNumber,
+    required this.markedAnswer,
+    required this.correctAnswer,
+    required this.isCorrect,
+    required this.ambiguous,
+    this.questionType,
+    this.stem,
+  });
+
+  final int itemNumber;
+  final String markedAnswer;
+  final String? correctAnswer;
+  final bool? isCorrect;
+  final bool ambiguous;
+  final String? questionType;
+  final String? stem;
+
+  factory ScanAnswerItem.fromJson(Map<String, dynamic> json) {
+    return ScanAnswerItem(
+      itemNumber: json['item_number'] as int? ?? 0,
+      markedAnswer: json['marked_answer'] as String? ?? '',
+      correctAnswer: json['correct_answer'] as String?,
+      isCorrect: json['is_correct'] == null
+          ? null
+          : (json['is_correct'] == true || json['is_correct'] == 1),
+      ambiguous: json['ambiguous'] == true || json['ambiguous'] == 1,
+      questionType: json['question_type'] as String?,
+      stem: json['stem'] as String?,
+    );
+  }
+}
+
+/// Full scan detail: the scan row plus its per-item answers.
+class ScanDetail {
+  const ScanDetail({required this.scan, required this.answers});
+
+  final Map<String, dynamic> scan;
+  final List<ScanAnswerItem> answers;
 }
 
 /// API client for scan submission and review.
@@ -93,7 +140,7 @@ class ScanApi {
     return ScanResult.fromJson(data);
   }
 
-  /// GET /api/scans — list recent scan results.
+  /// GET /api/scans — list recent scan results (optionally per exam).
   Future<List<Map<String, dynamic>>> listScans({
     required String baseUrl,
     required String token,
@@ -104,7 +151,7 @@ class ScanApi {
     if (examId != null) params['exam_id'] = examId;
     if (needsReview) params['needs_review'] = 'true';
     final query = params.isNotEmpty
-        ? '?${params.entries.map((e) => '${e.key}=${e.value}').join('&')}'
+        ? '?${params.entries.map((e) => '${e.key}=${Uri.encodeComponent(e.value)}').join('&')}'
         : '';
     final response = await _safeRequest(
       () => _client.get(
@@ -115,6 +162,70 @@ class ScanApi {
     final data = _decode(response);
     final scans = data['scans'] as List? ?? [];
     return scans.map((s) => Map<String, dynamic>.from(s as Map)).toList();
+  }
+
+  /// GET /api/scans/exam/:examId — scans for one exam.
+  Future<List<Map<String, dynamic>>> listScansForExam({
+    required String baseUrl,
+    required String token,
+    required String examId,
+  }) async {
+    final response = await _safeRequest(
+      () => _client.get(
+        Uri.parse('$baseUrl/api/scans/exam/$examId'),
+        headers: _headers(token),
+      ),
+    );
+    final data = _decode(response);
+    final scans = data['scans'] as List? ?? [];
+    return scans.map((s) => Map<String, dynamic>.from(s as Map)).toList();
+  }
+
+  /// GET /api/scans/:id — full scan detail with per-item answers.
+  Future<ScanDetail> getScan({
+    required String baseUrl,
+    required String token,
+    required String scanId,
+  }) async {
+    final response = await _safeRequest(
+      () => _client.get(
+        Uri.parse('$baseUrl/api/scans/$scanId'),
+        headers: _headers(token),
+      ),
+    );
+    final data = _decode(response);
+    final answers = (data['answers'] as List? ?? [])
+        .map((a) => ScanAnswerItem.fromJson(Map<String, dynamic>.from(a as Map)))
+        .toList();
+    return ScanDetail(
+      scan: Map<String, dynamic>.from(data['scan'] as Map? ?? {}),
+      answers: answers,
+    );
+  }
+
+  /// POST /api/scans/:id/review — submit instructor corrections.
+  ///
+  /// [corrections] maps item_number → corrected canonical marked answer.
+  /// The server recounts the whole scan and returns the updated result.
+  Future<ScanResult> reviewScan({
+    required String baseUrl,
+    required String token,
+    required String scanId,
+    required Map<int, String> corrections,
+  }) async {
+    final response = await _safeRequest(
+      () => _client.post(
+        Uri.parse('$baseUrl/api/scans/$scanId/review'),
+        headers: _headers(token),
+        body: jsonEncode({
+          'corrections': corrections.entries
+              .map((e) => {'itemNumber': e.key, 'markedAnswer': e.value})
+              .toList(),
+        }),
+      ),
+    );
+    final data = _decode(response);
+    return ScanResult.fromJson(data);
   }
 
   Map<String, String> _headers(String token) => {

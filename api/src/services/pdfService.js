@@ -27,10 +27,10 @@ if (!fs.existsSync(STORAGE_DIR)) {
 function esc(text) {
   if (text == null) return '';
   return String(text)
-    .replace(/&/g, '&')
-    .replace(/</g, '<')
-    .replace(/>/g, '>')
-    .replace(/"/g, '"');
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
 }
 
 /** Strip a leading "A)" or "A." prefix that AI sometimes bakes into options. */
@@ -187,11 +187,19 @@ export async function generateAnswerKeyPDF(opts) {
     let answerText = q.answer || 'N/A';
 
     if (q.type === 'mcq' && q.options) {
-      const options = parseOptions(q.options);
-      const idx = typeof answerText === 'string' ? answerText.charCodeAt(0) - 65 : -1;
-      if (idx >= 0 && idx < options.length) {
-        answerText = `${answerText}) ${cleanOption(options[idx])}`;
+      const options = parseOptions(q.options).map(cleanOption);
+      // Answer may be stored as a letter ("B") or as full option text
+      // ("Paris") — resolve to "B) Paris" either way.
+      const letterIdx = /^[A-Z]$/i.test(String(answerText).trim())
+        ? answerText.trim().toUpperCase().charCodeAt(0) - 65
+        : options.findIndex((o) => String(o).trim().toLowerCase() === String(answerText).trim().toLowerCase());
+      if (letterIdx >= 0 && letterIdx < options.length) {
+        answerText = `${String.fromCharCode(65 + letterIdx)}) ${options[letterIdx]}`;
       }
+    } else if (q.type === 'true_false') {
+      answerText = /^t/i.test(String(answerText).trim()) ? 'True'
+        : /^f/i.test(String(answerText).trim()) ? 'False'
+        : answerText;
     }
 
     return `<div class="question answer-key">

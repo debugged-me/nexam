@@ -84,6 +84,22 @@ async function recalcTopicItemCounts(tosId) {
   }
 }
 
+/**
+ * Parse instructional hours strictly. `Number(x) || 0` silently coerced 'abc'
+ * or '3 hrs' to 0, which both loses the instructor's input behind a success
+ * response and skews every sibling topic's item_count, since the split is a
+ * share of the total hours. Returns { error } instead of guessing.
+ */
+function parseHours(value) {
+  const hours = Number(value);
+  // The column is int(11): a fractional value would be silently rounded by
+  // MySQL and would disagree with the PHP mirror, which casts with (int).
+  if (!Number.isInteger(hours) || hours < 0) {
+    return { error: 'Instructional hours must be a whole number of hours (0 or more).' };
+  }
+  return { hours };
+}
+
 /** Normalize learning_outcomes input (array | JSON string | text) to JSON. */
 function normalizeOutcomes(value) {
   if (value == null || value === '') return null;
@@ -223,7 +239,6 @@ router.put('/:id', async (req, res, next) => {
     }
 
     const nextTotalItems = Number(req.body.total_items || tos.total_items);
-    const totalItemsChanged = nextTotalItems !== Number(tos.total_items);
 
     const existingWeights = typeof tos.bloom_weights === 'string'
       ? JSON.parse(tos.bloom_weights || 'null') : tos.bloom_weights;
@@ -240,8 +255,11 @@ router.put('/:id', async (req, res, next) => {
       }
     );
 
-    // Only the item budget invalidates the per-topic split — re-derive when it moves.
-    if (totalItemsChanged) await recalcTopicItemCounts(tos.id);
+    // Unconditional on purpose: it matches application/controllers/Tos.php, and
+    // saving a blueprint is the self-heal for per-topic counts the syllabus
+    // worker left non-proportional (syllabus_tos.js floors the last topic at 1).
+    // Gating it on a total_items change would silently drop that repair.
+    await recalcTopicItemCounts(tos.id);
 
     const [rows] = await pool.query(`SELECT * FROM tos WHERE id = :id`, { id: tos.id });
     rows[0].bloom_weights = JSON.parse(rows[0].bloom_weights);
@@ -287,6 +305,9 @@ router.post('/:id/topics', async (req, res, next) => {
 
     const { title, instructional_hours, learning_outcomes, item_count } = req.body || {};
     if (!title || !String(title).trim()) return res.status(422).json({ error: 'Topic title is required.' });
+    // Validated the same way as PUT below — the two topic routes must agree.
+    const parsedHours = instructional_hours === undefined ? { hours: 0 } : parseHours(instructional_hours);
+    if (parsedHours.error) return res.status(422).json({ error: parsedHours.error });
 
     // Determine next sort_order
     const [maxRows] = await pool.query(
@@ -302,7 +323,7 @@ router.post('/:id/topics', async (req, res, next) => {
         id: topicId,
         tos_id: tos.id,
         title: String(title).trim(),
-        hours: Number(instructional_hours) || 0,
+        hours: parsedHours.hours,
         outcomes: normalizeOutcomes(learning_outcomes),
         item_count: Number(item_count) || 0,
         sort_order: maxRows[0].max_order + 1,
@@ -335,14 +356,15 @@ router.put('/:id/topics/:topicId', async (req, res, next) => {
     const params = { topicId: existing[0].id, tosId: tos.id };
 
     if (title !== undefined) {
-      if (!String(title).trim()) return res.status(422).json({ error: 'Topic title is required.' });
+      if (title === null || !String(title).trim()) return res.status(422).json({ error: 'Topic title is required.' });
       sets.push('title = :title');
       params.title = String(title).trim();
     }
     let hoursChanged = false;
     if (instructional_hours !== undefined) {
-      const hours = Number(instructional_hours) || 0;
-      if (hours < 0) return res.status(422).json({ error: 'Instructional hours cannot be negative.' });
+      const parsed = parseHours(instructional_hours);
+      if (parsed.error) return res.status(422).json({ error: parsed.error });
+      const { hours } = parsed;
       hoursChanged = hours !== Number(existing[0].instructional_hours);
       sets.push('instructional_hours = :hours');
       params.hours = hours;

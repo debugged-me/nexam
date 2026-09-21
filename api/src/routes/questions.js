@@ -7,7 +7,7 @@
  *   PUT    /api/questions/:id            — update
  *   DELETE /api/questions/:id             — delete
  *   POST   /api/questions/:id/approve     — draft → active (records approver)
- *   POST   /api/questions/:id/reject      — delete a draft
+ *   POST   /api/questions/:id/reject      — reject one (soft: status → 'rejected')
  *   POST   /api/questions/bulk-approve   — approve many drafts
  *   POST   /api/questions/bulk-reject     — reject many (soft, any status)
  *   POST   /api/questions/bulk-delete     — delete many

@@ -12,7 +12,7 @@
  */
 import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { Plus, Trash2, BookOpen, ChevronRight, Sparkles, FileText, Pencil, ListOrdered, Layers, Clock, Check, X } from 'lucide-react';
+import { Plus, Trash2, BookOpen, ChevronRight, Sparkles, FileText, Pencil, ListOrdered, Layers, Clock, Check, X, AlertTriangle } from 'lucide-react';
 import { useToast } from '../components/Toast.jsx';
 import api, { ApiError } from '../lib/api.js';
 import AppShell from '../components/AppShell.jsx';
@@ -117,16 +117,44 @@ function buildMatrix(tos, topics) {
     itemCounts = apportion(totalItems, hourSum > 0 ? hours : topics.map(() => 1));
   }
 
-  const rows = topics.map((topic, i) => ({
-    topic,
-    items: itemCounts[i] || 0,
-    cells: apportion(itemCounts[i] || 0, weights),
-  }));
+  // Apportioning each row independently against the static weights satisfies
+  // the row totals but not the column ones: with 4-5 items split six ways, the
+  // smallest weight never wins a remainder, so a blueprint asking for 10%
+  // 'Create' can render a column of zeros and contradict itself.
+  //
+  // Instead, fix the column targets once from the blueprint, then fill each row
+  // against what each column still NEEDS. Both margins then hold: every row
+  // sums to its item count and every column to its Bloom share.
+  const colTargets = apportion(totalItems, weights);
+  const need = [...colTargets];
+  const rows = topics.map((topic, i) => {
+    const items = itemCounts[i] || 0;
+    const cells = apportion(items, need);
+    // apportion() can hand a column more than it still needs when the remaining
+    // need is lumpy; pull the excess back and re-place it where need is largest.
+    let excess = 0;
+    cells.forEach((n, j) => {
+      if (n > need[j]) { excess += n - need[j]; cells[j] = need[j]; }
+    });
+    while (excess > 0) {
+      let best = -1;
+      need.forEach((n, j) => {
+        if (n - cells[j] > 0 && (best < 0 || n - cells[j] > need[best] - cells[best])) best = j;
+      });
+      if (best < 0) break; // nothing left anywhere — drop rather than loop
+      cells[best]++; excess--;
+    }
+    cells.forEach((n, j) => { need[j] -= n; });
+    return { topic, items, cells };
+  });
 
   const colTotals = BLOOM_ORDER.map((_, c) => rows.reduce((s, r) => s + r.cells[c], 0));
-  const grand = rows.reduce((s, r) => s + r.items, 0);
+  // Sum the columns, not the row item counts: when every Bloom weight is 0
+  // apportion() places nothing, and a grand total taken from row items would
+  // claim items the matrix never actually shows.
+  const grand = colTotals.reduce((s, n) => s + n, 0);
 
-  return { rows, colTotals, grand, weights };
+  return { rows, colTotals, grand, weights, reconciled: storedSum !== totalItems, storedSum };
 }
 
 export default function TosDetailPage() {
@@ -247,6 +275,9 @@ export default function TosDetailPage() {
   function onEditKeyDown(e, topicId) {
     if (e.key === 'Escape') { e.preventDefault(); cancelEdit(); return; }
     if (e.key !== 'Enter') return;
+    // A second Enter while the first PUT is in flight would fire a concurrent
+    // save, and each save triggers a server-side item-count recalc.
+    if (savingEdit) { e.preventDefault(); return; }
     // The outcomes textarea holds one outcome per line, so a plain Enter has
     // to insert a line there — Ctrl/Cmd+Enter saves from any field.
     if (e.target.tagName === 'TEXTAREA' && !(e.metaKey || e.ctrlKey)) return;
@@ -352,7 +383,13 @@ export default function TosDetailPage() {
               <span className="card-title">Specification Matrix</span>
               <p className="card-sub">Items per topic and cognitive level — each row totals that topic's items, each column follows the blueprint's Bloom weight.</p>
             </div>
-            <span className="text-muted meta-sm">{matrix.grand} of {Number(tos.total_items)} items placed</span>
+            {matrix.reconciled ? (
+              <span className="tos-matrix-drift" title={`Stored per-topic counts total ${matrix.storedSum}, blueprint total is ${Number(tos.total_items)}.`}>
+                <AlertTriangle size={13} aria-hidden="true" /> Item counts re-derived from hours
+              </span>
+            ) : (
+              <span className="text-muted meta-sm">{matrix.grand} of {Number(tos.total_items)} items placed</span>
+            )}
           </div>
           <div className="tos-matrix-scroll">
             <table className="data-table tos-matrix">
@@ -436,7 +473,7 @@ export default function TosDetailPage() {
                       <td>
                         {editing ? (
                           <input type="text" className="form-control" maxLength={255} autoFocus
-                            aria-label="Topic title"
+                            aria-label="Topic title" disabled={savingEdit}
                             value={editDraft.title}
                             onKeyDown={(e) => onEditKeyDown(e, tp.id)}
                             onChange={(e) => setEditDraft({ ...editDraft, title: e.target.value })} />
@@ -446,7 +483,7 @@ export default function TosDetailPage() {
                       </td>
                       <td>
                         {editing ? (
-                          <textarea className="form-control tos-edit-outcomes" rows={2}
+                          <textarea className="form-control tos-edit-outcomes" rows={2} disabled={savingEdit}
                             aria-label="Learning outcomes, one per line"
                             placeholder="One outcome per line"
                             value={editDraft.outcomes}
@@ -470,7 +507,7 @@ export default function TosDetailPage() {
                       </td>
                       <td>
                         {editing ? (
-                          <input type="number" className="form-control tos-edit-hours" min={0} max={1000}
+                          <input type="number" className="form-control tos-edit-hours" min={0} max={1000} disabled={savingEdit}
                             aria-label="Instructional hours"
                             value={editDraft.instructional_hours}
                             onKeyDown={(e) => onEditKeyDown(e, tp.id)}

@@ -154,9 +154,13 @@
    drags the whole document sideways.
    ========================================================================== */
 
-.tos-topics-scroll {
+/* Qualified with .table-wrap on purpose: app.css sets `.table-wrap{overflow:hidden}`
+   and is bundled AFTER this file, so a bare `.tos-topics-scroll` loses the
+   cascade at equal specificity and the table gets clipped with no scrollbar. */
+.table-wrap.tos-topics-scroll {
     position: relative;
     overflow-x: auto;
+    overflow-y: hidden;
     -webkit-overflow-scrolling: touch;
 }
 
@@ -205,10 +209,14 @@
 .tos-action-save:hover { background: var(--green-50); color: var(--green-700); }
 .tos-action-save:disabled { cursor: default; opacity: .6; }
 
-/* Removal is the rare path — it stays reachable but never outshouts edit. */
-.tos-topics .action-icon.is-quiet { opacity: .45; }
-.tos-topics tr:hover .action-icon.is-quiet,
-.tos-topics .action-icon.is-quiet:focus-visible { opacity: 1; }
+/* Removal is the rare path — it stays reachable but never outshouts edit.
+   Only dim where a pointer can un-dim it: a touch device has no hover and no
+   focus-visible before the tap, so dimming there just hides the control. */
+@media (hover: hover) and (pointer: fine) {
+    .tos-topics .action-icon.is-quiet { opacity: .45; }
+    .tos-topics tr:hover .action-icon.is-quiet,
+    .tos-topics .action-icon.is-quiet:focus-visible { opacity: 1; }
+}
 
 /* ---- Add-topic outcomes field --------------------------------------- */
 
@@ -261,7 +269,6 @@
 }
 .data-table.tos-matrix thead th.tos-matrix-num { min-width: 92px; vertical-align: bottom; }
 
-.tos-matrix .g-bloom { justify-content: flex-end; }
 .tos-matrix-pct {
     display: block;
     margin-top: 2px;
@@ -292,3 +299,15 @@
     /* Tap targets stay finger-sized where fingers are the pointer. */
     .tos-outcome-more { min-height: 44px; padding: 8px 10px; }
 }
+
+/* Shown only when stored per-topic counts disagree with the blueprint total and
+   the matrix had to re-derive them from instructional hours — a real condition,
+   unlike the old "N of N placed" line, which could never disagree. */
+.tos-matrix-drift {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--amber-700, #b45309);
+    font: 500 .75rem/1.2 var(--font-body, "Inter", sans-serif);
+}
+.tos-matrix-drift svg { flex: none; }

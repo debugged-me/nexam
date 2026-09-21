@@ -144,13 +144,15 @@ class Tos_model extends CI_Model
         if (empty($topics)) return;
 
         $total_hours = 0;
-        foreach ($topics as $t) $total_hours += (int) $t->instructional_hours;
+        // Clamped like the Node mirror (api/src/routes/tos.js recalcTopicItemCounts)
+        // so a stray negative can never produce a negative item_count.
+        foreach ($topics as $t) $total_hours += max(0, (int) $t->instructional_hours);
 
         $counts = [];
         $remainders = [];
         $allocated = 0;
         foreach ($topics as $t) {
-            $share = $total_hours > 0 ? ((int) $t->instructional_hours) / $total_hours : 1 / count($topics);
+            $share = $total_hours > 0 ? max(0, (int) $t->instructional_hours) / $total_hours : 1 / count($topics);
             $exact = $share * $total_items;
             $whole = (int) floor($exact);
             $counts[$t->id] = $whole;

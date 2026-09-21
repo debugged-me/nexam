@@ -6,7 +6,7 @@
  * modal form using .form-section / .bloom-grid.
  */
 import { useEffect, useState, useCallback } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { Plus, Pencil, Trash2, Info, Eye, FilePlus2, Upload, Check } from 'lucide-react';
 import { useToast } from '../components/Toast.jsx';
 import Modal from '../components/Modal.jsx';
@@ -27,6 +27,7 @@ function fmtDate(iso) {
 
 export default function TosPage() {
   const toast = useToast();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [tosList, setTosList] = useState(null);
   const [subjects, setSubjects] = useState([]);
   const [editing, setEditing] = useState(null);
@@ -42,6 +43,14 @@ export default function TosPage() {
     api.get('/subjects').then((data) => setSubjects(data.subjects)).catch(() => {});
   }, []);
   useEffect(() => { load(); }, [load]);
+
+  useEffect(() => {
+    if (searchParams.get('new') !== '1') return;
+    setEditing({ title: '', subject_id: subjects[0]?.id || '', total_items: 50, bloom_weights: { ...DEFAULT_BLOOM } });
+    const next = new URLSearchParams(searchParams);
+    next.delete('new');
+    setSearchParams(next, { replace: true });
+  }, [searchParams, setSearchParams, subjects]);
 
   async function handleSave(e) {
     e.preventDefault();
@@ -120,22 +129,17 @@ export default function TosPage() {
           </div>
         </div>
       ) : (
+        <div className="dataset">
+          <div className="dataset-scroll">
         <table className="grid datatable">
           <caption className="sr-only">Table of Specification blueprints in your workspace</caption>
           <thead>
             <tr>
-              <th className="col-select wp-4">
-                <label className="ds-check">
-                  <input type="checkbox" />
-                  <span aria-hidden="true" />
-                  <span className="sr-only">Select all rows on this page</span>
-                </label>
-              </th>
               <th className="col-primary wp-36">Blueprint</th>
               <th className="wp-22">Subject</th>
-              <th className="is-num wp-9">Topics</th>
-              <th className="is-num wp-9">Items</th>
-              <th className="wp-15">Updated</th>
+              <th className="is-num wp-10">Topics</th>
+              <th className="is-num wp-10">Items</th>
+              <th className="wp-17">Updated</th>
               <th className="col-actions wp-5"><span className="sr-only">Actions</span></th>
             </tr>
           </thead>
@@ -146,13 +150,6 @@ export default function TosPage() {
               const touched = t.updated_at || t.created_at;
               return (
                 <tr key={t.id} data-id={t.id}>
-                  <td className="col-select">
-                    <label className="ds-check">
-                      <input type="checkbox" />
-                      <span aria-hidden="true" />
-                      <span className="sr-only">Select {t.title}</span>
-                    </label>
-                  </td>
                   <td>
                     <span className="g-primary">
                       <Link to={`/tos/${t.id}`} className="g-title">{t.title}</Link>
@@ -192,6 +189,8 @@ export default function TosPage() {
             })}
           </tbody>
         </table>
+          </div>
+        </div>
       )}
 
       <Modal open={!!editing} title={editing?.id ? 'Edit TOS Blueprint' : 'New TOS Blueprint'}

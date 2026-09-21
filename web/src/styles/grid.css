@@ -472,7 +472,6 @@ table.grid.dataTable thead > tr > th.sorting_desc_disabled {
     padding: 0 var(--grid-x);
 }
 
-table.grid.dataTable thead > tr > th
 /* DataTables marks sortable headers; the arrow is an affordance, not decor,
    so it only appears on hover or once the column is actually sorting. */
 table.grid thead th.sorting,
@@ -547,6 +546,14 @@ table.grid tbody td.is-num {
     font-weight: 500;
     text-overflow: ellipsis;
     white-space: nowrap;
+}
+
+button.g-title {
+    width: 100%;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    font: inherit;
 }
 
 a.g-title:hover { text-decoration: underline; text-underline-offset: 2px; }

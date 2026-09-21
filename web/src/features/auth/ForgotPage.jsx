@@ -93,7 +93,7 @@ export default function ForgotPage() {
 
             <div className="btn-row-stacked">
               <button type="submit" className={`btn-login ${loading ? 'is-loading' : ''}`} disabled={loading}>
-                <span className="btn-spinner" />
+                {loading && <span className="btn-spinner" aria-hidden="true" />}
                 {loading ? 'Sending…' : 'Send reset code'}
               </button>
               <Link to="/login" className="btn-register">Back to sign in</Link>

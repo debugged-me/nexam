@@ -11,7 +11,7 @@
  * one-click approve/reject on every draft row regardless of how it got here.
  */
 import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import {
   Plus, Pencil, Trash2, Check, X, Info, Search, Upload, Sparkles,
   MoreVertical, FileText, ListChecks, RotateCcw, FilterX,
@@ -61,6 +61,7 @@ function formatFromName(name) {
 
 export default function QuestionsPage() {
   const toast = useToast();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [questions, setQuestions] = useState(null);
   const [subjects, setSubjects] = useState([]);
   const [tosList, setTosList] = useState([]);
@@ -93,6 +94,23 @@ export default function QuestionsPage() {
     api.get('/subjects').then((data) => setSubjects(data.subjects)).catch(() => {});
     api.get('/tos').then((data) => setTosList(data.tos || [])).catch(() => {});
   }, []);
+
+  useEffect(() => {
+    const requestedStatus = searchParams.get('status');
+    const requestedSubject = searchParams.get('subject_id');
+    if (requestedSubject && subjects.some((subject) => String(subject.id) === requestedSubject)) {
+      setFilters((current) => current.subject_id === requestedSubject ? current : { ...current, subject_id: requestedSubject, tos_id: '' });
+    }
+    if (['draft', 'active', 'rejected'].includes(requestedStatus)) {
+      setFilters((current) => current.status === requestedStatus ? current : { ...current, status: requestedStatus });
+    }
+    if (searchParams.get('new') === '1') {
+      setEditing({ type: 'mcq', status: 'draft', subject_id: subjects[0]?.id || '' });
+      const next = new URLSearchParams(searchParams);
+      next.delete('new');
+      setSearchParams(next, { replace: true });
+    }
+  }, [searchParams, setSearchParams, subjects]);
 
   useEffect(() => { load(); }, [load]);
 

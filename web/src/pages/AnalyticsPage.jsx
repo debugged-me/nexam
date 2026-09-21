@@ -108,7 +108,7 @@ export default function AnalyticsPage() {
   const recentScans = overview.recentScans || [];
 
   return (
-    <>
+    <AppShell activeNav="analytics" pageTitle="Results & insights" wide>
       <div className="page-header">
         <div>
           <h1>Analytics</h1>
@@ -224,7 +224,7 @@ export default function AnalyticsPage() {
           )}
         </div>
       </div>
-    </>
+    </AppShell>
   );
 }
 

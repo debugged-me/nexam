@@ -11,47 +11,45 @@
 import { useState, useEffect, useRef } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
-  GraduationCap, LayoutDashboard, BookOpen, FolderOpen, CircleHelp,
-  PanelsTopLeft, FileText, BarChart3, Menu, ChevronDown, ChevronRight,
-  LogOut, User, Lock, X, Sparkles,
+  GraduationCap, Home, BookOpen, FolderOpen, CircleHelp,
+  PanelsTopLeft, FileText, BarChart3, Menu, ChevronDown,
+  LogOut, User, X, Sparkles, Plus, Upload, Library,
 } from 'lucide-react';
 import { useAuth } from '../features/auth/AuthContext.jsx';
 
 const NAV_GROUPS = [
   {
-    label: 'Overview',
+    label: 'Workspace',
     items: [
-      { label: 'Dashboard', key: 'dashboard', icon: LayoutDashboard, to: '/dashboard' },
-      { label: 'Exam Wizard', key: 'wizard', icon: Sparkles, to: '/wizard' },
+      { label: 'Home', key: 'dashboard', icon: Home, to: '/dashboard' },
+      { label: 'Build an exam', key: 'wizard', icon: Sparkles, to: '/wizard', featured: true },
+      { label: 'Question bank', key: 'questions', icon: CircleHelp, to: '/questions' },
+      { label: 'Exams', key: 'exams', icon: FileText, to: '/exams' },
     ],
   },
   {
-    label: 'Content',
+    label: 'Manage',
     items: [
-      { label: 'Subjects',  key: 'subjects',  icon: BookOpen,    to: '/subjects' },
-      { label: 'Materials', key: 'materials', icon: FolderOpen,  to: '/materials' },
-      { label: 'Questions', key: 'questions', icon: CircleHelp,  to: '/questions' },
-    ],
-  },
-  {
-    label: 'Assessment',
-    items: [
-      { label: 'Blueprints (TOS)', key: 'tos',      icon: PanelsTopLeft, to: '/tos' },
-      { label: 'Exams',            key: 'exams',    icon: FileText,      to: '/exams' },
-      { label: 'Analytics',        key: 'analytics', icon: BarChart3,    to: '/analytics' },
+      {
+        label: 'Content library', key: 'library', icon: Library, to: '/subjects',
+        children: [
+          { label: 'Subjects', to: '/subjects', icon: BookOpen },
+          { label: 'Materials', to: '/materials', icon: FolderOpen },
+          { label: 'Blueprints', to: '/tos', icon: PanelsTopLeft },
+        ],
+      },
+      { label: 'Results & insights', key: 'analytics', icon: BarChart3, to: '/analytics' },
     ],
   },
 ];
 
 const SECTION_TITLES = {
-  dashboard: 'Dashboard',
-  wizard: 'Exam Wizard',
-  subjects: 'Subjects',
-  materials: 'Materials',
+  dashboard: 'Home',
+  wizard: 'Build an exam',
+  library: 'Content library',
   questions: 'Questions',
-  tos: 'Blueprints (TOS)',
   exams: 'Exams',
-  analytics: 'Analytics',
+  analytics: 'Results & insights',
   account: 'Account',
 };
 
@@ -59,10 +57,10 @@ const SECTION_TITLES = {
 function deriveActiveKey(pathname) {
   if (pathname.startsWith('/dashboard')) return 'dashboard';
   if (pathname.startsWith('/wizard')) return 'wizard';
-  if (pathname.startsWith('/subjects')) return 'subjects';
-  if (pathname.startsWith('/materials')) return 'materials';
+  if (pathname.startsWith('/subjects')) return 'library';
+  if (pathname.startsWith('/materials')) return 'library';
   if (pathname.startsWith('/questions')) return 'questions';
-  if (pathname.startsWith('/tos')) return 'tos';
+  if (pathname.startsWith('/tos')) return 'library';
   if (pathname.startsWith('/exams')) return 'exams';
   if (pathname.startsWith('/analytics')) return 'analytics';
   if (pathname.startsWith('/account')) return 'account';
@@ -81,9 +79,12 @@ export default function AppShell({ activeNav, pageTitle, children, wide }) {
   const navigate = useNavigate();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const [createMenuOpen, setCreateMenuOpen] = useState(false);
   const userMenuRef = useRef(null);
+  const createMenuRef = useRef(null);
 
-  const activeKey = activeNav || deriveActiveKey(location.pathname);
+  const requestedKey = activeNav || deriveActiveKey(location.pathname);
+  const activeKey = ['subjects', 'materials', 'tos'].includes(requestedKey) ? 'library' : requestedKey;
   const title = pageTitle || SECTION_TITLES[activeKey] || 'Dashboard';
   const section = SECTION_TITLES[activeKey] || '';
   const isSectionRoot = section === title;
@@ -94,6 +95,9 @@ export default function AppShell({ activeNav, pageTitle, children, wide }) {
     function handleClick(e) {
       if (userMenuRef.current && !userMenuRef.current.contains(e.target)) {
         setUserMenuOpen(false);
+      }
+      if (createMenuRef.current && !createMenuRef.current.contains(e.target)) {
+        setCreateMenuOpen(false);
       }
     }
     document.addEventListener('mousedown', handleClick);
@@ -111,9 +115,11 @@ export default function AppShell({ activeNav, pageTitle, children, wide }) {
           <span className="sidebar-mark"><GraduationCap size={16} /></span>
           <span className="sidebar-wordmark">
             nexam
-            <small>Exam workspace</small>
+            <small>Faculty workspace</small>
           </span>
-          <button className="sidebar-close" style={{ display: 'none' }} />
+          <button className="sidebar-close" type="button" aria-label="Close navigation" onClick={() => setMobileOpen(false)}>
+            <X size={18} />
+          </button>
         </div>
 
         <nav className="sidebar-nav" aria-label="Primary navigation">
@@ -124,20 +130,36 @@ export default function AppShell({ activeNav, pageTitle, children, wide }) {
                 const Icon = item.icon;
                 const isActive = activeKey === item.key;
                 return (
-                  <Link
-                    key={item.key}
-                    to={item.to}
-                    className={`nav-item ${isActive ? 'active' : ''}`}
-                    aria-current={isActive ? 'page' : undefined}
-                  >
-                    <Icon size={16} />
-                    <span>{item.label}</span>
-                  </Link>
+                  <div className="nav-item-wrap" key={item.key}>
+                    <Link
+                      to={item.to}
+                      className={`nav-item ${isActive ? 'active' : ''} ${item.featured ? 'nav-item--featured' : ''} ${item.children && isActive ? 'is-parent-active' : ''}`}
+                      aria-current={isActive ? 'page' : undefined}
+                    >
+                      <Icon size={16} />
+                      <span>{item.label}</span>
+                    </Link>
+                    {item.children && isActive && (
+                      <div className="nav-subitems" aria-label="Content library">
+                        {item.children.map((child) => {
+                          const ChildIcon = child.icon;
+                          const childActive = location.pathname.startsWith(child.to);
+                          return (
+                            <Link key={child.to} to={child.to} className={`nav-subitem ${childActive ? 'active' : ''}`} aria-current={childActive ? 'page' : undefined}>
+                              <ChildIcon size={14} />
+                              <span>{child.label}</span>
+                            </Link>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
                 );
               })}
             </div>
           ))}
         </nav>
+
       </aside>
 
       {/* Mobile overlay */}
@@ -159,30 +181,37 @@ export default function AppShell({ activeNav, pageTitle, children, wide }) {
               <Menu size={18} />
             </button>
 
-            <nav className="topbar-heading crumbs" aria-label="Breadcrumb">
-              <ol className="crumb-list">
-                <li className="crumb-item">
-                  <span style={{ color: 'var(--ink-2)', fontFamily: 'var(--font-display)', fontSize: 'var(--text-sm)', fontWeight: 500 }}>
-                    Workspace
-                  </span>
-                </li>
-                {!isSectionRoot && section && (
-                  <>
-                    <li className="crumb-sep" aria-hidden="true"><ChevronRight size={14} /></li>
-                    <li className="crumb-item">
-                      <Link to={`/${activeKey}`} style={{ color: 'var(--ink-3)' }}>{section}</Link>
-                    </li>
-                  </>
-                )}
-                <li className="crumb-sep" aria-hidden="true"><ChevronRight size={14} /></li>
-                <li className="crumb-item" aria-current="page">
-                  <span className="topbar-title">{title}</span>
-                </li>
-              </ol>
-            </nav>
+            <div className="topbar-heading">
+              {!isSectionRoot && section && <span className="topbar-context">{section}</span>}
+              <span className="topbar-title">{title}</span>
+            </div>
           </div>
 
           <div className="topbar-right">
+            <div className="quick-create" ref={createMenuRef}>
+              <button className="quick-create-trigger" type="button" aria-haspopup="menu" aria-expanded={createMenuOpen} onClick={() => setCreateMenuOpen((v) => !v)}>
+                <Plus size={16} />
+                <span>Create</span>
+                <ChevronDown size={14} />
+              </button>
+              {createMenuOpen && (
+                <div className="quick-create-menu" role="menu">
+                  <div className="quick-create-head">Create new</div>
+                  <Link to="/exams/new" className="quick-create-item is-primary" role="menuitem" onClick={() => setCreateMenuOpen(false)}>
+                    <span><FileText size={17} /></span><div><strong>Exam</strong><small>Build from your question bank</small></div>
+                  </Link>
+                  <Link to="/questions?new=1" className="quick-create-item" role="menuitem" onClick={() => setCreateMenuOpen(false)}>
+                    <span><CircleHelp size={17} /></span><div><strong>Question</strong><small>Add one directly to the bank</small></div>
+                  </Link>
+                  <Link to="/materials?upload=1" className="quick-create-item" role="menuitem" onClick={() => setCreateMenuOpen(false)}>
+                    <span><Upload size={17} /></span><div><strong>Material</strong><small>Upload a syllabus or reference</small></div>
+                  </Link>
+                  <Link to="/subjects?new=1" className="quick-create-item" role="menuitem" onClick={() => setCreateMenuOpen(false)}>
+                    <span><BookOpen size={17} /></span><div><strong>Subject</strong><small>Start a new course workspace</small></div>
+                  </Link>
+                </div>
+              )}
+            </div>
             {/* User menu */}
             <div className="user-menu" ref={userMenuRef}>
               <button

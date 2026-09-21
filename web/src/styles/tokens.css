@@ -83,16 +83,16 @@
   --font-body: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 
   /* ---- Brand ---- */
-  --brand:        #123E68;
-  --brand-deep:   #0D2E4E;
-  --brand-soft:   #1B5A94;
-  --brand-accent: #63B3F5;
+  --brand:        #103A61;
+  --brand-deep:   #092945;
+  --brand-soft:   #1A5D99;
+  --brand-accent: #66B7FA;
 
   /* Primary actions */
-  --action-50:   #EDF6FD;
-  --action-100:  #CFE6FA;
-  --action-600:  #2383E2;
-  --action-700:  #1A6CBD;
+  --action-50:   #EFF7FF;
+  --action-100:  #D8EBFC;
+  --action-600:  #1E78D2;
+  --action-700:  #155FA9;
 
   /* ---- Blue scale ---- */
   --blue-50:  #EDF6FD;
@@ -138,28 +138,28 @@
   --accent-line: rgba(99, 179, 245, .30);
 
   /* ---- Ink: cool greys ---- */
-  --ink:       #0F1B2D;
-  --ink-2:     #33445C;
-  --ink-3:     #5A6B85;
-  --ink-faint: #7A8AA3;
+  --ink:       #122033;
+  --ink-2:     #35465C;
+  --ink-3:     #607087;
+  --ink-faint: #8492A6;
 
   /* ---- Surfaces ---- */
   --surface:   #FFFFFF;
-  --surface-2: #F5F8FC;
-  --surface-3: #E9F0F8;
-  --line:        #DCE5F0;
-  --line-strong: #C2D0E2;
+  --surface-2: #F4F7FB;
+  --surface-3: #EAF0F7;
+  --line:        #DDE6F0;
+  --line-strong: #C2D0DF;
 
   /* ---- Shape ---- */
-  --radius-xs: 4px;
-  --radius-sm: 5px;
-  --radius: 6px;
-  --radius-lg: 7px;
+  --radius-xs: 6px;
+  --radius-sm: 8px;
+  --radius: 10px;
+  --radius-lg: 14px;
 
   /* ---- Elevation ---- */
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, .04);
-  --shadow-md: 0 4px 10px rgba(0, 0, 0, .07);
-  --shadow-lg: 0 12px 28px rgba(0, 0, 0, .12);
+  --shadow-sm: 0 1px 3px rgba(15, 35, 56, .05);
+  --shadow-md: 0 8px 24px rgba(15, 42, 68, .08);
+  --shadow-lg: 0 18px 48px rgba(8, 30, 52, .16);
 
   /* ---- Type scale ---- */
   --text-xs:   .75rem;
@@ -196,8 +196,8 @@
   --sb-active-line: rgba(99, 179, 245, .26);
 
   /* ---- Layout ---- */
-  --sidebar-width: 220px;
-  --topbar-height: 48px;
+  --sidebar-width: 224px;
+  --topbar-height: 60px;
 
   /* ---- Aliases ---- */
   --primary: var(--action-600);

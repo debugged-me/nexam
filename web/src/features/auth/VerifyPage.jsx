@@ -152,7 +152,7 @@ export default function VerifyPage() {
 
             <div className="btn-row-stacked">
               <button type="submit" className={`btn-login ${loading ? 'is-loading' : ''}`} disabled={loading}>
-                <span className="btn-spinner" />
+                {loading && <span className="btn-spinner" aria-hidden="true" />}
                 {loading ? 'Verifying…' : 'Verify email'}
               </button>
               <button type="button" className="btn-register" onClick={handleResend} disabled={resending}>

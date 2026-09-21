@@ -7,7 +7,7 @@
  * grid.css + app.css styles apply directly. CRUD via /api/subjects.
  */
 import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import {
   Plus, Pencil, Trash2, Info, Search, CheckSquare,
   Settings2, Ellipsis, Eye, CircleHelp, Check,
@@ -40,6 +40,7 @@ function fmtDate(iso) {
 
 export default function SubjectsPage() {
   const toast = useToast();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [subjects, setSubjects] = useState(null);
   const [editing, setEditing] = useState(null); // null | {} (new) | subject (edit)
   const [saving, setSaving] = useState(false);
@@ -62,6 +63,14 @@ export default function SubjectsPage() {
   }, [toast]);
 
   useEffect(() => { load(); }, [load]);
+
+  useEffect(() => {
+    if (searchParams.get('new') !== '1') return;
+    setEditing({ name: '', code: '', description: '' });
+    const next = new URLSearchParams(searchParams);
+    next.delete('new');
+    setSearchParams(next, { replace: true });
+  }, [searchParams, setSearchParams]);
 
   // "/" focuses the search field, mirroring the kbd hint in the toolbar.
   useEffect(() => {

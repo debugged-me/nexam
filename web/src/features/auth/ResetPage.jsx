@@ -127,7 +127,7 @@ export default function ResetPage() {
 
             <div className="btn-row-stacked">
               <button type="submit" className={`btn-login ${loading ? 'is-loading' : ''}`} disabled={loading}>
-                <span className="btn-spinner" />
+                {loading && <span className="btn-spinner" aria-hidden="true" />}
                 {loading ? 'Resetting…' : 'Reset password'}
               </button>
               <Link to="/login" className="btn-register">Back to sign in</Link>

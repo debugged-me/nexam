@@ -15,6 +15,7 @@
  * flag is what unlocks TOS generation.
  */
 import { useEffect, useState, useCallback, useRef } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import {
   Upload, Link2, Video, FileText, Trash2, RotateCw, FileStack, Sparkles,
   BookOpen, Loader2, CheckCircle2, AlertCircle, RefreshCw, X,
@@ -66,6 +67,7 @@ function dragHasFiles(e) {
 
 export default function MaterialsPage() {
   const toast = useToast();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [materials, setMaterials] = useState(null);
   const [subjects, setSubjects] = useState([]);
   const [uploadOpen, setUploadOpen] = useState(false);
@@ -103,6 +105,15 @@ export default function MaterialsPage() {
     }).catch(() => {});
   }, []);
   useEffect(() => { load(); }, [load]);
+
+  useEffect(() => {
+    if (searchParams.get('upload') !== '1') return;
+    setUploadMode('file');
+    setUploadOpen(true);
+    const next = new URLSearchParams(searchParams);
+    next.delete('upload');
+    setSearchParams(next, { replace: true });
+  }, [searchParams, setSearchParams]);
 
   const setSubject = useCallback((id) => {
     setForm((f) => ({ ...f, subject_id: id }));
@@ -420,7 +431,7 @@ export default function MaterialsPage() {
                       </div>
                     </div>
                     <div className="mat-card-actions">
-                      {m.is_syllabus && m.status === 'processed' && (
+                      {Boolean(Number(m.is_syllabus)) && m.status === 'processed' && (
                         <button className="btn btn-primary btn-sm" onClick={() => handleGenerateTos(m)} title="Auto-create a Table of Specification blueprint from this syllabus">
                           <Sparkles size={14} /> Auto-generate Blueprint
                         </button>
@@ -430,7 +441,7 @@ export default function MaterialsPage() {
                           <RotateCw size={14} />
                         </button>
                       )}
-                      <button className="btn btn-danger" onClick={() => handleDelete(m)} title="Delete">
+                      <button className="btn mat-delete" onClick={() => handleDelete(m)} title="Delete material" aria-label={`Delete ${m.title}`}>
                         <Trash2 size={14} />
                       </button>
                     </div>

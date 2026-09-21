@@ -116,7 +116,7 @@ export default function LoginPage() {
 
             <div className="btn-row">
               <button type="submit" className={`btn-login ${loading ? 'is-loading' : ''}`} disabled={loading}>
-                <span className="btn-spinner" />
+                {loading && <span className="btn-spinner" aria-hidden="true" />}
                 {loading ? 'Signing in…' : 'Sign in'}
               </button>
               <Link to="/register" className="btn-register">

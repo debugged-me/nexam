@@ -192,7 +192,34 @@
     min-width: 0;
 }
 
+.q-dataset .dataset-bar {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: start;
+    gap: 10px 14px;
+    padding-block: 10px;
+}
+
+.q-dataset .dataset-bar-lead {
+    align-items: stretch;
+    flex-direction: column;
+}
+
+.q-dataset .ds-search {
+    width: 100%;
+    max-width: 380px;
+    flex-basis: auto;
+}
+
+.q-dataset .dataset-bar-trail { align-self: start; }
+
 .q-filters .q-filter-select { max-width: 190px; }
+
+@media (max-width: 980px) {
+    .q-dataset .dataset-bar { grid-template-columns: 1fr; }
+    .q-dataset .dataset-bar-trail { justify-self: stretch; }
+    .q-dataset .dataset-bar-trail .btn { flex: 1; }
+}
 
 /* The review call-to-action carries a count, so it must not shrink away. */
 .q-review-cta { white-space: nowrap; }

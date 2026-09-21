@@ -16,7 +16,7 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import {
-  Upload, FileText, Sparkles, CheckCircle2, Loader2, FileStack,
+  Upload, Sparkles, CheckCircle2, Loader2,
   ClipboardCheck, FilePlus2, ArrowRight, AlertCircle, RefreshCw,
 } from 'lucide-react';
 import { useToast } from '../components/Toast.jsx';
@@ -26,16 +26,12 @@ import AppShell from '../components/AppShell.jsx';
 import '../styles/wizard.css';
 
 const STAGES = [
-  { key: 'upload', label: 'Upload Syllabus', icon: Upload },
-  { key: 'extracting', label: 'Extracting Text', icon: FileText },
-  { key: 'embedding', label: 'Embedding Chunks', icon: FileStack },
-  { key: 'tos_generating', label: 'Generating Blueprint', icon: Sparkles },
-  { key: 'question_generating', label: 'Generating Questions', icon: Sparkles },
-  { key: 'review', label: 'Review & Approve', icon: ClipboardCheck },
-  { key: 'exam_ready', label: 'Create Exam', icon: FilePlus2 },
+  { key: 'source', label: 'Add source', hint: 'Your syllabus or reference', icon: Upload },
+  { key: 'generate', label: 'Generate', hint: 'Blueprint and questions', icon: Sparkles },
+  { key: 'review', label: 'Review', hint: 'Approve the strongest items', icon: ClipboardCheck },
+  { key: 'exam', label: 'Create exam', hint: 'Assemble and publish', icon: FilePlus2 },
 ];
-
-const STAGE_ORDER = STAGES.map((s) => s.key);
+const AUTO_STAGES = ['extracting', 'embedding', 'tos_generating', 'question_generating'];
 
 export default function WizardPage() {
   const toast = useToast();
@@ -80,8 +76,6 @@ export default function WizardPage() {
     return () => clearInterval(pollRef.current);
   }, [selectedSubject, loadPipeline]);
 
-  const currentStageIndex = pipeline ? STAGE_ORDER.indexOf(pipeline.stage) : -1;
-
   async function handleFile(file) {
     if (!selectedSubject) { toast.error('Select a subject first.'); return; }
     setUploading(true);
@@ -101,45 +95,55 @@ export default function WizardPage() {
     }
   }
 
-  const stageStatus = (stageKey) => {
-    if (!pipeline) return 'pending';
-    const idx = STAGE_ORDER.indexOf(stageKey);
-    if (idx < currentStageIndex) return 'done';
-    if (idx === currentStageIndex) {
-      if (stageKey.includes('failed')) return 'failed';
-      if (['extracting', 'embedding', 'tos_generating', 'question_generating'].includes(stageKey)) return 'active';
-      return 'current';
-    }
-    return 'pending';
-  };
-
   // Map failed stages
   const effectiveStage = pipeline?.stage || 'upload';
   const failedStage = effectiveStage.endsWith('_failed') ? effectiveStage : null;
 
+  const stageStatus = (stageKey) => {
+    if (!pipeline) return 'pending';
+    const hasExam = Boolean(pipeline.exam);
+    const autoFailed = Boolean(failedStage);
+    if (stageKey === 'source') return effectiveStage === 'upload' ? 'current' : 'done';
+    if (stageKey === 'generate') {
+      if (autoFailed) return 'failed';
+      if (AUTO_STAGES.includes(effectiveStage)) return 'active';
+      if (['review', 'exam_ready'].includes(effectiveStage) || hasExam) return 'done';
+      return 'pending';
+    }
+    if (stageKey === 'review') {
+      if (effectiveStage === 'review') return 'current';
+      if (effectiveStage === 'exam_ready' || hasExam) return 'done';
+      return 'pending';
+    }
+    if (stageKey === 'exam') {
+      if (hasExam) return 'done';
+      return effectiveStage === 'exam_ready' ? 'current' : 'pending';
+    }
+    return 'pending';
+  };
+
   return (
-    <AppShell activeNav="wizard" pageTitle="Exam Wizard">
-      <header className="list-head">
-        <div className="list-head-main">
-          <h1 className="list-head-title">Exam Wizard</h1>
-          <details className="list-head-info">
-            <summary aria-label="About"><AlertCircle size={16} /></summary>
-            <p>Upload a syllabus and the system auto-generates the blueprint, questions, and exam. You review and approve at each stage.</p>
-          </details>
+    <AppShell activeNav="wizard" pageTitle="Build an exam">
+      <header className="wizard-head">
+        <div className="wizard-head-copy">
+          <span className="wizard-eyebrow"><Sparkles size={13} /> Guided workspace</span>
+          <h1>Build an exam</h1>
+          <p>Choose a subject and add one source. Nexam handles the setup work; you review the questions and stay in control.</p>
         </div>
-        <div className="list-head-actions">
+        <div className="wizard-subject-picker">
+          <label htmlFor="wizard-subject">Subject</label>
           <select
+            id="wizard-subject"
             className="form-select"
             value={selectedSubject}
             onChange={(e) => setSelectedSubject(e.target.value)}
-            style={{ minWidth: 200 }}
           >
             <option value="">Select subject…</option>
             {subjects.map((s) => (
               <option key={s.id} value={s.id}>{s.code || s.name} — {s.name}</option>
             ))}
           </select>
-          <button className="btn btn-outline btn-sm" onClick={loadPipeline} title="Refresh">
+          <button className="wizard-refresh" onClick={loadPipeline} title="Refresh" aria-label="Refresh workflow status">
             <RefreshCw size={14} />
           </button>
         </div>
@@ -158,14 +162,13 @@ export default function WizardPage() {
           <div className="wizard-stages">
             {STAGES.map((stage, idx) => {
               const status = stageStatus(stage.key);
-              const failedKey = failedStage?.replace('_failed', '');
-              const isFailed = failedKey === stage.key;
+              const isFailed = status === 'failed';
               const Icon = stage.icon;
               return (
                 <div key={stage.key} className={`wizard-stage ${status} ${isFailed ? 'failed' : ''}`}>
                   <div className="wizard-stage-icon">
                     {status === 'done' ? <CheckCircle2 size={20} /> :
-                     status === 'active' || status === 'current' ? <Loader2 size={20} className="spin" /> :
+                     status === 'active' ? <Loader2 size={20} className="spin" /> :
                      isFailed ? <AlertCircle size={20} /> :
                      <Icon size={20} />}
                   </div>
@@ -173,10 +176,10 @@ export default function WizardPage() {
                     <span className="wizard-stage-name">{stage.label}</span>
                     <span className="wizard-stage-status">
                       {status === 'done' ? 'Complete' :
-                       status === 'active' ? 'In progress…' :
-                       status === 'current' ? 'Ready' :
+                       status === 'active' ? 'Working automatically…' :
+                       status === 'current' ? stage.hint :
                        isFailed ? 'Failed' :
-                       'Waiting'}
+                       stage.hint}
                     </span>
                   </div>
                   {idx < STAGES.length - 1 && <div className="wizard-stage-connector" />}

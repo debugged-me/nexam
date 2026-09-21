@@ -9,6 +9,7 @@
  *   POST   /api/questions/:id/approve     — draft → active (records approver)
  *   POST   /api/questions/:id/reject      — delete a draft
  *   POST   /api/questions/bulk-approve   — approve many drafts
+ *   POST   /api/questions/bulk-reject     — reject many (soft, any status)
  *   POST   /api/questions/bulk-delete     — delete many
  *   POST   /api/questions/import          — parse GIFT/XML, create drafts
  *   GET    /api/questions/:id/similarity  — view similarity matches
@@ -326,6 +327,35 @@ router.post('/bulk-approve', async (req, res, next) => {
     }
 
     res.json({ approved: result.affectedRows });
+  } catch (err) { next(err); }
+});
+
+// ── Bulk reject (soft: status → 'rejected') ──────────
+router.post('/bulk-reject', async (req, res, next) => {
+  try {
+    const ids = Array.isArray(req.body?.ids) ? req.body.ids : [];
+    const validIds = ids.map(String).filter((id) =>
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)
+    );
+    if (!validIds.length) return res.json({ rejected: 0 });
+
+    // Mirrors the single reject: no status precondition, so an active
+    // question can be rejected too — which means every affected question
+    // has to leave the vector index. Collect them before the UPDATE.
+    const [owned] = await pool.query(
+      `SELECT id, subject_id FROM questions WHERE id IN (:ids) AND created_by = :uid`,
+      { ids: validIds, uid: req.user.id }
+    );
+
+    const [result] = await pool.query(
+      `UPDATE questions SET status = 'rejected', similarity_flag = 'rejected', updated_at = NOW()
+       WHERE id IN (:ids) AND created_by = :uid`,
+      { ids: validIds, uid: req.user.id }
+    );
+
+    for (const q of owned) await removeQuestionFromIndex(q.subject_id, q.id);
+
+    res.json({ rejected: result.affectedRows });
   } catch (err) { next(err); }
 });
 

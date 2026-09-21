@@ -7,6 +7,7 @@
  *   PUT    /api/tos/:id              — update
  *   DELETE /api/tos/:id              — delete
  *   POST   /api/tos/:id/topics       — add topic
+ *   PUT    /api/tos/:id/topics/:topicId — update topic
  *   DELETE /api/tos/:id/topics/:topicId — delete topic
  *   POST   /api/tos/bulk-delete      — delete many
  *
@@ -52,13 +53,16 @@ async function recalcTopicItemCounts(tosId) {
   );
   if (!topics.length) return;
 
-  const totalHours = topics.reduce((s, t) => s + (Number(t.instructional_hours) || 0), 0);
+  // Clamp at 0 so a stray negative hour can never produce a negative item_count.
+  const hoursOf = (t) => Math.max(0, Number(t.instructional_hours) || 0);
+  const totalHours = topics.reduce((s, t) => s + hoursOf(t), 0);
   const counts = {};
   const remainders = [];
   let allocated = 0;
 
   for (const t of topics) {
-    const share = totalHours > 0 ? (Number(t.instructional_hours) || 0) / totalHours : 1 / topics.length;
+    // No hours recorded yet (every topic defaults to 0) — an even split beats a divide-by-zero NaN.
+    const share = totalHours > 0 ? hoursOf(t) / totalHours : 1 / topics.length;
     const exact = share * totalItems;
     const whole = Math.floor(exact);
     counts[t.id] = whole;
@@ -218,6 +222,9 @@ router.put('/:id', async (req, res, next) => {
       if (!subjRows.length) return res.status(403).json({ error: 'Subject not owned by you.' });
     }
 
+    const nextTotalItems = Number(req.body.total_items || tos.total_items);
+    const totalItemsChanged = nextTotalItems !== Number(tos.total_items);
+
     const existingWeights = typeof tos.bloom_weights === 'string'
       ? JSON.parse(tos.bloom_weights || 'null') : tos.bloom_weights;
     const bloom = req.body.bloom_weights || existingWeights || DEFAULT_BLOOM;
@@ -228,13 +235,13 @@ router.put('/:id', async (req, res, next) => {
         id: tos.id,
         subject_id: req.body.subject_id || tos.subject_id,
         title: String(req.body.title || tos.title).trim(),
-        total_items: Number(req.body.total_items || tos.total_items),
+        total_items: nextTotalItems,
         bloom_weights: JSON.stringify(bloom),
       }
     );
 
-    // total_items may have changed — re-derive per-topic item counts.
-    await recalcTopicItemCounts(tos.id);
+    // Only the item budget invalidates the per-topic split — re-derive when it moves.
+    if (totalItemsChanged) await recalcTopicItemCounts(tos.id);
 
     const [rows] = await pool.query(`SELECT * FROM tos WHERE id = :id`, { id: tos.id });
     rows[0].bloom_weights = JSON.parse(rows[0].bloom_weights);
@@ -302,11 +309,60 @@ router.post('/:id/topics', async (req, res, next) => {
       }
     );
 
-    // Item counts are derived from instructional hours, not entered by hand.
+    // Any item_count sent by the client is only a seed — counts are derived from
+    // instructional hours, so re-read the row after the recalc normalizes it.
     await recalcTopicItemCounts(tos.id);
 
     const [rows] = await pool.query(`SELECT * FROM tos_topics WHERE id = :id`, { id: topicId });
     res.status(201).json({ topic: rows[0] });
+  } catch (err) { next(err); }
+});
+
+// ── Update topic ──────────────────────────────────────
+router.put('/:id/topics/:topicId', async (req, res, next) => {
+  try {
+    const tos = await getOwned(req.params.id, req.user.id);
+    if (!tos) return res.status(404).json({ error: 'TOS not found.' });
+
+    const [existing] = await pool.query(
+      `SELECT * FROM tos_topics WHERE id = :topicId AND tos_id = :tosId LIMIT 1`,
+      { topicId: req.params.topicId, tosId: tos.id }
+    );
+    if (!existing.length) return res.status(404).json({ error: 'Topic not found.' });
+
+    const { title, instructional_hours, learning_outcomes } = req.body || {};
+    const sets = [];
+    const params = { topicId: existing[0].id, tosId: tos.id };
+
+    if (title !== undefined) {
+      if (!String(title).trim()) return res.status(422).json({ error: 'Topic title is required.' });
+      sets.push('title = :title');
+      params.title = String(title).trim();
+    }
+    let hoursChanged = false;
+    if (instructional_hours !== undefined) {
+      const hours = Number(instructional_hours) || 0;
+      if (hours < 0) return res.status(422).json({ error: 'Instructional hours cannot be negative.' });
+      hoursChanged = hours !== Number(existing[0].instructional_hours);
+      sets.push('instructional_hours = :hours');
+      params.hours = hours;
+    }
+    if (learning_outcomes !== undefined) {
+      sets.push('learning_outcomes = :outcomes');
+      params.outcomes = normalizeOutcomes(learning_outcomes);
+    }
+    if (!sets.length) return res.status(422).json({ error: 'Nothing to update.' });
+
+    await pool.query(
+      `UPDATE tos_topics SET ${sets.join(', ')} WHERE id = :topicId AND tos_id = :tosId`,
+      params
+    );
+
+    // Hours drive the proportional split — re-derive every sibling's item_count.
+    if (hoursChanged) await recalcTopicItemCounts(tos.id);
+
+    const [rows] = await pool.query(`SELECT * FROM tos_topics WHERE id = :id`, { id: existing[0].id });
+    res.json({ topic: rows[0] });
   } catch (err) { next(err); }
 });
 

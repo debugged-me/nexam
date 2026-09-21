@@ -165,3 +165,103 @@
     border-color: var(--action-100);
     color: var(--action-600);
 }
+
+/* ==========================================================================
+   Question bank grid
+   ========================================================================== */
+
+/* ---- Status: three states, a dot plus a label (never a pill) ----------
+   grid.css owns .g-state / .is-live / .is-draft. 'rejected' is a soft status
+   the instructor has to be able to audit — precision is approved / (approved
+   + rejected) — so it reads as its own state rather than collapsing to Draft.
+   Colour marks the decision, and the label still carries the meaning. */
+.g-state.is-rejected { color: var(--ink-3); }
+.g-state.is-rejected::before {
+    background: var(--red-600);
+    box-shadow: 0 0 0 4px rgba(220, 38, 38, .12);
+}
+
+/* ---- Toolbar filter cluster ------------------------------------------
+   Six facets plus the clear button. They wrap as a block so the search field
+   keeps its own line rather than being squeezed to nothing. */
+.q-filters {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+    min-width: 0;
+}
+
+.q-filters .q-filter-select { max-width: 190px; }
+
+/* The review call-to-action carries a count, so it must not shrink away. */
+.q-review-cta { white-space: nowrap; }
+
+.q-foot-note { color: var(--ink-3); }
+
+/* ---- Import modal ----------------------------------------------------- */
+.q-import-source {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-bottom: 14px;
+}
+
+/* The file input is driven by its label, so it is hidden but still focusable
+   from the keyboard (never display:none). */
+.q-import-pick { position: relative; overflow: hidden; cursor: pointer; }
+.q-import-pick input[type="file"] {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    opacity: 0;
+    cursor: pointer;
+}
+
+.q-import-filename {
+    min-width: 0;
+    flex: 1 1 200px;
+    color: var(--ink-3);
+    font-size: var(--text-xs);
+    overflow-wrap: anywhere;
+}
+
+.q-import-textarea {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: var(--text-xs);
+    line-height: 1.55;
+    white-space: pre;
+    overflow-x: auto;
+}
+
+/* ---- Responsive: the toolbar, selection bar and row actions at phone
+   width. Every control stays a 44px tap target and nothing overflows. ---- */
+@media (max-width: 768px) {
+    .q-dataset .dataset-bar-trail { flex: 1 1 100%; }
+    .q-dataset .dataset-bar-trail .btn { flex: 1 1 auto; justify-content: center; min-height: 44px; }
+
+    .q-filters {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        width: 100%;
+        gap: 8px;
+    }
+    .q-filters .q-filter-select { max-width: none; width: 100%; height: 44px; }
+    .q-filters .ds-filter-clear { grid-column: 1 / -1; justify-self: start; height: 44px; }
+
+    .q-dataset .dataset-select-bar { flex-wrap: wrap; row-gap: 8px; }
+    .q-dataset .ds-select-count { flex: 1 1 100%; margin-right: 0; }
+    .q-dataset .dataset-select-bar .ds-btn {
+        flex: 1 1 auto;
+        min-height: 44px;
+        justify-content: center;
+    }
+
+    .q-dataset .row-actions .btn-xs { min-width: 36px; min-height: 36px; }
+}
+
+@media (max-width: 420px) {
+    .q-filters { grid-template-columns: 1fr; }
+}

@@ -35,18 +35,38 @@ async function request(method, path, body) {
   if (token) headers.Authorization = `Bearer ${token}`;
 
   // Abort requests that never settle so UI spinners can't hang forever.
+  // The timer stays armed through res.json() too — a response that stalls
+  // mid-body (proxy hiccup) would otherwise hang past the timeout.
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
 
-  let res;
   try {
-    res = await fetch(`${API_BASE}${path}`, {
+    const res = await fetch(`${API_BASE}${path}`, {
       method,
       headers,
       body: body ? JSON.stringify(body) : undefined,
       signal: controller.signal,
     });
+
+    let data = null;
+    const contentType = res.headers.get('content-type') || '';
+    if (contentType.includes('application/json')) {
+      try {
+        data = await res.json();
+      } catch (err) {
+        if (err?.name === 'AbortError') throw err;
+        data = null; // malformed JSON — treat as empty body
+      }
+    }
+
+    if (!res.ok) {
+      const message = data?.error || `Request failed (${res.status}).`;
+      throw new ApiError(message, res.status, data);
+    }
+
+    return data;
   } catch (err) {
+    if (err instanceof ApiError) throw err;
     if (err?.name === 'AbortError') {
       throw new ApiError('The request timed out. Is the API server running?', 0, null);
     }
@@ -54,19 +74,6 @@ async function request(method, path, body) {
   } finally {
     clearTimeout(timer);
   }
-
-  let data = null;
-  const contentType = res.headers.get('content-type') || '';
-  if (contentType.includes('application/json')) {
-    data = await res.json().catch(() => null);
-  }
-
-  if (!res.ok) {
-    const message = data?.error || `Request failed (${res.status}).`;
-    throw new ApiError(message, res.status, data);
-  }
-
-  return data;
 }
 
 export const api = {

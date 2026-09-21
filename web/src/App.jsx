@@ -2,7 +2,8 @@
  * App — root router.
  *
  * Auth pages: /login, /register, /verify, /forgot, /reset
- * App pages:  /dashboard, /subjects, /questions, /tos, /exams, /materials, /analytics, /account
+ * App pages:  /dashboard, /subjects, /questions, /questions/review, /tos, /exams,
+ *             /materials, /analytics, /account
  *
  * Protected routes are wrapped in <RequireAuth> which redirects to /login
  * if no JWT is present.
@@ -21,6 +22,7 @@ import DashboardPage from './pages/DashboardPage.jsx';
 import SubjectsPage from './pages/SubjectsPage.jsx';
 import QuestionsPage from './pages/QuestionsPage.jsx';
 import SimilarityReviewPage from './pages/SimilarityReviewPage.jsx';
+import ReviewQueuePage from './pages/ReviewQueuePage.jsx';
 import TosPage from './pages/TosPage.jsx';
 import TosDetailPage from './pages/TosDetailPage.jsx';
 import ExamsPage from './pages/ExamsPage.jsx';
@@ -42,6 +44,7 @@ import './styles/modal.css';
 import './styles/dashboard.css';
 import './styles/subjects.css';
 import './styles/questions.css';
+import './styles/review.css';
 import './styles/tos.css';
 import './styles/exams.css';
 import './styles/materials.css';
@@ -100,6 +103,7 @@ export default function App() {
             <Route path="/dashboard" element={<RequireAuth><DashboardPage /></RequireAuth>} />
             <Route path="/subjects" element={<RequireAuth><SubjectsPage /></RequireAuth>} />
             <Route path="/questions" element={<RequireAuth><QuestionsPage /></RequireAuth>} />
+            <Route path="/questions/review" element={<RequireAuth><ReviewQueuePage /></RequireAuth>} />
             <Route path="/questions/:id/similarity" element={<RequireAuth><SimilarityReviewPage /></RequireAuth>} />
             <Route path="/tos" element={<RequireAuth><TosPage /></RequireAuth>} />
             <Route path="/tos/:id" element={<RequireAuth><TosDetailPage /></RequireAuth>} />

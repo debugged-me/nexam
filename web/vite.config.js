@@ -12,6 +12,13 @@ export default defineConfig({
       '/api': {
         target: 'http://localhost:3000',
         changeOrigin: true,
+        configure: (proxy) => {
+          // Strip Origin so the API's CORS whitelist doesn't reject requests
+          // from dev-only origins (preview proxies, LAN IPs, random ports).
+          // Browser-side the call stays same-origin (/api), so no CORS
+          // response headers are needed anyway.
+          proxy.on('proxyReq', (proxyReq) => proxyReq.removeHeader('origin'));
+        },
       },
     },
   },

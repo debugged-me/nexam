@@ -219,9 +219,17 @@ export default function ExamFormPage() {
                         <label className="form-label" htmlFor="format">Format <span className="req">*</span></label>
                         <select id="format" name="format" className="form-control form-select" required
                           value={form.format} onChange={(e) => setForm({ ...form, format: e.target.value })}>
-                          <option value="print">Print</option>
-                          <option value="digital">Digital</option>
+                          {/* Wire values stay 'print' / 'digital' — both the Node API
+                              (EXAM_FORMATS) and the legacy PHP controller validate them.
+                              Only the labels describe what each one actually produces. */}
+                          <option value="print">Print — paper exam</option>
+                          <option value="digital">LMS export — no paper</option>
                         </select>
+                        <small className="form-hint">
+                          Print builds PDF exam papers, answer keys and OMR answer sheets. LMS export builds a
+                          Moodle GIFT or Canvas XML file you upload into your LMS yourself — Nexam does not connect
+                          to an LMS and does not deliver or proctor exams online.
+                        </small>
                       </div>
                       <div className="form-group">
                         <label className="form-label" htmlFor="set_count">Exam Sets</label>

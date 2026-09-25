@@ -165,6 +165,12 @@ button { font-family: inherit; }
   color: var(--sb-text-active);
   font-weight: 500;
 }
+/* Kill the UA focus outline — it's what draws the bright ring on the tapped
+   active item. Keyboard users still get an accent ring via :focus-visible. */
+.nav-item { -webkit-tap-highlight-color: transparent; }
+.nav-item:focus { outline: none; }
+.nav-item:focus-visible { outline: 2px solid var(--brand-accent); outline-offset: -2px; }
+.nav-subitem { -webkit-tap-highlight-color: transparent; }
 .nav-item.active svg { opacity: 1; color: var(--brand-accent); background: rgba(102, 183, 250, .18); }
 .nav-item--featured { margin: 0; }
 .nav-item.is-parent-active {
@@ -177,6 +183,8 @@ button { font-family: inherit; }
 
 .nav-subitems { display: flex; flex-direction: column; gap: 2px; margin: -1px 0 3px 18px; padding: 3px 0 4px 14px; border-left: 1px solid rgba(167, 186, 217, .2); }
 .nav-subitem { display: flex; min-height: 34px; align-items: center; gap: 9px; padding: 0 9px; border-radius: 7px; color: var(--sb-text); font-size: .74rem; transition: color .15s, background .15s; }
+.nav-subitem:focus { outline: none; }
+.nav-subitem:focus-visible { outline: 2px solid var(--brand-accent); outline-offset: -2px; }
 .nav-subitem svg { opacity: .65; }
 .nav-subitem:hover { background: rgba(255, 255, 255, .05); color: #fff; }
 .nav-subitem.active { background: rgba(99, 179, 245, .16); color: #fff; box-shadow: inset 2px 0 0 var(--brand-accent); }
@@ -194,6 +202,8 @@ button { font-family: inherit; }
   transition: background .15s ease, border-color .15s ease;
 }
 .sidebar-foot:hover { background: rgba(255, 255, 255, .09); border-color: rgba(255, 255, 255, .15); }
+.sidebar-foot:focus { outline: none; }
+.sidebar-foot:focus-visible { outline: 2px solid var(--brand-accent); outline-offset: -2px; }
 .sidebar-foot .avatar { background: rgba(255, 255, 255, .12); border-color: rgba(255, 255, 255, .16); color: #fff; }
 .sidebar-foot-icon { display: flex; width: 29px; height: 29px; flex-shrink: 0; align-items: center; justify-content: center; border-radius: 8px; background: rgba(102, 183, 250, .14); color: #78c1ff; }
 .sidebar-foot-meta { min-width: 0; flex: 1; }

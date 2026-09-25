@@ -152,6 +152,30 @@ class Nexam_api
         return ['status' => $status, 'body' => json_decode($response, true)];
     }
 
+    /** Make a PUT request to the Node API. */
+    public function put($path, $data = [])
+    {
+        $url = $this->base_url . '/' . ltrim($path, '/');
+        $ch = curl_init($url);
+        curl_setopt_array($ch, [
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_CUSTOMREQUEST => 'PUT',
+            CURLOPT_POSTFIELDS => json_encode($data),
+            CURLOPT_HTTPHEADER => [
+                'Authorization: Bearer ' . $this->get_token(),
+                'Content-Type: application/json',
+                'Accept: application/json',
+            ],
+            CURLOPT_TIMEOUT => 30,
+        ]);
+        $response = curl_exec($ch);
+        $status = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $error = curl_error($ch);
+        curl_close($ch);
+        if ($error) return ['status' => 0, 'body' => null, 'error' => $error];
+        return ['status' => $status, 'body' => json_decode($response, true)];
+    }
+
     /**
      * Upload a file to the Node API via multipart form.
      *

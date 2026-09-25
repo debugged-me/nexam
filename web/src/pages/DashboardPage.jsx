@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   ArrowRight, BookOpen, ChevronRight, CircleHelp, FileText,
-  ListChecks, Plus, Sparkles, Upload,
+  ListChecks, PanelsTopLeft, Plus, Sparkles, Upload,
 } from 'lucide-react';
 import { useAuth } from '../features/auth/AuthContext.jsx';
 import AppShell from '../components/AppShell.jsx';
@@ -84,14 +84,17 @@ export default function DashboardPage() {
         <div className="dash-overview">
           <dl className="dash-totals" aria-label="Workspace totals">
             {[
-              ['Exams', stats.exams, '/exams'],
-              ['Questions', stats.questions, '/questions'],
-              ['Subjects', stats.subjects, '/subjects'],
-              ['Blueprints', stats.tos, '/tos'],
-            ].map(([label, value, url]) => (
-              <div key={label} className="dash-total">
+              ['Exams', stats.exams, '/exams', 'violet', FileText],
+              ['Questions', stats.questions, '/questions', 'green', CircleHelp],
+              ['Subjects', stats.subjects, '/subjects', 'blue', BookOpen],
+              ['Blueprints', stats.tos, '/tos', 'cyan', PanelsTopLeft],
+            ].map(([label, value, url, tone, Icon]) => (
+              <div key={label} className={`dash-total dash-total--${tone}`}>
                 <dt><Link to={url}>{label}</Link></dt>
-                <dd>{count(value).toLocaleString()}</dd>
+                <dd>
+                  <span className="dash-total-icon" aria-hidden="true"><Icon size={17} /></span>
+                  {count(value).toLocaleString()}
+                </dd>
               </div>
             ))}
           </dl>

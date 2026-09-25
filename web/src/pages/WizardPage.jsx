@@ -4,14 +4,16 @@
  * Shows the full flow on one page with live progress:
  *   1. Upload syllabus
  *   2. Extract + embed (auto)
- *   3. Generate TOS (auto-chained)
- *   4. Generate questions (auto-chained)
- *   5. Review & approve questions
- *   6. Create exam
+ *   3. Generate TOS draft (auto-chained)
+ *   4. Instructor reviews and finalizes the TOS
+ *   5. Instructor starts grounded question generation
+ *   6. Review & approve questions
+ *   7. Create exam
  *
  * The instructor picks a subject, and the page polls the pipeline
- * status endpoint to show where things are. Auto-chaining means
- * steps 2-4 happen without any clicks after upload.
+ * status endpoint to show where things are. Extraction and the TOS draft are
+ * automatic; the scope-required instructor checkpoint prevents question
+ * generation until that blueprint is finalized.
  */
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { Link } from 'react-router-dom';
@@ -107,6 +109,7 @@ export default function WizardPage() {
     if (stageKey === 'generate') {
       if (autoFailed) return 'failed';
       if (AUTO_STAGES.includes(effectiveStage)) return 'active';
+      if (['tos_review', 'ready_to_generate'].includes(effectiveStage)) return 'current';
       if (['review', 'exam_ready'].includes(effectiveStage) || hasExam) return 'done';
       return 'pending';
     }
@@ -220,6 +223,26 @@ export default function WizardPage() {
               </div>
             )}
 
+            {effectiveStage === 'tos_review' && pipeline.tos && (
+              <div className="wizard-card">
+                <h3>Review & Finalize the Blueprint</h3>
+                <p>Confirm the extracted topics, instructional hours, item allocation, and Bloom weights. Question generation stays locked until you finalize this TOS.</p>
+                <Link to={`/tos/${pipeline.tos.id}`} className="btn btn-primary">
+                  <ClipboardCheck size={16} /> Review TOS <ArrowRight size={14} />
+                </Link>
+              </div>
+            )}
+
+            {effectiveStage === 'ready_to_generate' && pipeline.tos && (
+              <div className="wizard-card">
+                <h3>Generate Grounded Questions</h3>
+                <p>The TOS is finalized. Start generation from the blueprint; drafts will be grounded in retrieved source chunks and remain unavailable to exams until duplicate checking and instructor approval finish.</p>
+                <Link to={`/tos/${pipeline.tos.id}`} className="btn btn-primary">
+                  <Sparkles size={16} /> Open Finalized TOS <ArrowRight size={14} />
+                </Link>
+              </div>
+            )}
+
             {effectiveStage === 'question_generating' && (
               <div className="wizard-card">
                 <h3>Generating Questions</h3>
@@ -326,7 +349,7 @@ export default function WizardPage() {
             onChange={(e) => { const f = e.target.files[0]; if (f) handleFile(f); }} />
         </div>
         <p className="text-muted" style={{ marginTop: 12, fontSize: 'var(--text-sm)' }}>
-          After upload, the system automatically: extracts text → embeds chunks → generates TOS blueprint → generates questions. You then review and approve.
+          After upload, the system extracts text, embeds grounded chunks, and drafts a TOS. You review and finalize the TOS before starting question generation and instructor approval.
         </p>
       </Modal>
     </AppShell>

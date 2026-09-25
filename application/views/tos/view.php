@@ -1,5 +1,5 @@
 <div class="page-content">
-
+    <?php $finalized = isset($tos->status) && $tos->status === 'finalized'; ?>
 
     <div class="page-header">
         <div>
@@ -11,32 +11,47 @@
                     <?php if ($subject->code): ?><span class="badge badge-gray ml-1"><?php echo htmlspecialchars($subject->code); ?></span><?php endif; ?>
                 </a>
             <?php endif; ?>
+            <span class="badge <?php echo $finalized ? 'badge-green' : 'badge-amber'; ?> ml-1">
+                <?php echo $finalized ? 'Finalized' : 'Draft — review required'; ?>
+            </span>
         </div>
         <div class="header-actions">
-            <button type="button" class="btn btn-primary btn-sm" id="btn-generate-questions" data-tos-id="<?php echo rawurlencode($tos->id); ?>" title="AI drafts questions from your materials based on this blueprint">
+            <?php if (!$finalized): ?>
+                <form action="<?php echo site_url('tos/' . rawurlencode($tos->id) . '/finalize'); ?>" method="post" class="inline-action-form">
+                    <input type="hidden" name="<?php echo $csrf_name; ?>" value="<?php echo $csrf_hash; ?>">
+                    <button type="button" class="btn btn-outline btn-sm" data-confirm
+                            data-confirm-title="Finalize this TOS?" data-confirm-type="warning"
+                            data-confirm-message="Confirm the topics, hours, item counts, and Bloom weights. Finalizing locks the blueprint and enables question generation.">
+                        <i data-lucide="lock"></i> Finalize TOS
+                    </button>
+                </form>
+            <?php endif; ?>
+            <button type="button" class="btn btn-primary btn-sm" id="btn-generate-questions" data-tos-id="<?php echo rawurlencode($tos->id); ?>" title="AI drafts questions from your materials based on this blueprint" <?php echo $finalized ? '' : 'disabled'; ?>>
                 <i data-lucide="sparkles"></i> Auto-generate Questions
             </button>
-            <a href="<?php echo site_url('exams/create?tos=' . rawurlencode($tos->id)); ?>" class="btn btn-outline btn-sm">
-                <i data-lucide="file-text"></i> Build Exam
-            </a>
-            <a href="<?php echo site_url('tos/edit/' . rawurlencode($tos->id)); ?>" class="btn btn-outline btn-sm"><i data-lucide="pencil"></i> Edit</a>
+            <?php if ($finalized): ?>
+                <a href="<?php echo site_url('exams/create?tos=' . rawurlencode($tos->id)); ?>" class="btn btn-outline btn-sm">
+                    <i data-lucide="file-text"></i> Build Exam
+                </a>
+            <?php endif; ?>
+            <?php if (!$finalized): ?><a href="<?php echo site_url('tos/edit/' . rawurlencode($tos->id)); ?>" class="btn btn-outline btn-sm"><i data-lucide="pencil"></i> Edit</a><?php endif; ?>
         </div>
     </div>
 
     <div class="tos-workflow-callout">
         <div class="tos-workflow-step">
             <span class="tos-workflow-num">1</span>
-            <span class="tos-workflow-text"><strong>Auto-generate Questions</strong> — AI drafts questions from your uploaded materials, aligned to this blueprint's Bloom distribution.</span>
+            <span class="tos-workflow-text"><strong>Review & Finalize</strong> — Confirm topics, hours, item counts, and Bloom weights before locking the blueprint.</span>
         </div>
         <i data-lucide="chevron-right" class="tos-workflow-arrow"></i>
         <div class="tos-workflow-step">
             <span class="tos-workflow-num">2</span>
-            <span class="tos-workflow-text"><strong>Review & Approve</strong> — Drafts appear on the Questions page. Approve the good ones to make them active.</span>
+            <span class="tos-workflow-text"><strong>Generate & Approve</strong> — AI drafts grounded questions; duplicate checking and instructor approval are required.</span>
         </div>
         <i data-lucide="chevron-right" class="tos-workflow-arrow"></i>
         <div class="tos-workflow-step">
             <span class="tos-workflow-num">3</span>
-            <span class="tos-workflow-text"><strong>Build Exam</strong> — Pulls from your approved (active) question bank to fill this blueprint.</span>
+            <span class="tos-workflow-text"><strong>Build Set A/B</strong> — Uses only cleared questions and fills every topic × Bloom allocation exactly.</span>
         </div>
     </div>
 
@@ -143,13 +158,13 @@
                                 <td><span class="badge badge-gray"><?php echo (int) ($tp->item_count ?? 0); ?></span></td>
                                 <td>
                                     <div class="action-icons">
-                                        <form action="<?php echo site_url('tos/' . rawurlencode($tos->id) . '/delete-topic/' . rawurlencode($tp->id)); ?>" method="post" class="inline-action-form">
+                                        <?php if (!$finalized): ?><form action="<?php echo site_url('tos/' . rawurlencode($tos->id) . '/delete-topic/' . rawurlencode($tp->id)); ?>" method="post" class="inline-action-form">
                                             <input type="hidden" name="<?php echo $csrf_name; ?>" value="<?php echo $csrf_hash; ?>">
                                             <button type="button" class="action-icon danger" aria-label="Remove <?php echo htmlspecialchars($tp->title); ?>"
                                                     data-confirm
                                                     data-confirm-title="Remove topic?" data-confirm-type="delete"
                                                     data-confirm-message="This topic will be removed from the blueprint. This cannot be undone."><i data-lucide="trash-2"></i></button>
-                                        </form>
+                                        </form><?php endif; ?>
                                     </div>
                                 </td>
                             </tr>
@@ -159,7 +174,7 @@
             </div>
         <?php endif; ?>
 
-        <div class="card-body card-body-divider">
+        <?php if (!$finalized): ?><div class="card-body card-body-divider">
             <form action="<?php echo site_url('tos/' . rawurlencode($tos->id) . '/add-topic'); ?>" method="post">
                 <input type="hidden" name="<?php echo $csrf_name; ?>" value="<?php echo $csrf_hash; ?>">
                 <div class="inline-form">
@@ -180,7 +195,7 @@
                     <textarea id="topic_outcomes" name="learning_outcomes" class="form-control" rows="2" placeholder="e.g. Explain the difference between arrays and linked lists"></textarea>
                 </div>
             </form>
-        </div>
+        </div><?php endif; ?>
     </div>
 
 </div>

@@ -133,8 +133,8 @@ void main() {
     final bytes = renderSheet(
       types: {'types': ['i', 'i']},
       marks: {
-        1: [0], // ✓
-        2: [1], // ✗
+        1: [0], // C (Correct)
+        2: [1], // I (Incorrect)
       },
     );
     final out = OmrScanner().detect(

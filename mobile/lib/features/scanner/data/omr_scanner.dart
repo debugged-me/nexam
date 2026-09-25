@@ -187,7 +187,7 @@ class OmrScanner {
       case 'identification': {
         final a = subs.isEmpty ? '' : subs.first.answer;
         final canonical =
-            a == '✓' ? 'CORRECT' : a == '✗' ? 'INCORRECT' : '';
+            a == 'C' ? 'CORRECT' : a == 'I' ? 'INCORRECT' : '';
         return OmrDetection(
           itemNumber: itemNumber,
           type: type,

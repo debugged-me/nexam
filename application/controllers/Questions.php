@@ -93,7 +93,9 @@ class Questions extends MY_Controller
         $ids = $this->input->post('ids', true);
         $ids = is_array($ids) ? array_filter(array_map('strval', $ids), fn($v) => preg_match('/^[0-9a-f\-]{36}$/i', $v)) : [];
 
-        $deleted = $this->Question_model->delete_many($ids, $this->user_id);
+        $this->load->library('nexam_api');
+        $response = $this->nexam_api->post('questions/bulk-delete', ['ids' => array_values($ids)]);
+        $deleted = $response['body']['deleted'] ?? 0;
 
         $this->session->set_flashdata('toast', $deleted > 0
             ? ['type' => 'success', 'message' => $deleted . ' question' . ($deleted === 1 ? '' : 's') . ' deleted.']
@@ -122,11 +124,11 @@ class Questions extends MY_Controller
         }
 
         $data = $this->_collect_post();
-        $data['created_by'] = $this->user_id;
-
-        $id = $this->Question_model->create($data);
-        if (!$id) {
-            return $this->_json(500, ['message' => 'Failed to create question.']);
+        $data['status'] = 'draft';
+        $this->load->library('nexam_api');
+        $response = $this->nexam_api->post('questions', $this->_api_payload($data));
+        if ($response['status'] !== 201) {
+            return $this->_json($response['status'] ?: 500, ['message' => $response['body']['error'] ?? 'Failed to create question.']);
         }
 
         return $this->_json(200, ['message' => 'Question created successfully.']);
@@ -184,10 +186,10 @@ class Questions extends MY_Controller
 
             if ($this->form_validation->run()) {
                 $data = $this->_collect_post();
-                $data['created_by'] = $this->user_id;
-
-                $id = $this->Question_model->create($data);
-                if ($id) {
+                $data['status'] = 'draft';
+                $this->load->library('nexam_api');
+                $response = $this->nexam_api->post('questions', $this->_api_payload($data));
+                if ($response['status'] === 201) {
                     $this->session->set_flashdata('toast', ['type' => 'success', 'message' => 'Question created successfully.']);
                 } else {
                     $this->session->set_flashdata('toast', ['type' => 'error', 'message' => 'Failed to create question.']);
@@ -225,8 +227,13 @@ class Questions extends MY_Controller
 
             if ($this->form_validation->run()) {
                 $data = $this->_collect_post();
-                $this->Question_model->update($id, $data);
-                $this->session->set_flashdata('toast', ['type' => 'success', 'message' => 'Question updated.']);
+                $this->load->library('nexam_api');
+                $response = $this->nexam_api->put('questions/' . rawurlencode($id), $this->_api_payload($data));
+                if ($response['status'] < 200 || $response['status'] >= 300) {
+                    $this->session->set_flashdata('toast', ['type' => 'error', 'message' => $response['body']['error'] ?? 'Question update failed.']);
+                    redirect('questions/edit/' . rawurlencode($id));
+                }
+                $this->session->set_flashdata('toast', ['type' => 'success', 'message' => 'Question updated. Duplicate checking must finish before approval.']);
                 redirect('questions?subject_id=' . rawurlencode($data['subject_id']));
             }
         }
@@ -262,8 +269,11 @@ class Questions extends MY_Controller
             redirect('questions');
         }
 
-        $this->Question_model->delete($id);
-        $this->session->set_flashdata('toast', ['type' => 'delete', 'message' => 'Question deleted.']);
+        $this->load->library('nexam_api');
+        $response = $this->nexam_api->delete('questions/' . rawurlencode($id));
+        $this->session->set_flashdata('toast', $response['status'] >= 200 && $response['status'] < 300
+            ? ['type' => 'delete', 'message' => 'Question deleted.']
+            : ['type' => 'error', 'message' => $response['body']['error'] ?? 'Question could not be deleted.']);
         redirect('questions');
     }
 
@@ -310,6 +320,14 @@ class Questions extends MY_Controller
             'explanation' => $this->input->post('explanation', true) ?: null,
             'status'      => in_array($status, $this->statuses, true) ? $status : 'draft',
         ];
+    }
+
+    /** Convert the legacy form shape to the Node API's canonical JSON shape. */
+    private function _api_payload($data)
+    {
+        $payload = $data;
+        $payload['options'] = $data['options'] ? json_decode($data['options'], true) : null;
+        return $payload;
     }
 
     /** Ensure multiple-choice questions have usable options and a matching answer. */
@@ -380,11 +398,13 @@ class Questions extends MY_Controller
             return;
         }
 
-        $this->Question_model->update($id, [
-            'status'      => 'active',
-            'approved_by' => $this->user_id,
-            'approved_at' => date('Y-m-d H:i:s'),
-        ]);
+        $this->load->library('nexam_api');
+        $response = $this->nexam_api->post('questions/' . rawurlencode($id) . '/approve');
+        if ($response['status'] < 200 || $response['status'] >= 300) {
+            $this->output->set_status_header($response['status'] ?: 500)->set_content_type('application/json')
+                ->set_output(json_encode(['error' => $response['body']['error'] ?? 'Question could not be approved.']));
+            return;
+        }
 
         $this->output->set_content_type('application/json')
             ->set_output(json_encode([
@@ -418,7 +438,13 @@ class Questions extends MY_Controller
 
         // Soft-reject: keep the row so AI-eval metrics still count the
         // instructor's decision. Mirrors the Node API reject endpoint.
-        $this->Question_model->update($id, ['status' => 'rejected']);
+        $this->load->library('nexam_api');
+        $response = $this->nexam_api->post('questions/' . rawurlencode($id) . '/reject');
+        if ($response['status'] < 200 || $response['status'] >= 300) {
+            $this->output->set_status_header($response['status'] ?: 500)->set_content_type('application/json')
+                ->set_output(json_encode(['error' => $response['body']['error'] ?? 'Question could not be rejected.']));
+            return;
+        }
 
         $this->output->set_content_type('application/json')
             ->set_output(json_encode([
@@ -445,18 +471,9 @@ class Questions extends MY_Controller
         $ids = $this->input->post('ids', true);
         $ids = is_array($ids) ? array_filter(array_map('strval', $ids), fn($v) => preg_match('/^[0-9a-f\-]{36}$/i', $v)) : [];
 
-        $approved = 0;
-        foreach ($ids as $qid) {
-            $question = $this->Question_model->get_owned($qid, $this->user_id);
-            if ($question && $question->status === 'draft') {
-                $this->Question_model->update($qid, [
-                    'status'      => 'active',
-                    'approved_by' => $this->user_id,
-                    'approved_at' => date('Y-m-d H:i:s'),
-                ]);
-                $approved++;
-            }
-        }
+        $this->load->library('nexam_api');
+        $response = $this->nexam_api->post('questions/bulk-approve', ['ids' => array_values($ids)]);
+        $approved = $response['body']['approved'] ?? 0;
 
         $this->output->set_content_type('application/json')
             ->set_output(json_encode([
@@ -586,20 +603,13 @@ class Questions extends MY_Controller
             return;
         }
 
-        // Mark the similarity_results as decided
-        $this->db->where('question_id', $question_id);
-        $this->db->update('similarity_results', [
-            'decision'   => $decision,
-            'decided_by' => $this->user_id,
-            'decided_at'  => date('Y-m-d H:i:s'),
-        ]);
-
-        // Clear the flag so it stops showing in the list. A 'reject'
-        // decision also retires the question (status='rejected'), matching
-        // the Node API's similarity-decide behavior.
-        $update = ['similarity_flag' => $decision === 'reject' ? 'rejected' : 'none'];
-        if ($decision === 'reject') $update['status'] = 'rejected';
-        $this->Question_model->update($question_id, $update);
+        $this->load->library('nexam_api');
+        $response = $this->nexam_api->post('questions/' . rawurlencode($question_id) . '/similarity/decide', ['decision' => $decision]);
+        if ($response['status'] < 200 || $response['status'] >= 300) {
+            $this->output->set_status_header($response['status'] ?: 500)->set_content_type('application/json')
+                ->set_output(json_encode(['error' => $response['body']['error'] ?? 'Decision could not be recorded.']));
+            return;
+        }
 
         $this->output->set_content_type('application/json')
             ->set_output(json_encode([

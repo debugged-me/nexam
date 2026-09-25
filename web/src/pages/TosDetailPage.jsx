@@ -12,7 +12,7 @@
  */
 import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { Plus, Trash2, BookOpen, ChevronRight, Sparkles, FileText, Pencil, ListOrdered, Layers, Clock, Check, X, AlertTriangle } from 'lucide-react';
+import { Plus, Trash2, BookOpen, ChevronRight, Sparkles, FileText, Pencil, ListOrdered, Layers, Clock, Check, X, AlertTriangle, Lock } from 'lucide-react';
 import { useToast } from '../components/Toast.jsx';
 import api, { ApiError } from '../lib/api.js';
 import AppShell from '../components/AppShell.jsx';
@@ -169,6 +169,7 @@ export default function TosDetailPage() {
   const [savingEdit, setSavingEdit] = useState(false);
   const [expanded, setExpanded] = useState(() => new Set());
   const [generating, setGenerating] = useState(false);
+  const [finalizing, setFinalizing] = useState(false);
   const titleRef = useRef(null);
 
   const load = useCallback(() => (
@@ -262,6 +263,19 @@ export default function TosDetailPage() {
     }
   }
 
+  async function handleFinalize() {
+    setFinalizing(true);
+    try {
+      await api.post(`/tos/${id}/finalize`);
+      toast.success('TOS finalized. Its structure is now locked and question generation is enabled.');
+      await load();
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : 'Could not finalize this TOS.');
+    } finally {
+      setFinalizing(false);
+    }
+  }
+
   /** Expand / collapse one topic's outcome list without touching the others. */
   function toggleOutcomes(topicId) {
     setExpanded((prev) => {
@@ -292,6 +306,7 @@ export default function TosDetailPage() {
 
   if (!data) return <AppShell activeNav="tos" pageTitle="Blueprint"><p className="placeholder">Loading…</p></AppShell>;
   const { tos, topics } = data;
+  const finalized = tos.status === 'finalized';
   const totalHours = topics.reduce((s, t) => s + (Number(t.instructional_hours) || 0), 0);
 
   return (
@@ -307,33 +322,41 @@ export default function TosDetailPage() {
               {tos.subject_code && <span className="badge badge-gray ml-1">{tos.subject_code}</span>}
             </Link>
           )}
+          <span className={`badge ${finalized ? 'badge-green' : 'badge-amber'} ml-1`}>
+            {finalized ? 'Finalized' : 'Draft — review required'}
+          </span>
         </div>
         <div className="header-actions">
-          <button type="button" className="btn btn-primary btn-sm" onClick={handleGenerate} disabled={generating}
+          {!finalized && (
+            <button type="button" className="btn btn-outline btn-sm" onClick={handleFinalize} disabled={finalizing}>
+              {finalizing ? <span className="btn-spinner" /> : <Lock size={14} />} Finalize TOS
+            </button>
+          )}
+          <button type="button" className="btn btn-primary btn-sm" onClick={handleGenerate} disabled={generating || !finalized}
             title="AI drafts questions from your materials based on this blueprint">
             {generating ? <span className="btn-spinner" /> : <Sparkles size={14} />} Auto-generate Questions
           </button>
           <Link to="/exams" className="btn btn-outline btn-sm">
             <FileText size={14} /> Build Exam
           </Link>
-          <Link to="/tos" className="btn btn-outline btn-sm"><Pencil size={14} /> Edit</Link>
+          {!finalized && <Link to="/tos" className="btn btn-outline btn-sm"><Pencil size={14} /> Edit</Link>}
         </div>
       </div>
 
       <div className="tos-workflow-callout">
         <div className="tos-workflow-step">
           <span className="tos-workflow-num">1</span>
-          <span className="tos-workflow-text"><strong>Auto-generate Questions</strong> — AI drafts questions from your uploaded materials, aligned to this blueprint's Bloom distribution.</span>
+          <span className="tos-workflow-text"><strong>Review & Finalize TOS</strong> — Confirm topics, hours, item counts, and Bloom weights before locking the blueprint.</span>
         </div>
         <ChevronRight className="tos-workflow-arrow" />
         <div className="tos-workflow-step">
           <span className="tos-workflow-num">2</span>
-          <span className="tos-workflow-text"><strong>Review & Approve</strong> — Drafts appear on the Questions page. Approve the good ones to make them active.</span>
+          <span className="tos-workflow-text"><strong>Generate & Review</strong> — AI drafts grounded questions; duplicate checking must finish before instructor approval.</span>
         </div>
         <ChevronRight className="tos-workflow-arrow" />
         <div className="tos-workflow-step">
           <span className="tos-workflow-num">3</span>
-          <span className="tos-workflow-text"><strong>Build Exam</strong> — Pulls from your approved (active) question bank to fill this blueprint.</span>
+          <span className="tos-workflow-text"><strong>Build Set A/B</strong> — Uses only approved questions and fills every topic × Bloom allocation exactly.</span>
         </div>
       </div>
 
@@ -532,11 +555,11 @@ export default function TosDetailPage() {
                             </>
                           ) : (
                             <>
-                              <button className="action-icon" aria-label={`Edit ${tp.title}`} onClick={() => startEdit(tp)}>
+                              <button className="action-icon" aria-label={`Edit ${tp.title}`} onClick={() => startEdit(tp)} disabled={finalized}>
                                 <Pencil size={15} />
                               </button>
                               <button className="action-icon danger is-quiet" aria-label={`Remove ${tp.title}`}
-                                onClick={() => handleDeleteTopic(tp.id)}>
+                                onClick={() => handleDeleteTopic(tp.id)} disabled={finalized}>
                                 <Trash2 size={15} />
                               </button>
                             </>
@@ -551,7 +574,7 @@ export default function TosDetailPage() {
           </div>
         )}
 
-        <div className="card-body card-body-divider">
+        {!finalized && <div className="card-body card-body-divider">
           <form onSubmit={handleAddTopic}>
             <div className="inline-form">
               <div className="inline-form-grow">
@@ -583,7 +606,7 @@ export default function TosDetailPage() {
               <p className="form-hint">Items are derived from instructional hours — add every topic here and the matrix above fills itself.</p>
             </div>
           </form>
-        </div>
+        </div>}
       </div>
 
     </AppShell>

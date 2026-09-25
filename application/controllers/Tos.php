@@ -111,6 +111,10 @@ class Tos extends MY_Controller
             $this->session->set_flashdata('toast', ['type' => 'error', 'message' => 'TOS not found.']);
             redirect('tos');
         }
+        if ($tos->status === 'finalized') {
+            $this->session->set_flashdata('toast', ['type' => 'warning', 'message' => 'Finalized blueprints are locked. Create a new draft to change the structure.']);
+            redirect('tos/view/' . $id);
+        }
 
         $this->page_title = 'Edit TOS';
 
@@ -157,7 +161,6 @@ class Tos extends MY_Controller
             $this->session->set_flashdata('toast', ['type' => 'error', 'message' => 'TOS not found.']);
             redirect('tos');
         }
-
         $this->page_title = $tos->title;
 
         $subject = $this->Subject_model->get_owned($tos->subject_id, $this->user_id);
@@ -186,6 +189,10 @@ class Tos extends MY_Controller
             $this->session->set_flashdata('toast', ['type' => 'error', 'message' => 'TOS not found.']);
             redirect('tos');
         }
+        if ($tos->status === 'finalized') {
+            $this->session->set_flashdata('toast', ['type' => 'warning', 'message' => 'Finalized blueprints cannot be deleted.']);
+            redirect('tos/view/' . $id);
+        }
 
         $this->Tos_model->delete($id);
         $this->session->set_flashdata('toast', ['type' => 'delete', 'message' => 'TOS deleted.']);
@@ -199,6 +206,10 @@ class Tos extends MY_Controller
         if (!$tos) {
             $this->session->set_flashdata('toast', ['type' => 'error', 'message' => 'TOS not found.']);
             redirect('tos');
+        }
+        if ($tos->status === 'finalized') {
+            $this->session->set_flashdata('toast', ['type' => 'warning', 'message' => 'Finalized blueprints are locked.']);
+            redirect('tos/view/' . $tos_id);
         }
 
         if ($this->input->method() === 'post') {
@@ -253,6 +264,10 @@ class Tos extends MY_Controller
         if (!$tos) {
             $this->session->set_flashdata('toast', ['type' => 'error', 'message' => 'TOS not found.']);
             redirect('tos');
+        }
+        if ($tos->status === 'finalized') {
+            $this->session->set_flashdata('toast', ['type' => 'warning', 'message' => 'Finalized blueprints are locked.']);
+            redirect('tos/view/' . $tos_id);
         }
 
         $this->Tos_model->delete_topic($topic_id, $tos_id);
@@ -327,6 +342,11 @@ class Tos extends MY_Controller
                 ->set_output(json_encode(['error' => 'TOS not found.']));
             return;
         }
+        if ($tos->status !== 'finalized') {
+            $this->output->set_status_header(409)->set_content_type('application/json')
+                ->set_output(json_encode(['error' => 'Review and finalize the TOS before generating questions.']));
+            return;
+        }
 
         $this->load->library('nexam_api');
         $response = $this->nexam_api->post('ai/generate-questions', ['tosId' => $tos_id]);
@@ -335,6 +355,30 @@ class Tos extends MY_Controller
             ->set_status_header($response['status'])
             ->set_content_type('application/json')
             ->set_output(json_encode($response['body'] ?? ['error' => 'Generation failed.']));
+    }
+
+    /** Finalize and lock a reviewed TOS through the canonical Node API gate. */
+    public function finalize($id)
+    {
+        if ($this->input->method(true) !== 'POST') {
+            show_404();
+            return;
+        }
+        $tos = $this->Tos_model->get_owned($id, $this->user_id);
+        if (!$tos) {
+            $this->session->set_flashdata('toast', ['type' => 'error', 'message' => 'TOS not found.']);
+            redirect('tos');
+        }
+
+        $this->load->library('nexam_api');
+        $response = $this->nexam_api->post('tos/' . rawurlencode($id) . '/finalize');
+        if ($response['status'] >= 200 && $response['status'] < 300) {
+            $this->session->set_flashdata('toast', ['type' => 'success', 'message' => 'TOS finalized. Question generation is now enabled.']);
+        } else {
+            $message = $response['body']['error'] ?? 'The TOS could not be finalized.';
+            $this->session->set_flashdata('toast', ['type' => 'error', 'message' => $message]);
+        }
+        redirect('tos/view/' . $id);
     }
 
     /**

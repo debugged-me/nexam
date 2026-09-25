@@ -20,6 +20,7 @@ import { createRequire } from 'module';
 import mammoth from 'mammoth';
 import * as cheerio from 'cheerio';
 import { YoutubeTranscript } from 'youtube-transcript';
+import { safePublicFetch } from './safeUrl.js';
 
 const require = createRequire(import.meta.url);
 // pdf-parse is CommonJS/UMD — load via require.
@@ -83,7 +84,7 @@ async function extractPptx(filePath) {
 
 /** Extract main content from a web page URL. */
 async function extractUrl(url) {
-  const res = await fetch(url, {
+  const res = await safePublicFetch(url, {
     headers: { 'User-Agent': 'Mozilla/5.0 (compatible; NexamBot/1.0)' },
     signal: AbortSignal.timeout(15000),
   });

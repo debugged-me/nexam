@@ -76,6 +76,7 @@ class Tos_model extends CI_Model
             ->from($this->table . ' t')
             ->join('subjects s', 's.id = t.subject_id')
             ->where('s.instructor_id', $user_id)
+            ->where('t.status', 'draft')
             ->where_in('t.id', $ids)
             ->get()->result();
 

@@ -18,7 +18,8 @@ import { generate } from '../../services/aiProvider.js';
 import { retrieve } from '../../services/retriever.js';
 import { enqueue } from '../../services/jobs.js';
 import { getNumber } from '../../services/settings.js';
-import { answerOptionIndex, parseMatchingLetters, parseOptions } from '../../services/scoring.js';
+import { buildTosMatrix } from '../../services/tosAlignment.js';
+import { isValidGeneratedQuestion } from '../../services/generationValidation.js';
 
 /** Bloom level descriptions for the LLM prompt. */
 const BLOOM_DESCRIPTIONS = {
@@ -45,6 +46,9 @@ export default async function generateHandler(job) {
   const tos = tosRows[0];
   if (!tos) throw new Error(`TOS ${tosId} not found.`);
   if (tos.instructor_id !== userId) throw new Error('TOS not owned by user.');
+  if (tos.status !== 'finalized') {
+    throw new Error('TOS must be finalized by the instructor before question generation.');
+  }
 
   // ── Load topics ─────────────────────────────────────
   const [topics] = await pool.query(
@@ -52,58 +56,29 @@ export default async function generateHandler(job) {
     { tosId }
   );
 
-  // ── Parse bloom weights and compute allocation ──────
+  // ── Parse the finalized topic × Bloom allocation ────
   const bloomWeights = JSON.parse(tos.bloom_weights || '{}');
   const totalItems = tos.total_items || 50;
-  const allocation = computeAllocation(bloomWeights, totalItems);
+  const { slots } = buildTosMatrix(topics, bloomWeights, totalItems);
 
-  // ── Generate questions per bloom level ──────────────
-  // For each bloom level with count > 0, we generate across topics.
-  // If topics exist, we distribute count across topics proportionally.
-  // If no topics, we generate count questions for the subject generally.
+  // ── Generate every exact matrix cell ─────────────────
   const generatedQuestions = [];
   const failedSlots = [];
   let droppedInvalid = 0;
 
-  for (const [bloom, count] of Object.entries(allocation)) {
-    if (count <= 0) continue;
-
-    if (topics.length > 0) {
-      // Distribute count across topics proportionally to item_count
-      const totalTopicItems = topics.reduce((sum, t) => sum + (t.item_count || 1), 0);
-      let remaining = count;
-
-      for (let i = 0; i < topics.length && remaining > 0; i++) {
-        const topic = topics[i];
-        const topicCount = i === topics.length - 1
-          ? remaining
-          : Math.max(1, Math.round((topic.item_count || 1) / totalTopicItems * count));
-        const actualCount = Math.min(topicCount, remaining);
-        remaining -= actualCount;
-
-        const result = await generateForSlot(tos, topic, bloom, actualCount);
-        if (result.questions.length > 0) {
-          generatedQuestions.push(...result.questions);
-        }
-        if (result.dropped) {
-          droppedInvalid += result.dropped;
-        }
-        if (result.failed) {
-          failedSlots.push({ topic: topic.title, bloom, count: actualCount, reason: result.reason });
-        }
-      }
-    } else {
-      // No topics — generate for the subject generally
-      const result = await generateForSlot(tos, null, bloom, count);
-      if (result.questions.length > 0) {
-        generatedQuestions.push(...result.questions);
-      }
-      if (result.dropped) {
-        droppedInvalid += result.dropped;
-      }
-      if (result.failed) {
-        failedSlots.push({ topic: '(general)', bloom, count, reason: result.reason });
-      }
+  for (const slot of slots) {
+    const topic = topics.find((candidate) => candidate.title === slot.topic);
+    const result = await generateForSlot(tos, topic, slot.bloom, slot.count);
+    if (result.questions.length > 0) generatedQuestions.push(...result.questions);
+    if (result.dropped) droppedInvalid += result.dropped;
+    if (result.failed || result.questions.length !== slot.count) {
+      failedSlots.push({
+        topic: slot.topic,
+        bloom: slot.bloom,
+        count: slot.count,
+        generated: result.questions.length,
+        reason: result.reason || `Generated ${result.questions.length} of ${slot.count} required questions.`,
+      });
     }
   }
 
@@ -208,7 +183,8 @@ Return ONLY a JSON array of question objects:
     "stem": "The question text",
     "options": ["A) ...", "B) ...", "C) ...", "D) ..."],
     "answer": "The correct answer (must match one of the options for mcq, or 'True'/'False' for true_false)",
-    "explanation": "Brief explanation of why the answer is correct, grounded in the context"
+    "explanation": "Brief explanation of why the answer is correct, grounded in the context",
+    "evidence": "A short, exact quotation copied verbatim from the context that supports the answer"
   }
 ]
 
@@ -218,6 +194,7 @@ IMPORTANT RULES:
 3. For mcq, the answer must exactly match one of the options.
 4. If the context is insufficient for ${count} questions, generate fewer.
 5. Make questions clear, unambiguous, and at the specified Bloom level.
+6. Every question needs an evidence field copied exactly from the context. Do not paraphrase evidence.
 
 CONTEXT:
 ---
@@ -260,8 +237,13 @@ ${context}
   const validQuestions = [];
   let dropped = 0;
   for (const q of questions) {
-    if (isValidGeneratedQuestion(q)) {
-      validQuestions.push({ ...q, bloom, topic: topic ? topic.title : null, meta });
+    if (isValidGeneratedQuestion(q, context)) {
+      validQuestions.push({
+        ...q,
+        bloom,
+        topic: topic ? topic.title : null,
+        meta: { ...meta, evidence: q.evidence },
+      });
     } else {
       dropped++;
     }
@@ -278,71 +260,4 @@ ${context}
   }
 
   return { questions: validQuestions, dropped, failed: false };
-}
-
-const ALLOWED_TYPES = new Set(['mcq', 'true_false', 'matching', 'identification']);
-
-/**
- * Validate a generated question's structure AND answer resolvability.
- *
- * An answer that cannot be resolved against the question's own options is
- * the classic LLM failure mode (hallucinated key). Storing it silently makes
- * every student score 0 on that item — drop it instead.
- */
-function isValidGeneratedQuestion(q) {
-  if (!q || typeof q.stem !== 'string' || q.stem.trim().length < 5) return false;
-  if (!ALLOWED_TYPES.has(q.type)) return false;
-
-  switch (q.type) {
-    case 'mcq': {
-      const opts = parseOptions(q.options).filter((o) => typeof o === 'string' && o.trim());
-      if (opts.length < 3) return false;
-      q.options = opts; // normalize: strip empty options
-      return answerOptionIndex(opts, q.answer) >= 0;
-    }
-    case 'true_false': {
-      const a = String(q.answer ?? '').trim().toLowerCase();
-      return a === 'true' || a === 'false' || a === 't' || a === 'f';
-    }
-    case 'matching': {
-      // options[] are the premises (left column); the answer is "1-B, 2-A…"
-      // with letters indexing the implicit A–E match column on the OMR sheet.
-      const opts = parseOptions(q.options);
-      const letters = parseMatchingLetters(q.answer);
-      if (opts.length < 2 || !letters || letters.length !== opts.length) return false;
-      for (let i = 0; i < letters.length; i++) {
-        if (!letters[i]) return false; // every premise must have a match
-        if (letters[i].charCodeAt(0) - 65 > 4) return false; // A–E only
-      }
-      return true;
-    }
-    case 'identification':
-      return typeof q.answer === 'string' && q.answer.trim().length > 0;
-    default:
-      return false;
-  }
-}
-
-/** Convert percentage weights into item counts using largest remainders. */
-function computeAllocation(weights, total) {
-  const allocation = {};
-  const remainders = [];
-  let allocated = 0;
-
-  for (const [bloom, pct] of Object.entries(weights)) {
-    const exact = (parseFloat(pct) / 100) * total;
-    const whole = Math.floor(exact);
-    allocation[bloom] = whole;
-    remainders.push({ bloom, remainder: exact - whole });
-    allocated += whole;
-  }
-
-  remainders.sort((a, b) => b.remainder - a.remainder);
-  for (const { bloom } of remainders) {
-    if (allocated >= total) break;
-    allocation[bloom]++;
-    allocated++;
-  }
-
-  return allocation;
 }

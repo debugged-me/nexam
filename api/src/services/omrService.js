@@ -26,12 +26,12 @@
  * (matching, one per premise). A matching item never splits across columns —
  * if it doesn't fit in the remaining rows it starts the next column.
  */
-import puppeteer from 'puppeteer';
 import QRCode from 'qrcode';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { parseOptions } from './scoring.js';
+import { launchBrowser } from './browserLauncher.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const STORAGE_DIR = path.join(__dirname, '..', '..', 'storage', 'exams');
@@ -100,7 +100,7 @@ function rowChoices(question, subRow) {
     }
     case 'true_false': return ['T', 'F'];
     case 'matching': return LETTERS.slice(0, 5).split(''); // A–E per premise
-    case 'identification': return ['✓', '✗'];              // instructor grade
+    case 'identification': return ['C', 'I'];              // Correct / Incorrect
     default: return ['A', 'B', 'C', 'D'];
   }
 }
@@ -162,6 +162,7 @@ export async function generateOMRSheet(opts) {
   // Self-describing QR payload: exam + set id (no server lookup needed) and
   // the per-item layout so the scanner reconstructs the grid exactly.
   const qrPayload = JSON.stringify({
+    v: 1,
     examId: opts.examId,
     setId: opts.examSetId || null,
     set: opts.setLabel,
@@ -282,16 +283,13 @@ export async function generateOMRSheet(opts) {
 
   <div class="footer">
     <div>Instructions: Fill one bubble per row completely with a dark pen. For matching items, fill one bubble per sub-row (a, b, c…). For True/False: T = True, F = False.</div>
-    <div>Identification items: the instructor marks ✓ (correct) or ✗ (incorrect) after grading the written answer.</div>
+    <div>Identification items: after grading the written answer, the instructor marks C (Correct) or I (Incorrect).</div>
   </div>
 </body></html>`;
 
   let browser;
   try {
-    browser = await puppeteer.launch({
-      headless: true,
-      args: ['--no-sandbox', '--disable-setuid-sandbox'],
-    });
+    browser = await launchBrowser();
     const page = await browser.newPage();
     await page.setContent(html, { waitUntil: 'networkidle0' });
     await page.pdf({

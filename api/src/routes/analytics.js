@@ -3,7 +3,6 @@
  *
  * GET /api/analytics/exam/:examId     — exam-level analytics (class average, score distribution)
  * GET /api/analytics/exam/:examId/items — item-level response distributions
- * GET /api/analytics/student/:studentId — individual student performance across exams
  * GET /api/analytics/overview         — instructor overview (all exams, recent scans)
  *
  * All routes require auth (JWT). Data is scoped to the instructor.
@@ -150,52 +149,6 @@ router.get('/exam/:examId/items', requireAuth, async (req, res, next) => {
     }
 
     res.json({ items: itemAnalysis });
-  } catch (err) {
-    next(err);
-  }
-});
-
-/** GET /api/analytics/student/:studentId — individual student performance. */
-router.get('/student/:studentId', requireAuth, async (req, res, next) => {
-  try {
-    const studentId = req.params.studentId;
-
-    // Ownership check
-    const [studentRows] = await pool.query(
-      `SELECT st.* FROM students st
-       WHERE st.id = :studentId AND st.instructor_id = :userId`,
-      { studentId, userId: req.user.id }
-    );
-    if (!studentRows.length) return res.status(404).json({ error: 'Student not found.' });
-
-    const [scans] = await pool.query(
-      `SELECT
-         sr.id, sr.exam_id, e.title AS exam_title,
-         sr.score, sr.correct_count, sr.total_items,
-         sr.needs_review, sr.scanned_at
-       FROM scan_results sr
-       JOIN exams e ON e.id = sr.exam_id
-       WHERE sr.student_id = :studentId
-       ORDER BY sr.scanned_at DESC`,
-      { studentId }
-    );
-
-    const [avgStats] = await pool.query(
-      `SELECT
-         COUNT(*) AS total_exams,
-         AVG(score) AS avg_score,
-         MIN(score) AS min_score,
-         MAX(score) AS max_score
-       FROM scan_results
-       WHERE student_id = :studentId`,
-      { studentId }
-    );
-
-    res.json({
-      student: studentRows[0],
-      scans,
-      stats: avgStats[0] || {},
-    });
   } catch (err) {
     next(err);
   }

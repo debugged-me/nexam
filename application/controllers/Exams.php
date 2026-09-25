@@ -83,32 +83,31 @@ class Exams extends MY_Controller
             $this->form_validation->set_rules('instructions', 'Instructions', 'trim|max_length[5000]');
 
             if ($this->form_validation->run()) {
-                $this->db->trans_start();
-                $id = $this->Exam_model->create([
+                $this->load->library('nexam_api');
+                $response = $this->nexam_api->post('exams', [
                     'subject_id'        => $this->input->post('subject_id', true),
+                    'tos_id'            => $this->input->post('tos_id', true),
                     'title'             => $this->input->post('title', true),
                     'format'            => $this->input->post('format', true),
-                    'set_count'         => (int) $this->input->post('set_count', true) ?: 1,
+                    'set_count'         => 2,
                     'duration_minutes'  => $this->input->post('duration_minutes', true) ?: null,
                     'instructions'      => $this->input->post('instructions', true) ?: null,
                     'status'            => 'draft',
-                    'created_by'        => $this->user_id,
                 ]);
-
-                if ($id) {
-                    // Auto-select questions from a TOS blueprint if provided
-                    $submitted_tos = $this->input->post('tos_id', true);
-                    if ($submitted_tos) {
-                        $this->_generate_from_tos($submitted_tos, $id, $this->input->post('subject_id', true));
-                    }
-                }
-                $this->db->trans_complete();
-
-                if ($id && $this->db->trans_status()) {
+                $id = $response['body']['exam']['id'] ?? null;
+                if ($response['status'] === 201 && $id) {
                     $this->session->set_flashdata('toast', ['type' => 'success', 'message' => 'Exam created successfully.']);
                     redirect('exams/view/' . $id);
                 } else {
-                    $this->session->set_flashdata('toast', ['type' => 'error', 'message' => 'Failed to create exam.']);
+                    $message = $response['body']['error'] ?? 'Failed to create exam.';
+                    if (!empty($response['body']['shortages'])) {
+                        $cells = array_map(function ($s) {
+                            return $s['topic'] . ' / ' . ucfirst($s['bloom']) . ': need ' . $s['needed'] . ', available ' . $s['available'];
+                        }, $response['body']['shortages']);
+                        $message .= ' ' . implode('; ', $cells);
+                    }
+                    $this->session->set_flashdata('toast', ['type' => 'error', 'message' => $message]);
+                    redirect('exams/create?tos=' . rawurlencode((string) $this->input->post('tos_id', true)));
                 }
             }
         }
@@ -215,7 +214,12 @@ class Exams extends MY_Controller
             redirect('exams');
         }
 
-        $this->Exam_model->update($id, ['status' => 'published']);
+        $this->load->library('nexam_api');
+        $response = $this->nexam_api->put('exams/' . rawurlencode($id), ['status' => 'published']);
+        if ($response['status'] < 200 || $response['status'] >= 300) {
+            $this->session->set_flashdata('toast', ['type' => 'error', 'message' => $response['body']['error'] ?? 'Exam could not be published.']);
+            redirect('exams/view/' . $id);
+        }
         $this->session->set_flashdata('toast', ['type' => 'success', 'message' => 'Exam published.']);
         redirect('exams/view/' . $id);
     }
@@ -419,7 +423,8 @@ class Exams extends MY_Controller
     {
         if ($this->input->method(true) !== 'POST') { show_404(); }
         if (!$tos_id) {
-            return true;
+            $this->form_validation->set_message('valid_tos_selection', 'Select a finalized TOS blueprint.');
+            return false;
         }
 
         $tos = $this->Tos_model->get_owned($tos_id, $this->user_id);
@@ -428,26 +433,14 @@ class Exams extends MY_Controller
             $this->form_validation->set_message('valid_tos_selection', 'The TOS blueprint must belong to the selected subject.');
             return false;
         }
+        if ($tos->status !== 'finalized') {
+            $this->form_validation->set_message('valid_tos_selection', 'Review and finalize the selected TOS before building an exam.');
+            return false;
+        }
 
         $weights = json_decode($tos->bloom_weights, true);
         if (!is_array($weights) || array_sum($weights) !== 100) {
             $this->form_validation->set_message('valid_tos_selection', 'The selected TOS has an invalid Bloom distribution. Update it so the weights total 100%.');
-            return false;
-        }
-
-        $shortages = [];
-        foreach ($this->_allocation_from_tos($tos) as $bloom => $needed) {
-            $available = $this->Question_model->count_active_by_subject_bloom($subject_id, $bloom, $this->user_id);
-            if ($available < $needed) {
-                $shortages[] = ucfirst($bloom) . ': need ' . $needed . ', available ' . $available;
-            }
-        }
-
-        if ($shortages) {
-            $this->form_validation->set_message('valid_tos_selection',
-                'Not enough approved (active) questions in your bank to fill this blueprint (' . implode('; ', $shortages) . '). ' .
-                'Use the blueprint\'s "Auto-generate Questions" button to create more with AI, then approve them on the Questions page.'
-            );
             return false;
         }
 

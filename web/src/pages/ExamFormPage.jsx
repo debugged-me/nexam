@@ -9,7 +9,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useParams, useNavigate, useSearchParams, Link } from 'react-router-dom';
 import {
-  Check, ChevronRight, ArrowRight, Table as TableIcon, Info, Plus,
+  Check, ChevronRight, ArrowRight, Table as TableIcon, Info,
 } from 'lucide-react';
 import { useToast } from '../components/Toast.jsx';
 import api, { ApiError } from '../lib/api.js';
@@ -34,16 +34,15 @@ export default function ExamFormPage() {
     title: '',
     subject_id: '',
     format: 'print',
-    set_count: 1,
+    set_count: 2,
     duration_minutes: '',
     instructions: '',
   });
   const [saving, setSaving] = useState(false);
-  const [showBlank, setShowBlank] = useState(false);
 
   useEffect(() => {
     api.get('/subjects').then((data) => setSubjects(data.subjects)).catch(() => {});
-    api.get('/tos').then((data) => setTosList(data.tos)).catch(() => {});
+    api.get('/tos').then((data) => setTosList((data.tos || []).filter((item) => item.status === 'finalized'))).catch(() => {});
   }, []);
 
   const loadExam = useCallback(() => {
@@ -55,7 +54,7 @@ export default function ExamFormPage() {
           title: d.exam.title || '',
           subject_id: d.exam.subject_id || '',
           format: d.exam.format || 'print',
-          set_count: d.exam.set_count || 1,
+          set_count: 2,
           duration_minutes: d.exam.duration_minutes || '',
           instructions: d.exam.instructions || '',
         });
@@ -92,7 +91,7 @@ export default function ExamFormPage() {
         subject_id: form.subject_id,
         tos_id: tosId || undefined,
         format: form.format || 'print',
-        set_count: Number(form.set_count) || 1,
+        set_count: 2,
         duration_minutes: form.duration_minutes ? Number(form.duration_minutes) : undefined,
         instructions: form.instructions || undefined,
         status: exam?.status || 'draft',
@@ -136,7 +135,7 @@ export default function ExamFormPage() {
             <div className="creation-panel-head">
               <div>
                 <h2 id="creation-method-title">Start from a blueprint</h2>
-                <p>Automatically select questions using the blueprint's subject and Bloom distribution.</p>
+                <p>Exactly fill a finalized blueprint's topic and Bloom allocations with approved questions.</p>
               </div>
               <span className="creation-tag">Recommended</span>
             </div>
@@ -163,13 +162,6 @@ export default function ExamFormPage() {
                 </div>
               )}
             </div>
-            <div className="creation-panel-footer">
-              <div>
-                <strong>Start with a blank exam</strong>
-                <span>Add and organize questions manually.</span>
-              </div>
-              <button className="btn btn-outline" onClick={() => setShowBlank(true)}>Continue blank</button>
-            </div>
           </section>
         )}
 
@@ -190,12 +182,9 @@ export default function ExamFormPage() {
           </div>
         )}
 
-        {(isEdit || showTosCallout || showBlank) && (
+        {(isEdit || showTosCallout) && (
           <>
-            {!isEdit && !showTosCallout && showBlank && (
-              <div className="section-kicker" id="exam-details">Blank exam details</div>
-            )}
-            <div className="card" aria-labelledby={showBlank ? 'exam-details' : undefined}>
+            <div className="card">
               <div className="card-body">
                 <form onSubmit={handleSave} noValidate>
                   <div className="form-section">
@@ -233,12 +222,8 @@ export default function ExamFormPage() {
                       </div>
                       <div className="form-group">
                         <label className="form-label" htmlFor="set_count">Exam Sets</label>
-                        <select id="set_count" name="set_count" className="form-control form-select"
-                          value={form.set_count} onChange={(e) => setForm({ ...form, set_count: e.target.value })}>
-                          <option value={1}>1 set (Set A only)</option>
-                          <option value={2}>2 sets (Set A + Set B)</option>
-                        </select>
-                        <small className="form-hint">Set B has the same questions in shuffled order.</small>
+                        <input id="set_count" name="set_count" className="form-control" value="2 sets (Set A + Set B)" disabled />
+                        <small className="form-hint">The approved scope requires both parallel sets; Set B shuffles the same validated questions.</small>
                       </div>
                       <div className="form-group">
                         <label className="form-label" htmlFor="duration_minutes">Duration (minutes)</label>

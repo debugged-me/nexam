@@ -45,6 +45,41 @@ async function getOwned(id, userId) {
   return rows[0] || null;
 }
 
+async function approvalBlockReason(question) {
+  if (!QUESTION_TYPES.includes(question.type)) return 'Unsupported question type.';
+  if (question.source === 'ai') {
+    let meta;
+    try {
+      meta = typeof question.generation_meta === 'string'
+        ? JSON.parse(question.generation_meta) : question.generation_meta;
+    } catch {
+      return 'This legacy AI draft has invalid grounding provenance. Regenerate it from the finalized TOS.';
+    }
+    const chunkIds = Array.isArray(meta?.chunkIds) ? [...new Set(meta.chunkIds.filter(Boolean))] : [];
+    const evidence = typeof meta?.evidence === 'string' ? meta.evidence.replace(/\s+/g, ' ').trim() : '';
+    if (!chunkIds.length || evidence.length < 3) {
+      return 'This legacy AI draft has no verifiable source evidence. Regenerate it from the finalized TOS.';
+    }
+    const [chunks] = await pool.query(
+      `SELECT id, text FROM material_chunks
+       WHERE id IN (:ids) AND subject_id = :subjectId`,
+      { ids: chunkIds, subjectId: question.subject_id }
+    );
+    if (chunks.length !== chunkIds.length) {
+      return 'One or more source chunks for this AI draft no longer exist. Regenerate it from current materials.';
+    }
+    const context = chunks.map((chunk) => chunk.text).join(' ').replace(/\s+/g, ' ').toLowerCase();
+    if (!context.includes(evidence.toLowerCase())) {
+      return 'The AI evidence span cannot be found in its cited source chunks. Regenerate this draft.';
+    }
+  }
+  if (question.similarity_error) return `Similarity check failed: ${question.similarity_error}`;
+  if (!question.similarity_checked_at) return 'Similarity check is still pending. Wait for it to complete before approval.';
+  if (question.similarity_flag === 'flagged') return 'Review and decide the similarity match before approval.';
+  if (question.similarity_flag === 'rejected' || question.status === 'rejected') return 'Rejected questions cannot be approved.';
+  return null;
+}
+
 /** Validate question fields. Returns { error } or { data }. */
 function validate(body) {
   const { subject_id, type, stem, bloom, status, options, answer } = body || {};
@@ -85,7 +120,8 @@ router.get('/', async (req, res, next) => {
     const [questions] = await pool.query(
       `SELECT q.id, q.subject_id, q.tos_id, q.topic, q.bloom, q.ai_predicted_bloom,
               q.type, q.stem, q.options, q.answer, q.explanation,
-              q.similarity_flag, q.similarity_score, q.source, q.status,
+              q.similarity_flag, q.similarity_score, q.similarity_checked_at, q.similarity_error,
+              q.source, q.status,
               q.approved_by, q.approved_at, q.created_at, q.updated_at,
               s.name AS subject_name, s.code AS subject_code
        FROM questions q
@@ -115,6 +151,9 @@ router.post('/', async (req, res, next) => {
   try {
     const v = validate(req.body);
     if (v.error) return res.status(422).json({ error: v.error });
+    if (req.body.status && req.body.status !== 'draft') {
+      return res.status(422).json({ error: 'New questions must start as drafts and pass similarity review before approval.' });
+    }
 
     // Verify subject ownership
     const [subjRows] = await pool.query(
@@ -122,6 +161,14 @@ router.post('/', async (req, res, next) => {
       { id: req.body.subject_id, uid: req.user.id }
     );
     if (!subjRows.length) return res.status(403).json({ error: 'Subject not found or not owned by you.' });
+    if (req.body.tos_id) {
+      const [tosRows] = await pool.query(
+        `SELECT t.id FROM tos t JOIN subjects s ON s.id = t.subject_id
+         WHERE t.id = :tosId AND t.subject_id = :subjectId AND s.instructor_id = :uid`,
+        { tosId: req.body.tos_id, subjectId: req.body.subject_id, uid: req.user.id }
+      );
+      if (!tosRows.length) return res.status(422).json({ error: 'The selected TOS does not belong to this subject.' });
+    }
 
     const id = uuid();
     const optionsJson = req.body.type === 'mcq' && Array.isArray(req.body.options)
@@ -144,7 +191,7 @@ router.post('/', async (req, res, next) => {
         options: optionsJson,
         answer: req.body.answer || null,
         explanation: req.body.explanation || null,
-        status: req.body.status || 'draft',
+        status: 'draft',
         uid: req.user.id,
       }
     );
@@ -158,7 +205,12 @@ router.post('/', async (req, res, next) => {
         userId: req.user.id,
         subjectId: req.body.subject_id,
       });
-    } catch { /* job queue failure must not fail the create */ }
+    } catch (error) {
+      await pool.query(
+        `UPDATE questions SET similarity_error = :error WHERE id = :id`,
+        { id, error: `Could not queue similarity check: ${String(error.message || error).slice(0, 500)}` }
+      );
+    }
 
     const [rows] = await pool.query(`SELECT * FROM questions WHERE id = :id`, { id });
     const q = rows[0];
@@ -188,34 +240,67 @@ router.put('/:id', async (req, res, next) => {
     const v = validate({ ...req.body, subject_id: req.body.subject_id || q.subject_id });
     if (v.error) return res.status(422).json({ error: v.error });
 
-    const optionsJson = req.body.type === 'mcq' && Array.isArray(req.body.options)
-      ? JSON.stringify(req.body.options) : null;
+    const nextSubjectId = req.body.subject_id || q.subject_id;
+    const [subjectRows] = await pool.query(
+      `SELECT id FROM subjects WHERE id = :id AND instructor_id = :uid`,
+      { id: nextSubjectId, uid: req.user.id }
+    );
+    if (!subjectRows.length) return res.status(403).json({ error: 'Subject not found or not owned by you.' });
+    const nextTosId = req.body.tos_id !== undefined ? (req.body.tos_id || null) : q.tos_id;
+    if (nextTosId) {
+      const [tosRows] = await pool.query(
+        `SELECT t.id FROM tos t JOIN subjects s ON s.id = t.subject_id
+         WHERE t.id = :tosId AND t.subject_id = :subjectId AND s.instructor_id = :uid`,
+        { tosId: nextTosId, subjectId: nextSubjectId, uid: req.user.id }
+      );
+      if (!tosRows.length) return res.status(422).json({ error: 'The selected TOS does not belong to this subject.' });
+    }
 
-    const newStatus = req.body.status || q.status;
-    // A direct status→active transition is an approval — record who/when.
+    const nextType = req.body.type || q.type;
+    const optionsJson = nextType === 'mcq'
+      ? (Array.isArray(req.body.options) ? JSON.stringify(req.body.options) : (q.type === 'mcq' ? q.options : null))
+      : null;
+
+    const nextStem = String(req.body.stem || q.stem).trim();
+    const nextAnswer = req.body.answer ?? q.answer ?? null;
+    const contentChanged =
+      nextStem !== q.stem || optionsJson !== q.options ||
+      nextAnswer !== q.answer || nextType !== q.type || nextSubjectId !== q.subject_id;
+    let newStatus = req.body.status || q.status;
+    if (contentChanged && newStatus === 'active') newStatus = 'draft';
     const approving = q.status !== 'active' && newStatus === 'active';
+    if (approving) {
+      const blocked = await approvalBlockReason(q);
+      if (blocked) return res.status(409).json({ error: blocked });
+    }
 
     await pool.query(
       `UPDATE questions SET
          subject_id = :subject_id, tos_id = :tos_id, topic = :topic, bloom = :bloom,
          type = :type, stem = :stem, options = :options, answer = :answer,
          explanation = :explanation, status = :status,
+         similarity_flag = :similarityFlag, similarity_score = :similarityScore,
+         similarity_checked_at = :similarityCheckedAt, similarity_error = :similarityError,
          approved_by = :approvedBy, approved_at = :approvedAt, updated_at = NOW()
        WHERE id = :id`,
       {
         id: q.id,
-        subject_id: req.body.subject_id || q.subject_id,
-        tos_id: req.body.tos_id || null,
-        topic: req.body.topic || null,
-        bloom: req.body.bloom || null,
-        type: req.body.type || q.type,
-        stem: String(req.body.stem || q.stem).trim(),
+        subject_id: nextSubjectId,
+        tos_id: nextTosId,
+        topic: req.body.topic !== undefined ? (req.body.topic || null) : q.topic,
+        bloom: req.body.bloom !== undefined ? (req.body.bloom || null) : q.bloom,
+        type: nextType,
+        stem: nextStem,
         options: optionsJson,
-        answer: req.body.answer || null,
-        explanation: req.body.explanation || null,
+        answer: nextAnswer,
+        explanation: req.body.explanation !== undefined ? (req.body.explanation || null) : q.explanation,
         status: newStatus,
-        approvedBy: approving ? req.user.id : q.approved_by,
-        approvedAt: approving ? new Date() : q.approved_at,
+        similarityFlag: contentChanged ? 'none' : q.similarity_flag,
+        similarityScore: contentChanged ? null : q.similarity_score,
+        similarityCheckedAt: contentChanged ? null : q.similarity_checked_at,
+        similarityError: contentChanged ? null : q.similarity_error,
+        approvedBy: contentChanged ? null : (approving ? req.user.id : q.approved_by),
+        approvedAt: contentChanged ? null : (approving ? new Date() : q.approved_at),
       }
     );
 
@@ -223,13 +308,11 @@ router.put('/:id', async (req, res, next) => {
     const updated = rows[0];
 
     // Keep the vector index + similarity state in sync with the lifecycle.
-    const contentChanged =
-      updated.stem !== q.stem || updated.options !== q.options ||
-      updated.answer !== q.answer || updated.type !== q.type;
     if (approving || (contentChanged && updated.status === 'active')) {
       await indexQuestionIfActive(updated);
     }
     if (contentChanged) {
+      await removeQuestionFromIndex(q.subject_id, q.id);
       try {
         await enqueue({
           type: 'similarity',
@@ -237,7 +320,12 @@ router.put('/:id', async (req, res, next) => {
           userId: req.user.id,
           subjectId: updated.subject_id,
         });
-      } catch { /* non-fatal */ }
+      } catch (error) {
+        await pool.query(
+          `UPDATE questions SET similarity_error = :error WHERE id = :id`,
+          { id: q.id, error: `Could not queue similarity check: ${String(error.message || error).slice(0, 500)}` }
+        );
+      }
     }
     if (newStatus === 'rejected' && q.status !== 'rejected') {
       await removeQuestionFromIndex(updated.subject_id, q.id);
@@ -271,6 +359,8 @@ router.post('/:id/approve', async (req, res, next) => {
     const q = await getOwned(req.params.id, req.user.id);
     if (!q) return res.status(404).json({ error: 'Question not found.' });
     if (q.status === 'active') return res.json({ message: 'Already approved.' });
+    const blocked = await approvalBlockReason(q);
+    if (blocked) return res.status(409).json({ error: blocked });
 
     await pool.query(
       `UPDATE questions SET status = 'active', approved_by = :uid, approved_at = NOW(), updated_at = NOW()
@@ -311,22 +401,41 @@ router.post('/bulk-approve', async (req, res, next) => {
     );
     if (!validIds.length) return res.json({ approved: 0 });
 
+    const [eligible] = await pool.query(
+      `SELECT * FROM questions
+       WHERE id IN (:ids) AND created_by = :uid AND status = 'draft'
+         AND type IN ('mcq','true_false','matching','identification')
+         AND similarity_checked_at IS NOT NULL
+         AND similarity_error IS NULL
+         AND similarity_flag = 'none'`,
+      { ids: validIds, uid: req.user.id }
+    );
+    const eligibleIds = [];
+    for (const question of eligible) {
+      if (!(await approvalBlockReason(question))) eligibleIds.push(question.id);
+    }
+    if (!eligibleIds.length) return res.json({ approved: 0, blocked: validIds.length });
+
     const [result] = await pool.query(
       `UPDATE questions SET status = 'active', approved_by = :uid, approved_at = NOW(), updated_at = NOW()
        WHERE id IN (:ids) AND created_by = :uid AND status = 'draft'`,
-      { ids: validIds, uid: req.user.id }
+      { ids: eligibleIds, uid: req.user.id }
     );
 
     // Index the newly-active questions (best-effort, non-blocking order).
     if (result.affectedRows > 0) {
       const [active] = await pool.query(
         `SELECT * FROM questions WHERE id IN (:ids) AND created_by = :uid AND status = 'active'`,
-        { ids: validIds, uid: req.user.id }
+        { ids: eligibleIds, uid: req.user.id }
       );
       for (const q of active) await indexQuestionIfActive(q);
     }
 
-    res.json({ approved: result.affectedRows });
+    res.json({
+      approved: result.affectedRows,
+      approvedIds: eligibleIds,
+      blocked: validIds.length - result.affectedRows,
+    });
   } catch (err) { next(err); }
 });
 
@@ -411,6 +520,30 @@ router.get('/:id/similarity', async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
+router.post('/:id/similarity/retry', async (req, res, next) => {
+  try {
+    const q = await getOwned(req.params.id, req.user.id);
+    if (!q) return res.status(404).json({ error: 'Question not found.' });
+    if (q.status !== 'draft') {
+      return res.status(409).json({ error: 'Only draft questions can be queued for similarity checking.' });
+    }
+    await pool.query(
+      `UPDATE questions SET similarity_flag = 'none', similarity_score = NULL,
+                            similarity_checked_at = NULL, similarity_error = NULL,
+                            updated_at = NOW()
+       WHERE id = :id`,
+      { id: q.id }
+    );
+    const jobId = await enqueue({
+      type: 'similarity',
+      payload: { questionId: q.id, userId: req.user.id },
+      userId: req.user.id,
+      subjectId: q.subject_id,
+    });
+    res.status(202).json({ message: 'Similarity check queued.', jobId });
+  } catch (err) { next(err); }
+});
+
 router.post('/:id/similarity/decide', async (req, res, next) => {
   try {
     const q = await getOwned(req.params.id, req.user.id);
@@ -476,6 +609,13 @@ router.post('/import', async (req, res, next) => {
     const defaultBloom = bloom || 'remember';
     const inserted = [];
     for (const q of questions) {
+      const checked = validate({
+        ...q,
+        subject_id: subjectId,
+        bloom: q.bloom || defaultBloom,
+        status: 'draft',
+      });
+      if (checked.error) continue;
       const id = uuid();
       const optionsJson = q.options ? JSON.stringify(q.options) : null;
       await pool.query(
@@ -495,7 +635,15 @@ router.post('/import', async (req, res, next) => {
           userId: req.user.id,
           subjectId,
         });
-      } catch { /* non-fatal */ }
+      } catch (error) {
+        await pool.query(
+          `UPDATE questions SET similarity_error = :error WHERE id = :id`,
+          { id, error: `Could not queue similarity check: ${String(error.message || error).slice(0, 500)}` }
+        );
+      }
+    }
+    if (!inserted.length) {
+      return res.status(422).json({ error: 'No supported, valid objective questions were found in the import.' });
     }
     res.status(201).json({ imported: inserted.length, questions: inserted });
   } catch (err) { next(err); }

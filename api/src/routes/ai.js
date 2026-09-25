@@ -91,13 +91,18 @@ router.post('/generate-questions', requireAuth, async (req, res, next) => {
 
     // Ownership check — the TOS must belong to a subject owned by the user.
     const [rows] = await pool.query(
-      `SELECT t.id, t.subject_id
+      `SELECT t.id, t.subject_id, t.status
        FROM tos t
        JOIN subjects s ON s.id = t.subject_id
        WHERE t.id = :tosId AND s.instructor_id = :userId`,
       { tosId, userId: req.user.id }
     );
     if (!rows.length) return res.status(404).json({ error: 'TOS not found or not owned by you.' });
+    if (rows[0].status !== 'finalized') {
+      return res.status(409).json({
+        error: 'Finalize the TOS after reviewing its topics, hours, outcomes, and Bloom distribution before generating questions.',
+      });
+    }
 
     const jobId = await jobs.enqueue({
       type: 'generate',
@@ -160,7 +165,7 @@ router.get('/pipeline/:subjectId', requireAuth, async (req, res, next) => {
 
     // 3. TOS created from this subject
     const [tosRows] = await pool.query(
-      `SELECT id, title, total_items, created_at
+      `SELECT id, title, total_items, status, finalized_at, created_at
        FROM tos WHERE subject_id = :id
        ORDER BY created_at DESC LIMIT 1`,
       { id: subjectId }
@@ -201,14 +206,15 @@ router.get('/pipeline/:subjectId', requireAuth, async (req, res, next) => {
       else if (tosJob && tosJob.status === 'running') stage = 'tos_generating';
       else if (tosJob && tosJob.status === 'failed') stage = 'tos_failed';
       else if (tos) {
-        if (generateJob && generateJob.status === 'queued') stage = 'question_generating';
+        if (tos.status !== 'finalized') stage = 'tos_review';
+        else if (generateJob && generateJob.status === 'queued') stage = 'question_generating';
         else if (generateJob && generateJob.status === 'running') stage = 'question_generating';
         else if (generateJob && generateJob.status === 'failed') stage = 'generate_failed';
         else if (generateJob && generateJob.status === 'done') {
           if (Number(questionStats.draft) > 0) stage = 'review';
           else if (Number(questionStats.approved) > 0) stage = 'exam_ready';
           else stage = 'review';
-        } else stage = 'review';
+        } else stage = 'ready_to_generate';
       } else stage = 'processed';
     }
 

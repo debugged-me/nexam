@@ -19,6 +19,7 @@
  *      stale/contradictory matches don't persist.
  */
 import pool from '../../config/db.js';
+import { v4 as uuid } from 'uuid';
 import { embedQuery, searchQuestionsByVector } from '../../services/vectorStore.js';
 import { getNumber } from '../../services/settings.js';
 
@@ -33,6 +34,11 @@ export default async function similarityHandler(job) {
   );
   const question = rows[0];
   if (!question) throw new Error(`Question ${questionId} not found or not owned.`);
+
+  await pool.query(
+    `UPDATE questions SET similarity_checked_at = NULL, similarity_error = NULL WHERE id = :id`,
+    { id: questionId }
+  );
 
   // Rejected questions are out of circulation — nothing to check.
   if (question.status === 'rejected') {
@@ -83,7 +89,9 @@ export default async function similarityHandler(job) {
       { qid: questionId }
     );
     await pool.query(
-      `UPDATE questions SET similarity_flag = 'none', similarity_score = NULL WHERE id = :id`,
+      `UPDATE questions SET similarity_flag = 'none', similarity_score = NULL,
+                            similarity_checked_at = NOW(), similarity_error = NULL
+       WHERE id = :id`,
       { id: questionId }
     );
     return { questionId, flag: 'none', comparisons: 0 };
@@ -120,7 +128,9 @@ export default async function similarityHandler(job) {
 
   if (similarPairs.length > 0) {
     await pool.query(
-      `UPDATE questions SET similarity_flag = 'flagged', similarity_score = :score WHERE id = :id`,
+      `UPDATE questions SET similarity_flag = 'flagged', similarity_score = :score,
+                            similarity_checked_at = NOW(), similarity_error = NULL
+       WHERE id = :id`,
       { id: questionId, score: maxScore.toFixed(4) }
     );
 
@@ -128,10 +138,11 @@ export default async function similarityHandler(job) {
     // idempotent across re-runs).
     for (const pair of similarPairs) {
       await pool.query(
-        `INSERT INTO similarity_results (question_id, similar_question_id, score)
-         VALUES (:questionId, :candidateId, :score)
+        `INSERT INTO similarity_results (id, question_id, similar_question_id, score)
+         VALUES (:id, :questionId, :candidateId, :score)
          ON DUPLICATE KEY UPDATE score = :score`,
         {
+          id: uuid(),
           questionId,
           candidateId: pair.candidateId,
           score: pair.score,
@@ -148,7 +159,9 @@ export default async function similarityHandler(job) {
   }
 
   await pool.query(
-    `UPDATE questions SET similarity_flag = 'none', similarity_score = :score WHERE id = :id`,
+    `UPDATE questions SET similarity_flag = 'none', similarity_score = :score,
+                          similarity_checked_at = NOW(), similarity_error = NULL
+     WHERE id = :id`,
     { id: questionId, score: maxScore.toFixed(4) }
   );
   return {

@@ -9,10 +9,10 @@
  * produces higher-quality print output than programmatic PDF libraries
  * (proper CSS, page breaks, font rendering).
  */
-import puppeteer from 'puppeteer';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { launchBrowser } from './browserLauncher.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const STORAGE_DIR = path.join(__dirname, '..', '..', 'storage', 'exams');
@@ -94,10 +94,7 @@ const BASE_CSS = `
 async function htmlToPDF(html, filePath) {
   let browser;
   try {
-    browser = await puppeteer.launch({
-      headless: true,
-      args: ['--no-sandbox', '--disable-setuid-sandbox'],
-    });
+    browser = await launchBrowser();
     const page = await browser.newPage();
     await page.setContent(html, { waitUntil: 'networkidle0' });
     await page.pdf({
@@ -204,7 +201,7 @@ export async function generateAnswerKeyPDF(opts) {
 
     return `<div class="question answer-key">
       <span class="num">${num}.</span> ${esc(q.stem)}
-      <span class="answer">&rarr; ${esc(answerText)}</span>
+      <span class="answer">Answer: ${esc(answerText)}</span>
       ${q.explanation ? `<div class="explanation">${esc(q.explanation)}</div>` : ''}
     </div>`;
   }).join('\n');

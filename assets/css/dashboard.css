@@ -3,111 +3,161 @@
    Compact, flat dashboard hierarchy inspired by Supabase project surfaces.
    ========================================================================== */
 
-/* ---- KPI cards ------------------------------------------------------- */
+/* ---- KPI cards ----------------------------------------------------------
+   Gradient hero tiles, patterned on the fbmso admin dashboard's nx-stat:
+   a saturated same-hue fill, frosted icon chip, white type, decorative halo
+   + sparkline, and a darkened foot strip that carries the 30-day delta.
+   Colour is spent here and only here — the grids and tables underneath stay
+   on the status-only rule. Variant names map to metrics: info = subjects,
+   success = questions, cyan = blueprints, purple = exams. (Amber is reserved
+   for real "needs attention" states elsewhere, so blueprints takes cyan.) */
 
 .kpi-grid {
     display: grid;
     grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: 10px;
+    gap: var(--space-3);
     margin-bottom: 16px;
 }
 
 .kpi-card {
     position: relative;
-    display: block;
-    background: var(--surface);
-    border: 1px solid var(--line);
-    border-radius: var(--radius-lg);
-    padding: var(--space-4);
-    box-shadow: none;
+    display: flex;
+    flex-direction: column;
+    min-height: 148px;
+    border: 0;
+    border-radius: var(--radius-xl);
+    padding: 0;
+    box-shadow: 0 8px 20px rgba(15, 27, 45, .16);
     overflow: hidden;
-    color: inherit;
-    transition: border-color .15s ease, background-color .15s ease;
+    color: #fff;
+    transition: transform .18s ease, box-shadow .18s ease;
 }
 
-/* Variant classes are retained for data compatibility; emphasis is unified. */
-.kpi-card::before { content: none; }
+/* Deep stop sits top-left so the label on the lower edge keeps contrast;
+   the micro-label also gets a faint text-shadow as insurance. */
+.kpi-card--info    { background: linear-gradient(140deg, #1A6CBD 0%, #3D97EC 100%); }
+.kpi-card--success { background: linear-gradient(140deg, #047857 0%, #15AB75 100%); }
+.kpi-card--cyan    { background: linear-gradient(140deg, #0B7A97 0%, #22AED0 100%); }
+.kpi-card--purple  { background: linear-gradient(140deg, #6D28D9 0%, #8B60F2 100%); }
 
-.kpi-card::after { content: none; }
+/* Halo — decorative only, carries no data. */
+.kpi-card::before {
+    content: "";
+    position: absolute;
+    top: -52px;
+    right: -52px;
+    width: 160px;
+    height: 160px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, .10);
+    pointer-events: none;
+}
 
-/* Content sits above the ::after tint */
+/* Sparkline — decorative glyph, echoes "trend" without implying real data. */
+.kpi-card::after {
+    content: "";
+    position: absolute;
+    right: 14px;
+    bottom: 44px;
+    width: 88px;
+    height: 34px;
+    background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 96 38'%3E%3Cpolyline points='2,32 16,26 32,29 48,18 64,22 80,10 94,5' fill='none' stroke='%23ffffff' stroke-opacity='.55' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3Ccircle cx='94' cy='5' r='3' fill='%23ffffff' fill-opacity='.7'/%3E%3C/svg%3E") no-repeat center / contain;
+    opacity: .55;
+    pointer-events: none;
+}
+
+/* Content sits above the decorations. */
 .kpi-card > * { position: relative; }
+
+.kpi-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 14px 30px rgba(15, 27, 45, .22);
+}
+.kpi-card:active { transform: translateY(-1px) scale(.99); }
+.kpi-card:focus-visible { outline: 2px solid var(--action-700); outline-offset: 2px; }
 
 .kpi-top {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    margin-bottom: 10px;
+    padding: 16px 16px 0;
+    margin-bottom: 6px;
 }
 
 .kpi-icon {
-    width: 34px;
-    height: 34px;
-    border-radius: var(--radius-sm);
+    width: 38px;
+    height: 38px;
+    border-radius: 10px;
     display: flex;
     align-items: center;
     justify-content: center;
     flex-shrink: 0;
 }
 
-.kpi-icon svg { width: 18px !important; height: 18px !important; display: block; }
+.kpi-icon svg { width: 19px !important; height: 19px !important; display: block; }
+
+/* Frosted glass chip — the same on every variant. */
 .kpi-icon--info,
 .kpi-icon--success,
-.kpi-icon--warning,
+.kpi-icon--cyan,
 .kpi-icon--purple {
-    border: 1px solid var(--line);
-    background: var(--surface-2);
-    color: var(--ink-3);
+    border: 1px solid rgba(255, 255, 255, .22);
+    background: rgba(255, 255, 255, .18);
+    color: #fff;
 }
 
 .kpi-open {
-    color: var(--ink-faint);
+    color: rgba(255, 255, 255, .65);
     display: flex;
     transition: transform .22s cubic-bezier(.4, 0, .2, 1), color .22s ease;
 }
 .kpi-open svg { width: 15px !important; height: 15px !important; display: block; }
 
-/* Animate the arrow inside the card on hover (replaces the card lift) */
 .kpi-card:hover .kpi-open {
     transform: translate(3px, -3px);
-    color: var(--ink);
-}
-
-/* The surface response makes the whole card clearly clickable. */
-.kpi-card:hover {
-    border-color: var(--line-strong);
-    background: var(--surface-2);
+    color: #fff;
 }
 
 .kpi-num {
+    padding: 0 16px;
     font-family: var(--font-display, "Google Sans", sans-serif);
     font-size: var(--text-xl);
     font-weight: 700;
     line-height: 1;
     letter-spacing: -.75px;
-    color: var(--ink);
+    color: #fff;
+    text-shadow: 0 1px 2px rgba(9, 22, 40, .18);
 }
 
 .kpi-label {
-    font-size: var(--text-sm);
-    font-weight: 500;
-    color: var(--ink-2);
-    text-transform: none;
-    letter-spacing: 0;
-    margin-top: 8px;
+    padding: 0 16px;
+    margin-top: 7px;
+    font-size: .72rem;
+    font-weight: 700;
+    letter-spacing: .09em;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, .92);
+    text-shadow: 0 1px 2px rgba(9, 22, 40, .22);
 }
 
+/* Foot strip — the 30-day delta on a blackened band, like nx-stat-foot. */
 .kpi-foot {
-    display: none;
+    display: flex;
     align-items: center;
     gap: 6px;
-    margin-top: 12px;
-    padding-top: 10px;
-    border-top: 1px solid var(--line);
+    margin-top: auto;
+    padding: 8px 16px;
+    border-top: 1px solid rgba(255, 255, 255, .14);
+    background: rgba(9, 22, 40, .16);
     font-size: var(--text-xs);
-    color: var(--ink-3);
+    color: rgba(255, 255, 255, .8);
     flex-wrap: wrap;
 }
+
+/* Direction lives in the icon; the colour ramp fails on a coloured card. */
+.kpi-foot .delta.up,
+.kpi-foot .delta.down,
+.kpi-foot .delta.flat { color: #fff; }
 
 /* ---- Layout grids ---------------------------------------------------- */
 
@@ -454,6 +504,7 @@
 
 @media (prefers-reduced-motion: reduce) {
     .bloom-tier-bar { transition: none; }
+    .kpi-card, .kpi-card:hover, .kpi-card:active { transition: none; transform: none; }
 }
 
 /* ---- Loading skeletons ---- */

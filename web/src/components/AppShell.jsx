@@ -160,6 +160,15 @@ export default function AppShell({ activeNav, pageTitle, children, wide }) {
           ))}
         </nav>
 
+        {/* Account card pinned to the rail bottom */}
+        <Link to="/account" className="sidebar-foot">
+          <span className="avatar avatar-sm">{initials}</span>
+          <span className="sidebar-foot-meta">
+            <strong>{user?.full_name || 'nexam user'}</strong>
+            <small>{user?.email || 'Account settings'}</small>
+          </span>
+        </Link>
+
       </aside>
 
       {/* Mobile overlay */}

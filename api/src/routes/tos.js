@@ -24,6 +24,14 @@ router.use(requireAuth);
 const BLOOM_LEVELS = ['remember', 'understand', 'apply', 'analyze', 'evaluate', 'create'];
 const DEFAULT_BLOOM = { remember: 15, understand: 20, apply: 20, analyze: 20, evaluate: 15, create: 10 };
 
+function requireDraft(tos, res) {
+  if (tos.status === 'finalized') {
+    res.status(409).json({ error: 'This TOS is finalized and locked. Create a new draft to make structural changes.' });
+    return false;
+  }
+  return true;
+}
+
 /** Load a TOS and verify ownership via subject join. */
 async function getOwned(id, userId) {
   const [rows] = await pool.query(
@@ -139,6 +147,7 @@ router.get('/', async (req, res, next) => {
 
     const [tosList] = await pool.query(
       `SELECT t.id, t.subject_id, t.title, t.total_items, t.bloom_weights,
+              t.status, t.finalized_by, t.finalized_at,
               t.created_at, t.updated_at, s.name AS subject_name, s.code AS subject_code
        FROM tos t JOIN subjects s ON s.id = t.subject_id
        WHERE ${where.join(' AND ')}
@@ -225,6 +234,7 @@ router.put('/:id', async (req, res, next) => {
   try {
     const tos = await getOwned(req.params.id, req.user.id);
     if (!tos) return res.status(404).json({ error: 'TOS not found.' });
+    if (!requireDraft(tos, res)) return;
 
     const v = validate({ ...req.body, subject_id: req.body.subject_id || tos.subject_id });
     if (v.error) return res.status(422).json({ error: v.error });
@@ -267,11 +277,56 @@ router.put('/:id', async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
+// ── Finalize ──────────────────────────────────────────
+router.post('/:id/finalize', async (req, res, next) => {
+  try {
+    const tos = await getOwned(req.params.id, req.user.id);
+    if (!tos) return res.status(404).json({ error: 'TOS not found.' });
+    if (tos.status === 'finalized') return res.json({ tos, message: 'TOS is already finalized.' });
+
+    await recalcTopicItemCounts(tos.id);
+    const [topics] = await pool.query(
+      `SELECT id, title, instructional_hours, learning_outcomes, item_count
+       FROM tos_topics WHERE tos_id = :id ORDER BY sort_order ASC`,
+      { id: tos.id }
+    );
+    if (!topics.length) return res.status(422).json({ error: 'Add at least one topic before finalizing the TOS.' });
+    if (topics.some((t) => Number(t.instructional_hours) <= 0)) {
+      return res.status(422).json({ error: 'Every topic needs a positive number of instructional hours.' });
+    }
+    const normalizedTitles = topics.map((topic) => String(topic.title).trim().toLowerCase());
+    if (new Set(normalizedTitles).size !== normalizedTitles.length) {
+      return res.status(422).json({ error: 'Topic titles must be unique before the TOS can be finalized.' });
+    }
+    const allocated = topics.reduce((sum, t) => sum + Number(t.item_count || 0), 0);
+    if (allocated !== Number(tos.total_items)) {
+      return res.status(422).json({ error: `Topic allocations total ${allocated}, but the TOS requires ${tos.total_items}.` });
+    }
+    const weights = typeof tos.bloom_weights === 'string'
+      ? JSON.parse(tos.bloom_weights || '{}') : (tos.bloom_weights || {});
+    const weightTotal = BLOOM_LEVELS.reduce((sum, level) => sum + Number(weights[level] || 0), 0);
+    if (Math.abs(weightTotal - 100) > 0.001) {
+      return res.status(422).json({ error: 'Bloom taxonomy weights must total exactly 100%.' });
+    }
+
+    await pool.query(
+      `UPDATE tos SET status = 'finalized', finalized_by = :uid,
+                      finalized_at = NOW(), updated_at = NOW()
+       WHERE id = :id`,
+      { id: tos.id, uid: req.user.id }
+    );
+    const [rows] = await pool.query(`SELECT * FROM tos WHERE id = :id`, { id: tos.id });
+    rows[0].bloom_weights = JSON.parse(rows[0].bloom_weights || '{}');
+    res.json({ tos: rows[0], message: 'TOS finalized. Question generation is now enabled.' });
+  } catch (err) { next(err); }
+});
+
 // ── Delete ───────────────────────────────────────────
 router.delete('/:id', async (req, res, next) => {
   try {
     const tos = await getOwned(req.params.id, req.user.id);
     if (!tos) return res.status(404).json({ error: 'TOS not found.' });
+    if (!requireDraft(tos, res)) return;
     await pool.query(`DELETE FROM tos_topics WHERE tos_id = :id`, { id: tos.id });
     await pool.query(`DELETE FROM tos WHERE id = :id`, { id: tos.id });
     res.json({ message: 'TOS deleted.' });
@@ -290,7 +345,7 @@ router.post('/bulk-delete', async (req, res, next) => {
     // Re-derive ownership via subject join
     const [result] = await pool.query(
       `DELETE t FROM tos t JOIN subjects s ON s.id = t.subject_id
-       WHERE t.id IN (:ids) AND s.instructor_id = :uid`,
+       WHERE t.id IN (:ids) AND s.instructor_id = :uid AND t.status = 'draft'`,
       { ids: validIds, uid: req.user.id }
     );
     res.json({ deleted: result.affectedRows });
@@ -302,6 +357,7 @@ router.post('/:id/topics', async (req, res, next) => {
   try {
     const tos = await getOwned(req.params.id, req.user.id);
     if (!tos) return res.status(404).json({ error: 'TOS not found.' });
+    if (!requireDraft(tos, res)) return;
 
     const { title, instructional_hours, learning_outcomes, item_count } = req.body || {};
     if (!title || !String(title).trim()) return res.status(422).json({ error: 'Topic title is required.' });
@@ -344,6 +400,7 @@ router.put('/:id/topics/:topicId', async (req, res, next) => {
   try {
     const tos = await getOwned(req.params.id, req.user.id);
     if (!tos) return res.status(404).json({ error: 'TOS not found.' });
+    if (!requireDraft(tos, res)) return;
 
     const [existing] = await pool.query(
       `SELECT * FROM tos_topics WHERE id = :topicId AND tos_id = :tosId LIMIT 1`,
@@ -393,6 +450,7 @@ router.delete('/:id/topics/:topicId', async (req, res, next) => {
   try {
     const tos = await getOwned(req.params.id, req.user.id);
     if (!tos) return res.status(404).json({ error: 'TOS not found.' });
+    if (!requireDraft(tos, res)) return;
 
     await pool.query(
       `DELETE FROM tos_topics WHERE id = :topicId AND tos_id = :tosId`,

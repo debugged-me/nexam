@@ -18,6 +18,7 @@ import { v4 as uuid } from 'uuid';
 import pool from '../config/db.js';
 import { requireAuth } from '../middleware/auth.js';
 import { enqueue } from '../services/jobs.js';
+import { assertSafePublicUrl } from '../services/safeUrl.js';
 
 const router = Router();
 
@@ -45,6 +46,7 @@ const upload = multer({
       'application/vnd.openxmlformats-officedocument.wordprocessingml.document', // .docx
       'application/vnd.openxmlformats-officedocument.presentationml.presentation', // .pptx
       'text/plain',
+      'text/markdown',
     ];
     if (allowed.includes(file.mimetype)) cb(null, true);
     else cb(new Error(`File type ${file.mimetype} not allowed. Accepted: PDF, DOCX, PPTX, TXT.`));
@@ -57,7 +59,7 @@ function mimeToSourceType(mimetype, filename) {
   if (mimetype === 'application/pdf' || ext === '.pdf') return 'pdf';
   if (mimetype.includes('wordprocessingml') || ext === '.docx') return 'docx';
   if (mimetype.includes('presentationml') || ext === '.pptx') return 'pptx';
-  if (mimetype === 'text/plain' || ext === '.txt') return 'text';
+  if (mimetype === 'text/plain' || mimetype === 'text/markdown' || ext === '.txt' || ext === '.md') return 'text';
   return 'text';
 }
 
@@ -92,6 +94,7 @@ router.post('/', requireAuth, upload.single('file'), async (req, res, next) => {
       if (!title) materialTitle = req.file.originalname.replace(/\.[^.]+$/, '');
     } else if (url) {
       // URL or YouTube submission
+      await assertSafePublicUrl(url);
       if (url.match(/(?:youtube\.com|youtu\.be)/)) {
         sourceType = 'youtube';
       } else {

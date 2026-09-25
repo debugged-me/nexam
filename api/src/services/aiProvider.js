@@ -104,7 +104,7 @@ export async function generate(systemPrompt, userPrompt, opts = {}) {
       // directly in the same way as the raw SDK; the instruction approach
       // is reliable across Gemini model versions).
       if (jsonSchema) {
-        const schemaHint = `\n\nYou MUST respond with ONLY valid JSON matching this structure: ${JSON.stringify(jsonSchema)}. Do not include markdown code fences or any text outside the JSON.`;
+        const schemaHint = `\n\nThe following is a JSON Schema definition, not the response itself. Return one JSON INSTANCE that satisfies it; never repeat or describe the schema: ${JSON.stringify(jsonSchema)}. Do not include markdown code fences or any text outside that JSON instance.`;
         messages[0] = new SystemMessage(systemPrompt + schemaHint);
       }
 

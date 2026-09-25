@@ -26,6 +26,45 @@ const VECTORS_DIR = path.resolve(process.cwd(), env.vectorStore.dir);
 
 let _embeddings = null;
 
+/**
+ * HNSWLib writes three files per index. Concurrent save/load operations can
+ * expose a half-written docstore, so every access uses a small cross-process
+ * lock file. This protects the API process and the background worker alike.
+ */
+async function withIndexLock(dir, action, timeoutMs = 30000) {
+  const lockPath = `${dir}.lock`;
+  await fs.mkdir(path.dirname(dir), { recursive: true });
+  const started = Date.now();
+  let handle;
+  while (!handle) {
+    try {
+      handle = await fs.open(lockPath, 'wx');
+      await handle.writeFile(`${process.pid} ${Date.now()}\n`);
+    } catch (err) {
+      if (err.code !== 'EEXIST') throw err;
+      try {
+        const stat = await fs.stat(lockPath);
+        if (Date.now() - stat.mtimeMs > 60000) {
+          await fs.unlink(lockPath);
+          continue;
+        }
+      } catch (statErr) {
+        if (statErr.code !== 'ENOENT') throw statErr;
+      }
+      if (Date.now() - started >= timeoutMs) {
+        throw new Error(`Timed out waiting for vector index lock: ${path.basename(dir)}`);
+      }
+      await new Promise((resolve) => setTimeout(resolve, 75));
+    }
+  }
+  try {
+    return await action();
+  } finally {
+    try { await handle.close(); } catch { /* already closed */ }
+    try { await fs.unlink(lockPath); } catch { /* lock already cleared */ }
+  }
+}
+
 /** Lazily initialize the LangChain Gemini embeddings model. */
 function getEmbeddings() {
   if (_embeddings) return _embeddings;
@@ -67,25 +106,26 @@ export async function addChunks(subjectId, chunks) {
   if (!chunks.length) return;
 
   const dir = chunksDir(subjectId);
-  const embeddings = getEmbeddings();
   const docs = chunks.map((c) => new Document({
     pageContent: c.text,
     metadata: { id: c.id, materialId: c.materialId, ordinal: c.ordinal },
   }));
 
-  const exists = await dirExists(dir);
-  if (exists) {
-    const store = await HNSWLib.load(dir, embeddings, { space: 'cosine' });
-    await store.addDocuments(docs);
-    await store.save(dir);
-  } else {
-    await fs.mkdir(dir, { recursive: true });
-    const store = await HNSWLib.fromDocuments(docs, embeddings, {
-      space: 'cosine',
-      directory: dir,
-    });
-    await store.save(dir);
-  }
+  await withIndexLock(dir, async () => {
+    const embeddings = getEmbeddings();
+    const exists = await dirExists(dir);
+    if (exists) {
+      const store = await HNSWLib.load(dir, embeddings, { space: 'cosine' });
+      await store.addDocuments(docs);
+      await store.save(dir);
+    } else {
+      await fs.mkdir(dir, { recursive: true });
+      const store = await HNSWLib.fromDocuments(docs, embeddings, {
+        space: 'cosine', directory: dir,
+      });
+      await store.save(dir);
+    }
+  });
 }
 
 /**
@@ -96,18 +136,17 @@ export async function addChunks(subjectId, chunks) {
 export async function searchChunks(subjectId, query, topK = 5) {
   const dir = chunksDir(subjectId);
   if (!(await dirExists(dir))) return [];
-
-  const store = await HNSWLib.load(dir, getEmbeddings(), { space: 'cosine' });
-  const results = await store.similaritySearchWithScore(query, topK);
-
-  // HNSWLib cosine space returns distance (1 - similarity); convert.
-  return results.map(([doc, distance]) => ({
-    id: doc.metadata.id,
-    materialId: doc.metadata.materialId,
-    ordinal: doc.metadata.ordinal,
-    text: doc.pageContent,
-    score: 1 - distance,
-  }));
+  return withIndexLock(dir, async () => {
+    const store = await HNSWLib.load(dir, getEmbeddings(), { space: 'cosine' });
+    const results = await store.similaritySearchWithScore(query, topK);
+    return results.map(([doc, distance]) => ({
+      id: doc.metadata.id,
+      materialId: doc.metadata.materialId,
+      ordinal: doc.metadata.ordinal,
+      text: doc.pageContent,
+      score: 1 - distance,
+    }));
+  });
 }
 
 /**
@@ -128,25 +167,26 @@ export async function deleteChunksIndex(subjectId) {
  */
 export async function addQuestion(subjectId, questionId, text) {
   const dir = questionsDir(subjectId);
-  const embeddings = getEmbeddings();
   const doc = new Document({
     pageContent: text,
     metadata: { id: questionId },
   });
 
-  const exists = await dirExists(dir);
-  if (exists) {
-    const store = await HNSWLib.load(dir, embeddings, { space: 'cosine' });
-    await store.addDocuments([doc]);
-    await store.save(dir);
-  } else {
-    await fs.mkdir(dir, { recursive: true });
-    const store = await HNSWLib.fromDocuments([doc], embeddings, {
-      space: 'cosine',
-      directory: dir,
-    });
-    await store.save(dir);
-  }
+  await withIndexLock(dir, async () => {
+    const embeddings = getEmbeddings();
+    const exists = await dirExists(dir);
+    if (exists) {
+      const store = await HNSWLib.load(dir, embeddings, { space: 'cosine' });
+      await store.addDocuments([doc]);
+      await store.save(dir);
+    } else {
+      await fs.mkdir(dir, { recursive: true });
+      const store = await HNSWLib.fromDocuments([doc], embeddings, {
+        space: 'cosine', directory: dir,
+      });
+      await store.save(dir);
+    }
+  });
 }
 
 /**
@@ -161,19 +201,15 @@ export async function addQuestion(subjectId, questionId, text) {
 export async function searchQuestions(subjectId, query, topK = 10, excludeId = null) {
   const dir = questionsDir(subjectId);
   if (!(await dirExists(dir))) return [];
-
-  const store = await HNSWLib.load(dir, getEmbeddings(), { space: 'cosine' });
-  // Fetch extra results so we can filter out the excluded ID.
-  const fetchCount = excludeId ? topK + 5 : topK;
-  const results = await store.similaritySearchWithScore(query, fetchCount);
-
-  return results
-    .filter(([doc]) => doc.metadata.id !== excludeId)
-    .slice(0, topK)
-    .map(([doc, distance]) => ({
-      id: doc.metadata.id,
-      score: 1 - distance,
-    }));
+  return withIndexLock(dir, async () => {
+    const store = await HNSWLib.load(dir, getEmbeddings(), { space: 'cosine' });
+    const fetchCount = excludeId ? topK + 5 : topK;
+    const results = await store.similaritySearchWithScore(query, fetchCount);
+    return results
+      .filter(([doc]) => doc.metadata.id !== excludeId)
+      .slice(0, topK)
+      .map(([doc, distance]) => ({ id: doc.metadata.id, score: 1 - distance }));
+  });
 }
 
 /**
@@ -193,18 +229,43 @@ export async function embedQuery(text) {
 export async function searchQuestionsByVector(subjectId, vector, topK = 10, excludeId = null) {
   const dir = questionsDir(subjectId);
   if (!(await dirExists(dir))) return [];
+  return withIndexLock(dir, async () => {
+    const store = await HNSWLib.load(dir, getEmbeddings(), { space: 'cosine' });
+    const fetchCount = excludeId ? topK + 5 : topK;
+    const results = await store.similaritySearchVectorWithScore(vector, fetchCount);
+    return results
+      .filter(([doc]) => doc.metadata.id !== excludeId)
+      .slice(0, topK)
+      .map(([doc, distance]) => ({ id: doc.metadata.id, score: 1 - distance }));
+  });
+}
 
-  const store = await HNSWLib.load(dir, getEmbeddings(), { space: 'cosine' });
-  const fetchCount = excludeId ? topK + 5 : topK;
-  const results = await store.similaritySearchVectorWithScore(vector, fetchCount);
-
-  return results
-    .filter(([doc]) => doc.metadata.id !== excludeId)
-    .slice(0, topK)
-    .map(([doc, distance]) => ({
-      id: doc.metadata.id,
-      score: 1 - distance,
+/** Replace one subject's question index atomically, preserving the old index. */
+export async function rebuildQuestionsIndex(subjectId, questions) {
+  const dir = questionsDir(subjectId);
+  return withIndexLock(dir, async () => {
+    const stamp = Date.now();
+    const tempDir = `${dir}.rebuild-${stamp}`;
+    const backupDir = `${dir}.backup-${stamp}`;
+    const docs = questions.map((q) => new Document({
+      pageContent: q.text,
+      metadata: { id: q.id },
     }));
+    if (docs.length) {
+      await fs.mkdir(tempDir, { recursive: true });
+      const store = await HNSWLib.fromDocuments(docs, getEmbeddings(), {
+        space: 'cosine', directory: tempDir,
+      });
+      await store.save(tempDir);
+    }
+    let backupCreated = false;
+    try {
+      await fs.rename(dir, backupDir);
+      backupCreated = true;
+    } catch (err) { if (err.code !== 'ENOENT') throw err; }
+    if (docs.length) await fs.rename(tempDir, dir);
+    return { indexed: docs.length, backupDir: backupCreated ? backupDir : null, backupCreated };
+  });
 }
 
 /**
@@ -220,28 +281,29 @@ export async function removeQuestion(subjectId, questionId) {
   if (!(await dirExists(dir))) return false;
 
   try {
-    const store = await HNSWLib.load(dir, getEmbeddings(), { space: 'cosine' });
-    const docs = store.docstore?._docs;
-    if (!docs || typeof docs.entries !== 'function') return false;
+    return await withIndexLock(dir, async () => {
+      const store = await HNSWLib.load(dir, getEmbeddings(), { space: 'cosine' });
+      const docs = store.docstore?._docs;
+      if (!docs || typeof docs.entries !== 'function') return false;
 
-    const internalIds = [];
-    for (const [internalId, doc] of docs.entries()) {
-      if (doc?.metadata?.id === questionId) internalIds.push(internalId);
-    }
-    if (!internalIds.length) return false;
-
-    if (typeof store.delete === 'function') {
-      await store.delete({ ids: internalIds });
-    } else {
-      // Older LangChain: drop the docstore entries + mark vectors deleted.
-      for (const internalId of internalIds) {
-        const numericLabel = store.index?.getIdsList?.().indexOf?.(internalId);
-        try { store.index?.markDelete?.(numericLabel); } catch { /* best effort */ }
-        docs.delete(internalId);
+      const internalIds = [];
+      for (const [internalId, doc] of docs.entries()) {
+        if (doc?.metadata?.id === questionId) internalIds.push(internalId);
       }
-    }
-    await store.save(dir);
-    return true;
+      if (!internalIds.length) return false;
+
+      if (typeof store.delete === 'function') {
+        await store.delete({ ids: internalIds });
+      } else {
+        for (const internalId of internalIds) {
+          const numericLabel = store.index?.getIdsList?.().indexOf?.(internalId);
+          try { store.index?.markDelete?.(numericLabel); } catch { /* best effort */ }
+          docs.delete(internalId);
+        }
+      }
+      await store.save(dir);
+      return true;
+    });
   } catch {
     return false;
   }
@@ -264,4 +326,5 @@ export default {
   embedQuery,
   searchQuestionsByVector,
   removeQuestion,
+  rebuildQuestionsIndex,
 };

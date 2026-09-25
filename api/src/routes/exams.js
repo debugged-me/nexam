@@ -12,42 +12,118 @@
  */
 import { Router } from 'express';
 import { v4 as uuid } from 'uuid';
+import fs from 'fs';
+import path from 'path';
 import pool from '../config/db.js';
 import { requireAuth } from '../middleware/auth.js';
 import { generateExamPDF, generateAnswerKeyPDF, generateTOSReportPDF, STORAGE_DIR } from '../services/pdfService.js';
 import { toGIFT, toCanvasXML } from '../services/lmsExport.js';
 import { generateOMRSheet } from '../services/omrService.js';
+import { buildTosMatrix, validateAlignedQuestions } from '../services/tosAlignment.js';
 
 const router = Router();
 
 const EXAM_FORMATS = ['print', 'digital'];
 const EXAM_STATUSES = ['draft', 'published'];
 
-/**
- * Convert TOS percentage weights into exact item counts using largest
- * remainders — identical to the PHP _allocation_from_tos() logic.
- */
-function allocationFromTos(bloomWeights, totalItems) {
-  const weights = typeof bloomWeights === 'string' ? JSON.parse(bloomWeights) : bloomWeights;
-  if (!weights || typeof weights !== 'object' || totalItems < 1) return null;
+const SUPPORTED_QUESTION_TYPES = ['mcq', 'true_false', 'matching', 'identification'];
 
-  const allocation = {};
-  const remainders = [];
-  let allocated = 0;
-  for (const [bloom, pct] of Object.entries(weights)) {
-    const exact = (parseFloat(pct) / 100) * totalItems;
-    const whole = Math.floor(exact);
-    allocation[bloom] = whole;
-    remainders.push({ bloom, remainder: exact - whole });
-    allocated += whole;
+async function planQuestionsForTos(tos, userId) {
+  const [topics] = await pool.query(
+    `SELECT * FROM tos_topics WHERE tos_id = :tosId ORDER BY sort_order ASC`,
+    { tosId: tos.id }
+  );
+  const weights = typeof tos.bloom_weights === 'string'
+    ? JSON.parse(tos.bloom_weights || '{}') : tos.bloom_weights;
+  const { slots } = buildTosMatrix(topics, weights, Number(tos.total_items));
+  const questions = [];
+  const shortages = [];
+
+  for (const slot of slots) {
+    const [rows] = await pool.query(
+      `SELECT q.* FROM questions q
+       WHERE q.subject_id = :subjectId AND q.created_by = :userId
+         AND q.status = 'active' AND q.type IN ('mcq','true_false','matching','identification')
+         AND q.similarity_checked_at IS NOT NULL AND q.similarity_error IS NULL
+         AND q.similarity_flag = 'none'
+         AND q.topic = :topic AND q.bloom = :bloom
+         AND (q.tos_id = :tosId OR EXISTS (
+           SELECT 1 FROM question_tos qt WHERE qt.question_id = q.id AND qt.tos_id = :tosId
+         ))
+       ORDER BY RAND() LIMIT :needed`,
+      {
+        subjectId: tos.subject_id, userId, topic: slot.topic,
+        bloom: slot.bloom, tosId: tos.id, needed: slot.count,
+      }
+    );
+    if (rows.length !== slot.count) {
+      shortages.push({ topic: slot.topic, bloom: slot.bloom, needed: slot.count, available: rows.length });
+    }
+    questions.push(...rows);
   }
-  remainders.sort((a, b) => b.remainder - a.remainder);
-  for (const { bloom } of remainders) {
-    if (allocated >= totalItems) break;
-    allocation[bloom]++;
-    allocated++;
+  return { topics, weights, questions, shortages };
+}
+
+function circulationError(question) {
+  if (question.status !== 'active') return 'contains a question that is not approved';
+  if (!SUPPORTED_QUESTION_TYPES.includes(question.type)) return 'contains an unsupported question type';
+  if (!question.similarity_checked_at || question.similarity_error || question.similarity_flag !== 'none') {
+    return 'contains a question that has not passed similarity review';
   }
-  return allocation;
+  return null;
+}
+
+async function validateExamAlignment(exam, questions) {
+  if (!exam.tos_id) return { error: 'A finalized TOS blueprint is required.' };
+  const [tosRows] = await pool.query(`SELECT * FROM tos WHERE id = :id`, { id: exam.tos_id });
+  const tos = tosRows[0];
+  if (!tos || tos.status !== 'finalized') return { error: 'The linked TOS must be finalized.' };
+
+  const invalid = questions.flatMap((question) => {
+    const reason = circulationError(question)
+      || (!question.linked_to_tos && question.tos_id !== exam.tos_id
+        ? 'is not linked to this exam TOS' : null);
+    return reason ? [{ id: question.id, reason }] : [];
+  });
+  if (invalid.length) return { error: 'The exam contains questions that cannot circulate.', invalid };
+
+  const [topics] = await pool.query(
+    `SELECT * FROM tos_topics WHERE tos_id = :tosId ORDER BY sort_order ASC`,
+    { tosId: tos.id }
+  );
+  let weights;
+  try {
+    weights = typeof tos.bloom_weights === 'string'
+      ? JSON.parse(tos.bloom_weights || '{}') : tos.bloom_weights;
+  } catch {
+    return { error: 'The linked TOS has invalid Bloom weights.' };
+  }
+  try {
+    const alignment = validateAlignedQuestions(questions, topics, weights, Number(tos.total_items));
+    if (!alignment.ok) {
+      return {
+        error: 'The exam does not exactly match every TOS topic and Bloom allocation.',
+        ...alignment,
+      };
+    }
+  } catch (error) {
+    return { error: error.message };
+  }
+  return { tos, topics, weights };
+}
+
+async function loadExamQuestions(examId, tosId) {
+  const [questions] = await pool.query(
+    `SELECT q.*, eq.sort_order,
+            EXISTS(SELECT 1 FROM question_tos qt
+                   WHERE qt.question_id = q.id AND qt.tos_id = :tosId) AS linked_to_tos
+     FROM exam_questions eq
+     JOIN questions q ON q.id = eq.question_id
+     WHERE eq.exam_id = :examId
+     ORDER BY eq.sort_order ASC`,
+    { examId, tosId }
+  );
+  return questions;
 }
 
 /** GET /api/exams — list exams for the authenticated instructor. */
@@ -74,9 +150,10 @@ router.get('/', requireAuth, async (req, res, next) => {
 /** POST /api/exams — create a new exam. */
 router.post('/', requireAuth, async (req, res, next) => {
   try {
-    const { title, subject_id, tos_id, format, set_count, duration_minutes, instructions, status } = req.body || {};
+    const { title, subject_id, tos_id, format, duration_minutes, instructions, status } = req.body || {};
     if (!title || !String(title).trim()) return res.status(422).json({ error: 'Title is required.' });
     if (!subject_id) return res.status(422).json({ error: 'Subject is required.' });
+    if (!tos_id) return res.status(422).json({ error: 'A finalized TOS blueprint is required to build an exam.' });
     if (format !== undefined && !EXAM_FORMATS.includes(format)) {
       return res.status(422).json({ error: `Format must be one of: ${EXAM_FORMATS.join(', ')}.` });
     }
@@ -108,56 +185,44 @@ router.post('/', requireAuth, async (req, res, next) => {
       if (tos.subject_id !== subject_id) {
         return res.status(422).json({ error: 'The TOS blueprint must belong to the selected subject.' });
       }
+      if (tos.status !== 'finalized') {
+        return res.status(409).json({ error: 'Finalize the TOS before building an exam.' });
+      }
+    }
+
+    const plan = await planQuestionsForTos(tos, req.user.id);
+    if (plan.shortages.length) {
+      return res.status(409).json({
+        error: 'Not enough approved, similarity-cleared questions to satisfy every TOS topic and Bloom cell.',
+        shortages: plan.shortages,
+      });
     }
 
     const id = uuid();
-    await pool.query(
-      `INSERT INTO exams (id, subject_id, tos_id, title, format, set_count, duration_minutes, instructions, status, created_by, created_at, updated_at)
-       VALUES (:id, :subject_id, :tos_id, :title, :format, :set_count, :duration_minutes, :instructions, :status, :uid, NOW(), NOW())`,
-      {
-        id,
-        subject_id,
-        tos_id: tos_id || null,
-        title: String(title).trim(),
-        format: format || 'print',
-        set_count: Math.min(Math.max(Number(set_count) || 1, 1), 2),
-        duration_minutes: duration_minutes || null,
-        instructions: instructions || null,
-        status: status || 'draft',
-        uid: req.user.id,
-      }
-    );
-
-    // Auto-assemble questions from the TOS blueprint (same behavior as the
-    // PHP app): pick random ACTIVE questions per Bloom bucket. Shortages are
-    // reported but never silently ignored — the exam is created either way.
-    let shortages = [];
-    if (tos) {
-      const weights = JSON.parse(tos.bloom_weights || '{}');
-      if (Object.values(weights).reduce((s, v) => s + Number(v), 0) === 100) {
-        const allocation = allocationFromTos(weights, Number(tos.total_items));
-        if (allocation) {
-          let sortOrder = 1;
-          for (const [bloom, needed] of Object.entries(allocation)) {
-            if (needed <= 0) continue;
-            const [qs] = await pool.query(
-              `SELECT id FROM questions
-               WHERE subject_id = :sid AND created_by = :uid AND bloom = :bloom AND status = 'active'
-               ORDER BY RAND() LIMIT :lim`,
-              { sid: subject_id, uid: req.user.id, bloom, lim: needed }
-            );
-            if (qs.length < needed) {
-              shortages.push(`${bloom}: need ${needed}, available ${qs.length}`);
-            }
-            for (const q of qs) {
-              await pool.query(
-                `INSERT INTO exam_questions (exam_id, question_id, sort_order) VALUES (:eid, :qid, :ord)`,
-                { eid: id, qid: q.id, ord: sortOrder++ }
-              );
-            }
-          }
+    const conn = await pool.getConnection();
+    try {
+      await conn.beginTransaction();
+      await conn.query(
+        `INSERT INTO exams (id, subject_id, tos_id, title, format, set_count, duration_minutes, instructions, status, created_by, created_at, updated_at)
+         VALUES (:id, :subject_id, :tos_id, :title, :format, 2, :duration_minutes, :instructions, :status, :uid, NOW(), NOW())`,
+        {
+          id, subject_id, tos_id, title: String(title).trim(), format: format || 'print',
+          duration_minutes: duration_minutes || null, instructions: instructions || null,
+          status: status || 'draft', uid: req.user.id,
         }
+      );
+      for (let i = 0; i < plan.questions.length; i++) {
+        await conn.query(
+          `INSERT INTO exam_questions (exam_id, question_id, sort_order) VALUES (:eid, :qid, :ord)`,
+          { eid: id, qid: plan.questions[i].id, ord: i + 1 }
+        );
       }
+      await conn.commit();
+    } catch (err) {
+      await conn.rollback();
+      throw err;
+    } finally {
+      conn.release();
     }
 
     const [rows] = await pool.query(
@@ -165,7 +230,7 @@ router.post('/', requireAuth, async (req, res, next) => {
        FROM exams e JOIN subjects s ON s.id = e.subject_id WHERE e.id = :id`,
       { id }
     );
-    res.status(201).json({ exam: rows[0], shortages });
+    res.status(201).json({ exam: rows[0], shortages: [] });
   } catch (err) { next(err); }
 });
 
@@ -222,7 +287,7 @@ router.put('/:id', requireAuth, async (req, res, next) => {
     if (!examRows.length) return res.status(404).json({ error: 'Exam not found.' });
     const exam = examRows[0];
 
-    const { title, format, set_count, duration_minutes, instructions, status } = req.body || {};
+    const { title, format, duration_minutes, instructions, status } = req.body || {};
     if (format !== undefined && !EXAM_FORMATS.includes(format)) {
       return res.status(422).json({ error: `Format must be one of: ${EXAM_FORMATS.join(', ')}.` });
     }
@@ -234,15 +299,12 @@ router.put('/:id', requireAuth, async (req, res, next) => {
       return res.status(422).json({ error: 'Duration must be a positive integer (max 600 minutes).' });
     }
 
-    // Publishing guard: can't publish an exam that has no questions attached.
+    // Publishing guard: only a complete, finalized, review-cleared TOS exam may circulate.
     if (status === 'published') {
-      const [qRows] = await pool.query(
-        `SELECT COUNT(*) AS cnt FROM exam_questions WHERE exam_id = :id`,
-        { id: exam.id }
-      );
-      if (!qRows[0].cnt) {
-        return res.status(422).json({ error: 'Cannot publish an exam with no questions.' });
-      }
+      const questions = await loadExamQuestions(exam.id, exam.tos_id);
+      if (!questions.length) return res.status(422).json({ error: 'Cannot publish an exam with no questions.' });
+      const alignment = await validateExamAlignment(exam, questions);
+      if (alignment.error) return res.status(409).json(alignment);
     }
 
     await pool.query(
@@ -253,7 +315,7 @@ router.put('/:id', requireAuth, async (req, res, next) => {
         id: exam.id,
         title: title ? String(title).trim() : exam.title,
         format: format || exam.format,
-        set_count: set_count !== undefined ? Math.min(Math.max(Number(set_count), 1), 2) : exam.set_count,
+        set_count: 2,
         duration_minutes: duration_minutes !== undefined ? duration_minutes : exam.duration_minutes,
         instructions: instructions !== undefined ? instructions : exam.instructions,
         status: status || exam.status,
@@ -305,8 +367,15 @@ router.post('/:id/questions', requireAuth, async (req, res, next) => {
     if (!validIds.length) return res.status(400).json({ error: 'No valid question IDs.' });
 
     const [ownedRows] = await pool.query(
-      `SELECT id FROM questions WHERE id IN (:ids) AND created_by = :uid AND status = 'active'`,
-      { ids: validIds, uid: req.user.id }
+      `SELECT q.id FROM questions q
+       WHERE q.id IN (:ids) AND q.created_by = :uid AND q.subject_id = :subjectId
+         AND q.status = 'active' AND q.type IN ('mcq','true_false','matching','identification')
+         AND q.similarity_checked_at IS NOT NULL AND q.similarity_error IS NULL
+         AND q.similarity_flag = 'none'
+         AND (q.tos_id = :tosId OR EXISTS (
+           SELECT 1 FROM question_tos qt WHERE qt.question_id = q.id AND qt.tos_id = :tosId
+         ))`,
+      { ids: validIds, uid: req.user.id, subjectId: exam.subject_id, tosId: exam.tos_id }
     );
     const ownedIds = ownedRows.map((r) => r.id);
 
@@ -372,38 +441,17 @@ router.post('/:id/generate-sets', requireAuth, async (req, res, next) => {
     const exam = examRows[0];
     if (!exam) return res.status(404).json({ error: 'Exam not found.' });
 
-    // Load TOS if linked
-    let tos = null;
-    if (exam.tos_id) {
-      const [tosRows] = await pool.query(`SELECT * FROM tos WHERE id = :id`, { id: exam.tos_id });
-      tos = tosRows[0];
-    }
-
     // Load questions already attached to this exam
-    const [questions] = await pool.query(
-      `SELECT q.*, eq.sort_order
-       FROM exam_questions eq
-       JOIN questions q ON q.id = eq.question_id
-       WHERE eq.exam_id = :examId
-       ORDER BY eq.sort_order ASC`,
-      { examId }
-    );
+    const questions = await loadExamQuestions(examId, exam.tos_id);
 
     if (questions.length === 0) {
       return res.status(400).json({ error: 'No questions attached to this exam. Add questions first.' });
     }
 
-    // Load TOS topics if TOS exists
-    let topics = [];
-    if (tos) {
-      const [topicRows] = await pool.query(
-        `SELECT * FROM tos_topics WHERE tos_id = :tosId ORDER BY sort_order ASC`,
-        { tosId: tos.id }
-      );
-      topics = topicRows;
-    }
-
-    const setCount = Math.min(Math.max(parseInt(req.body.setCount, 10) || exam.set_count || 1, 1), 2);
+    const alignment = await validateExamAlignment(exam, questions);
+    if (alignment.error) return res.status(409).json(alignment);
+    const { tos, topics, weights: bloomWeights } = alignment;
+    const setCount = 2;
 
     // Phase 1: generate all PDF files first (slow, can't be rolled back — so
     // do it before opening the DB transaction). If PDF generation fails, no
@@ -478,6 +526,8 @@ router.post('/:id/generate-sets', requireAuth, async (req, res, next) => {
         }
       }
 
+      await conn.query(`UPDATE exams SET set_count = 2, updated_at = NOW() WHERE id = ?`, [examId]);
+
       await conn.commit();
     } catch (err) {
       try { await conn.rollback(); } catch (_) { /* ignore */ }
@@ -499,8 +549,6 @@ router.post('/:id/generate-sets', requireAuth, async (req, res, next) => {
     let tosReportPath = null;
     if (tos) {
       const tosReportFilename = `tos_report_${examId}.pdf`;
-      const bloomWeights = JSON.parse(tos.bloom_weights || '{}');
-
       // Compute actual distribution from the exam questions
       const actualDist = {};
       for (const q of questions) {
@@ -579,17 +627,29 @@ router.get('/:id/download/:type', requireAuth, async (req, res, next) => {
 
     let filename;
     if (type === 'tos-report') {
+      const [sets] = await pool.query(`SELECT COUNT(*) AS cnt FROM exam_sets WHERE exam_id = :examId`, { examId });
+      if (Number(sets[0].cnt) !== 2) {
+        return res.status(404).json({ error: 'Generate the current Set A and Set B before downloading this report.' });
+      }
       filename = `tos_report_${examId}.pdf`;
     } else if (type === 'exam' || type === 'answerkey' || type === 'omr') {
-      if (!setLabel) return res.status(400).json({ error: 'Set label is required.' });
-      const prefix = type === 'exam' ? 'exam' : type === 'answerkey' ? 'answerkey' : 'omr';
-      filename = `${prefix}_${examId}_set${setLabel}.pdf`;
+      if (!setLabel || !['A', 'B'].includes(setLabel)) {
+        return res.status(400).json({ error: 'Set label A or B is required.' });
+      }
+      const column = type === 'exam' ? 'pdf_path' : type === 'answerkey' ? 'answer_key_path' : 'omr_sheet_path';
+      const [sets] = await pool.query(
+        `SELECT ${column} AS filename FROM exam_sets WHERE exam_id = :examId AND set_label = :setLabel`,
+        { examId, setLabel }
+      );
+      if (!sets.length || !sets[0].filename) {
+        return res.status(404).json({ error: 'File not found. Generate the current exam sets first.' });
+      }
+      filename = path.basename(sets[0].filename);
     } else {
       return res.status(400).json({ error: 'Invalid download type.' });
     }
 
-    const filePath = `${STORAGE_DIR}/${filename}`;
-    const fs = await import('fs');
+    const filePath = path.join(STORAGE_DIR, filename);
     if (!fs.existsSync(filePath)) {
       return res.status(404).json({ error: 'File not found. Generate the exam sets first.' });
     }
@@ -618,7 +678,7 @@ router.get('/:id/export/:format', requireAuth, async (req, res, next) => {
 
     // Ownership check
     const [examRows] = await pool.query(
-      `SELECT e.id, e.title FROM exams e
+      `SELECT e.* FROM exams e
        JOIN subjects s ON s.id = e.subject_id
        WHERE e.id = :examId AND s.instructor_id = :userId`,
       { examId, userId: req.user.id }
@@ -626,17 +686,13 @@ router.get('/:id/export/:format', requireAuth, async (req, res, next) => {
     if (!examRows.length) return res.status(404).json({ error: 'Exam not found.' });
 
     // Load questions
-    const [questions] = await pool.query(
-      `SELECT q.* FROM exam_questions eq
-       JOIN questions q ON q.id = eq.question_id
-       WHERE eq.exam_id = :examId
-       ORDER BY eq.sort_order ASC`,
-      { examId }
-    );
+    const questions = await loadExamQuestions(examId, examRows[0].tos_id);
 
     if (questions.length === 0) {
       return res.status(400).json({ error: 'No questions to export.' });
     }
+    const alignment = await validateExamAlignment(examRows[0], questions);
+    if (alignment.error) return res.status(409).json(alignment);
 
     let content, contentType, filename;
 

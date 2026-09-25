@@ -218,7 +218,7 @@ class ScanApi {
         Uri.parse('$baseUrl/api/scans/$scanId/review'),
         headers: _headers(token),
         body: jsonEncode({
-          'corrections': corrections.entries
+          'correctedAnswers': corrections.entries
               .map((e) => {'itemNumber': e.key, 'markedAnswer': e.value})
               .toList(),
         }),

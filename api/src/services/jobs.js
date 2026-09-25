@@ -122,4 +122,15 @@ export async function recentByUser(userId, limit = 20) {
   return rows;
 }
 
-export default { enqueue, claimNext, markDone, markFailed, getById, recentByUser };
+/** Return orphaned running jobs to the queue after an interrupted worker. */
+export async function requeueStaleRunning(maxAgeMinutes = 15) {
+  const [result] = await pool.query(
+    `UPDATE ai_jobs SET status = 'queued', started_at = NULL
+     WHERE status = 'running'
+       AND TIMESTAMPDIFF(MINUTE, started_at, NOW()) >= :minutes`,
+    { minutes: Math.max(1, Number(maxAgeMinutes) || 15) }
+  );
+  return result.affectedRows;
+}
+
+export default { enqueue, claimNext, markDone, markFailed, getById, recentByUser, requeueStaleRunning };

@@ -10,7 +10,7 @@ if ($first_name === '') $first_name = 'there';
 $kpis = [
     ['key' => 'subjects',  'label' => 'Subjects',       'value' => $stats['subjects'],  'icon' => 'book-open',   'variant' => 'info',    'url' => site_url('subjects')],
     ['key' => 'questions', 'label' => 'Questions',      'value' => $stats['questions'], 'icon' => 'help-circle', 'variant' => 'success', 'url' => site_url('questions')],
-    ['key' => 'tos',       'label' => 'Blueprints (TOS)', 'value' => $stats['tos'],       'icon' => 'table',       'variant' => 'warning', 'url' => site_url('tos')],
+    ['key' => 'tos',       'label' => 'Blueprints (TOS)', 'value' => $stats['tos'],       'icon' => 'panels-top-left', 'variant' => 'cyan',    'url' => site_url('tos')],
     ['key' => 'exams',     'label' => 'Exams',          'value' => $stats['exams'],     'icon' => 'file-text',   'variant' => 'purple',  'url' => site_url('exams')],
 ];
 

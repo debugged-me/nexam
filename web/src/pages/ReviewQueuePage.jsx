@@ -16,7 +16,7 @@ import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import {
   Check, X, Pencil, SkipForward, Undo2, ArrowLeft, ArrowRight, AlertTriangle,
-  CheckCheck, ClipboardCheck, Keyboard, Sparkles, Plus, Trash2, Save,
+  CheckCheck, ClipboardCheck, Keyboard, Sparkles, Plus, Trash2, Save, RefreshCw,
 } from 'lucide-react';
 import { useToast } from '../components/Toast.jsx';
 import Modal from '../components/Modal.jsx';
@@ -196,8 +196,9 @@ export default function ReviewQueuePage() {
     };
   }, [decisions, queue]);
 
-  const pendingIds = useMemo(
-    () => (queue || []).filter((q) => !decisions[q.id]).map((q) => q.id),
+  const approvableIds = useMemo(
+    () => (queue || []).filter((q) => !decisions[q.id]
+      && q.similarity_checked_at && !q.similarity_error && q.similarity_flag === 'none').map((q) => q.id),
     [queue, decisions]
   );
 
@@ -206,11 +207,17 @@ export default function ReviewQueuePage() {
   const progressPct = total ? Math.round((decidedCount / total) * 100) : 0;
   const canEditInline = !!current && PUT_SAFE_TYPES.has(current.type);
   const canUndo = !!lastAction && PUT_SAFE_TYPES.has(lastAction.snapshot.type);
+  const similarityReady = !!current?.similarity_checked_at
+    && !current?.similarity_error && current?.similarity_flag === 'none';
 
   // ── Decisions ──────────────────────────────────────
 
   const decide = useCallback(async (action) => {
     if (!current || busy) return;
+    if (action === 'approved' && !similarityReady) {
+      toastRef.current.warning('Wait for duplicate checking, or resolve the similarity warning, before approval.');
+      return;
+    }
     const item = current;
     const at = cursor;
     setBusy(true);
@@ -228,7 +235,21 @@ export default function ReviewQueuePage() {
     } finally {
       setBusy(false);
     }
-  }, [current, cursor, busy, decisions, queue]);
+  }, [current, cursor, busy, decisions, queue, similarityReady]);
+
+  const retrySimilarity = useCallback(async () => {
+    if (!current || busy) return;
+    setBusy(true);
+    try {
+      await api.post(`/questions/${current.id}/similarity/retry`);
+      toastRef.current.success('Duplicate check queued again.');
+      reload();
+    } catch (err) {
+      toastRef.current.error(err instanceof ApiError ? err.message : 'Could not retry duplicate checking.');
+    } finally {
+      setBusy(false);
+    }
+  }, [current, busy, reload]);
 
   /**
    * Put the last decision back. Approve and reject are both server-side state
@@ -339,7 +360,7 @@ export default function ReviewQueuePage() {
       setLoaded((s) => ({ ...s, questions: nextQueue }));
       setEditing(null);
 
-      if (approveAfter) {
+      if (approveAfter && saved.status === 'active') {
         const next = { ...decisions, [saved.id]: 'approved' };
         setDecisions(next);
         setLastAction({ id: saved.id, index: at, action: 'approved', snapshot: saved });
@@ -347,7 +368,9 @@ export default function ReviewQueuePage() {
         if (n >= 0) setCursor(n);
         toastRef.current.success('Saved and approved.');
       } else {
-        toastRef.current.success('Changes saved — still a draft.');
+        toastRef.current.success(approveAfter
+          ? 'Changes saved. A new duplicate check is required before approval.'
+          : 'Changes saved — still a draft.');
       }
     } catch (err) {
       toastRef.current.error(err instanceof ApiError ? err.message : 'Save failed.');
@@ -360,14 +383,15 @@ export default function ReviewQueuePage() {
 
   async function approveAll() {
     setConfirmBulk(false);
-    if (pendingIds.length === 0) return;
+    if (approvableIds.length === 0) return;
     setBusy(true);
     try {
-      const res = await api.post('/questions/bulk-approve', { ids: pendingIds });
-      const count = typeof res?.approved === 'number' ? res.approved : pendingIds.length;
+      const res = await api.post('/questions/bulk-approve', { ids: approvableIds });
+      const approvedIds = Array.isArray(res?.approvedIds) ? res.approvedIds : approvableIds;
+      const count = typeof res?.approved === 'number' ? res.approved : approvedIds.length;
       setDecisions((d) => {
         const next = { ...d };
-        for (const id of pendingIds) next[id] = 'approved';
+        for (const id of approvedIds) next[id] = 'approved';
         return next;
       });
       // A bulk approve has no one-step inverse, so the undo offer is withdrawn
@@ -479,7 +503,7 @@ export default function ReviewQueuePage() {
             type="button"
             className="btn btn-outline btn-sm"
             onClick={() => setConfirmBulk(true)}
-            disabled={busy || pendingIds.length === 0}
+            disabled={busy || approvableIds.length === 0}
           >
             <CheckCheck size={16} /> Approve all remaining
           </button>
@@ -591,6 +615,29 @@ export default function ReviewQueuePage() {
                   </div>
                 )}
 
+                {!current.similarity_checked_at && !current.similarity_error && current.similarity_flag !== 'flagged' && (
+                  <div className="rv-alert" role="status">
+                    <AlertTriangle size={18} />
+                    <div className="rv-alert-body">
+                      <strong>Duplicate check pending</strong>
+                      <span>This draft cannot be approved until its semantic similarity check finishes.</span>
+                    </div>
+                  </div>
+                )}
+
+                {current.similarity_error && (
+                  <div className="rv-alert" role="alert">
+                    <AlertTriangle size={18} />
+                    <div className="rv-alert-body">
+                      <strong>Duplicate check failed</strong>
+                      <span>{current.similarity_error}</span>
+                    </div>
+                    <button type="button" className="btn btn-outline btn-sm" onClick={retrySimilarity} disabled={busy}>
+                      <RefreshCw size={15} /> Retry
+                    </button>
+                  </div>
+                )}
+
                 {editing ? (
                   <EditPanel
                     editing={editing}
@@ -623,7 +670,7 @@ export default function ReviewQueuePage() {
               {!editing && (
                 <div className="rv-actions">
                   <div className="rv-actions-main">
-                    <button type="button" className="rv-act is-approve" onClick={() => decide('approved')} disabled={busy}>
+                    <button type="button" className="rv-act is-approve" onClick={() => decide('approved')} disabled={busy || !similarityReady}>
                       <Check size={18} /> Approve <kbd className="rv-kbd">A</kbd>
                     </button>
                     <button type="button" className="rv-act is-reject" onClick={() => decide('rejected')} disabled={busy}>
@@ -663,7 +710,7 @@ export default function ReviewQueuePage() {
 
       <Modal
         open={confirmBulk}
-        title={`Approve ${pendingIds.length} remaining draft${pendingIds.length === 1 ? '' : 's'}?`}
+        title={`Approve ${approvableIds.length} checked draft${approvableIds.length === 1 ? '' : 's'}?`}
         subtitle="This skips the per-item read that this screen exists for."
         onClose={() => setConfirmBulk(false)}
         footer={
@@ -671,13 +718,13 @@ export default function ReviewQueuePage() {
             <button className="btn btn-outline" onClick={() => setConfirmBulk(false)}>Cancel</button>
             <button className="btn btn-primary" onClick={approveAll} disabled={busy}>
               {busy && <span className="btn-spinner" />}
-              <CheckCheck size={16} /> Approve {pendingIds.length}
+              <CheckCheck size={16} /> Approve {approvableIds.length}
             </button>
           </>
         }
       >
         <p className="rv-modal-text">
-          All {pendingIds.length} question{pendingIds.length === 1 ? '' : 's'} you have not decided on will become
+          All {approvableIds.length} question{approvableIds.length === 1 ? '' : 's'} that passed duplicate checking will become
           active and enter the duplicate-check index immediately. There is no one-step undo for a bulk approval —
           you would have to reject them individually.
         </p>

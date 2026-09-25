@@ -155,6 +155,8 @@
   --radius-sm: 8px;
   --radius: 10px;
   --radius-lg: 14px;
+  --radius-md: 12px;   /* between base and lg — callouts, tiles */
+  --radius-xl: 18px;   /* hero surfaces — KPI tiles */
 
   /* ---- Elevation ---- */
   --shadow-sm: 0 1px 3px rgba(15, 35, 56, .05);

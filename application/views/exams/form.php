@@ -2,7 +2,7 @@
     <div class="form-container form-container--wide">
 
         <div class="page-header">
-            <div><h1><?php echo isset($exam) ? 'Edit exam' : 'New exam'; ?></h1><p class="page-sub"><?php echo isset($exam) ? 'Update the exam details.' : 'Start from a blueprint or create a blank exam.'; ?></p></div>
+            <div><h1><?php echo isset($exam) ? 'Edit exam' : 'New exam'; ?></h1><p class="page-sub"><?php echo isset($exam) ? 'Update the exam details.' : 'Start from a finalized blueprint.'; ?></p></div>
         </div>
 
         <?php if (!isset($exam) && (!isset($tos) || !$tos)): ?>
@@ -17,7 +17,7 @@
                 <div class="creation-panel-body">
                     <?php if (!empty($tos_list)): ?>
                         <div class="creation-blueprints">
-                            <?php foreach (array_slice($tos_list, 0, 3) as $blueprint): ?>
+                            <?php foreach (array_slice(array_values(array_filter($tos_list, function ($item) { return isset($item->status) && $item->status === 'finalized'; })), 0, 3) as $blueprint): ?>
                                 <a href="<?php echo site_url('exams/create?tos=' . rawurlencode($blueprint->id)); ?>" class="creation-blueprint-link">
                                     <span><strong><?php echo htmlspecialchars($blueprint->title); ?></strong><small><?php echo htmlspecialchars($blueprint->subject_name); ?> · <?php echo (int) $blueprint->total_items; ?> items</small></span>
                                     <i data-lucide="chevron-right"></i>
@@ -31,13 +31,6 @@
                             <a href="<?php echo site_url('tos/create'); ?>">Create a blueprint</a>
                         </div>
                     <?php endif; ?>
-                </div>
-                <div class="creation-panel-footer">
-                    <div>
-                        <strong>Start with a blank exam</strong>
-                        <span>Add and organize questions manually.</span>
-                    </div>
-                    <a href="#exam-details" class="btn btn-outline">Continue blank</a>
                 </div>
             </section>
         <?php endif; ?>
@@ -120,12 +113,9 @@
 
                             <div class="form-group">
                                 <label class="form-label" for="set_count">Exam Sets</label>
-                                <select id="set_count" name="set_count" class="form-control form-select">
-                                    <?php $selected_sets = (int) set_value('set_count', isset($exam) ? $exam->set_count : 1); ?>
-                                    <option value="1" <?php echo $selected_sets === 1 ? 'selected' : ''; ?>>1 set (Set A only)</option>
-                                    <option value="2" <?php echo $selected_sets === 2 ? 'selected' : ''; ?>>2 sets (Set A + Set B)</option>
-                                </select>
-                                <small class="form-hint">Set B has the same questions in shuffled order.</small>
+                                <input type="hidden" id="set_count" name="set_count" value="2">
+                                <input class="form-control" value="2 sets (Set A + Set B)" disabled>
+                                <small class="form-hint">The approved scope requires both parallel sets; Set B shuffles the same validated questions.</small>
                             </div>
 
                             <div class="form-group">

@@ -49,6 +49,7 @@ $route['tos/view/(:any)']         = 'tos/view/$1';
 $route['tos/delete/(:any)']       = 'tos/delete/$1';
 $route['tos/bulk-delete']         = 'tos/bulk_delete';
 $route['tos/(:any)/add-topic']    = 'tos/add_topic/$1';
+$route['tos/(:any)/finalize']     = 'tos/finalize/$1';
 $route['tos/(:any)/delete-topic/(:any)'] = 'tos/delete_topic/$1/$2';
 $route['tos/generate_questions']      = 'tos/generate_questions';
 $route['exams']                   = 'exams';

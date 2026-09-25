@@ -236,11 +236,10 @@ button { font-family: inherit; }
     color: var(--sb-text-hover);
 }
 
-/* Active: an accent-tinted fill with a hairline of the same accent, and the
-   icon switched to full accent. Reads as brand blue, not as grey. */
+/* Active: an accent-tinted fill, and the icon switched to full accent.
+   Reads as brand blue, not as grey. */
 .nav-item.active {
     background: var(--sb-active);
-    box-shadow: inset 0 0 0 1px var(--sb-active-line);
     color: var(--sb-text-active);
     font-weight: 500;
 }

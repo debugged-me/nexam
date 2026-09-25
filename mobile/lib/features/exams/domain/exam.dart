@@ -65,7 +65,7 @@ class ExamSet {
 ///   'm4'  — MCQ with N option bubbles (letter = option count)
 ///   't'   — true/false, bubbles [T, F]
 ///   'M4'  — matching with N premise sub-rows of A–E bubbles
-///   'i'   — identification, instructor-grade bubbles [✓, ✗]
+///   'i'   — identification, instructor-grade bubbles [C, I]
 class OmrItemLayout {
   const OmrItemLayout({
     required this.type,
@@ -110,7 +110,7 @@ class OmrItemLayout {
         );
       }
       case 'i':
-        return const OmrItemLayout(type: 'identification', rows: 1, choices: ['✓', '✗']);
+        return const OmrItemLayout(type: 'identification', rows: 1, choices: ['C', 'I']);
       default:
         return const OmrItemLayout(type: 'mcq', rows: 1, choices: ['A', 'B', 'C', 'D']);
     }
@@ -124,12 +124,15 @@ class OmrItemLayout {
 /// single API call.
 class OmrQrPayload {
   const OmrQrPayload({
+    required this.version,
     required this.examId,
     required this.setId,
     required this.set,
     required this.count,
     required this.items,
   });
+
+  final int version;
 
   final String examId;
 
@@ -151,6 +154,7 @@ class OmrQrPayload {
           : OmrItemLayout.fromCode('m4'),
     );
     return OmrQrPayload(
+      version: json['v'] as int? ?? 1,
       examId: json['examId'] as String? ?? '',
       setId: json['setId'] as String?,
       set: json['set'] as String? ?? '',
@@ -160,6 +164,7 @@ class OmrQrPayload {
   }
 
   Map<String, dynamic> toJson() => {
+        'v': version,
         'examId': examId,
         'setId': setId,
         'set': set,

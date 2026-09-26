@@ -1,5 +1,5 @@
 /**
- * Toast — tiny toast notification system (mirrors NexamToast from the PHP app).
+ * Toast — lightweight application notification system.
  * Types: success, error, warning, info.
  */
 import { createContext, useContext, useState, useCallback } from 'react';

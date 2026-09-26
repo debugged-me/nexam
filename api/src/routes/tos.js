@@ -265,8 +265,7 @@ router.put('/:id', async (req, res, next) => {
       }
     );
 
-    // Unconditional on purpose: it matches application/controllers/Tos.php, and
-    // saving a blueprint is the self-heal for per-topic counts the syllabus
+    // Unconditional: saving a blueprint is the self-heal for per-topic counts the syllabus
     // worker left non-proportional (syllabus_tos.js floors the last topic at 1).
     // Gating it on a total_items change would silently drop that repair.
     await recalcTopicItemCounts(tos.id);

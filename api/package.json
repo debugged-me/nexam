@@ -1,7 +1,7 @@
 {
   "name": "nexam-api",
   "version": "1.0.0",
-  "description": "Node.js API backend for nexam — RAG pipeline (LangChain + HNSWLib vector store + Gemini), exam generation, OMR scanning, and LMS export. Serves the web frontend and the Flutter mobile app.",
+  "description": "Nexam Express API for RAG, TOS-aligned exams, analytics, LMS export, and OMR scoring.",
   "main": "src/server.js",
   "type": "module",
   "scripts": {
@@ -9,6 +9,9 @@
     "dev": "nodemon src/server.js",
     "test": "node --test 'test/*.test.js'",
     "test:ai": "node scripts/test-ai-configuration.js",
+    "security:generate-key": "node scripts/generate-data-key.js",
+    "security:rotate-jwt": "node scripts/rotate-jwt-secret.js",
+    "security:migrate-data": "node scripts/migrate-sensitive-data.js",
     "audit:grounding": "node scripts/audit-grounding.js",
     "repair:question-index": "node scripts/rebuild-question-index.js",
     "repair:similarity-queue": "node scripts/requeue-similarity.js"

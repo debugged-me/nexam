@@ -7,8 +7,8 @@
  * POST /api/ai/syllabus-tos        — enqueue syllabus→TOS generation.
  * POST /api/ai/generate-questions  — enqueue RAG question generation (Phase 4).
  *
- * All routes require auth (JWT). The PHP web app and Flutter app both
- * call these with the Bearer token from /api/auth/login.
+ * All routes require auth (JWT). React and Flutter call these with the Bearer
+ * token from /api/auth/login.
  */
 import { Router } from 'express';
 import aiProvider from '../services/aiProvider.js';

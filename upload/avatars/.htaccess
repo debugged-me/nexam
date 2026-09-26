@@ -1,6 +1,0 @@
-# Uploaded images only — never execute anything in this directory.
-php_flag engine off
-AddType text/plain .php .php3 .php4 .php5 .php7 .phtml .pl .py .cgi .asp .sh
-<FilesMatch "\.(php|php3|php4|php5|php7|phtml|pl|py|cgi|asp|sh|htaccess)$">
-    Require all denied
-</FilesMatch>

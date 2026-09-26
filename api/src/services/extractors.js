@@ -14,13 +14,12 @@
  *   - youtube (youtube-transcript)
  *   - text   (raw text typed by the instructor — passthrough)
  */
-import fs from 'fs/promises';
-import path from 'path';
 import { createRequire } from 'module';
 import mammoth from 'mammoth';
 import * as cheerio from 'cheerio';
 import { YoutubeTranscript } from 'youtube-transcript';
 import { safePublicFetch } from './safeUrl.js';
+import { readProtectedFile } from './storageCrypto.js';
 
 const require = createRequire(import.meta.url);
 // pdf-parse is CommonJS/UMD — load via require.
@@ -29,7 +28,7 @@ const JSZip = require('jszip');
 
 /** Extract text from a PDF file. Rejects scanned/image-only PDFs. */
 async function extractPdf(filePath) {
-  const buffer = await fs.readFile(filePath);
+  const buffer = await readProtectedFile(filePath);
   const data = await pdfParse(buffer);
   const text = (data.text || '').trim();
   if (!text || text.length < 20) {
@@ -40,7 +39,7 @@ async function extractPdf(filePath) {
 
 /** Extract text from a DOCX file. */
 async function extractDocx(filePath) {
-  const buffer = await fs.readFile(filePath);
+  const buffer = await readProtectedFile(filePath);
   const result = await mammoth.extractRawText({ buffer });
   const text = (result.value || '').trim();
   if (!text) throw new Error('No text found in this DOCX file.');
@@ -49,7 +48,7 @@ async function extractDocx(filePath) {
 
 /** Extract text from a PPTX file — unzip and read slide XML text runs. */
 async function extractPptx(filePath) {
-  const buffer = await fs.readFile(filePath);
+  const buffer = await readProtectedFile(filePath);
   const zip = await JSZip.loadAsync(buffer);
   const slideFiles = Object.keys(zip.files)
     .filter((name) => /^ppt\/slides\/slide\d+\.xml$/.test(name))

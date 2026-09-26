@@ -10,6 +10,7 @@
 import { Router } from 'express';
 import pool from '../config/db.js';
 import { requireAuth } from '../middleware/auth.js';
+import { unprotectText } from '../services/storageCrypto.js';
 
 const router = Router();
 
@@ -78,7 +79,10 @@ router.get('/exam/:examId', requireAuth, async (req, res, next) => {
       exam: examRows[0],
       stats: stats[0] || {},
       distribution,
-      students,
+      students: students.map((student) => ({
+        ...student,
+        student_name: unprotectText(student.student_name),
+      })),
     });
   } catch (err) {
     next(err);
@@ -201,7 +205,10 @@ router.get('/overview', requireAuth, async (req, res, next) => {
 
     res.json({
       overview: overview[0] || {},
-      recentScans,
+      recentScans: recentScans.map((scan) => ({
+        ...scan,
+        student_name: unprotectText(scan.student_name),
+      })),
       examAverages,
     });
   } catch (err) {

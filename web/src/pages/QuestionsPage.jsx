@@ -2,8 +2,7 @@
  * QuestionsPage — question bank grid with filters, bulk review, create/edit,
  * GIFT/XML import and similarity review.
  *
- * Faithful React port of application/views/questions/index.php + form.php.
- * Uses the same class names as the PHP app for strict visual parity.
+ * React question-bank workspace.
  *
  * Review economics: an AI run drops dozens of drafts into the bank at once, so
  * the grid is built around deciding on many rows at a time — row checkboxes
@@ -780,7 +779,7 @@ export default function QuestionsPage() {
         </section>
       )}
 
-      {/* Create/Edit modal — mirrors PHP form.php structure */}
+      {/* Create/edit question modal */}
       <Modal
         open={!!editing}
         title={editing?.id ? 'Edit Question' : 'New Question'}

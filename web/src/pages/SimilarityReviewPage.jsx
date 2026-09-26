@@ -2,8 +2,7 @@
  * SimilarityReviewPage — shows a flagged question alongside its near-duplicate
  * candidates so the instructor can decide whether to keep or reject it.
  *
- * Faithful React port of application/views/questions/similarity.php.
- * Uses the same class names as the PHP app for strict visual parity.
+ * Instructor review screen for semantic similarity matches.
  */
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';

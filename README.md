@@ -1,33 +1,88 @@
-# nexam
+# Nexam
 
-## SMTP setup for registration emails
+Nexam is a faculty-only assessment platform for syllabus-driven TOS creation,
+RAG-grounded objective-question drafting, institution-wide duplicate checking,
+print/LMS exam output, and mobile OMR grading.
 
-SMTP credentials are intentionally not committed to Git. Every computer that
-runs its own copy of nexam must create a local email configuration file.
+## Architecture
 
-### Windows with XAMPP
+- `web/` - React 19 instructor web application
+- `api/` - Express 5 API, AI worker, LangChain/HNSWLib RAG pipeline, PDF/LMS output
+- `mobile/` - Flutter instructor application for QR/OMR scanning
+- MySQL - relational application data
+- Google Gemini - primary generation and embedding provider
+- Groq - generation fallback; embeddings remain Gemini-only
 
-1. Pull the latest project changes.
-2. Right-click `setup-email-windows.ps1` and choose **Run with PowerShell**.
-3. Enter the password for `nexam@mati.gov.ph` when prompted. The password is
-   written only to the local, Git-ignored configuration file.
-4. Fully stop and restart Apache from the XAMPP Control Panel.
+CodeIgniter and PHP are not part of the application architecture. In
+production, Express can serve the compiled React application as well as `/api`.
 
-If **Run with PowerShell** is unavailable, open PowerShell in the project
-directory (for example, `C:\xampp\htdocs\nexam`) and run:
+## First-time setup
 
-```powershell
-powershell -ExecutionPolicy Bypass -File .\setup-email-windows.ps1
+Requirements: Node.js 20+, MySQL/MariaDB, and Flutter for mobile development.
+
+```bash
+cd api
+cp .env.example .env
+npm install
+npm run security:generate-key
+
+# Create an empty `nexam` database, then bootstrap it once:
+mysql -u root nexam < schema.sql
+
+cd ../web
+npm install
+
+cd ../mobile
+flutter pub get
 ```
 
-The local file is ignored by Git. Do not commit the mailbox password.
+Do not import `api/schema.sql` over an existing database: it intentionally
+recreates tables. Existing installations use the numbered SQL files in
+`api/migrations/`.
 
-### Production
+## Development
 
-Set `NEXAM_SMTP_PASS` in the Apache/PHP process environment. The optional
-variables `NEXAM_SMTP_HOST`, `NEXAM_SMTP_USER`, `NEXAM_SMTP_PORT`, and
-`NEXAM_SMTP_CRYPTO` can override the defaults in
-`application/config/email.php`.
+Run the API and React development server in separate terminals:
 
-The default server settings are authenticated implicit TLS on
-`mail.mati.gov.ph:465`.
+```bash
+npm run dev:api
+npm run dev:web
+```
+
+- React: `http://localhost:5173`
+- API: `http://localhost:3000/api`
+- Health check: `http://localhost:3000/api/health`
+
+The Flutter app accepts the API base URL on its login screen. Physical devices
+must use the development computer's LAN address rather than `localhost`.
+
+## Production
+
+```bash
+npm run build
+npm start
+```
+
+Set `NODE_ENV=production`, `SERVE_WEB=true`, `TRUST_PROXY=true`, and keep
+`ENFORCE_HTTPS=true`. Production startup refuses insecure secrets or an
+unconfirmed at-rest encryption deployment. Configure:
+
+- a rotated `JWT_SECRET`;
+- the backed-up `DATA_ENCRYPTION_KEY`;
+- HTTPS at the reverse proxy;
+- encrypted database and filesystem volumes with `DATA_AT_REST_CONFIRMED=true`;
+- `DB_SSL_CA_FILE` when MySQL is reached over a network;
+- production CORS origins, SMTP credentials, and AI provider keys.
+
+Uploaded materials are AES-256-GCM protected by the application. Student names
+and numbers are field-encrypted with keyed hashes for lookup. The database and
+vector/PDF storage still require encrypted production volumes.
+
+## Verification
+
+```bash
+npm test
+cd mobile && flutter test && flutter analyze
+```
+
+The research requirements are preserved under `docs/research/`.

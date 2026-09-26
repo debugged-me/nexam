@@ -146,6 +146,129 @@ router.get('/', async (req, res, next) => {
   }
 });
 
+// ── Institution-wide approved bank ───────────────────
+// Drafts and source materials remain private. Only approved, similarity-clean
+// objective questions are visible to other authenticated faculty.
+router.get('/institution', async (req, res, next) => {
+  try {
+    const { bloom, type, topic, subject, search } = req.query;
+    const where = [
+      `q.status = 'active'`,
+      `q.type IN ('mcq','true_false','matching','identification')`,
+      `q.similarity_checked_at IS NOT NULL`,
+      `q.similarity_error IS NULL`,
+      `q.similarity_flag = 'none'`,
+    ];
+    const params = {};
+    if (bloom && BLOOM_LEVELS.includes(bloom)) { where.push('q.bloom = :bloom'); params.bloom = bloom; }
+    if (type && QUESTION_TYPES.includes(type)) { where.push('q.type = :type'); params.type = type; }
+    if (topic) { where.push('q.topic = :topic'); params.topic = String(topic).slice(0, 255); }
+    if (subject) {
+      where.push('(s.name LIKE :subject OR s.code LIKE :subject)');
+      params.subject = `%${String(subject).slice(0, 100)}%`;
+    }
+    if (search) {
+      where.push('(q.stem LIKE :search OR q.topic LIKE :search OR s.name LIKE :search OR s.code LIKE :search)');
+      params.search = `%${String(search).slice(0, 200)}%`;
+    }
+
+    const [questions] = await pool.query(
+      `SELECT q.id, q.topic, q.bloom, q.type, q.stem, q.options, q.answer,
+              q.explanation, q.approved_at,
+              s.name AS subject_name, s.code AS subject_code,
+              CASE WHEN q.created_by = :viewerId THEN 1 ELSE 0 END AS owned_by_viewer
+       FROM questions q
+       JOIN subjects s ON s.id = q.subject_id
+       WHERE ${where.join(' AND ')}
+       ORDER BY q.approved_at DESC, q.created_at DESC
+       LIMIT 200`,
+      { ...params, viewerId: req.user.id }
+    );
+    for (const question of questions) {
+      try { question.options = question.options ? JSON.parse(question.options) : []; }
+      catch { question.options = []; }
+    }
+    res.json({ questions });
+  } catch (err) { next(err); }
+});
+
+/** Copy an institution-bank question into an instructor-owned subject draft. */
+router.post('/institution/:id/reuse', async (req, res, next) => {
+  try {
+    const { targetSubjectId, tosId, topic, bloom } = req.body || {};
+    if (!targetSubjectId) return res.status(400).json({ error: 'targetSubjectId is required.' });
+
+    const [sourceRows] = await pool.query(
+      `SELECT * FROM questions
+       WHERE id = :id AND status = 'active'
+         AND type IN ('mcq','true_false','matching','identification')
+       LIMIT 1`,
+      { id: req.params.id }
+    );
+    if (!sourceRows.length) return res.status(404).json({ error: 'Approved institution question not found.' });
+    const source = sourceRows[0];
+
+    const [subjectRows] = await pool.query(
+      `SELECT id FROM subjects WHERE id = :id AND instructor_id = :uid`,
+      { id: targetSubjectId, uid: req.user.id }
+    );
+    if (!subjectRows.length) return res.status(403).json({ error: 'Target subject not found or not owned by you.' });
+
+    if (tosId) {
+      const [tosRows] = await pool.query(
+        `SELECT t.id FROM tos t JOIN subjects s ON s.id = t.subject_id
+         WHERE t.id = :tosId AND t.subject_id = :subjectId AND s.instructor_id = :uid`,
+        { tosId, subjectId: targetSubjectId, uid: req.user.id }
+      );
+      if (!tosRows.length) return res.status(422).json({ error: 'The selected TOS does not belong to the target subject.' });
+    }
+
+    const targetBloom = bloom || source.bloom || 'remember';
+    if (!BLOOM_LEVELS.includes(targetBloom)) return res.status(422).json({ error: 'Invalid Bloom level.' });
+
+    const id = uuid();
+    await pool.query(
+      `INSERT INTO questions
+       (id, subject_id, tos_id, topic, bloom, type, stem, options, answer, explanation,
+        status, source, created_by, generation_meta, created_at, updated_at)
+       VALUES
+       (:id, :subjectId, :tosId, :topic, :bloom, :type, :stem, :options, :answer, :explanation,
+        'draft', 'manual', :uid, :meta, NOW(), NOW())`,
+      {
+        id,
+        subjectId: targetSubjectId,
+        tosId: tosId || null,
+        topic: topic || source.topic || null,
+        bloom: targetBloom,
+        type: source.type,
+        stem: source.stem,
+        options: source.options,
+        answer: source.answer,
+        explanation: source.explanation,
+        uid: req.user.id,
+        meta: JSON.stringify({ reusedFromQuestionId: source.id }),
+      }
+    );
+
+    let jobId = null;
+    try {
+      jobId = await enqueue({
+        type: 'similarity',
+        payload: { questionId: id, userId: req.user.id },
+        userId: req.user.id,
+        subjectId: targetSubjectId,
+      });
+    } catch (error) {
+      await pool.query(
+        `UPDATE questions SET similarity_error = :error WHERE id = :id`,
+        { id, error: `Could not queue similarity check: ${String(error.message || error).slice(0, 500)}` }
+      );
+    }
+
+    res.status(201).json({ id, jobId, status: 'draft' });
+  } catch (err) { next(err); }
+});
+
 // ── Create ───────────────────────────────────────────
 router.post('/', async (req, res, next) => {
   try {

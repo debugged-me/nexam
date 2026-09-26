@@ -1,7 +1,7 @@
 /**
  * AiEvalPage — AI component evaluation metrics.
  *
- * Mirrors application/views/analytics/ai_eval.php. Data comes from
+ * Data comes from
  * GET /api/ai-eval/summary (generation, similarity, extraction, provider
  * usage, distributions, and the Bloom confusion matrix).
  */

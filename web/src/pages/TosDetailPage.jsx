@@ -1,12 +1,10 @@
 /**
  * TosDetailPage — TOS builder with topic management.
  *
- * Matches the PHP CodeIgniter design (application/views/tos/view.php):
- * page-header, tos-workflow-callout, stats-grid, Bloom distribution card with
+ * Uses page-header, tos-workflow-callout, stats-grid, Bloom distribution with
  * bloom-bar-row, topics card with data-table + inline-form.
  *
- * Beyond the PHP view it renders what makes this an actual Table of
- * Specifications: learning outcomes and per-topic item counts on the topics
+ * It renders learning outcomes and per-topic item counts on the topics
  * table, and the topic × Bloom-level matrix (item distribution per topic AND
  * cognitive level). Topics are edited in place — no modal, no page change.
  */

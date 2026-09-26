@@ -1,8 +1,7 @@
 /**
  * ExamFormPage — create or edit an exam.
  *
- * Matches the PHP CodeIgniter design (application/views/exams/form.php)
- * exactly: form-container--wide, page-header with page-sub, creation-panel
+ * Uses form-container--wide, page-header with page-sub, creation-panel
  * for new exams (blueprints or empty), callout-warning for TOS-based creation,
  * and a card with form-sections (Details / Content) + sticky form-actions.
  */
@@ -209,7 +208,7 @@ export default function ExamFormPage() {
                         <select id="format" name="format" className="form-control form-select" required
                           value={form.format} onChange={(e) => setForm({ ...form, format: e.target.value })}>
                           {/* Wire values stay 'print' / 'digital' — both the Node API
-                              (EXAM_FORMATS) and the legacy PHP controller validate them.
+                              (EXAM_FORMATS) and the Node API validate them.
                               Only the labels describe what each one actually produces. */}
                           <option value="print">Print — paper exam</option>
                           <option value="digital">LMS export — no paper</option>

@@ -1,6 +1,6 @@
 /**
- * Question index lifecycle helper — keeps the subject's question vector
- * index in sync with question status transitions.
+ * Question index lifecycle helper — keeps the institution-wide approved
+ * question vector index in sync with status transitions.
  *
  * Index contract: the index holds ACTIVE questions only. Drafts are checked
  * against it (similarity job) but never indexed; rejected/deleted questions
@@ -9,6 +9,8 @@
  */
 import pool from '../config/db.js';
 import { addQuestion, removeQuestion } from './vectorStore.js';
+
+export const INSTITUTION_QUESTION_INDEX = '_institution';
 
 /** Build the canonical embed text for a question row. */
 export function embedTextFor(question) {
@@ -31,7 +33,7 @@ export function embedTextFor(question) {
 export async function indexQuestionIfActive(question) {
   try {
     if (!question || question.status !== 'active') return false;
-    await addQuestion(question.subject_id, question.id, embedTextFor(question));
+    await addQuestion(INSTITUTION_QUESTION_INDEX, question.id, embedTextFor(question));
     return true;
   } catch (err) {
     console.warn(`[questionIndex] index failed for ${question?.id}: ${err.message}`);
@@ -44,9 +46,9 @@ export async function indexQuestionIfActive(question) {
  * stale vectors can't produce matches because similarity candidates are
  * SQL-filtered to active questions.
  */
-export async function removeQuestionFromIndex(subjectId, questionId) {
+export async function removeQuestionFromIndex(_subjectId, questionId) {
   try {
-    await removeQuestion(subjectId, questionId);
+    await removeQuestion(INSTITUTION_QUESTION_INDEX, questionId);
   } catch (err) {
     console.warn(`[questionIndex] remove failed for ${questionId}: ${err.message}`);
   }
@@ -56,10 +58,11 @@ export async function removeQuestionFromIndex(subjectId, questionId) {
  * Rebuild convenience: index every active question owned by a user for one
  * subject (e.g. after the on-disk index was wiped).
  */
-export async function reindexSubject(subjectId, userId) {
+export async function reindexInstitution() {
   const [rows] = await pool.query(
-    `SELECT * FROM questions WHERE subject_id = :sid AND created_by = :uid AND status = 'active'`,
-    { sid: subjectId, uid: userId }
+    `SELECT * FROM questions
+     WHERE status = 'active'
+       AND type IN ('mcq','true_false','matching','identification')`
   );
   let indexed = 0;
   for (const q of rows) {
@@ -68,4 +71,4 @@ export async function reindexSubject(subjectId, userId) {
   return indexed;
 }
 
-export default { embedTextFor, indexQuestionIfActive, removeQuestionFromIndex, reindexSubject };
+export default { embedTextFor, indexQuestionIfActive, removeQuestionFromIndex, reindexInstitution };

@@ -1,0 +1,12 @@
+{
+  "name": "nexam",
+  "private": true,
+  "version": "1.0.0",
+  "scripts": {
+    "dev:api": "npm --prefix api run dev",
+    "dev:web": "npm --prefix web run dev",
+    "build": "npm --prefix web run build",
+    "start": "npm --prefix api start",
+    "test": "npm --prefix api test && npm --prefix web run build && npm --prefix web run lint"
+  }
+}

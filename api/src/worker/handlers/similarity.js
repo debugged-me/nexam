@@ -21,6 +21,7 @@
 import pool from '../../config/db.js';
 import { v4 as uuid } from 'uuid';
 import { embedQuery, searchQuestionsByVector } from '../../services/vectorStore.js';
+import { INSTITUTION_QUESTION_INDEX } from '../../services/questionIndex.js';
 import { getNumber } from '../../services/settings.js';
 
 export default async function similarityHandler(job) {
@@ -62,21 +63,21 @@ export default async function similarityHandler(job) {
   // the index of active questions.
   const vector = await embedQuery(embedText);
   const rawCandidates = await searchQuestionsByVector(
-    question.subject_id,
+    INSTITUTION_QUESTION_INDEX,
     vector,
     10,
     questionId
   );
 
-  // SQL-filter: candidates must be real, active questions owned by this user.
+  // SQL-filter: candidates must be real, active institution-bank questions.
   // This drops stale vectors from deleted/draft/rejected questions.
   let candidates = [];
   if (rawCandidates.length) {
     const ids = rawCandidates.map((c) => c.id);
     const [validRows] = await pool.query(
       `SELECT id FROM questions
-       WHERE id IN (:ids) AND status = 'active' AND created_by = :userId`,
-      { ids, userId }
+       WHERE id IN (:ids) AND status = 'active'`,
+      { ids }
     );
     const validIds = new Set(validRows.map((r) => r.id));
     candidates = rawCandidates.filter((c) => validIds.has(c.id));

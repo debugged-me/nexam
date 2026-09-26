@@ -1,9 +1,7 @@
 /**
  * ExamsPage — list of exams with create/edit/delete.
  *
- * Matches the PHP CodeIgniter design (application/views/exams/index.php)
- * exactly: list-head header, empty-state, and a grid datatable with the same
- * columns, classes, and row actions.
+ * React exam list with shared grid controls and row actions.
  */
 import { useEffect, useState, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';

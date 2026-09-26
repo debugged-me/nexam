@@ -1,7 +1,7 @@
 /**
  * ItemAnalysisPage — per-question response distributions and difficulty.
  *
- * Mirrors application/views/analytics/items.php. Data comes from
+ * Data comes from
  * GET /api/analytics/exam/:examId/items.
  */
 import { useEffect, useState, useCallback } from 'react';

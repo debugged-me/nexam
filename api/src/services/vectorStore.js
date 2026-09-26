@@ -7,9 +7,10 @@
  * runs in-process (native Node addon), persists to disk, and requires no
  * separate server.
  *
- * Two index collections per subject:
- *   - chunks/<subjectId>    — material chunk embeddings (for RAG retrieval)
- *   - questions/<subjectId> — approved question embeddings (for similarity)
+ * Index collections:
+ *   - chunks/<subjectId>       — private material chunks for RAG retrieval
+ *   - questions/_institution  — all approved questions for school-wide
+ *                               duplicate screening
  *
  * Embeddings are generated via LangChain's GoogleGenerativeAIEmbeddings
  * (wraps the Gemini embedding API), so LangChain manages the full

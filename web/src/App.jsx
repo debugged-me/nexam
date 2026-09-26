@@ -34,6 +34,7 @@ import ItemAnalysisPage from './pages/ItemAnalysisPage.jsx';
 import AiEvalPage from './pages/AiEvalPage.jsx';
 import AccountPage from './pages/AccountPage.jsx';
 import WizardPage from './pages/WizardPage.jsx';
+import InstitutionBankPage from './pages/InstitutionBankPage.jsx';
 
 import './styles/tokens.css';
 import './styles/auth.css';
@@ -51,6 +52,7 @@ import './styles/materials.css';
 import './styles/analytics.css';
 import './styles/account.css';
 import './styles/wizard.css';
+import './styles/institution.css';
 
 function RequireAuth({ children }) {
   const { user, loading } = useAuth();
@@ -114,6 +116,7 @@ export default function App() {
             <Route path="/dashboard" element={<RequireAuth><DashboardPage /></RequireAuth>} />
             <Route path="/subjects" element={<RequireAuth><SubjectsPage /></RequireAuth>} />
             <Route path="/questions" element={<RequireAuth><QuestionsPage /></RequireAuth>} />
+            <Route path="/questions/institution" element={<RequireAuth><InstitutionBankPage /></RequireAuth>} />
             <Route path="/questions/review" element={<RequireAuth><ReviewQueuePage /></RequireAuth>} />
             <Route path="/questions/:id/similarity" element={<RequireAuth><SimilarityReviewPage /></RequireAuth>} />
             <Route path="/tos" element={<RequireAuth><TosPage /></RequireAuth>} />

@@ -1,10 +1,7 @@
 /**
  * SubjectsPage — grid of instructor subjects with create/edit/delete.
  *
- * A faithful React port of the PHP subjects/index.php view. Uses the same
- * shared grid system (`.dataset`, `table.grid.datatable`, `.g-*` cells) and
- * shared list-page chrome (`.list-head`, `.empty-state`) so the ported
- * grid.css + app.css styles apply directly. CRUD via /api/subjects.
+ * Subject workspace using the shared data-grid system. CRUD via /api/subjects.
  */
 import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
@@ -438,7 +435,7 @@ export default function SubjectsPage() {
         </section>
       )}
 
-      {/* Create/Edit modal — styled to match subjects/form.php */}
+      {/* Create/edit subject modal */}
       <Modal
         open={!!editing}
         title={editing?.id ? 'Edit Subject' : 'New Subject'}

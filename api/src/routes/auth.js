@@ -1,6 +1,6 @@
 /**
  * Auth routes — JWT-based authentication for the React web app and the
- * Flutter mobile app. Mirrors the PHP app's auth flow exactly:
+ * Flutter mobile app:
  *
  *   POST /api/auth/login      — email + password → JWT
  *   POST /api/auth/register   — create account, send OTP
@@ -10,8 +10,8 @@
  *   POST /api/auth/reset      — verify reset OTP + set new password
  *   GET  /api/auth/me         — current user profile (token required)
  *
- * All endpoints share the same `users` + `otp_codes` tables as the PHP app,
- * so an account created on the web app works on the mobile app and vice versa.
+ * Both clients share the same `users` and `otp_codes` tables, so an account
+ * created on the web app works on mobile and vice versa.
  *
  * Rate limiting is in-memory per IP+identity (sufficient for a single-node
  * capstone deployment; for multi-node, move to Redis).
@@ -57,7 +57,7 @@ function rateClear(key) {
 
 // ── Helpers ───────────────────────────────────────────
 
-/** Compose a display name from parts (mirrors PHP User_model::compose_full_name). */
+/** Compose the canonical account display name from its individual parts. */
 function composeFullName(first, middle, last, ext) {
   const parts = [String(first || '').trim()];
   const m = String(middle || '').trim();
@@ -144,6 +144,10 @@ router.post('/login', async (req, res, next) => {
         needsVerification: true,
         email: user.email,
       });
+    }
+
+    if (user.role !== 'instructor') {
+      return res.status(403).json({ error: 'Nexam is restricted to faculty/instructor accounts.' });
     }
 
     rateClear(key);

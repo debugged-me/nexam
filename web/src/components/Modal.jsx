@@ -1,5 +1,5 @@
 /**
- * Modal — reusable dialog component (mirrors NexamModal from the PHP app).
+ * Modal — reusable dialog component.
  * Renders a centered overlay with a card, title, body, and action buttons.
  * Closes on backdrop click or Escape.
  */

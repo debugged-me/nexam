@@ -1,11 +1,19 @@
 import mysql from 'mysql2/promise';
+import fs from 'fs';
 import env from './env.js';
 
 /**
- * Shared connection pool for the `nexam` database.
- * The CodeIgniter PHP app and this Node API read/write the same DB,
- * so models here must respect the same ownership rules (user_id scoping).
+ * Connection pool for the Nexam MySQL database. User-owned records must be
+ * scoped by the authenticated instructor ID; the approved institution question
+ * bank is the only intentionally cross-instructor read surface.
  */
+const ssl = env.db.sslCaFile
+  ? {
+      ca: fs.readFileSync(env.db.sslCaFile, 'utf8'),
+      rejectUnauthorized: env.db.sslRejectUnauthorized,
+    }
+  : undefined;
+
 const pool = mysql.createPool({
   host: env.db.host,
   port: env.db.port,
@@ -16,6 +24,7 @@ const pool = mysql.createPool({
   charset: 'utf8mb4',
   waitForConnections: true,
   namedPlaceholders: true,
+  ...(ssl ? { ssl } : {}),
 });
 
 // Verify connectivity on boot (non-fatal — server still starts).

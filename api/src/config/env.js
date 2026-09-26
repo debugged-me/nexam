@@ -2,6 +2,12 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
+function boolEnv(name, fallback = false) {
+  const value = process.env[name];
+  if (value == null || value === '') return fallback;
+  return ['1', 'true', 'yes', 'on'].includes(String(value).toLowerCase());
+}
+
 const required = ['JWT_SECRET'];
 const missing = required.filter((k) => !process.env[k]);
 if (missing.length && process.env.NODE_ENV !== 'test') {
@@ -29,6 +35,8 @@ export const env = {
     password: process.env.DB_PASSWORD || '',
     database: process.env.DB_NAME || 'nexam',
     connectionLimit: parseInt(process.env.DB_CONNECTION_LIMIT || '10', 10),
+    sslCaFile: process.env.DB_SSL_CA_FILE || '',
+    sslRejectUnauthorized: boolEnv('DB_SSL_REJECT_UNAUTHORIZED', true),
   },
 
   jwt: {
@@ -37,11 +45,24 @@ export const env = {
   },
 
   cors: {
-    // Origins allowed to call the API (PHP web app + Flutter mobile).
+    // Origins allowed to call the API (React web app + Flutter mobile).
     allowedOrigins: (process.env.ALLOWED_ORIGINS || 'http://localhost:8080')
       .split(',')
       .map((s) => s.trim())
       .filter(Boolean),
+  },
+
+  deployment: {
+    trustProxy: boolEnv('TRUST_PROXY', false),
+    enforceHttps: boolEnv('ENFORCE_HTTPS', process.env.NODE_ENV === 'production'),
+    serveWeb: boolEnv('SERVE_WEB', process.env.NODE_ENV === 'production'),
+    webDistDir: process.env.WEB_DIST_DIR || '../../web/dist',
+    dataAtRestConfirmed: boolEnv('DATA_AT_REST_CONFIRMED', false),
+  },
+
+  dataEncryption: {
+    // Base64-encoded 32-byte key. Used for uploaded materials and student PII.
+    key: process.env.DATA_ENCRYPTION_KEY || '',
   },
 
   vectorStore: {
@@ -70,8 +91,7 @@ export const env = {
     },
   },
 
-  // SMTP — same env vars as the PHP app (NEXAM_SMTP_*). Used by the email
-  // service to send OTP verification and password-reset codes.
+  // SMTP used by the email service for verification and password-reset codes.
   smtp: {
     host: process.env.NEXAM_SMTP_HOST || 'mail.mati.gov.ph',
     port: parseInt(process.env.NEXAM_SMTP_PORT || '587', 10),
@@ -84,5 +104,24 @@ export const env = {
   // Public URL of the web app — used to build links in emails.
   webUrl: process.env.WEB_URL || 'http://localhost:5173',
 };
+
+if (env.isProd) {
+  const productionErrors = [];
+  if (!process.env.JWT_SECRET || ['change-me-in-production', 'dev-insecure-secret-change-me'].includes(env.jwt.secret)) {
+    productionErrors.push('JWT_SECRET must be a rotated production secret');
+  }
+  if (!env.dataEncryption.key) {
+    productionErrors.push('DATA_ENCRYPTION_KEY must be configured');
+  }
+  if (!env.deployment.enforceHttps) {
+    productionErrors.push('ENFORCE_HTTPS must remain enabled');
+  }
+  if (!env.deployment.dataAtRestConfirmed) {
+    productionErrors.push('DATA_AT_REST_CONFIRMED=true is required after enabling encrypted database and storage volumes');
+  }
+  if (productionErrors.length) {
+    throw new Error(`Unsafe production configuration: ${productionErrors.join('; ')}.`);
+  }
+}
 
 export default env;

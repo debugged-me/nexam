@@ -1,9 +1,8 @@
 /**
  * Dashboard API route — returns the KPI summary for the authenticated
- * instructor's home screen. Mirrors the PHP Dashboard controller's data
- * shape so the React app can render the same cards.
+ * instructor's home screen in the shape consumed by the React dashboard.
  *
- * Ownership mapping (matches the PHP app):
+ * Ownership mapping:
  *   - subjects:   instructor_id = user_id
  *   - materials:  created_by = user_id
  *   - questions:  created_by = user_id

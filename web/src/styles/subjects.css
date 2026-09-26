@@ -4,11 +4,9 @@
  *   - grid.css   (.dataset, table.grid, .g-* cells, .g-menu, .ds-*)
  *   - app.css    (.page-content, .list-head, .empty-state, .card, .btn, forms)
  *
- * The two blocks below are ported from the PHP app's layout.css because the
- * React app.css does not yet carry them; they are shared list/form patterns
- * that the Subjects page depends on. */
+ * The two blocks below are shared list/form patterns used by Subjects. */
 
-/* Collapsible info dropdown on list headers (ported from layout.css) */
+/* Collapsible info dropdown on list headers */
 .list-head-info {
   margin-top: 4px;
   position: relative;

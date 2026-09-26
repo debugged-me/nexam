@@ -1,8 +1,8 @@
 /**
  * Email service — sends OTP verification and password-reset codes via SMTP.
  *
- * Mirrors the PHP app's email config (NEXAM_SMTP_* env vars) so both stacks
- * deliver from the same authenticated mailbox. If NEXAM_SMTP_PASS is not set,
+ * Uses NEXAM_SMTP_* environment variables for the authenticated institution
+ * mailbox. If NEXAM_SMTP_PASS is not set,
  * send() returns false and the caller reports a delivery failure to the user
  * (never silently swallows the failure).
  */

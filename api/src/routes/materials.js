@@ -8,7 +8,7 @@
  * POST   /api/materials/:id/reprocess — re-queue a failed material for extraction
  *
  * All routes require auth (JWT). Materials are scoped to the user via
- * created_by — IDOR protection, same as the PHP app.
+ * created_by for ownership and IDOR protection.
  */
 import { Router } from 'express';
 import multer from 'multer';
@@ -19,6 +19,7 @@ import pool from '../config/db.js';
 import { requireAuth } from '../middleware/auth.js';
 import { enqueue } from '../services/jobs.js';
 import { assertSafePublicUrl } from '../services/safeUrl.js';
+import { encryptFileAtRest } from '../services/storageCrypto.js';
 
 const router = Router();
 
@@ -92,6 +93,7 @@ router.post('/', requireAuth, upload.single('file'), async (req, res, next) => {
       fileSize = req.file.size;
       mimeType = req.file.mimetype;
       if (!title) materialTitle = req.file.originalname.replace(/\.[^.]+$/, '');
+      await encryptFileAtRest(filePath);
     } else if (url) {
       // URL or YouTube submission
       await assertSafePublicUrl(url);

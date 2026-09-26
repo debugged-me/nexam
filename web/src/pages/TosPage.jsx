@@ -1,8 +1,7 @@
 /**
  * TosPage — list of TOS blueprints with create/edit/delete.
  *
- * Matches the PHP CodeIgniter design (application/views/tos/index.php) exactly:
- * list-head header, empty-state, grid datatable, g-menu row actions, and a
+ * Uses the shared list header, empty state, grid, row actions, and a
  * modal form using .form-section / .bloom-grid.
  */
 import { useEffect, useState, useCallback } from 'react';

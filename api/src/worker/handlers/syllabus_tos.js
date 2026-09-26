@@ -15,7 +15,7 @@ import { v4 as uuid } from 'uuid';
 import pool from '../../config/db.js';
 import { generate } from '../../services/aiProvider.js';
 
-/** Default Bloom distribution (same as PHP Tos controller). */
+/** Default Bloom distribution for a newly extracted syllabus. */
 const DEFAULT_BLOOM = {
   remember: 15,
   understand: 20,

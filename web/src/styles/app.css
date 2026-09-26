@@ -1,8 +1,7 @@
 /* ==========================================================================
    app.css — nexam application shell & design system
    --------------------------------------------------------------------------
-   Exact port of the PHP app's layout.css. Uses the same class names so the
-   React app is visually identical to the CodeIgniter app.
+   Shared React application shell and design primitives.
    ========================================================================== */
 
 * { margin: 0; padding: 0; box-sizing: border-box; }

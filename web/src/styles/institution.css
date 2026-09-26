@@ -1,0 +1,46 @@
+.institution-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-5);
+  margin-bottom: var(--space-5);
+}
+
+.institution-head h1 { margin: .25rem 0 .4rem; font: 700 var(--text-xl)/1.2 var(--font-display); color: var(--ink); }
+.institution-head p { max-width: 48rem; margin: 0; color: var(--ink-3); }
+.institution-count { display: flex; align-items: center; gap: .45rem; white-space: nowrap; color: var(--ink-2); font: 600 var(--text-sm)/1 var(--font-display); }
+
+.institution-toolbar {
+  display: grid;
+  grid-template-columns: minmax(15rem, 1fr) repeat(2, minmax(10rem, 13rem));
+  gap: var(--space-3);
+  margin-bottom: var(--space-4);
+}
+
+.institution-toolbar input,
+.institution-toolbar select,
+.institution-reuse-form select {
+  width: 100%; min-height: 44px; border: 1px solid var(--line); border-radius: var(--radius-sm);
+  background: var(--surface); color: var(--ink); font: 400 var(--text-sm)/1.4 var(--font-body);
+}
+.institution-toolbar select,
+.institution-reuse-form select { padding: 0 .75rem; }
+.institution-search { position: relative; display: flex; align-items: center; }
+.institution-search svg { position: absolute; left: .85rem; color: var(--ink-faint); pointer-events: none; }
+.institution-search input { padding: 0 .85rem 0 2.45rem; }
+
+.institution-list { display: grid; gap: var(--space-3); }
+.institution-question { border: 1px solid var(--line); border-radius: var(--radius-lg); padding: var(--space-5); background: var(--surface); box-shadow: var(--shadow-sm); }
+.institution-question h2 { margin: .65rem 0; color: var(--ink); font: 600 var(--text-md)/1.5 var(--font-display); }
+.institution-meta { display: flex; flex-wrap: wrap; gap: .45rem .9rem; color: var(--ink-3); font-size: var(--text-xs); }
+.institution-meta span + span::before { content: "·"; margin-right: .9rem; color: var(--line-strong); }
+.institution-options { margin: .5rem 0 .75rem 1.4rem; color: var(--ink-2); }
+.institution-answer { margin-bottom: var(--space-4); color: var(--ink-2); font-size: var(--text-sm); }
+.institution-empty { min-height: 13rem; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: .5rem; border: 1px dashed var(--line-strong); border-radius: var(--radius-lg); color: var(--ink-3); text-align: center; }
+.institution-reuse-form p { margin-top: 0; color: var(--ink-3); }
+
+@media (max-width: 760px) {
+  .institution-head { flex-direction: column; }
+  .institution-toolbar { grid-template-columns: 1fr; }
+  .institution-question { padding: var(--space-4); }
+}

@@ -2,8 +2,7 @@
  * ExamDetailPage — exam detail with question attachment, PDF generation,
  * download, and LMS export.
  *
- * Matches the PHP CodeIgniter design (application/views/exams/view.php)
- * exactly: page-header with badges + header-actions, stats-grid, cards for
+ * Uses a page header, status badges, actions, statistics, and cards for
  * Instructions / Questions / Downloads / LMS Export.
  */
 import { useEffect, useState, useCallback } from 'react';

@@ -18,6 +18,7 @@ import { v4 as uuid } from 'uuid';
 import pool from '../config/db.js';
 import { requireAuth } from '../middleware/auth.js';
 import { scoreItem } from '../services/scoring.js';
+import { blindIndex, protectText, unprotectText } from '../services/storageCrypto.js';
 
 const router = Router();
 router.use(requireAuth);
@@ -78,31 +79,49 @@ async function findOrCreateStudent(conn, userId, subjectId, studentName, student
   const name = (studentName || '').trim();
   const number = (studentNumber || '').trim();
   if (!name && !number) return null;
+  const numberHash = blindIndex(number);
+  const nameHash = blindIndex(name);
 
   // Strongest identity: instructor + student_number.
   if (number) {
     const [byNum] = await conn.query(
-      `SELECT id FROM students WHERE instructor_id = :uid AND student_number = :num LIMIT 1`,
-      { uid: userId, num: number }
+      `SELECT id FROM students
+       WHERE instructor_id = :uid AND student_number_hash = :numberHash LIMIT 1`,
+      { uid: userId, numberHash }
     );
     if (byNum.length) return byNum[0].id;
   }
   // Then instructor + full name.
   if (name) {
     const [byName] = await conn.query(
-      `SELECT id FROM students WHERE instructor_id = :uid AND full_name = :name LIMIT 1`,
-      { uid: userId, name }
+      `SELECT id FROM students
+       WHERE instructor_id = :uid AND full_name_hash = :nameHash LIMIT 1`,
+      { uid: userId, nameHash }
     );
     if (byName.length) return byName[0].id;
   }
 
   const id = uuid();
   await conn.query(
-    `INSERT INTO students (id, instructor_id, subject_id, student_number, full_name)
-     VALUES (:id, :uid, :subjectId, :num, :name)`,
-    { id, uid: userId, subjectId: subjectId || null, num: number || null, name: name || 'Unknown' }
+    `INSERT INTO students
+       (id, instructor_id, subject_id, student_number, student_number_hash, full_name, full_name_hash)
+     VALUES (:id, :uid, :subjectId, :num, :numberHash, :name, :nameHash)`,
+    {
+      id,
+      uid: userId,
+      subjectId: subjectId || null,
+      num: number ? protectText(number) : null,
+      numberHash,
+      name: protectText(name || 'Unknown'),
+      nameHash: nameHash || blindIndex('Unknown'),
+    }
   );
   return id;
+}
+
+function revealScanIdentity(row) {
+  if (!row) return row;
+  return { ...row, student_name: unprotectText(row.student_name) };
 }
 
 /**
@@ -198,7 +217,7 @@ router.post('/', async (req, res, next) => {
         examId,
         examSetId: resolvedSetId,
         studentId,
-        studentName: (studentName || '').trim() || null,
+        studentName: (studentName || '').trim() ? protectText(String(studentName).trim()) : null,
         totalItems,
         correctCount,
         score,
@@ -279,7 +298,7 @@ router.get('/', async (req, res, next) => {
     query += ' ORDER BY sr.scanned_at DESC LIMIT 100';
 
     const [rows] = await pool.query(query, params);
-    res.json({ scans: rows });
+    res.json({ scans: rows.map(revealScanIdentity) });
   } catch (err) {
     next(err);
   }
@@ -306,7 +325,7 @@ router.get('/exam/:examId', async (req, res, next) => {
        ORDER BY sr.scanned_at DESC`,
       { examId }
     );
-    res.json({ scans: rows });
+    res.json({ scans: rows.map(revealScanIdentity) });
   } catch (err) {
     next(err);
   }
@@ -327,7 +346,7 @@ router.get('/:id', async (req, res, next) => {
       { scanId, userId: req.user.id }
     );
     if (!scanRows.length) return res.status(404).json({ error: 'Scan result not found.' });
-    const scan = scanRows[0];
+    const scan = revealScanIdentity(scanRows[0]);
 
     // Per-item breakdown, enriched with question type + stem via the set (or
     // exam) item ordering — item_number == sort_order.

@@ -22,6 +22,9 @@ export function requireAuth(req, res, next) {
 
   try {
     req.user = jwt.verify(finalToken, env.jwt.secret);
+    if (req.user?.role !== 'instructor') {
+      return res.status(403).json({ error: 'Nexam is restricted to faculty/instructor accounts.' });
+    }
     next();
   } catch {
     return res.status(401).json({ error: 'Invalid or expired token.' });

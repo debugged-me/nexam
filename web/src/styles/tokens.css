@@ -1,7 +1,7 @@
 /* ==========================================================================
    tokens.css — Google Sans + Inter @font-face + design tokens
    --------------------------------------------------------------------------
-   Exact port of the PHP app's fonts.css. Load this FIRST before other CSS
+   Load this first before other CSS
    so font variables and design tokens are available everywhere.
    Google Sans: headings, titles, buttons, labels (display font)
    Inter: body text, paragraphs, inputs (text font)
@@ -75,7 +75,7 @@
 }
 
 /* ==========================================================================
-   Design tokens — single source of truth (exact port from PHP fonts.css)
+   Design tokens — single source of truth
    ========================================================================== */
 :root {
   /* ---- Font roles ---- */

@@ -5,8 +5,7 @@
  * Data comes from GET /api/analytics/overview. Exam-level detail is loaded
  * on demand when an exam is selected (GET /api/analytics/exam/:id).
  *
- * Mirrors the PHP CodeIgniter views (analytics/index.php + analytics/exam.php)
- * using the same class names so the ported app.css + analytics.css apply.
+ * Uses the shared application and analytics styles.
  */
 import { useEffect, useState, useCallback } from 'react';
 import { Link } from 'react-router-dom';
@@ -230,7 +229,7 @@ export default function AnalyticsPage() {
 
 /**
  * ExamDetail — the exam-level analytics view (score distribution + student scores).
- * Mirrors application/views/analytics/exam.php.
+ * Exam-level result summary.
  */
 function ExamDetail({ examId, detail, onBack }) {
   if (!detail) {

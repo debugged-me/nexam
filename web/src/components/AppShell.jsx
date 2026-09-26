@@ -1,8 +1,7 @@
 /**
  * AppShell — the application chrome: grouped sidebar + topbar + content area.
  *
- * This is a faithful React port of the PHP app's sidebar.php + topbar.php.
- * It uses the same class names so the ported layout.css styles apply directly.
+ * Responsive application sidebar and topbar.
  *
  * The sidebar is grouped by workflow phase (Overview / Content / Assessment),
  * each item has a Lucide icon + label, and the active item gets the accent wash.
@@ -24,6 +23,7 @@ const NAV_GROUPS = [
       { label: 'Home', key: 'dashboard', icon: Home, to: '/dashboard' },
       { label: 'Build an exam', key: 'wizard', icon: Sparkles, to: '/wizard', featured: true },
       { label: 'Question bank', key: 'questions', icon: CircleHelp, to: '/questions' },
+      { label: 'Institution bank', key: 'institution', icon: Library, to: '/questions/institution' },
       { label: 'Exams', key: 'exams', icon: FileText, to: '/exams' },
     ],
   },
@@ -48,6 +48,7 @@ const SECTION_TITLES = {
   wizard: 'Build an exam',
   library: 'Content library',
   questions: 'Questions',
+  institution: 'Institution question bank',
   exams: 'Exams',
   analytics: 'Results & insights',
   account: 'Account',
@@ -59,6 +60,7 @@ function deriveActiveKey(pathname) {
   if (pathname.startsWith('/wizard')) return 'wizard';
   if (pathname.startsWith('/subjects')) return 'library';
   if (pathname.startsWith('/materials')) return 'library';
+  if (pathname.startsWith('/questions/institution')) return 'institution';
   if (pathname.startsWith('/questions')) return 'questions';
   if (pathname.startsWith('/tos')) return 'library';
   if (pathname.startsWith('/exams')) return 'exams';

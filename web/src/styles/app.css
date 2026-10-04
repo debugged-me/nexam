@@ -803,7 +803,14 @@ textarea.form-control { resize: vertical; min-height: 92px; height: auto; paddin
   flex-wrap: wrap;
   margin-bottom: 16px;
 }
-.list-head-main { min-width: 0; }
+.list-head-main {
+  position: relative;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px 6px;
+  min-width: 0;
+}
 .list-head-title {
   display: flex;
   align-items: baseline;
@@ -839,35 +846,48 @@ textarea.form-control { resize: vertical; min-height: 92px; height: auto; paddin
   flex-shrink: 0;
 }
 
-/* Collapsible info dropdown on list headers */
-.list-head-info {
-  margin-top: 4px;
-  position: relative;
-}
+/* Info toggle beside a list title; the note opens as a popover anchored to
+   the title's left edge (.list-head-main) so it never runs off a phone. */
 .list-head-info > summary {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  color: var(--ink-faint);
   cursor: pointer;
-  color: var(--ink-3);
-  font-size: var(--text-sm);
   list-style: none;
   user-select: none;
+  transition: background-color .13s ease, color .13s ease;
 }
 .list-head-info > summary::-webkit-details-marker { display: none; }
 .list-head-info > summary svg { width: 16px !important; height: 16px !important; }
-.list-head-info > summary:hover { color: var(--ink-2); }
-.list-head-info[open] > summary { color: var(--ink-2); }
+.list-head-info > summary:hover,
+.list-head-info[open] > summary { background: var(--surface-3); color: var(--ink-2); }
+.list-head-info > summary:focus { outline: none; }
+.list-head-info > summary:focus-visible { box-shadow: 0 0 0 3px var(--ring); }
 .list-head-info p {
-  max-width: 68ch;
-  margin: 8px 0 0;
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  z-index: 60;
+  width: max-content;
+  max-width: min(46ch, calc(100vw - 40px));
+  margin: 0;
   padding: 10px 14px;
-  background: var(--surface-2);
+  background: var(--surface);
   border: 1px solid var(--line);
   border-radius: var(--radius);
-  color: var(--ink-3);
+  box-shadow: var(--shadow-md);
+  color: var(--ink-2);
   font-size: var(--text-sm);
   line-height: 1.5;
+  animation: popover-in .14s ease-out;
+}
+@keyframes popover-in { from { opacity: 0; } }
+@media (max-width: 767.98px) {
+  .list-head-info > summary { width: 44px; height: 44px; margin: -7px; }
 }
 
 /* ==========================================================================
@@ -1010,6 +1030,16 @@ textarea.form-control { resize: vertical; min-height: 92px; height: auto; paddin
 
 /* ---- Form select ---- */
 .form-select { cursor: pointer; padding-right: 10px; }
+select.form-control:not([multiple]) {
+  padding-right: 36px;
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238492a6' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  background-size: 16px;
+  cursor: pointer;
+}
 
 /* ---- Callout ---- */
 .callout {
@@ -1151,7 +1181,8 @@ textarea.form-control { resize: vertical; min-height: 92px; height: auto; paddin
 
 /* ---- Detail view helpers ---- */
 .header-actions { display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap; }
-.stat-value-sm { font-size: 1.15rem; text-transform: capitalize; }
+.stat-value-sm { overflow: hidden; font-size: 1.15rem; line-height: 1.25; text-overflow: ellipsis; text-transform: capitalize; white-space: nowrap; }
+.stat-value-literal { text-transform: none; }
 .preserve-lines { white-space: pre-wrap; font-size: var(--text-base); line-height: 1.6; }
 .table-bare { border: none; border-radius: 0; box-shadow: none; }
 .col-num { width: 50px; }

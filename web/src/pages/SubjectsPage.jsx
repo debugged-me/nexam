@@ -14,6 +14,7 @@ import { useToast } from '../components/Toast.jsx';
 import Modal from '../components/Modal.jsx';
 import api, { ApiError } from '../lib/api.js';
 import AppShell from '../components/AppShell.jsx';
+import { PageLoader } from '../components/Loaders.jsx';
 import '../styles/subjects.css';
 
 const PAGE_SIZE = 25;
@@ -38,7 +39,7 @@ function fmtDate(iso) {
 export default function SubjectsPage() {
   const toast = useToast();
   const [searchParams, setSearchParams] = useSearchParams();
-  const [subjects, setSubjects] = useState(null);
+  const [subjects, setSubjects] = useState(() => api.peek('/subjects')?.subjects ?? null);
   const [editing, setEditing] = useState(null); // null | {} (new) | subject (edit)
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(null);
@@ -248,7 +249,7 @@ export default function SubjectsPage() {
       </header>
 
       {subjects === null ? (
-        <p className="placeholder">Loading…</p>
+        <PageLoader label="Loading subjects…" />
       ) : subjects.length === 0 ? (
         <div className="empty-state">
           <h4>No subjects yet</h4>

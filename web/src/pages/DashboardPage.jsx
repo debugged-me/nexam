@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../features/auth/AuthContext.jsx';
 import AppShell from '../components/AppShell.jsx';
+import { PageLoader } from '../components/Loaders.jsx';
 import api, { ApiError } from '../lib/api.js';
 
 function greeting() {
@@ -35,7 +36,7 @@ function examStatus(value) {
 
 export default function DashboardPage() {
   const { user, logout } = useAuth();
-  const [data, setData] = useState(null);
+  const [data, setData] = useState(() => api.peek('/dashboard') ?? null);
   const [error, setError] = useState('');
 
   useEffect(() => {
@@ -57,7 +58,7 @@ export default function DashboardPage() {
     return <AppShell activeNav="dashboard" pageTitle="Home"><div className="dash-message" role="alert">{error}</div></AppShell>;
   }
   if (!data) {
-    return <AppShell activeNav="dashboard" pageTitle="Home" wide><div className="dash-loading" role="status">Loading your workspace…</div></AppShell>;
+    return <AppShell activeNav="dashboard" pageTitle="Home" wide><PageLoader label="Loading your workspace…" /></AppShell>;
   }
 
   const stats = data.stats || {};

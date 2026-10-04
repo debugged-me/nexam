@@ -17,6 +17,11 @@ import '../styles/exams.css';
 
 const BLOOM_LABELS = { remember: 'Remember', understand: 'Understand', apply: 'Apply', analyze: 'Analyze', evaluate: 'Evaluate', create: 'Create' };
 
+/** Only finalized blueprints may drive exam assembly. */
+function finalizedOnly(list) {
+  return (list || []).filter((item) => item.status === 'finalized');
+}
+
 export default function ExamFormPage() {
   const { id } = useParams();
   const [searchParams] = useSearchParams();
@@ -25,8 +30,8 @@ export default function ExamFormPage() {
   const isEdit = !!id;
   const tosId = searchParams.get('tos');
 
-  const [subjects, setSubjects] = useState([]);
-  const [tosList, setTosList] = useState([]);
+  const [subjects, setSubjects] = useState(() => api.peek('/subjects')?.subjects ?? []);
+  const [tosList, setTosList] = useState(() => finalizedOnly(api.peek('/tos')?.tos));
   const [tos, setTos] = useState(null);
   const [exam, setExam] = useState(null);
   const [form, setForm] = useState({
@@ -41,7 +46,7 @@ export default function ExamFormPage() {
 
   useEffect(() => {
     api.get('/subjects').then((data) => setSubjects(data.subjects)).catch(() => {});
-    api.get('/tos').then((data) => setTosList((data.tos || []).filter((item) => item.status === 'finalized'))).catch(() => {});
+    api.get('/tos').then((data) => setTosList(finalizedOnly(data.tos))).catch(() => {});
   }, []);
 
   const loadExam = useCallback(() => {

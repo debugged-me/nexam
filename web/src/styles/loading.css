@@ -1,0 +1,122 @@
+/* ==========================================================================
+   loading.css — quiet navigation: spinners, progress bar, page fade-in
+   --------------------------------------------------------------------------
+   The shell stays mounted between pages; only the page body fades in. While
+   data refreshes in the background a thin bar runs under the topbar and a
+   small spinner sits beside the page title. First loads show PageLoader,
+   which waits a beat before appearing so fast screens never flash.
+   ========================================================================== */
+
+/* ---- Spinner primitive ---- */
+.spinner {
+  display: inline-block;
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  border: 2px solid var(--action-100);
+  border-top-color: var(--action-600);
+  border-radius: 50%;
+  animation: spin .7s linear infinite;
+}
+.spinner--sm { width: 14px; height: 14px; border-width: 2px; }
+.spinner--md { width: 20px; height: 20px; }
+.spinner--lg { width: 28px; height: 28px; border-width: 2.5px; }
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ---- Page loader (first visit to a screen) ---- */
+.page-loader {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  min-height: min(48vh, 420px);
+  color: var(--ink-3);
+  font-size: var(--text-sm);
+  animation: loader-in .24s ease-out .16s backwards;
+}
+.page-loader--compact { flex-direction: row; min-height: 96px; gap: 10px; }
+
+@keyframes loader-in { from { opacity: 0; } }
+
+/* ---- Boot screen (restoring the session on launch) ---- */
+.boot-screen {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+  min-height: 100vh;
+  min-height: 100dvh;
+  background:
+    radial-gradient(60% 42% at 50% 0%, rgba(46, 141, 232, .1), transparent 62%),
+    var(--surface-2);
+  animation: loader-in .3s ease-out .1s backwards;
+}
+.boot-mark {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  border-radius: var(--radius-md);
+  background: linear-gradient(135deg, #3294ed, #1f72c0);
+  box-shadow: 0 10px 24px rgba(21, 95, 169, .28), inset 0 1px 0 rgba(255, 255, 255, .2);
+  color: #fff;
+}
+
+/* ---- Topbar: background-refresh spinner beside the title ---- */
+.topbar-spinner {
+  opacity: 0;
+  transform: scale(.6);
+  transition: opacity .2s ease, transform .2s var(--ease);
+}
+.topbar-spinner.is-active { opacity: 1; transform: none; }
+
+/* ---- Topbar: thin indeterminate progress bar along its bottom edge ---- */
+.top-progress {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -1px;
+  height: 2px;
+  overflow: hidden;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .3s ease;
+}
+.top-progress.is-active { opacity: 1; }
+.top-progress span {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 38%;
+  border-radius: 2px;
+  background: linear-gradient(90deg, transparent, var(--action-600) 35%, var(--brand-accent) 70%, transparent);
+  animation: progress-slide 1.15s cubic-bezier(.45, .05, .55, .95) infinite;
+  animation-play-state: paused;
+}
+.top-progress.is-active span { animation-play-state: running; }
+
+@keyframes progress-slide {
+  from { transform: translateX(-100%); }
+  to   { transform: translateX(265%); }
+}
+
+/* ---- Page body fade-in on navigation ----
+   Opacity only: a transform here would trap position:fixed modals rendered
+   inside the page. `backwards` leaves no style behind once it finishes. */
+.page-enter { animation: page-in .2s ease-out backwards; }
+
+@keyframes page-in { from { opacity: 0; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .page-enter,
+  .page-loader,
+  .boot-screen { animation: none; }
+  .spinner { animation-duration: 1.6s; }
+  .top-progress span { animation: none; width: 100%; opacity: .6; }
+  .topbar-spinner { transition: none; }
+}

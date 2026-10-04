@@ -15,6 +15,7 @@ import { useToast } from '../components/Toast.jsx';
 import Modal from '../components/Modal.jsx';
 import api, { ApiError, getToken } from '../lib/api.js';
 import AppShell from '../components/AppShell.jsx';
+import { PageLoader } from '../components/Loaders.jsx';
 import '../styles/exams.css';
 
 const BLOOM_LABELS = { remember: 'Remember', understand: 'Understand', apply: 'Apply', analyze: 'Analyze', evaluate: 'Evaluate', create: 'Create' };
@@ -24,7 +25,7 @@ export default function ExamDetailPage() {
   const { id } = useParams();
   const toast = useToast();
   const navigate = useNavigate();
-  const [data, setData] = useState(null);
+  const [data, setData] = useState(() => api.peek(`/exams/${id}`) ?? null);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [availableQs, setAvailableQs] = useState([]);
   const [selected, setSelected] = useState(new Set());
@@ -118,7 +119,7 @@ export default function ExamDetailPage() {
     return `${base}/exams/${id}/export/${format}?${params.toString()}`;
   }
 
-  if (!data) return <AppShell activeNav="exams" pageTitle="Exam"><p className="placeholder">Loading…</p></AppShell>;
+  if (!data) return <AppShell activeNav="exams" pageTitle="Exam"><PageLoader label="Loading exam…" /></AppShell>;
   const { exam, questions, tos, sets } = data;
   const published = exam.status === 'published';
   const print = exam.format === 'print';

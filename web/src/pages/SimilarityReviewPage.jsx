@@ -10,6 +10,7 @@ import { Check, Trash2, ArrowLeft, CopyX } from 'lucide-react';
 import { useToast } from '../components/Toast.jsx';
 import api from '../lib/api.js';
 import AppShell from '../components/AppShell.jsx';
+import { PageLoader } from '../components/Loaders.jsx';
 import '../styles/questions.css';
 
 const BLOOM_LABELS = { remember: 'Remember', understand: 'Understand', apply: 'Apply', analyze: 'Analyze', evaluate: 'Evaluate', create: 'Create' };
@@ -41,7 +42,7 @@ export default function SimilarityReviewPage() {
     }
   }
 
-  if (!data) return <AppShell activeNav="questions" pageTitle="Similarity Review"><p className="placeholder">Loading…</p></AppShell>;
+  if (!data) return <AppShell activeNav="questions" pageTitle="Similarity Review"><PageLoader label="Checking similar questions…" /></AppShell>;
 
   const { question, matches } = data;
   const bl = BLOOM_LEVELS;

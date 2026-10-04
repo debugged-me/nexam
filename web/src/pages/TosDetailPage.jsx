@@ -14,6 +14,7 @@ import { Plus, Trash2, BookOpen, ChevronRight, Sparkles, FileText, Pencil, ListO
 import { useToast } from '../components/Toast.jsx';
 import api, { ApiError } from '../lib/api.js';
 import AppShell from '../components/AppShell.jsx';
+import { PageLoader } from '../components/Loaders.jsx';
 import '../styles/tos.css';
 
 const BLOOM_LABELS = { remember: 'Remember', understand: 'Understand', apply: 'Apply', analyze: 'Analyze', evaluate: 'Evaluate', create: 'Create' };
@@ -159,7 +160,7 @@ export default function TosDetailPage() {
   const { id } = useParams();
   const toast = useToast();
   const navigate = useNavigate();
-  const [data, setData] = useState(null);
+  const [data, setData] = useState(() => api.peek(`/tos/${id}`) ?? null);
   const [newTopic, setNewTopic] = useState({ title: '', instructional_hours: 0, outcomes: '' });
   const [savingTopic, setSavingTopic] = useState(false);
   const [editingId, setEditingId] = useState(null);
@@ -302,7 +303,7 @@ export default function TosDetailPage() {
     [data]
   );
 
-  if (!data) return <AppShell activeNav="tos" pageTitle="Blueprint"><p className="placeholder">Loading…</p></AppShell>;
+  if (!data) return <AppShell activeNav="tos" pageTitle="Blueprint"><PageLoader label="Loading blueprint…" /></AppShell>;
   const { tos, topics } = data;
   const finalized = tos.status === 'finalized';
   const totalHours = topics.reduce((s, t) => s + (Number(t.instructional_hours) || 0), 0);

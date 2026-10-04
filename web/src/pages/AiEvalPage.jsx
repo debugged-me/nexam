@@ -14,6 +14,7 @@ import {
 import { useToast } from '../components/Toast.jsx';
 import api from '../lib/api.js';
 import AppShell from '../components/AppShell.jsx';
+import { PageLoader } from '../components/Loaders.jsx';
 import '../styles/analytics.css';
 
 const BLOOM_LEVEL = { remember: 1, understand: 2, apply: 3, analyze: 4, evaluate: 5, create: 6 };
@@ -26,7 +27,7 @@ function pct(v, digits = 1) {
 export default function AiEvalPage() {
   const toast = useToast();
   const navigate = useNavigate();
-  const [data, setData] = useState(null);
+  const [data, setData] = useState(() => api.peek('/ai-eval/summary') ?? null);
 
   const load = useCallback(() => {
     api.get('/ai-eval/summary')
@@ -39,7 +40,7 @@ export default function AiEvalPage() {
   if (!data) {
     return (
       <AppShell activeNav="analytics" pageTitle="AI Evaluation" wide>
-        <p className="placeholder">Loading…</p>
+        <PageLoader label="Loading evaluation metrics…" />
       </AppShell>
     );
   }

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Copy, Library, Search } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import AppShell from '../components/AppShell.jsx';
+import { PageLoader } from '../components/Loaders.jsx';
 import Modal from '../components/Modal.jsx';
 import { useToast } from '../components/Toast.jsx';
 import api from '../lib/api.js';
@@ -18,8 +19,8 @@ const TYPE_LABELS = {
 export default function InstitutionBankPage() {
   const toast = useToast();
   const navigate = useNavigate();
-  const [questions, setQuestions] = useState(null);
-  const [subjects, setSubjects] = useState([]);
+  const [questions, setQuestions] = useState(() => api.peek('/questions/institution')?.questions ?? null);
+  const [subjects, setSubjects] = useState(() => api.peek('/subjects')?.subjects ?? []);
   const [query, setQuery] = useState('');
   const [bloom, setBloom] = useState('');
   const [type, setType] = useState('');
@@ -99,7 +100,7 @@ export default function InstitutionBankPage() {
       </section>
 
       {questions === null ? (
-        <div className="institution-empty">Loading approved questions…</div>
+        <PageLoader label="Loading approved questions…" />
       ) : filtered.length === 0 ? (
         <div className="institution-empty">
           <Library size={28} />

@@ -17,6 +17,7 @@ import {
 import { useToast } from '../components/Toast.jsx';
 import api from '../lib/api.js';
 import AppShell from '../components/AppShell.jsx';
+import { PageLoader } from '../components/Loaders.jsx';
 import '../styles/analytics.css';
 
 /** Format a score with one decimal, e.g. 87.5%. */
@@ -51,7 +52,7 @@ function trimwd(s, n = 30) {
 
 export default function AnalyticsPage() {
   const toast = useToast();
-  const [overview, setOverview] = useState(null);
+  const [overview, setOverview] = useState(() => api.peek('/analytics/overview') ?? null);
   const [examDetail, setExamDetail] = useState(null);
   const [selectedExam, setSelectedExam] = useState(null);
 
@@ -83,7 +84,7 @@ export default function AnalyticsPage() {
   if (!overview) {
     return (
       <AppShell activeNav="analytics" pageTitle="Analytics" wide>
-        <p className="placeholder">Loading…</p>
+        <PageLoader label="Loading results…" />
       </AppShell>
     );
   }
@@ -206,7 +207,7 @@ export default function AnalyticsPage() {
                     const score = Number(rs.score || 0);
                     return (
                       <tr key={rs.id}>
-                        <td className="cell-primary">{rs.student_name || 'Unknown'}</td>
+                        <td><strong>{rs.student_name || 'Unknown'}</strong></td>
                         <td className="text-muted">{trimwd(rs.exam_title, 30)}</td>
                         <td>
                           <span className={`badge badge-${score >= 75 ? 'green' : 'amber'}`}>
@@ -233,7 +234,7 @@ export default function AnalyticsPage() {
  */
 function ExamDetail({ examId, detail, onBack }) {
   if (!detail) {
-    return <p className="placeholder">Loading exam analytics…</p>;
+    return <PageLoader label="Loading exam analytics…" />;
   }
 
   const { exam, stats, distribution, students } = detail;
@@ -325,7 +326,7 @@ function ExamDetail({ examId, detail, onBack }) {
                   return (
                     <tr key={st.scan_id || i}>
                       <td className="text-muted">{i + 1}</td>
-                      <td className="cell-primary">{st.student_name || 'Unknown'}</td>
+                      <td><strong>{st.student_name || 'Unknown'}</strong></td>
                       <td><span className="badge badge-gray">{st.set_label || '—'}</span></td>
                       <td>
                         <span className={`badge badge-${score >= 75 ? 'green' : 'amber'}`}>

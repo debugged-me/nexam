@@ -6,6 +6,12 @@
   margin-bottom: var(--space-5);
 }
 
+.institution-head .eyebrow {
+  color: var(--action-700);
+  font: 700 .6875rem/1.4 var(--font-display);
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
 .institution-head h1 { margin: .25rem 0 .4rem; font: 700 var(--text-xl)/1.2 var(--font-display); color: var(--ink); }
 .institution-head p { max-width: 48rem; margin: 0; color: var(--ink-3); }
 .institution-count { display: flex; align-items: center; gap: .45rem; white-space: nowrap; color: var(--ink-2); font: 600 var(--text-sm)/1 var(--font-display); }
@@ -24,7 +30,22 @@
   background: var(--surface); color: var(--ink); font: 400 var(--text-sm)/1.4 var(--font-body);
 }
 .institution-toolbar select,
-.institution-reuse-form select { padding: 0 .75rem; }
+.institution-reuse-form select {
+  padding: 0 2.25rem 0 .75rem;
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238492a6' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right .75rem center;
+  background-size: 16px;
+  cursor: pointer;
+}
+.institution-toolbar input,
+.institution-toolbar select { transition: border-color .15s ease, box-shadow .15s ease; }
+.institution-toolbar input:hover,
+.institution-toolbar select:hover { border-color: var(--line-strong); }
+.institution-toolbar input:focus,
+.institution-toolbar select:focus { border-color: var(--brand-accent); outline: none; box-shadow: 0 0 0 3px var(--ring); }
 .institution-search { position: relative; display: flex; align-items: center; }
 .institution-search svg { position: absolute; left: .85rem; color: var(--ink-faint); pointer-events: none; }
 .institution-search input { padding: 0 .85rem 0 2.45rem; }

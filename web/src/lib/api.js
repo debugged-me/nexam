@@ -5,9 +5,61 @@
  * - Throws a structured ApiError on non-2xx responses, with the server's
  *   `error` message and status code.
  * - Exposes get/post/put/del helpers that return parsed JSON.
+ * - Remembers the last GET response per path (in memory only) so pages can
+ *   render a revisited screen instantly via api.peek() and refresh quietly.
+ * - Counts in-flight requests so the shell can show a background spinner.
  */
 const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:3000/api';
 const TOKEN_KEY = 'nexam.token';
+const CACHE_LIMIT = 80;
+
+// path -> last successful GET payload. Never persisted; cleared on every
+// token change so one instructor's data can't seed another's screens.
+const cache = new Map();
+// path -> pending GET promise, so identical concurrent GETs share one request.
+const inflight = new Map();
+// Bumped on every token change and every write; a GET that started before
+// either is still returned to its caller but never cached.
+let epoch = 0;
+
+let activeRequests = 0;
+const activityListeners = new Set();
+
+function setActive(delta) {
+  activeRequests += delta;
+  activityListeners.forEach((listener) => listener());
+}
+
+export function subscribeActivity(listener) {
+  activityListeners.add(listener);
+  return () => activityListeners.delete(listener);
+}
+
+export function getActivity() {
+  return activeRequests;
+}
+
+function remember(path, data) {
+  cache.delete(path);
+  cache.set(path, data);
+  if (cache.size > CACHE_LIMIT) cache.delete(cache.keys().next().value);
+}
+
+function resourceOf(path) {
+  return path.split(/[/?]/)[1] || '';
+}
+
+/** Drop cached GETs a write may have changed: the same top-level resource
+ *  (e.g. `/exams/5` → `/exams`, `/exams/5`) plus the dashboard summary.
+ *  Anything else is refreshed in the background the next time it's shown. */
+function invalidate(path) {
+  epoch += 1;
+  const resource = resourceOf(path);
+  for (const key of [...cache.keys()]) {
+    const keyResource = resourceOf(key);
+    if (keyResource === resource || keyResource === 'dashboard') cache.delete(key);
+  }
+}
 
 export function getToken() {
   return localStorage.getItem(TOKEN_KEY) || '';
@@ -16,6 +68,9 @@ export function getToken() {
 export function setToken(token) {
   if (token) localStorage.setItem(TOKEN_KEY, token);
   else localStorage.removeItem(TOKEN_KEY);
+  epoch += 1;
+  cache.clear();
+  inflight.clear();
 }
 
 export class ApiError extends Error {
@@ -29,7 +84,7 @@ export class ApiError extends Error {
 
 const REQUEST_TIMEOUT_MS = 30000;
 
-async function request(method, path, body) {
+async function request(method, path, body, { quiet = false } = {}) {
   const headers = { 'Content-Type': 'application/json' };
   const token = getToken();
   if (token) headers.Authorization = `Bearer ${token}`;
@@ -39,6 +94,7 @@ async function request(method, path, body) {
   // mid-body (proxy hiccup) would otherwise hang past the timeout.
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+  if (!quiet) setActive(1);
 
   try {
     const res = await fetch(`${API_BASE}${path}`, {
@@ -73,14 +129,46 @@ async function request(method, path, body) {
     throw new ApiError('Network error — could not reach the server.', 0, null);
   } finally {
     clearTimeout(timer);
+    if (!quiet) setActive(-1);
   }
 }
 
+function get(path, options) {
+  const pending = inflight.get(path);
+  if (pending) return pending;
+  const startedIn = epoch;
+  const promise = request('GET', path, undefined, options)
+    .then((data) => {
+      if (startedIn === epoch) remember(path, data);
+      return data;
+    })
+    .finally(() => {
+      if (inflight.get(path) === promise) inflight.delete(path);
+    });
+  inflight.set(path, promise);
+  return promise;
+}
+
+async function write(method, path, body) {
+  const data = await request(method, path, body);
+  invalidate(path);
+  return data;
+}
+
 export const api = {
-  get: (path) => request('GET', path),
-  post: (path, body) => request('POST', path, body),
-  put: (path, body) => request('PUT', path, body),
-  del: (path) => request('DELETE', path),
+  get: (path) => get(path),
+  post: (path, body) => write('POST', path, body),
+  put: (path, body) => write('PUT', path, body),
+  del: (path) => write('DELETE', path),
+  /** Last cached GET payload for `path`, or undefined. Use it to seed state. */
+  peek: (path) => cache.get(path),
+  /** Warm the cache for a screen that's about to open, without the busy indicator. */
+  prefetch: (path) => {
+    if (!getToken() || cache.has(path) || inflight.has(path)) return;
+    get(path, { quiet: true }).catch(() => {});
+  },
+  /** Forget cached GETs related to `path` after a write made outside `api`. */
+  invalidate,
 };
 
 export default api;

@@ -22,6 +22,7 @@ import { useToast } from '../components/Toast.jsx';
 import Modal from '../components/Modal.jsx';
 import api, { ApiError } from '../lib/api.js';
 import AppShell from '../components/AppShell.jsx';
+import { PageLoader } from '../components/Loaders.jsx';
 import '../styles/review.css';
 
 const BLOOM_LABELS = { remember: 'Remember', understand: 'Understand', apply: 'Apply', analyze: 'Analyze', evaluate: 'Evaluate', create: 'Create' };
@@ -147,7 +148,7 @@ export default function ReviewQueuePage() {
   // is derived during render rather than pushed from inside the effect.
   const [loaded, setLoaded] = useState({ key: null, questions: [] });
   const [reloadTick, setReloadTick] = useState(0);
-  const [subjects, setSubjects] = useState([]);
+  const [subjects, setSubjects] = useState(() => api.peek('/subjects')?.subjects ?? []);
   const [subjectId, setSubjectId] = useState('');
   const [decisions, setDecisions] = useState({});
   const [cursor, setCursor] = useState(0);
@@ -514,7 +515,7 @@ export default function ReviewQueuePage() {
       </header>
 
       {queue === null ? (
-        <p className="placeholder">Loading…</p>
+        <PageLoader label="Loading the review queue…" />
       ) : queue.length === 0 ? (
         <div className="rv-panel">
           <div className="empty-state">

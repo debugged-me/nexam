@@ -24,6 +24,7 @@ import { useToast } from '../components/Toast.jsx';
 import Modal from '../components/Modal.jsx';
 import api, { ApiError, getToken } from '../lib/api.js';
 import AppShell from '../components/AppShell.jsx';
+import { PageLoader } from '../components/Loaders.jsx';
 import '../styles/materials.css';
 
 const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:3000/api';
@@ -68,8 +69,8 @@ function dragHasFiles(e) {
 export default function MaterialsPage() {
   const toast = useToast();
   const [searchParams, setSearchParams] = useSearchParams();
-  const [materials, setMaterials] = useState(null);
-  const [subjects, setSubjects] = useState([]);
+  const [materials, setMaterials] = useState(() => api.peek('/materials')?.materials ?? null);
+  const [subjects, setSubjects] = useState(() => api.peek('/subjects')?.subjects ?? []);
   const [uploadOpen, setUploadOpen] = useState(false);
   const [uploadMode, setUploadMode] = useState('file'); // file | url | text
   const [uploading, setUploading] = useState(false);
@@ -232,6 +233,7 @@ export default function MaterialsPage() {
       try { data = await res.json(); } catch { data = null; }
     }
     if (!res.ok) throw new ApiError(data?.error || `Upload failed (${res.status}).`, res.status, data);
+    api.invalidate('/materials');
     return data;
   }
 
@@ -394,7 +396,7 @@ export default function MaterialsPage() {
           )}
 
           {materials === null ? (
-            <p className="placeholder">Loading…</p>
+            <PageLoader label="Loading materials…" />
           ) : materials.length === 0 ? (
             <div className="empty-state">
               <FileStack size={40} style={{ color: 'var(--ink-faint)', marginBottom: 12 }} />

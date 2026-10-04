@@ -5,12 +5,15 @@
  * App pages:  /dashboard, /subjects, /questions, /questions/review, /tos, /exams,
  *             /materials, /analytics, /account
  *
- * Protected routes are wrapped in <RequireAuth> which redirects to /login
- * if no JWT is present.
+ * Protected routes share one <AppLayout> (sidebar + topbar) behind
+ * <RequireAuth>, which redirects to /login if no JWT is present. The layout
+ * stays mounted between pages so navigation only swaps the page body.
  */
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AuthProvider, useAuth } from './features/auth/AuthContext.jsx';
 import { ToastProvider, useToast } from './components/Toast.jsx';
+import AppLayout from './components/AppLayout.jsx';
+import { BootScreen } from './components/Loaders.jsx';
 import { useEffect } from 'react';
 
 import LoginPage from './features/auth/LoginPage.jsx';
@@ -53,11 +56,12 @@ import './styles/analytics.css';
 import './styles/account.css';
 import './styles/wizard.css';
 import './styles/institution.css';
+import './styles/loading.css';
 
 function RequireAuth({ children }) {
   const { user, loading } = useAuth();
   const location = useLocation();
-  if (loading) return <div className="app-loading">Loading…</div>;
+  if (loading) return <BootScreen />;
   if (!user) return <Navigate to="/login" state={{ from: location }} replace />;
   return children;
 }
@@ -67,7 +71,7 @@ function RequireAuth({ children }) {
  *  account's registration flow. Log out first to switch accounts. */
 function RedirectIfAuthed({ children }) {
   const { user, loading } = useAuth();
-  if (loading) return <div className="app-loading">Loading…</div>;
+  if (loading) return <BootScreen />;
   if (user) return <Navigate to="/dashboard" replace />;
   return children;
 }
@@ -112,24 +116,26 @@ export default function App() {
             <Route path="/reset" element={<RedirectIfAuthed><ResetPage /></RedirectIfAuthed>} />
 
             {/* App (protected) */}
-            <Route path="/wizard" element={<RequireAuth><WizardPage /></RequireAuth>} />
-            <Route path="/dashboard" element={<RequireAuth><DashboardPage /></RequireAuth>} />
-            <Route path="/subjects" element={<RequireAuth><SubjectsPage /></RequireAuth>} />
-            <Route path="/questions" element={<RequireAuth><QuestionsPage /></RequireAuth>} />
-            <Route path="/questions/institution" element={<RequireAuth><InstitutionBankPage /></RequireAuth>} />
-            <Route path="/questions/review" element={<RequireAuth><ReviewQueuePage /></RequireAuth>} />
-            <Route path="/questions/:id/similarity" element={<RequireAuth><SimilarityReviewPage /></RequireAuth>} />
-            <Route path="/tos" element={<RequireAuth><TosPage /></RequireAuth>} />
-            <Route path="/tos/:id" element={<RequireAuth><TosDetailPage /></RequireAuth>} />
-            <Route path="/exams" element={<RequireAuth><ExamsPage /></RequireAuth>} />
-            <Route path="/exams/new" element={<RequireAuth><ExamFormPage /></RequireAuth>} />
-            <Route path="/exams/:id" element={<RequireAuth><ExamDetailPage /></RequireAuth>} />
-            <Route path="/exams/:id/edit" element={<RequireAuth><ExamFormPage /></RequireAuth>} />
-            <Route path="/materials" element={<RequireAuth><MaterialsPage /></RequireAuth>} />
-            <Route path="/analytics" element={<RequireAuth><AnalyticsPage /></RequireAuth>} />
-            <Route path="/analytics/items/:examId" element={<RequireAuth><ItemAnalysisPage /></RequireAuth>} />
-            <Route path="/analytics/ai-eval" element={<RequireAuth><AiEvalPage /></RequireAuth>} />
-            <Route path="/account" element={<RequireAuth><AccountPage /></RequireAuth>} />
+            <Route element={<RequireAuth><AppLayout /></RequireAuth>}>
+              <Route path="/wizard" element={<WizardPage />} />
+              <Route path="/dashboard" element={<DashboardPage />} />
+              <Route path="/subjects" element={<SubjectsPage />} />
+              <Route path="/questions" element={<QuestionsPage />} />
+              <Route path="/questions/institution" element={<InstitutionBankPage />} />
+              <Route path="/questions/review" element={<ReviewQueuePage />} />
+              <Route path="/questions/:id/similarity" element={<SimilarityReviewPage />} />
+              <Route path="/tos" element={<TosPage />} />
+              <Route path="/tos/:id" element={<TosDetailPage />} />
+              <Route path="/exams" element={<ExamsPage />} />
+              <Route path="/exams/new" element={<ExamFormPage />} />
+              <Route path="/exams/:id" element={<ExamDetailPage />} />
+              <Route path="/exams/:id/edit" element={<ExamFormPage />} />
+              <Route path="/materials" element={<MaterialsPage />} />
+              <Route path="/analytics" element={<AnalyticsPage />} />
+              <Route path="/analytics/items/:examId" element={<ItemAnalysisPage />} />
+              <Route path="/analytics/ai-eval" element={<AiEvalPage />} />
+              <Route path="/account" element={<AccountPage />} />
+            </Route>
 
             {/* Default → dashboard (which redirects to /login if not authed) */}
             <Route path="/" element={<Navigate to="/dashboard" replace />} />

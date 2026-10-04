@@ -11,6 +11,7 @@ import { useToast } from '../components/Toast.jsx';
 import Modal from '../components/Modal.jsx';
 import api, { ApiError } from '../lib/api.js';
 import AppShell from '../components/AppShell.jsx';
+import { PageLoader } from '../components/Loaders.jsx';
 import '../styles/tos.css';
 
 const BLOOM_LABELS = { remember: 'Remember', understand: 'Understand', apply: 'Apply', analyze: 'Analyze', evaluate: 'Evaluate', create: 'Create' };
@@ -27,8 +28,8 @@ function fmtDate(iso) {
 export default function TosPage() {
   const toast = useToast();
   const [searchParams, setSearchParams] = useSearchParams();
-  const [tosList, setTosList] = useState(null);
-  const [subjects, setSubjects] = useState([]);
+  const [tosList, setTosList] = useState(() => api.peek('/tos')?.tos ?? null);
+  const [subjects, setSubjects] = useState(() => api.peek('/subjects')?.subjects ?? []);
   const [editing, setEditing] = useState(null);
   const [saving, setSaving] = useState(false);
 
@@ -113,7 +114,7 @@ export default function TosPage() {
       </header>
 
       {tosList === null ? (
-        <p className="placeholder">Loading…</p>
+        <PageLoader label="Loading blueprints…" />
       ) : tosList.length === 0 ? (
         <div className="empty-state">
           <h4>No blueprints yet</h4>

@@ -19,6 +19,7 @@ import { useToast } from '../components/Toast.jsx';
 import Modal from '../components/Modal.jsx';
 import api, { ApiError } from '../lib/api.js';
 import AppShell from '../components/AppShell.jsx';
+import { PageLoader } from '../components/Loaders.jsx';
 import '../styles/questions.css';
 
 const BLOOM_LABELS = { remember: 'Remember', understand: 'Understand', apply: 'Apply', analyze: 'Analyze', evaluate: 'Evaluate', create: 'Create' };
@@ -58,13 +59,26 @@ function formatFromName(name) {
   return null;
 }
 
+const DEFAULT_FILTERS = { subject_id: '', bloom: '', type: '', status: '', tos_id: '', topic: '' };
+
+/** API path for a filter set — also the cache key api.peek() looks up. */
+function questionsPath(filters) {
+  const params = new URLSearchParams();
+  if (filters.subject_id) params.set('subject_id', filters.subject_id);
+  if (filters.bloom) params.set('bloom', filters.bloom);
+  if (filters.type) params.set('type', filters.type);
+  if (filters.status) params.set('status', filters.status);
+  if (filters.tos_id) params.set('tos_id', filters.tos_id);
+  return `/questions?${params}`;
+}
+
 export default function QuestionsPage() {
   const toast = useToast();
   const [searchParams, setSearchParams] = useSearchParams();
-  const [questions, setQuestions] = useState(null);
-  const [subjects, setSubjects] = useState([]);
-  const [tosList, setTosList] = useState([]);
-  const [filters, setFilters] = useState({ subject_id: '', bloom: '', type: '', status: '', tos_id: '', topic: '' });
+  const [questions, setQuestions] = useState(() => api.peek(questionsPath(DEFAULT_FILTERS))?.questions ?? null);
+  const [subjects, setSubjects] = useState(() => api.peek('/subjects')?.subjects ?? []);
+  const [tosList, setTosList] = useState(() => api.peek('/tos')?.tos ?? []);
+  const [filters, setFilters] = useState(DEFAULT_FILTERS);
   const [search, setSearch] = useState('');
   const [editing, setEditing] = useState(null);
   const [saving, setSaving] = useState(false);
@@ -78,13 +92,7 @@ export default function QuestionsPage() {
   const lastPickedRef = useRef(null); // anchor row index for shift-click ranges
 
   const load = useCallback(() => {
-    const params = new URLSearchParams();
-    if (filters.subject_id) params.set('subject_id', filters.subject_id);
-    if (filters.bloom) params.set('bloom', filters.bloom);
-    if (filters.type) params.set('type', filters.type);
-    if (filters.status) params.set('status', filters.status);
-    if (filters.tos_id) params.set('tos_id', filters.tos_id);
-    api.get(`/questions?${params}`)
+    api.get(questionsPath(filters))
       .then((data) => setQuestions(data.questions))
       .catch((err) => toast.error(err.message || 'Could not load questions.'));
   }, [filters, toast]);
@@ -165,7 +173,7 @@ export default function QuestionsPage() {
   const activeFilterCount = [filters.subject_id, filters.bloom, filters.type, filters.status, filters.tos_id, filters.topic].filter(Boolean).length;
 
   const clearFilters = useCallback(() => {
-    setFilters({ subject_id: '', bloom: '', type: '', status: '', tos_id: '', topic: '' });
+    setFilters(DEFAULT_FILTERS);
     setSearch('');
   }, []);
 
@@ -430,7 +438,7 @@ export default function QuestionsPage() {
       </header>
 
       {filteredQuestions === null ? (
-        <p className="placeholder">Loading…</p>
+        <PageLoader label="Loading questions…" />
       ) : filteredQuestions.length === 0 && !activeFilterCount && !search ? (
         <div className="empty-state">
           <h4>Your question bank is empty</h4>
@@ -603,12 +611,12 @@ export default function QuestionsPage() {
                       <span className="sr-only">Select all matching rows</span>
                     </label>
                   </th>
-                  <th className="col-primary wp-31" data-name="Question" data-locked>Question</th>
+                  <th className="col-primary wp-27" data-name="Question" data-locked>Question</th>
                   <th className="wp-14" data-name="Subject">Subject</th>
-                  <th className="wp-10" data-name="Bloom">Bloom</th>
+                  <th className="wp-12" data-name="Bloom">Bloom</th>
                   <th className="wp-12" data-name="Type">Type</th>
                   <th className="wp-10" data-name="Status">Status</th>
-                  <th className="wp-8" data-name="Updated">Updated</th>
+                  <th className="wp-10" data-name="Updated">Updated</th>
                   <th className="col-actions wp-11"><span className="sr-only">Actions</span></th>
                 </tr>
               </thead>

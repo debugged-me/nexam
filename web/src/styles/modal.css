@@ -113,8 +113,8 @@
 .btn-spinner {
   width: 14px;
   height: 14px;
-  border: 2px solid rgba(255, 255, 255, .35);
-  border-top-color: #fff;
+  border: 2px solid color-mix(in srgb, currentColor 30%, transparent);
+  border-top-color: currentColor;
   border-radius: 50%;
   animation: btnSpin .7s linear infinite;
 }

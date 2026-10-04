@@ -25,6 +25,7 @@ import { useToast } from '../components/Toast.jsx';
 import Modal from '../components/Modal.jsx';
 import api, { ApiError } from '../lib/api.js';
 import AppShell from '../components/AppShell.jsx';
+import { PageLoader } from '../components/Loaders.jsx';
 import '../styles/wizard.css';
 
 const STAGES = [
@@ -35,11 +36,18 @@ const STAGES = [
 ];
 const AUTO_STAGES = ['extracting', 'embedding', 'tos_generating', 'question_generating'];
 
+function firstCachedSubjectId() {
+  return api.peek('/subjects')?.subjects?.[0]?.id ?? '';
+}
+
 export default function WizardPage() {
   const toast = useToast();
-  const [subjects, setSubjects] = useState([]);
-  const [selectedSubject, setSelectedSubject] = useState('');
-  const [pipeline, setPipeline] = useState(null);
+  const [subjects, setSubjects] = useState(() => api.peek('/subjects')?.subjects ?? []);
+  const [selectedSubject, setSelectedSubject] = useState(firstCachedSubjectId);
+  const [pipeline, setPipeline] = useState(() => {
+    const subjectId = firstCachedSubjectId();
+    return subjectId ? api.peek(`/ai/pipeline/${subjectId}`) ?? null : null;
+  });
   const [loading, setLoading] = useState(false);
   const [uploadOpen, setUploadOpen] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -51,15 +59,20 @@ export default function WizardPage() {
   useEffect(() => {
     api.get('/subjects').then((data) => {
       setSubjects(data.subjects);
-      if (data.subjects[0]) setSelectedSubject(data.subjects[0].id);
+      setSelectedSubject((current) => (
+        data.subjects.some((s) => String(s.id) === String(current)) ? current : data.subjects[0]?.id ?? ''
+      ));
     }).catch(() => {});
   }, []);
 
   // Poll pipeline status when a subject is selected
   const loadPipeline = useCallback(() => {
     if (!selectedSubject) return;
+    const path = `/ai/pipeline/${selectedSubject}`;
+    const cached = api.peek(path);
+    if (cached) setPipeline(cached);
     setLoading(true);
-    api.get(`/ai/pipeline/${selectedSubject}`)
+    api.get(path)
       .then((data) => setPipeline(data))
       .catch((err) => toast.error(err.message || 'Could not load pipeline.'))
       .finally(() => setLoading(false));
@@ -137,7 +150,7 @@ export default function WizardPage() {
           <label htmlFor="wizard-subject">Subject</label>
           <select
             id="wizard-subject"
-            className="form-select"
+            className="form-control form-select"
             value={selectedSubject}
             onChange={(e) => setSelectedSubject(e.target.value)}
           >
@@ -158,7 +171,7 @@ export default function WizardPage() {
           <p>Choose a subject above to start or continue the exam generation pipeline.</p>
         </div>
       ) : loading && !pipeline ? (
-        <p className="placeholder">Loading…</p>
+        <PageLoader label="Loading your workflow…" />
       ) : pipeline && (
         <div className="wizard-pipeline">
           {/* Stage indicators */}
@@ -328,7 +341,7 @@ export default function WizardPage() {
         footer={<button className="btn" onClick={() => setUploadOpen(false)}>Close</button>}>
         <div className="form-group">
           <label className="form-label">Subject</label>
-          <input className="form-input" disabled value={subjects.find((s) => s.id === selectedSubject)?.name || ''} />
+          <input className="form-control" disabled value={subjects.find((s) => s.id === selectedSubject)?.name || ''} />
         </div>
         <div
           className={`upload-zone ${dragOver ? 'dragover' : ''}`}

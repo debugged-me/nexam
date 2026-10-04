@@ -700,6 +700,7 @@ a.g-link:hover { color: var(--ink); text-decoration: underline; text-underline-o
 .wp-16  { width: 16%; }
 .wp-17  { width: 17%; }
 .wp-22  { width: 22%; }
+.wp-27  { width: 27%; }
 .wp-31  { width: 31%; }
 .wp-32  { width: 32%; }
 .wp-33  { width: 33%; }
@@ -718,6 +719,7 @@ table.grid.dataTable thead > tr > th.wp-14 { width: 14%; }
 table.grid.dataTable thead > tr > th.wp-16 { width: 16%; }
 table.grid.dataTable thead > tr > th.wp-17 { width: 17%; }
 table.grid.dataTable thead > tr > th.wp-22 { width: 22%; }
+table.grid.dataTable thead > tr > th.wp-27 { width: 27%; }
 table.grid.dataTable thead > tr > th.wp-31 { width: 31%; }
 table.grid.dataTable thead > tr > th.wp-32 { width: 32%; }
 table.grid.dataTable thead > tr > th.wp-33 { width: 33%; }
@@ -810,10 +812,29 @@ table.grid td.col-actions {
     justify-content: flex-end;
 }
 .row-actions .btn-xs {
-    min-width: 28px;
+    width: 32px;
+    min-width: 32px;
+    height: 32px;
+    min-height: 32px;
     padding: 0;
     justify-content: center;
+    border-radius: var(--radius-sm);
 }
+/* Tinted rather than solid so a page of drafts doesn't read as a wall of
+   blue; the button fills in on hover to confirm the action. */
+.row-actions .btn-primary.btn-xs {
+    border-color: var(--action-100);
+    background: var(--action-50);
+    color: var(--action-700);
+    box-shadow: none;
+}
+.row-actions .btn-primary.btn-xs:hover {
+    border-color: var(--action-600);
+    background: var(--action-600);
+    color: #fff;
+}
+.row-actions .btn-outline.btn-xs { color: var(--ink-3); }
+.row-actions .btn-outline.btn-xs:hover { border-color: var(--red-100); background: var(--red-50); color: var(--red-600); }
 .row-actions .btn-xs svg {
     width: 14px !important;
     height: 14px !important;

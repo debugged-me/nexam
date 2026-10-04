@@ -9,12 +9,13 @@ import { Plus, Pencil, Trash2, FileCheck, Info, Eye, Ellipsis } from 'lucide-rea
 import { useToast } from '../components/Toast.jsx';
 import api, { ApiError } from '../lib/api.js';
 import AppShell from '../components/AppShell.jsx';
+import { PageLoader } from '../components/Loaders.jsx';
 import '../styles/exams.css';
 
 export default function ExamsPage() {
   const toast = useToast();
   const navigate = useNavigate();
-  const [exams, setExams] = useState(null);
+  const [exams, setExams] = useState(() => api.peek('/exams')?.exams ?? null);
 
   const load = useCallback(() => {
     api.get('/exams')
@@ -53,7 +54,7 @@ export default function ExamsPage() {
       </header>
 
       {exams === null ? (
-        <p className="placeholder">Loading…</p>
+        <PageLoader label="Loading exams…" />
       ) : exams.length === 0 ? (
         <div className="empty-state">
           <h4>No exams yet</h4>

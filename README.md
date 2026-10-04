@@ -42,7 +42,13 @@ recreates tables. Existing installations use the numbered SQL files in
 
 ## Development
 
-Run the API and React development server in separate terminals:
+Run the API and React development server together (Ctrl+C stops both):
+
+```bash
+npm run dev
+```
+
+Or run them in separate terminals:
 
 ```bash
 npm run dev:api

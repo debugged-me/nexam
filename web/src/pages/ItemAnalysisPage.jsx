@@ -10,6 +10,7 @@ import { ArrowLeft, ListChecks } from 'lucide-react';
 import { useToast } from '../components/Toast.jsx';
 import api from '../lib/api.js';
 import AppShell from '../components/AppShell.jsx';
+import { PageLoader } from '../components/Loaders.jsx';
 import '../styles/analytics.css';
 
 const DIFF_CLASS = { easy: 'green', medium: 'amber', hard: 'red' };
@@ -18,7 +19,7 @@ export default function ItemAnalysisPage() {
   const { examId } = useParams();
   const toast = useToast();
   const navigate = useNavigate();
-  const [items, setItems] = useState(null);
+  const [items, setItems] = useState(() => api.peek(`/analytics/exam/${examId}/items`)?.items ?? null);
 
   const load = useCallback(() => {
     api.get(`/analytics/exam/${examId}/items`)
@@ -46,7 +47,7 @@ export default function ItemAnalysisPage() {
       </div>
 
       {items === null ? (
-        <p className="placeholder">Loading…</p>
+        <PageLoader label="Loading item analysis…" />
       ) : items.length === 0 ? (
         <div className="empty-state">
           <ListChecks size={32} aria-hidden="true" />

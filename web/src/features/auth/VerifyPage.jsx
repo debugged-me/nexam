@@ -97,6 +97,11 @@ export default function VerifyPage() {
     <div className="auth-page auth-page-verify">
       <div className="auth-wrap">
         <div className="auth-panel">
+          <div className="panel-hero" aria-hidden="true">
+            <span className="panel-disc panel-disc--outer" />
+            <span className="panel-disc panel-disc--inner" />
+            <img src="/favicon.png" alt="" />
+          </div>
           <span className="panel-badge">Verify Email</span>
           <div className="panel-title">
             One last step<em>confirm your email address.</em>
@@ -116,7 +121,7 @@ export default function VerifyPage() {
         <div className="auth-form-wrap">
           <form onSubmit={handleSubmit} noValidate>
             <div className="auth-logo">
-              <span className="logo-mark"><ShieldCheck /></span>
+              <img className="logo-mark-img" src="/favicon.png" alt="" />
               <span>nexam</span>
             </div>
             <div className="auth-heading">

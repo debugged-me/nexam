@@ -6,15 +6,25 @@
  * with a verify token (re-issued via a quick login-then-forgot flow is not
  * needed here because the API returns needsVerification + email).
  */
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { Mail, Lock, Eye, EyeOff, AlertCircle, GraduationCap, ShieldCheck } from 'lucide-react';
+import { Mail, Lock, Eye, EyeOff, AlertCircle, GraduationCap } from 'lucide-react';
 import { useAuth } from './AuthContext.jsx';
+import { AuthSplash } from '../../components/Loaders.jsx';
 import api, { ApiError } from '../../lib/api.js';
 
 export default function LoginPage() {
   const { login } = useAuth();
   const navigate = useNavigate();
+
+  // Brand splash on entry: hold ~1.4s, fade out over ~350ms, then unmount.
+  const [splash, setSplash] = useState(true);
+  const [leaving, setLeaving] = useState(false);
+  useEffect(() => {
+    const hold = setTimeout(() => setLeaving(true), 1400);
+    const done = setTimeout(() => setSplash(false), 1750);
+    return () => { clearTimeout(hold); clearTimeout(done); };
+  }, []);
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -44,12 +54,19 @@ export default function LoginPage() {
     }
   }
 
+  if (splash) return <AuthSplash leaving={leaving} />;
+
   return (
     <div className="auth-page auth-page-login">
       <a href="#login-form" className="skip-link">Skip to login form</a>
       <div className="auth-wrap">
         {/* Brand panel */}
         <div className="auth-panel">
+          <div className="panel-hero" aria-hidden="true">
+            <span className="panel-disc panel-disc--outer" />
+            <span className="panel-disc panel-disc--inner" />
+            <img src="/favicon.png" alt="" />
+          </div>
           <span className="panel-badge">Faculty Portal</span>
           <div className="panel-title">
             Build TOS-aligned exams<em>faster, grounded in your own materials.</em>
@@ -71,7 +88,7 @@ export default function LoginPage() {
         <div className="auth-form-wrap">
           <form id="login-form" onSubmit={handleSubmit} noValidate>
             <div className="auth-logo">
-              <span className="logo-mark"><ShieldCheck /></span>
+              <img className="logo-mark-img" src="/favicon.png" alt="" />
               <span>nexam</span>
             </div>
             <div className="auth-heading">
@@ -114,7 +131,7 @@ export default function LoginPage() {
               </div>
             </div>
 
-            <div className="btn-row">
+            <div className="btn-row-stacked">
               <button type="submit" className={`btn-login ${loading ? 'is-loading' : ''}`} disabled={loading}>
                 {loading && <span className="btn-spinner" aria-hidden="true" />}
                 {loading ? 'Signing in…' : 'Sign in'}

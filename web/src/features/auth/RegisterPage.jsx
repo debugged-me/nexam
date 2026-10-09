@@ -8,7 +8,7 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import {
-  Mail, Lock, Eye, EyeOff, AlertCircle, GraduationCap, ShieldCheck, User,
+  Mail, Lock, Eye, EyeOff, AlertCircle, GraduationCap, User,
 } from 'lucide-react';
 import api, { ApiError } from '../../lib/api.js';
 
@@ -64,6 +64,11 @@ export default function RegisterPage() {
       <div className="auth-wrap">
         {/* Brand panel */}
         <div className="auth-panel">
+          <div className="panel-hero" aria-hidden="true">
+            <span className="panel-disc panel-disc--outer" />
+            <span className="panel-disc panel-disc--inner" />
+            <img src="/favicon.png" alt="" />
+          </div>
           <span className="panel-badge">New Account</span>
           <div className="panel-title">
             Join nexam<em>and let your materials build the exam.</em>
@@ -86,7 +91,7 @@ export default function RegisterPage() {
         <div className="auth-form-wrap">
           <form id="register-form" onSubmit={handleSubmit} noValidate>
             <div className="auth-logo">
-              <span className="logo-mark"><ShieldCheck /></span>
+              <img className="logo-mark-img" src="/favicon.png" alt="" />
               <span>nexam</span>
             </div>
             <div className="auth-heading">

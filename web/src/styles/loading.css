@@ -66,6 +66,96 @@
   color: #fff;
 }
 
+/* ---- Auth splash (brand moment before the login page) ----
+   Ported from TheraLink's BrandMoment: paper wash, soft tinted discs behind
+   the logo, wordmark + tagline rising in, sweeping arc spinner. */
+.auth-splash {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background:
+    radial-gradient(60% 42% at 50% 0%, rgba(46, 141, 232, .12), transparent 62%),
+    var(--surface-2);
+  animation: loader-in .26s ease-out backwards;
+  transition: opacity .34s ease;
+}
+.auth-splash.is-leaving { opacity: 0; pointer-events: none; }
+
+.splash-inner { padding: 0 32px; text-align: center; }
+
+/* Layered soft discs behind the logo, like the onboarding illustration. */
+.splash-hero {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 220px;
+  margin-bottom: 8px;
+}
+.splash-disc {
+  position: absolute;
+  border-radius: 50%;
+}
+.splash-disc--outer {
+  width: 220px;
+  height: 220px;
+  background: var(--action-100);
+}
+.splash-disc--inner {
+  width: 156px;
+  height: 156px;
+  background: var(--action-50);
+  box-shadow: inset 0 0 0 1px rgba(30, 120, 210, .06);
+}
+.splash-logo {
+  position: relative;
+  width: 120px;
+  height: 120px;
+  display: block;
+  filter: drop-shadow(0 16px 28px rgba(21, 95, 169, .28));
+  animation: splash-breathe 1.4s ease-in-out infinite alternate;
+}
+
+@keyframes splash-breathe {
+  from { transform: scale(.965); }
+  to   { transform: scale(1.035); }
+}
+
+.splash-title {
+  font-family: var(--font-display);
+  font-size: 32px;
+  font-weight: 700;
+  letter-spacing: -.03em;
+  color: var(--brand);
+  animation: splash-rise .4s ease-out backwards;
+}
+.splash-msg {
+  margin-top: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.4;
+  color: var(--ink-3);
+  animation: splash-rise .4s ease-out .12s backwards;
+}
+
+@keyframes splash-rise {
+  from { opacity: 0; transform: translateY(10px); }
+}
+
+.splash-arc {
+  display: block;
+  width: 34px;
+  height: 34px;
+  margin: 30px auto 0;
+}
+.splash-arc-sweep {
+  transform-origin: center;
+  animation: spin 1.1s linear infinite;
+}
+
 /* ---- Topbar: background-refresh spinner beside the title ---- */
 .topbar-spinner {
   opacity: 0;
@@ -115,8 +205,13 @@
 @media (prefers-reduced-motion: reduce) {
   .page-enter,
   .page-loader,
-  .boot-screen { animation: none; }
+  .boot-screen,
+  .auth-splash,
+  .splash-title,
+  .splash-msg,
+  .splash-logo { animation: none; }
   .spinner { animation-duration: 1.6s; }
+  .splash-arc-sweep { animation-duration: 1.6s; }
   .top-progress span { animation: none; width: 100%; opacity: .6; }
   .topbar-spinner { transition: none; }
 }

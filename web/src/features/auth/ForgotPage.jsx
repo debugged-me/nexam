@@ -6,7 +6,7 @@
  */
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { Mail, AlertCircle, ShieldCheck, GraduationCap } from 'lucide-react';
+import { Mail, AlertCircle, GraduationCap } from 'lucide-react';
 import api, { ApiError } from '../../lib/api.js';
 
 export default function ForgotPage() {
@@ -40,6 +40,11 @@ export default function ForgotPage() {
     <div className="auth-page auth-page-forgot">
       <div className="auth-wrap">
         <div className="auth-panel">
+          <div className="panel-hero" aria-hidden="true">
+            <span className="panel-disc panel-disc--outer" />
+            <span className="panel-disc panel-disc--inner" />
+            <img src="/favicon.png" alt="" />
+          </div>
           <span className="panel-badge">Reset Password</span>
           <div className="panel-title">
             Forgot your password?<em>we'll send a reset code.</em>
@@ -60,7 +65,7 @@ export default function ForgotPage() {
         <div className="auth-form-wrap">
           <form onSubmit={handleSubmit} noValidate>
             <div className="auth-logo">
-              <span className="logo-mark"><ShieldCheck /></span>
+              <img className="logo-mark-img" src="/favicon.png" alt="" />
               <span>nexam</span>
             </div>
             <div className="auth-heading">

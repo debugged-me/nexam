@@ -24,6 +24,15 @@ api/upload/materials/
 web/.env.local
 web/.env.*.local
 
+# ── Deployment artifacts ─────────────────────────────────
+# Staging copy of the app used to build the upload zip.
+# Contains deploy/nexam-app/api/.env with real secrets — never commit.
+deploy/
+nexam-app.zip
+nexam-node-modules.zip
+nexam-napi-canvas-linux.zip
+nexam-dump.sql
+
 # ── Flutter (mobile/) ────────────────────────────────────
 mobile/.dart_tool/
 mobile/.flutter-plugins

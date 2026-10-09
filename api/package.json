@@ -6,6 +6,7 @@
   "type": "module",
   "scripts": {
     "start": "node src/server.js",
+    "install:prod": "npm ci --legacy-peer-deps",
     "dev": "nodemon src/server.js",
     "test": "node --test 'test/*.test.js'",
     "test:ai": "node scripts/test-ai-configuration.js",

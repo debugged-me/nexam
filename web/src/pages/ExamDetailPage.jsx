@@ -16,6 +16,7 @@ import Modal from '../components/Modal.jsx';
 import api, { ApiError, getToken } from '../lib/api.js';
 import AppShell from '../components/AppShell.jsx';
 import { PageLoader } from '../components/Loaders.jsx';
+import { StatusPill, GroupChip, groupColor } from '../components/Board.jsx';
 import '../styles/exams.css';
 
 const BLOOM_LABELS = { remember: 'Remember', understand: 'Understand', apply: 'Apply', analyze: 'Analyze', evaluate: 'Evaluate', create: 'Create' };
@@ -131,10 +132,10 @@ export default function ExamDetailPage() {
       <div className="page-header">
         <div>
           <h1>{exam.title}</h1>
-          {exam.subject_name && <span className="badge badge-gray">{exam.subject_name}</span>}
-          {published
-            ? <span className="badge badge-green">Published</span>
-            : <span className="badge badge-amber">Draft</span>}
+          {exam.subject_name && (
+            <GroupChip color={groupColor(exam.subject_id || exam.subject_name)}>{exam.subject_name}</GroupChip>
+          )}
+          <StatusPill status={exam.status} small inline />
         </div>
         <div className="header-actions">
           {!published && (

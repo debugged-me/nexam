@@ -131,9 +131,10 @@ router.get('/', requireAuth, async (req, res, next) => {
     for (const r of qStatus) qMap[r.status] = r.n;
     const approved = qMap.active || 0;
     const draft = qMap.draft || 0;
-    const other = Math.max(0, stats.questions - approved - draft);
+    const rejected = qMap.rejected || 0;
+    const other = Math.max(0, stats.questions - approved - draft - rejected);
     const bank = {
-      approved, draft, other, total: stats.questions,
+      approved, draft, rejected, other, total: stats.questions,
       readyPct: stats.questions > 0 ? Math.round((approved / stats.questions) * 100) : 0,
     };
 
@@ -177,10 +178,12 @@ router.get('/', requireAuth, async (req, res, next) => {
     for (const s of recentSubjects) s.question_count = subjCountMap[s.id] || 0;
 
     const [recentExams] = await pool.query(
-      `SELECT e.id, e.title, e.status,
+      `SELECT e.id, e.title, e.status, e.subject_id, s.name AS subject_name,
               (SELECT COUNT(*) FROM exam_questions eq WHERE eq.exam_id = e.id) AS total_items,
               e.created_at
-       FROM exams e WHERE e.created_by = :uid
+       FROM exams e
+       LEFT JOIN subjects s ON s.id = e.subject_id
+       WHERE e.created_by = :uid
        ORDER BY e.created_at DESC LIMIT 5`,
       { uid: userId }
     );

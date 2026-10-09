@@ -209,9 +209,13 @@ export default function WizardPage() {
             {effectiveStage === 'upload' && (
               <div className="wizard-card">
                 <h3>Step 1: Upload Syllabus</h3>
-                <p>Upload a college syllabus (PDF, DOCX, PPTX, TXT, or MD). The system will extract topics, instructional hours, and learning outcomes to build the exam blueprint.</p>
-                <button className="btn btn-primary" onClick={() => setUploadOpen(true)}>
-                  <Upload size={16} /> Upload Syllabus
+                <p>Upload a college syllabus — the system will extract topics, instructional hours, and learning outcomes to build the exam blueprint.</p>
+                <button type="button" className="wizard-drop" onClick={() => setUploadOpen(true)}>
+                  <span className="wizard-drop-icon"><Upload size={18} /></span>
+                  <span className="wizard-drop-copy">
+                    <strong>Choose a file to upload</strong>
+                    <small>PDF, DOCX, PPTX, TXT or MD</small>
+                  </span>
                 </button>
               </div>
             )}

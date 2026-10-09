@@ -43,6 +43,7 @@ import './styles/tokens.css';
 import './styles/auth.css';
 import './styles/app.css';
 import './styles/grid.css';
+import './styles/board.css';
 import './styles/toast.css';
 import './styles/modal.css';
 import './styles/dashboard.css';

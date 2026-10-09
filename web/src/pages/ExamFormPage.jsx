@@ -29,6 +29,7 @@ export default function ExamFormPage() {
   const navigate = useNavigate();
   const isEdit = !!id;
   const tosId = searchParams.get('tos');
+  const subjectParam = searchParams.get('subject_id');
 
   const [subjects, setSubjects] = useState(() => api.peek('/subjects')?.subjects ?? []);
   const [tosList, setTosList] = useState(() => finalizedOnly(api.peek('/tos')?.tos));
@@ -36,7 +37,7 @@ export default function ExamFormPage() {
   const [exam, setExam] = useState(null);
   const [form, setForm] = useState({
     title: '',
-    subject_id: '',
+    subject_id: subjectParam || '',
     format: 'print',
     set_count: 2,
     duration_minutes: '',

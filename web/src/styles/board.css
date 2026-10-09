@@ -1,0 +1,380 @@
+/* ==========================================================================
+   board.css — Monday-style board language for nexam
+   --------------------------------------------------------------------------
+   Layered on top of the shared .dataset grid: colored group headers, solid
+   status pills, per-group summary bars, and a group-by control. Keep colour
+   on state and structure only — taxonomy stays typography.
+   ========================================================================== */
+
+:root {
+  /* Status pill tones (Monday ramp, tuned to sit next to the navy rail) */
+  --st-orange: #E2890B;   /* draft · working on it · pending */
+  --st-orange-deep: #B96F08;
+  --st-green:  #00A461;   /* live · active · done · finalized · processed */
+  --st-green-deep: #037E4B;
+  --st-red:    #DF2F4A;   /* rejected · failed · stuck */
+  --st-red-deep: #B3243B;
+  --st-blue:   #2E88E5;   /* published · ready */
+  --st-blue-deep: #1A6CBD;
+  --st-gray:   #9AA8BC;   /* archived · neutral */
+  --st-gray-deep: #7D8BA0;
+  --st-purple: #7C3AED;   /* in review */
+  --st-purple-deep: #6428C9;
+
+  /* Group accent ramp — assigned round-robin so a group keeps its colour */
+  --gc-1: #2E88E5;
+  --gc-2: #7C3AED;
+  --gc-3: #00A461;
+  --gc-4: #E2890B;
+  --gc-5: #E5528C;
+  --gc-6: #0E9AA8;
+  --gc-7: #5B69E2;
+  --gc-8: #C25E10;
+}
+
+/* ==========================================================================
+   Group header — collapsible band that owns the rows beneath it
+   ========================================================================== */
+
+.b-group-head > td {
+  height: 34px !important;
+  padding: 0 var(--grid-x) 0 8px !important;
+  border-bottom: 1px solid color-mix(in srgb, var(--gc, var(--line)) 22%, var(--line)) !important;
+  background: color-mix(in srgb, var(--gc, var(--line)) 7%, var(--surface));
+  white-space: nowrap;
+  transition: background-color .13s ease;
+}
+tr.b-group-head:hover > td {
+  background: color-mix(in srgb, var(--gc, var(--line)) 12%, var(--surface));
+}
+
+.b-group-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 34px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--gc, var(--ink-2));
+  font: 650 .8125rem/1 var(--font-display, "Google Sans", sans-serif);
+  letter-spacing: -.005em;
+  text-align: left;
+  cursor: pointer;
+}
+.b-group-toggle:focus-visible { outline: 2px solid var(--brand-accent); outline-offset: -2px; border-radius: 4px; }
+
+.b-group-caret {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  flex: 0 0 auto;
+  border-radius: 6px;
+  color: var(--gc, var(--ink-3));
+  transition: transform .16s var(--ease), background-color .13s ease;
+}
+.b-group-caret svg { width: 15px !important; height: 15px !important; display: block; }
+.b-group-toggle:hover .b-group-caret { background: var(--surface-3); }
+.b-group-toggle[aria-expanded="false"] .b-group-caret { transform: rotate(-90deg); }
+
+.b-group-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+
+.b-group-count {
+  display: inline-flex;
+  align-items: center;
+  min-height: 18px;
+  padding: 0 7px;
+  border-radius: 99px;
+  background: color-mix(in srgb, var(--gc, var(--ink-3)) 12%, transparent);
+  color: var(--gc, var(--ink-3));
+  font: 600 .6875rem/1 var(--font-body, "Inter", sans-serif);
+  font-variant-numeric: tabular-nums;
+}
+
+.b-group-meta {
+  margin-left: auto;
+  padding-left: 10px;
+  color: var(--ink-faint);
+  font: 500 .6875rem/1 var(--font-body, "Inter", sans-serif);
+  white-space: nowrap;
+}
+
+/* Coloured spine down a group's left edge — the board cue. Applied to the
+   first visible cell of every row so collapsed groups lose it too. */
+.b-group .b-row > td:first-child,
+.b-group .b-add-row > td:first-child,
+.b-group-head > td:first-child,
+.b-group-foot > td:first-child {
+  box-shadow: inset 3px 0 0 var(--gc, transparent);
+}
+.b-group .b-row > td:first-child { padding-left: calc(var(--grid-x) + 3px); }
+.b-group .b-add-row > td:first-child { padding-left: calc(var(--grid-x) - 1px); }
+.b-group-foot > td:first-child { padding-left: calc(var(--grid-x) + 3px); }
+
+/* Hover picks up a whisper of the group accent instead of neutral gray. */
+table.grid .b-group tr.b-row:hover > td {
+  background: color-mix(in srgb, var(--gc, var(--line)) 4%, var(--surface-2));
+}
+
+/* Hide group rows without dropping them from React's tree — display:none on
+   tbody would orphan its rows' widths; hiding the rows keeps the colgroup. */
+.b-group.is-collapsed .b-row { display: none; }
+.b-group.is-collapsed .b-group-foot { display: none; }
+.b-group.is-collapsed .b-add-row { display: none; }
+
+/* ==========================================================================
+   Status pill — the solid cell block
+   ========================================================================== */
+
+.b-status {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: 100%;
+  max-width: 118px;
+  margin-inline: auto;
+  height: 26px;
+  padding: 0 9px;
+  border-radius: 6px;
+  background: var(--st, var(--st-gray));
+  color: #fff;
+  font: 550 .71875rem/1 var(--font-body, "Inter", sans-serif);
+  letter-spacing: .015em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: filter .12s ease;
+}
+tr:hover .b-status { filter: brightness(1.06); }
+.b-status svg { width: 12px !important; height: 12px !important; flex: 0 0 auto; }
+
+.b-status[data-tone="draft"]     { --st: var(--st-orange); }
+.b-status[data-tone="pending"]   { --st: var(--st-orange); }
+.b-status[data-tone="live"]      { --st: var(--st-green); }
+.b-status[data-tone="active"]    { --st: var(--st-green); }
+.b-status[data-tone="finalized"] { --st: var(--st-green); }
+.b-status[data-tone="processed"] { --st: var(--st-green); }
+.b-status[data-tone="published"] { --st: var(--st-blue); }
+.b-status[data-tone="rejected"]  { --st: var(--st-red); }
+.b-status[data-tone="failed"]    { --st: var(--st-red); }
+.b-status[data-tone="archived"]  { --st: var(--st-gray); }
+.b-status[data-tone="review"]    { --st: var(--st-purple); }
+.b-status[data-tone="none"]      { --st: var(--surface-3); color: var(--ink-3); box-shadow: none; }
+
+/* Compact pill for dense panels (dashboard rows, cards) */
+.b-status--sm { height: 22px; max-width: 96px; padding: 0 7px; font-size: .6875rem; border-radius: 5px; }
+
+/* Inline variant for headers/meta lines — shrinks to its text. */
+.b-status--inline { display: inline-flex; width: auto; margin-inline: 0; }
+
+/* ==========================================================================
+   Summary bar — the segmented strip under a group / panel
+   ========================================================================== */
+
+.b-group-foot > td {
+  height: 30px !important;
+  padding: 0 var(--grid-x) !important;
+  border-bottom: 1px solid var(--line) !important;
+  background: color-mix(in srgb, var(--gc, var(--surface-2)) 5%, var(--surface-2));
+  color: var(--ink-3);
+  font-size: .6875rem;
+  white-space: nowrap;
+}
+
+.b-sum {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-width: 0;
+}
+
+.b-sum-bar {
+  display: inline-flex;
+  flex: 0 1 220px;
+  min-width: 72px;
+  height: 7px;
+  overflow: hidden;
+  border-radius: 99px;
+  background: var(--surface-3);
+}
+.b-sum-seg { display: block; height: 100%; min-width: 0; transition: width .25s var(--ease); }
+.b-sum-seg[data-tone="draft"]     { background: var(--st-orange); }
+.b-sum-seg[data-tone="pending"]   { background: var(--st-orange); }
+.b-sum-seg[data-tone="live"]      { background: var(--st-green); }
+.b-sum-seg[data-tone="active"]    { background: var(--st-green); }
+.b-sum-seg[data-tone="finalized"] { background: var(--st-green); }
+.b-sum-seg[data-tone="processed"] { background: var(--st-green); }
+.b-sum-seg[data-tone="published"] { background: var(--st-blue); }
+.b-sum-seg[data-tone="rejected"]  { background: var(--st-red); }
+.b-sum-seg[data-tone="failed"]    { background: var(--st-red); }
+.b-sum-seg[data-tone="archived"]  { background: var(--st-gray); }
+.b-sum-seg[data-tone="other"]     { background: var(--line-strong); }
+
+.b-sum-total { color: var(--ink-3); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.b-sum-legend { display: inline-flex; gap: 8px; margin-left: auto; color: var(--ink-faint); white-space: nowrap; }
+.b-sum-legend span { display: inline-flex; align-items: center; gap: 4px; font-variant-numeric: tabular-nums; }
+.b-sum-legend i { width: 7px; height: 7px; border-radius: 2px; background: var(--line-strong); }
+.b-sum-legend i[data-tone="draft"]     { background: var(--st-orange); }
+.b-sum-legend i[data-tone="pending"]   { background: var(--st-orange); }
+.b-sum-legend i[data-tone="live"]      { background: var(--st-green); }
+.b-sum-legend i[data-tone="active"]    { background: var(--st-green); }
+.b-sum-legend i[data-tone="finalized"] { background: var(--st-green); }
+.b-sum-legend i[data-tone="processed"] { background: var(--st-green); }
+.b-sum-legend i[data-tone="published"] { background: var(--st-blue); }
+.b-sum-legend i[data-tone="rejected"]  { background: var(--st-red); }
+.b-sum-legend i[data-tone="failed"]    { background: var(--st-red); }
+.b-sum-legend i[data-tone="archived"]  { background: var(--st-gray); }
+.b-sum-legend i[data-tone="other"]     { background: var(--line-strong); }
+.b-sum-legend i[data-tone="none"]      { background: var(--line-strong); }
+
+/* ==========================================================================
+   "+ Add" row at the foot of a group — Monday's add-item affordance
+   ========================================================================== */
+
+.b-add-row td {
+  height: 34px !important;
+  padding: 0 var(--grid-x) 0 14px !important;
+  border-bottom: 1px solid var(--line) !important;
+}
+.b-add-row td:last-child { border-bottom: 0 !important; }
+.b-add {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 30px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--ink-faint);
+  font: 500 .8125rem/1 var(--font-body, "Inter", sans-serif);
+  cursor: pointer;
+  transition: background-color .13s ease, color .13s ease;
+}
+.b-add svg { width: 14px !important; height: 14px !important; }
+.b-add:hover { background: var(--surface-2); color: var(--gc, var(--action-700)); }
+.b-add:focus-visible { outline: 2px solid var(--brand-accent); outline-offset: -2px; }
+
+/* ==========================================================================
+   Board toolbar extras — group-by control rides inside .dataset-bar
+   ========================================================================== */
+
+.b-groupby {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+.b-groupby > svg {
+  position: absolute;
+  left: 9px;
+  width: 14px !important;
+  height: 14px !important;
+  color: var(--ink-faint);
+  pointer-events: none;
+}
+.b-groupby select {
+  height: 32px;
+  padding: 0 26px 0 28px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--ink-2);
+  font: 500 .8125rem/1 var(--font-body, "Inter", sans-serif);
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238492a6' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 8px center;
+  background-size: 13px;
+  cursor: pointer;
+  outline: none;
+  transition: border-color .13s ease, box-shadow .13s ease, background-color .13s ease;
+}
+.b-groupby select:hover { border-color: var(--line-strong); }
+.b-groupby select:focus-visible { border-color: var(--line-strong); box-shadow: 0 0 0 3px var(--ring-soft); }
+.b-groupby select[data-active="true"] { border-color: var(--action-100); background-color: var(--action-50); color: var(--action-700); }
+
+/* ==========================================================================
+   Subject colour chip — deterministic accent per subject row/cell
+   ========================================================================== */
+
+.b-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+  color: var(--ink-2);
+  font-weight: 500;
+}
+.b-chip::before {
+  content: "";
+  width: 9px;
+  height: 9px;
+  flex: 0 0 auto;
+  border-radius: 3px;
+  background: var(--gc, var(--line-strong));
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--gc, var(--line-strong)) 16%, transparent);
+}
+.b-chip > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* Coloured square on a subject title inside a normal grid row. */
+.g-subject::before {
+  content: "";
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  margin-right: 7px;
+  border-radius: 3px;
+  background: var(--gc, var(--line-strong));
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--gc, var(--line-strong)) 16%, transparent);
+  vertical-align: 1px;
+}
+
+/* ==========================================================================
+   Board card — standalone grouped board (dashboard, non-table surfaces)
+   ========================================================================== */
+
+.b-card { overflow: hidden; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); box-shadow: 0 1px 2px rgba(15, 35, 56, .04), 0 8px 22px -10px rgba(15, 35, 56, .08); }
+
+/* Mini board rows inside a panel (dashboard "Recent exams") */
+.b-rowline {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  min-height: 50px;
+  padding: 7px 14px 7px 12px;
+  border-top: 1px solid var(--line);
+  transition: background-color .13s ease;
+}
+.b-rowline:hover { background: color-mix(in srgb, var(--gc, var(--line)) 4%, #f8fafc); }
+.b-rowline:focus-visible { outline: 2px solid var(--brand-accent); outline-offset: -2px; }
+.b-rowline-main { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.b-rowline-title { display: block; min-width: 0; overflow: hidden; color: var(--ink); font: 500 .875rem/1.4 var(--font-display); text-overflow: ellipsis; white-space: nowrap; }
+.b-rowline:hover .b-rowline-title { color: var(--action-700); }
+.b-rowline-meta { display: block; margin-top: 2px; color: var(--ink-3); font-size: .71875rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.b-rowline .b-status { flex: 0 0 auto; width: auto; min-width: 88px; margin-inline: 0; justify-self: end; }
+
+/* ==========================================================================
+   Responsive
+   ========================================================================== */
+
+@media (max-width: 768px) {
+  .b-status { height: 30px; max-width: none; font-size: .72rem; }
+  .b-status--sm { height: 24px; }
+  .b-sum-legend { display: none; }
+  .b-groupby select { height: 40px; }
+  .b-group-head > td { height: 44px !important; }
+  .b-group-toggle { min-height: 44px; }
+  .b-add-row td { height: 44px !important; }
+  .b-add { min-height: 44px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .b-group-caret, .b-sum-seg, .b-status { transition: none; }
+}

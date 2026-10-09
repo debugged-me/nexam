@@ -5,6 +5,7 @@ import AppShell from '../components/AppShell.jsx';
 import { PageLoader } from '../components/Loaders.jsx';
 import Modal from '../components/Modal.jsx';
 import { useToast } from '../components/Toast.jsx';
+import { groupColor } from '../components/Board.jsx';
 import api from '../lib/api.js';
 
 const BLOOM_LABELS = {
@@ -112,7 +113,9 @@ export default function InstitutionBankPage() {
           {filtered.map((question) => (
             <article className="institution-question" key={question.id}>
               <div className="institution-meta">
-                <span>{question.subject_code || question.subject_name}</span>
+                <span className="b-chip" style={{ '--gc': groupColor(question.subject_id || question.subject_name) }}>
+                  <span>{question.subject_code || question.subject_name}</span>
+                </span>
                 <span>{question.topic || 'No topic'}</span>
                 <span>{BLOOM_LABELS[question.bloom] || question.bloom}</span>
                 <span>{TYPE_LABELS[question.type] || question.type}</span>

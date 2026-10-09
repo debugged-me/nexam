@@ -199,7 +199,7 @@
 
   /* ---- Layout ---- */
   --sidebar-width: 224px;
-  --topbar-height: 60px;
+  --topbar-height: 56px;
 
   /* ---- Aliases ---- */
   --primary: var(--action-600);

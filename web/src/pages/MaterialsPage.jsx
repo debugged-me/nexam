@@ -25,6 +25,7 @@ import Modal from '../components/Modal.jsx';
 import api, { ApiError, getToken } from '../lib/api.js';
 import AppShell from '../components/AppShell.jsx';
 import { PageLoader } from '../components/Loaders.jsx';
+import { StatusPill, groupColor } from '../components/Board.jsx';
 import '../styles/materials.css';
 
 const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:3000/api';
@@ -410,16 +411,18 @@ export default function MaterialsPage() {
             <div className="mat-list">
               {materials.map((m) => {
                 const Icon = SOURCE_ICONS[m.source_type] || FileText;
+                const matSubject = subjects.find((s) => String(s.id) === String(m.subject_id));
                 return (
-                  <div key={m.id} className="mat-card">
+                  <div key={m.id} className="mat-card" style={{ '--gc': groupColor(m.subject_id) }}>
                     <div className="mat-card-main">
                       <Icon size={20} style={{ color: 'var(--ink-3)' }} />
                       <div>
                         <div className="mat-card-title">{m.title}</div>
                         <div className="mat-card-meta">
+                          {matSubject ? `${matSubject.code || matSubject.name} · ` : ''}
                           {m.source_type} · {m.chunk_count || 0} chunks
                           {m.is_syllabus ? ' · syllabus' : ''}
-                          {' · '}<span className={`mat-status ${m.status}`}>{m.status}</span>
+                          {' '}<StatusPill status={m.status} small />
                           {m.error && ` · ${m.error}`}
                         </div>
                         {m.status === 'pending' && (

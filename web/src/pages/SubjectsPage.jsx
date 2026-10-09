@@ -15,6 +15,7 @@ import Modal from '../components/Modal.jsx';
 import api, { ApiError } from '../lib/api.js';
 import AppShell from '../components/AppShell.jsx';
 import { PageLoader } from '../components/Loaders.jsx';
+import { groupColor } from '../components/Board.jsx';
 import '../styles/subjects.css';
 
 const PAGE_SIZE = 25;
@@ -370,7 +371,7 @@ export default function SubjectsPage() {
                       </td>
                       <td>
                         <span className="g-primary">
-                          <Link to={`/subjects/${encodeURIComponent(s.id)}`} className="g-title">{s.name}</Link>
+                          <Link to={`/subjects/${encodeURIComponent(s.id)}`} className="g-title g-subject" style={{ '--gc': groupColor(s.id) }}>{s.name}</Link>
                           <span className="g-meta" title={descTitle}>{desc}</span>
                         </span>
                       </td>

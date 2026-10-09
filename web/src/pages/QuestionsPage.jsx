@@ -13,13 +13,17 @@ import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import {
   Plus, Pencil, Trash2, Check, X, Info, Search, Upload, Sparkles,
-  MoreVertical, FileText, ListChecks, RotateCcw, FilterX,
+  MoreVertical, FileText, ListChecks, RotateCcw, FilterX, Layers,
 } from 'lucide-react';
 import { useToast } from '../components/Toast.jsx';
 import Modal from '../components/Modal.jsx';
 import api, { ApiError } from '../lib/api.js';
 import AppShell from '../components/AppShell.jsx';
 import { PageLoader } from '../components/Loaders.jsx';
+import {
+  StatusPill, StatusSummary, BoardGroupHead, BoardGroupFoot,
+  BoardAddRow, GroupChip, groupColor, statusOf, STATUS_ORDER,
+} from '../components/Board.jsx';
 import '../styles/questions.css';
 
 const BLOOM_LABELS = { remember: 'Remember', understand: 'Understand', apply: 'Apply', analyze: 'Analyze', evaluate: 'Evaluate', create: 'Create' };
@@ -87,6 +91,8 @@ export default function QuestionsPage() {
   const [bulkBusy, setBulkBusy] = useState(null); // null | 'approve' | 'reject' | 'delete'
   const [importState, setImportState] = useState(null);
   const [importing, setImporting] = useState(false);
+  const [groupBy, setGroupBy] = useState('none'); // none | subject | status | bloom
+  const [collapsed, setCollapsed] = useState(() => new Set());
   const searchRef = useRef(null);
   const menuRef = useRef(null);
   const lastPickedRef = useRef(null); // anchor row index for shift-click ranges
@@ -190,6 +196,45 @@ export default function QuestionsPage() {
   );
 
   const rows = useMemo(() => filteredQuestions || [], [filteredQuestions]);
+
+  // Board grouping — visual only. Rows keep their global `rows` index so
+  // checkboxes and shift-click ranges behave exactly as the flat list.
+  const qGroups = useMemo(() => {
+    if (groupBy === 'none' || !rows.length) return null;
+    const map = new Map();
+    rows.forEach((q, index) => {
+      let key, title, color, orderKey;
+      if (groupBy === 'subject') {
+        key = q.subject_id || q.subject_name || 'none';
+        title = q.subject_name || 'No subject';
+        color = groupColor(key);
+        orderKey = title.toLowerCase();
+      } else if (groupBy === 'status') {
+        const tone = statusOf(q.status);
+        key = `st-${tone}`;
+        title = (STATUS_META[q.status] || STATUS_META.draft).label;
+        color = `var(--st-${tone === 'active' ? 'green' : tone === 'rejected' ? 'red' : 'orange'})`;
+        orderKey = String(99 - (STATUS_META[q.status]?.order ?? 0));
+      } else { // bloom
+        const level = BLOOM_LEVELS[q.bloom] || 0;
+        key = `bl-${level}`;
+        title = level ? BLOOM_LABELS[q.bloom] : 'No Bloom level';
+        color = level ? `var(--bloom-${level})` : 'var(--line-strong)';
+        orderKey = String(9 - level);
+      }
+      if (!map.has(key)) map.set(key, { key, title, color, orderKey, rows: [], subjectId: q.subject_id });
+      map.get(key).rows.push({ q, index });
+    });
+    return [...map.values()].sort((a, b) => a.orderKey.localeCompare(b.orderKey));
+  }, [rows, groupBy]);
+
+  function toggleGroup(key) {
+    setCollapsed((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key); else next.add(key);
+      return next;
+    });
+  }
 
   // Selection is always read back through the visible rows, so a row the user
   // cannot see can never be swept into a bulk action by a filter or a search.
@@ -413,6 +458,201 @@ export default function QuestionsPage() {
 
   const selecting = selectionCount > 0;
 
+  /** One grid row — index is the row's position in `rows` (selection anchor). */
+  function renderQuestionRow(q, index) {
+    const stem = (q.stem || '').replace(/\s+/g, ' ').trim();
+    const status = STATUS_META[q.status] || STATUS_META.draft;
+    const isDraft = q.status === 'draft';
+    const isRejected = q.status === 'rejected';
+    const level = q.bloom ? BLOOM_LEVELS[q.bloom] || 0 : 0;
+    const subject = q.subject_name || '';
+    const touched = q.updated_at || q.created_at || '';
+    const isChecked = selected.has(q.id);
+    return (
+      <tr key={q.id} data-id={q.id} className={`b-row${isChecked ? ' is-selected' : ''}`}>
+        <td className="col-select">
+          <label className="ds-check">
+            <input
+              type="checkbox"
+              checked={isChecked}
+              onChange={(e) => toggleRow(index, e.nativeEvent?.shiftKey === true)}
+            />
+            <span aria-hidden="true" />
+            <span className="sr-only">Select “{stem.slice(0, 60)}”</span>
+          </label>
+        </td>
+        <td>
+          <span className="g-primary">
+            <button
+              type="button"
+              className="g-title"
+              title={stem}
+              onClick={() => openEdit(q)}
+              style={{ textAlign: 'left', cursor: 'pointer' }}
+            >
+              {stem.length > 120 ? stem.slice(0, 120) + '…' : stem}
+            </button>
+            {q.similarity_flag === 'flagged' && (
+              <Link to={`/questions/${q.id}/similarity`} className="sim-flag" title="Possible duplicate — click to review">
+                <FileText size={12} /> Similar
+              </Link>
+            )}
+            <span className="g-meta">{q.topic || 'No topic'}</span>
+          </span>
+        </td>
+        <td data-order={subject} data-filter={subject}>
+          {subject ? (
+            <GroupChip color={groupColor(q.subject_id || subject)} title={subject}>{subject}</GroupChip>
+          ) : (
+            <span className="g-mute">—</span>
+          )}
+        </td>
+        <td data-order={level} data-filter={level ? BLOOM_LABELS[q.bloom] : ''}>
+          {level ? (
+            <span className="g-bloom" data-level={level}>{BLOOM_LABELS[q.bloom]}</span>
+          ) : (
+            <span className="g-mute">—</span>
+          )}
+        </td>
+        <td className="g-text" data-filter={TYPE_LABELS[q.type] || q.type}>
+          {TYPE_LABELS[q.type] || q.type}
+        </td>
+        <td data-order={status.order} data-filter={status.label}>
+          <StatusPill status={q.status} />
+        </td>
+        <td className="g-mute" data-order={touched}>
+          {touched ? new Date(touched).toLocaleDateString('en', { month: 'short', day: 'numeric', year: 'numeric' }) : '—'}
+        </td>
+        <td className="col-actions">
+          <div className="row-actions">
+            {/* Every draft gets the one-click decision, however it
+                was written — AI, manual or imported. A rejected
+                row gets a one-click way back. */}
+            {isDraft && (
+              <>
+                <button
+                  type="button"
+                  className="btn btn-primary btn-xs"
+                  title="Approve"
+                  aria-label={`Approve “${stem.slice(0, 60)}”`}
+                  onClick={() => handleApprove(q)}
+                >
+                  <Check size={14} />
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-outline btn-xs"
+                  title="Reject"
+                  aria-label={`Reject “${stem.slice(0, 60)}”`}
+                  onClick={() => handleReject(q)}
+                >
+                  <X size={14} />
+                </button>
+              </>
+            )}
+            {isRejected && (
+              <button
+                type="button"
+                className="btn btn-outline btn-xs"
+                title="Restore — make this question active again"
+                aria-label={`Restore “${stem.slice(0, 60)}”`}
+                onClick={() => handleApprove(q)}
+              >
+                <RotateCcw size={14} />
+              </button>
+            )}
+            <div className="g-menu" ref={menuOpen === q.id ? menuRef : null}>
+              <button
+                type="button"
+                className="g-menu-trigger"
+                aria-label={`Actions for ${stem}`}
+                aria-expanded={menuOpen === q.id}
+                onClick={() => setMenuOpen(menuOpen === q.id ? null : q.id)}
+              >
+                <MoreVertical size={16} />
+              </button>
+              {menuOpen === q.id && (
+                <div className="g-menu-panel">
+                  <button type="button" className="g-menu-item" onClick={() => openEdit(q)}>
+                    <Pencil size={15} /> Edit
+                  </button>
+                  {/* Drafts and rejected rows already carry their
+                      decision inline, so the menu only adds it
+                      for an active question. */}
+                  {!isDraft && !isRejected && (
+                    <button type="button" className="g-menu-item" onClick={() => handleReject(q)}>
+                      <X size={15} /> Reject
+                    </button>
+                  )}
+                  <div className="g-menu-sep" />
+                  <button
+                    type="button"
+                    className="g-menu-item is-danger"
+                    onClick={() => handleDelete(q)}
+                  >
+                    <Trash2 size={15} /> Delete
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        </td>
+      </tr>
+    );
+  }
+
+  /** Flat tbody when ungrouped; one collapsible tbody per group otherwise. */
+  function renderQuestionRows() {
+    if (rows.length === 0) {
+      return (
+        <tbody>
+          <tr>
+            <td colSpan={8} className="ds-noresults">
+              <span className="ds-noresults-title">No questions found</span>
+              <span className="ds-noresults-sub">
+                <button type="button" onClick={clearFilters}>Clear filters</button>
+              </span>
+            </td>
+          </tr>
+        </tbody>
+      );
+    }
+    if (!qGroups) {
+      return <tbody>{rows.map((q, index) => renderQuestionRow(q, index))}</tbody>;
+    }
+    return qGroups.map((g) => {
+      const isCollapsed = collapsed.has(g.key);
+      const counts = {};
+      for (const { q } of g.rows) {
+        const tone = statusOf(q.status);
+        counts[tone] = (counts[tone] || 0) + 1;
+      }
+      return (
+        <tbody key={g.key} className={`b-group${isCollapsed ? ' is-collapsed' : ''}`} style={{ '--gc': g.color }}>
+          <BoardGroupHead
+            color={g.color}
+            title={g.title}
+            count={g.rows.length}
+            colSpan={8}
+            collapsed={isCollapsed}
+            onToggle={() => toggleGroup(g.key)}
+          />
+          {g.rows.map(({ q, index }) => renderQuestionRow(q, index))}
+          <BoardGroupFoot colSpan={8}>
+            <StatusSummary counts={counts} order={STATUS_ORDER.question} totalLabel={`${g.rows.length} question${g.rows.length === 1 ? '' : 's'}`} />
+          </BoardGroupFoot>
+          {groupBy === 'subject' && g.subjectId && (
+            <BoardAddRow
+              colSpan={8}
+              label="New question"
+              onClick={() => setEditing({ type: 'mcq', status: 'draft', subject_id: g.subjectId })}
+            />
+          )}
+        </tbody>
+      );
+    });
+  }
+
   return (
     <AppShell activeNav="questions" pageTitle="Questions" wide>
       <header className="list-head">
@@ -551,6 +791,21 @@ export default function QuestionsPage() {
                   </button>
                 )}
               </div>
+
+              <span className="b-groupby">
+                <Layers size={14} aria-hidden="true" />
+                <select
+                  aria-label="Group questions by"
+                  data-active={groupBy !== 'none'}
+                  value={groupBy}
+                  onChange={(e) => { setGroupBy(e.target.value); setCollapsed(new Set()); }}
+                >
+                  <option value="none">Group: None</option>
+                  <option value="subject">Group: Subject</option>
+                  <option value="status">Group: Status</option>
+                  <option value="bloom">Group: Bloom</option>
+                </select>
+              </span>
             </div>
 
             <div className="dataset-bar-trail">
@@ -620,160 +875,7 @@ export default function QuestionsPage() {
                   <th className="col-actions wp-11"><span className="sr-only">Actions</span></th>
                 </tr>
               </thead>
-              <tbody>
-                {rows.length === 0 ? (
-                  <tr>
-                    <td colSpan={8} className="ds-noresults">
-                      <span className="ds-noresults-title">No questions found</span>
-                      <span className="ds-noresults-sub">
-                        <button type="button" onClick={clearFilters}>
-                          Clear filters
-                        </button>
-                      </span>
-                    </td>
-                  </tr>
-                ) : rows.map((q, index) => {
-                  const stem = (q.stem || '').replace(/\s+/g, ' ').trim();
-                  const status = STATUS_META[q.status] || STATUS_META.draft;
-                  const isDraft = q.status === 'draft';
-                  const isRejected = q.status === 'rejected';
-                  const level = q.bloom ? BLOOM_LEVELS[q.bloom] || 0 : 0;
-                  const subject = q.subject_name || '';
-                  const touched = q.updated_at || q.created_at || '';
-                  const isChecked = selected.has(q.id);
-                  return (
-                    <tr key={q.id} data-id={q.id} className={isChecked ? 'is-selected' : ''}>
-                      <td className="col-select">
-                        <label className="ds-check">
-                          <input
-                            type="checkbox"
-                            checked={isChecked}
-                            onChange={(e) => toggleRow(index, e.nativeEvent?.shiftKey === true)}
-                          />
-                          <span aria-hidden="true" />
-                          <span className="sr-only">Select “{stem.slice(0, 60)}”</span>
-                        </label>
-                      </td>
-                      <td>
-                        <span className="g-primary">
-                          <button
-                            type="button"
-                            className="g-title"
-                            title={stem}
-                            onClick={() => openEdit(q)}
-                            style={{ textAlign: 'left', cursor: 'pointer' }}
-                          >
-                            {stem.length > 120 ? stem.slice(0, 120) + '…' : stem}
-                          </button>
-                          {q.similarity_flag === 'flagged' && (
-                            <Link to={`/questions/${q.id}/similarity`} className="sim-flag" title="Possible duplicate — click to review">
-                              <FileText size={12} /> Similar
-                            </Link>
-                          )}
-                          <span className="g-meta">{q.topic || 'No topic'}</span>
-                        </span>
-                      </td>
-                      <td data-order={subject} data-filter={subject}>
-                        {subject ? (
-                          <span className="g-link" title={subject}>{subject}</span>
-                        ) : (
-                          <span className="g-mute">—</span>
-                        )}
-                      </td>
-                      <td data-order={level} data-filter={level ? BLOOM_LABELS[q.bloom] : ''}>
-                        {level ? (
-                          <span className="g-bloom" data-level={level}>{BLOOM_LABELS[q.bloom]}</span>
-                        ) : (
-                          <span className="g-mute">—</span>
-                        )}
-                      </td>
-                      <td className="g-text" data-filter={TYPE_LABELS[q.type] || q.type}>
-                        {TYPE_LABELS[q.type] || q.type}
-                      </td>
-                      <td data-order={status.order} data-filter={status.label}>
-                        <span className={`g-state ${status.cls}`}>{status.label}</span>
-                      </td>
-                      <td className="g-mute" data-order={touched}>
-                        {touched ? new Date(touched).toLocaleDateString('en', { month: 'short', day: 'numeric', year: 'numeric' }) : '—'}
-                      </td>
-                      <td className="col-actions">
-                        <div className="row-actions">
-                          {/* Every draft gets the one-click decision, however it
-                              was written — AI, manual or imported. A rejected
-                              row gets a one-click way back. */}
-                          {isDraft && (
-                            <>
-                              <button
-                                type="button"
-                                className="btn btn-primary btn-xs"
-                                title="Approve"
-                                aria-label={`Approve “${stem.slice(0, 60)}”`}
-                                onClick={() => handleApprove(q)}
-                              >
-                                <Check size={14} />
-                              </button>
-                              <button
-                                type="button"
-                                className="btn btn-outline btn-xs"
-                                title="Reject"
-                                aria-label={`Reject “${stem.slice(0, 60)}”`}
-                                onClick={() => handleReject(q)}
-                              >
-                                <X size={14} />
-                              </button>
-                            </>
-                          )}
-                          {isRejected && (
-                            <button
-                              type="button"
-                              className="btn btn-outline btn-xs"
-                              title="Restore — make this question active again"
-                              aria-label={`Restore “${stem.slice(0, 60)}”`}
-                              onClick={() => handleApprove(q)}
-                            >
-                              <RotateCcw size={14} />
-                            </button>
-                          )}
-                          <div className="g-menu" ref={menuOpen === q.id ? menuRef : null}>
-                            <button
-                              type="button"
-                              className="g-menu-trigger"
-                              aria-label={`Actions for ${stem}`}
-                              aria-expanded={menuOpen === q.id}
-                              onClick={() => setMenuOpen(menuOpen === q.id ? null : q.id)}
-                            >
-                              <MoreVertical size={16} />
-                            </button>
-                            {menuOpen === q.id && (
-                              <div className="g-menu-panel">
-                                <button type="button" className="g-menu-item" onClick={() => openEdit(q)}>
-                                  <Pencil size={15} /> Edit
-                                </button>
-                                {/* Drafts and rejected rows already carry their
-                                    decision inline, so the menu only adds it
-                                    for an active question. */}
-                                {!isDraft && !isRejected && (
-                                  <button type="button" className="g-menu-item" onClick={() => handleReject(q)}>
-                                    <X size={15} /> Reject
-                                  </button>
-                                )}
-                                <div className="g-menu-sep" />
-                                <button
-                                  type="button"
-                                  className="g-menu-item is-danger"
-                                  onClick={() => handleDelete(q)}
-                                >
-                                  <Trash2 size={15} /> Delete
-                                </button>
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
+              {renderQuestionRows()}
             </table>
           </div>
 

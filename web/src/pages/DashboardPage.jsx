@@ -8,6 +8,7 @@ import {
 import { useAuth } from '../features/auth/AuthContext.jsx';
 import AppShell from '../components/AppShell.jsx';
 import { PageLoader } from '../components/Loaders.jsx';
+import { StatusPill, StatusSummary, statusOf, groupColor } from '../components/Board.jsx';
 import api, { ApiError } from '../lib/api.js';
 
 function greeting() {
@@ -29,10 +30,7 @@ function formatDate(value) {
   });
 }
 
-function examStatus(value) {
-  const labels = { draft: 'Draft', live: 'Live', published: 'Published', archived: 'Archived' };
-  return labels[value] || 'Unknown';
-}
+
 
 export default function DashboardPage() {
   const { user, logout } = useAuth();
@@ -122,25 +120,38 @@ export default function DashboardPage() {
             {recentExams.length === 0 ? (
               <div className="dash-empty"><FileText size={26} aria-hidden="true" /><h3>No exams yet</h3><p>Build an exam from your approved questions.</p><Link to="/exams/new" className="dash-text-link">Create your first exam <ArrowRight size={15} aria-hidden="true" /></Link></div>
             ) : (
-              <ul className="dash-exam-list">
-                {recentExams.map((exam) => {
-                  const items = count(exam.total_items ?? exam.question_count);
-                  const isLive = ['live', 'published'].includes(exam.status);
-                  return (
-                    <li key={exam.id}>
-                      <Link to={`/exams/${exam.id}`} className="dash-exam-row">
-                        <span className="dash-doc"><FileText size={19} aria-hidden="true" /></span>
-                        <span className="dash-exam-main">
-                          <strong>{exam.title}</strong>
-                          <span className="dash-exam-meta">{items} {items === 1 ? 'item' : 'items'}<span aria-hidden="true">·</span>{formatDate(exam.created_at)}</span>
-                        </span>
-                        <span className={`dash-exam-status ${isLive ? 'is-live' : ''}`}>{examStatus(exam.status)}</span>
-                        <ChevronRight size={16} className="dash-row-chevron" aria-hidden="true" />
-                      </Link>
-                    </li>
-                  );
-                })}
-              </ul>
+              <>
+                <ul className="dash-board-list">
+                  {recentExams.map((exam) => {
+                    const items = count(exam.total_items ?? exam.question_count);
+                    return (
+                      <li key={exam.id}>
+                        <Link to={`/exams/${exam.id}`} className="b-rowline" style={{ '--gc': groupColor(exam.subject_id || exam.subject_name || exam.id) }}>
+                          <span className="b-rowline-main">
+                            <span className="dash-doc"><FileText size={18} aria-hidden="true" /></span>
+                            <span className="dash-exam-main">
+                              <strong className="b-rowline-title">{exam.title}</strong>
+                              <span className="b-rowline-meta">
+                                {exam.subject_name ? <>{exam.subject_name}<span aria-hidden="true"> · </span></> : null}
+                                {items > 0 ? <>{items} {items === 1 ? 'item' : 'items'}<span aria-hidden="true"> · </span></> : null}
+                                {formatDate(exam.created_at)}
+                              </span>
+                            </span>
+                          </span>
+                          <StatusPill status={exam.status} small />
+                        </Link>
+                      </li>
+                    );
+                  })}
+                </ul>
+                <div className="dash-board-sum">
+                  <StatusSummary
+                    counts={recentExams.reduce((m, e) => { const t = statusOf(e.status); m[t] = (m[t] || 0) + 1; return m; }, {})}
+                    order={['live', 'published', 'draft', 'archived']}
+                    totalLabel={`${recentExams.length} recent`}
+                  />
+                </div>
+              </>
             )}
             <Link to="/exams" className="dash-panel-foot">View all exams <ArrowRight size={15} aria-hidden="true" /></Link>
           </section>
@@ -150,10 +161,16 @@ export default function DashboardPage() {
               <header className="dash-panel-head"><h2 id="dash-bank-title">Question bank</h2><CircleHelp size={18} aria-hidden="true" /></header>
               <div className="dash-bank-body">
                 <div className="dash-ready-label"><span>{approved.toLocaleString()} of {total.toLocaleString()} ready to use</span><strong>{readyPct}%</strong></div>
-                <progress className="dash-ready-track" max="100" value={readyPct} aria-label={`${approved} of ${total} questions ready to use`} />
+                <span className="b-sum-bar dash-bank-track" role="img" aria-label={`${approved} active, ${drafts} to review, ${count(bank.rejected)} rejected, ${count(bank.other)} other`}>
+                  {approved > 0 && <span className="b-sum-seg" data-tone="active" style={{ width: `${(approved / total) * 100}%` }} />}
+                  {drafts > 0 && <span className="b-sum-seg" data-tone="draft" style={{ width: `${(drafts / total) * 100}%` }} />}
+                  {count(bank.rejected) > 0 && <span className="b-sum-seg" data-tone="rejected" style={{ width: `${(count(bank.rejected) / total) * 100}%` }} />}
+                  {count(bank.other) > 0 && <span className="b-sum-seg" data-tone="other" style={{ width: `${(count(bank.other) / total) * 100}%` }} />}
+                </span>
                 <dl className="dash-bank-counts">
                   <div><dt>Active</dt><dd>{approved.toLocaleString()}</dd></div>
                   <div className={drafts > 0 ? 'has-drafts' : undefined}><dt>To review</dt><dd>{drafts.toLocaleString()}</dd></div>
+                  {count(bank.rejected) > 0 && <div className="has-rejected"><dt>Rejected</dt><dd>{count(bank.rejected).toLocaleString()}</dd></div>}
                 </dl>
                 {drafts > 0 ? <Link to="/questions/review" className="btn btn-primary dash-review"><ListChecks size={16} aria-hidden="true" /> Review {drafts.toLocaleString()} {drafts === 1 ? 'draft' : 'drafts'}<ArrowRight size={15} aria-hidden="true" /></Link>
                   : <Link to="/questions" className="btn btn-outline dash-review">Open question bank <ArrowRight size={15} aria-hidden="true" /></Link>}
@@ -174,7 +191,8 @@ export default function DashboardPage() {
                     const questions = count(subject.question_count);
                     return (
                       <li key={subject.id}>
-                        <Link to={`/questions?subject_id=${encodeURIComponent(subject.id)}`} className="dash-subject-row" aria-label={`Open questions for ${name}`}>
+                        <Link to={`/questions?subject_id=${encodeURIComponent(subject.id)}`} className="dash-subject-row" style={{ '--gc': groupColor(subject.id) }} aria-label={`Open questions for ${name}`}>
+                          <span className="dash-subject-dot" aria-hidden="true" />
                           <span><strong>{name}</strong><small>{subject.code ? `${subject.code} · ` : ''}{questions} {questions === 1 ? 'question' : 'questions'}</small></span>
                           <ChevronRight size={15} className="dash-row-chevron" aria-hidden="true" />
                         </Link>

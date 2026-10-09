@@ -141,7 +141,7 @@
 
 /* ---- Questions page filter bar (inline selects in dataset bar) -------- */
 .q-filter-select {
-    height: 34px;
+    height: 32px;
     padding: 0 28px 0 10px;
     border: 1px solid transparent;
     border-radius: var(--radius-sm);
@@ -196,8 +196,8 @@
     display: grid;
     grid-template-columns: minmax(0, 1fr) auto;
     align-items: start;
-    gap: 10px 14px;
-    padding-block: 10px;
+    gap: 8px 12px;
+    padding-block: 8px;
 }
 
 .q-dataset .dataset-bar-lead {

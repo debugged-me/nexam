@@ -16,20 +16,20 @@
    ========================================================================== */
 
 .dataset {
-    --grid-x: 14px;              /* horizontal cell rhythm */
-    --grid-row: 56px;            /* comfortable row height */
+    --grid-x: 12px;              /* horizontal cell rhythm */
+    --grid-row: 46px;            /* balanced row height */
     --grid-title: .875rem;       /* 14px — readable for classroom/projector use */
-    --grid-meta: .75rem;
+    --grid-meta: .71875rem;
     --sort-gutter: 17px;         /* width the sort arrow reserves in a header */
 
     position: relative;          /* row menus escape upward, not clipped */
     background: var(--surface);
     border: 1px solid var(--line);
-    border-radius: var(--radius-lg);
+    border-radius: var(--radius);
 }
 
 .dataset[data-density="compact"] {
-    --grid-row: 40px;
+    --grid-row: 36px;
     --grid-meta: 0px;            /* meta line is suppressed when compact */
 }
 
@@ -42,10 +42,10 @@
     align-items: center;
     justify-content: space-between;
     gap: 10px;
-    min-height: 52px;
-    padding: 8px var(--grid-x);
+    min-height: 46px;
+    padding: 6px var(--grid-x);
     border-bottom: 1px solid var(--line);
-    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+    border-radius: calc(var(--radius) - 1px) calc(var(--radius) - 1px) 0 0;
     background: var(--surface);
 }
 
@@ -81,7 +81,7 @@
 
 .ds-search input {
     width: 100%;
-    height: 34px;
+    height: 32px;
     padding: 0 60px 0 30px;
     border: 1px solid transparent;
     border-radius: var(--radius-sm);
@@ -291,7 +291,7 @@
     display: inline-flex;
     align-items: center;
     gap: 6px;
-    height: 34px;
+    height: 32px;
     padding: 0 10px;
     border: 1px solid var(--line);
     border-radius: var(--radius-sm);
@@ -396,10 +396,10 @@
     display: flex;
     align-items: center;
     gap: 10px;
-    min-height: 52px;
-    padding: 8px var(--grid-x);
+    min-height: 46px;
+    padding: 6px var(--grid-x);
     border-bottom: 1px solid var(--line-strong);
-    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+    border-radius: calc(var(--radius) - 1px) calc(var(--radius) - 1px) 0 0;
     background: var(--surface-3);
 }
 
@@ -442,7 +442,7 @@ table.grid thead > tr > th {
     position: sticky;
     top: var(--topbar-height);
     z-index: 3;
-    height: 36px;
+    height: 32px;
     padding: 0 var(--grid-x);
     border-bottom: 1px solid var(--line);
     background: var(--surface);
@@ -692,6 +692,7 @@ a.g-link:hover { color: var(--ink); text-decoration: underline; text-underline-o
 .wp-4  { width: 4%; }
 .wp-5  { width: 5%; }
 .wp-8  { width: 8%; }
+.wp-9  { width: 9%; }
 .wp-10  { width: 10%; }
 .wp-11  { width: 11%; }
 .wp-12  { width: 12%; }
@@ -711,6 +712,7 @@ a.g-link:hover { color: var(--ink); text-decoration: underline; text-underline-o
 table.grid.dataTable thead > tr > th.wp-4  { width: 4%; }
 table.grid.dataTable thead > tr > th.wp-5  { width: 5%; }
 table.grid.dataTable thead > tr > th.wp-8  { width: 8%; }
+table.grid.dataTable thead > tr > th.wp-9  { width: 9%; }
 table.grid.dataTable thead > tr > th.wp-10 { width: 10%; }
 table.grid.dataTable thead > tr > th.wp-11 { width: 11%; }
 table.grid.dataTable thead > tr > th.wp-12 { width: 12%; }
@@ -925,10 +927,10 @@ tr:focus-within .g-menu-trigger,
     align-items: center;
     justify-content: space-between;
     gap: 12px;
-    min-height: 48px;
-    padding: 7px var(--grid-x);
+    min-height: 42px;
+    padding: 5px var(--grid-x);
     border-top: 1px solid var(--line);
-    border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+    border-radius: 0 0 calc(var(--radius) - 1px) calc(var(--radius) - 1px);
     background: var(--surface);
 }
 
@@ -1019,7 +1021,7 @@ tr:focus-within .g-menu-trigger,
 td.dataTables_empty,
 .ds-noresults {
     height: auto !important;
-    padding: 44px 20px !important;
+    padding: 32px 16px !important;
     text-align: center;
     white-space: normal !important;
 }

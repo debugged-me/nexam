@@ -1,3 +1,4 @@
+import '../styles/account.css';
 /**
  * AccountPage — profile view/edit and password change.
  * Uses the PHP design system classes (card, form-group, form-control, etc.)
@@ -9,7 +10,6 @@ import AppShell from '../components/AppShell.jsx';
 import { PageLoader } from '../components/Loaders.jsx';
 import { useAuth } from '../features/auth/AuthContext.jsx';
 import { User, Lock, Mail, Calendar, Check, Save } from 'lucide-react';
-import '../styles/account.css';
 
 function nameFormFrom(user) {
   return {
@@ -76,12 +76,12 @@ export default function AccountPage() {
     }
   }
 
-  if (!profile) return <AppShell activeNav="account" pageTitle="Account"><PageLoader label="Loading your profile…" /></AppShell>;
+  if (!profile) return <AppShell pageClass="account" activeNav="account" pageTitle="Account"><PageLoader label="Loading your profile…" /></AppShell>;
 
   const initials = (profile.full_name || 'U').split(' ').map((p) => p[0]).slice(0, 2).join('').toUpperCase();
 
   return (
-    <AppShell activeNav="account" pageTitle="Account">
+    <AppShell pageClass="account" activeNav="account" pageTitle="Account">
 
       <div className="page-header">
         <div>

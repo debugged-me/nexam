@@ -1,3 +1,4 @@
+import '../styles/materials.css';
 /**
  * MaterialsPage — upload and manage instructor source materials.
  *
@@ -27,7 +28,6 @@ import api, { ApiError, getToken } from '../lib/api.js';
 import AppShell from '../components/AppShell.jsx';
 import { PageLoader } from '../components/Loaders.jsx';
 import { StatusPill, groupColor } from '../components/Board.jsx';
-import '../styles/materials.css';
 
 const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:3000/api';
 
@@ -387,7 +387,7 @@ export default function MaterialsPage() {
   const queueReady = queue.filter((it) => it.state === 'queued' || it.state === 'error').length;
 
   return (
-    <AppShell activeNav="materials" pageTitle="Materials">
+    <AppShell pageClass="materials" activeNav="materials" pageTitle="Materials">
       <div className="mat-toolbar">
             <div><span className="eyebrow">Manage</span><h1>Materials</h1></div>
             <div className="mat-toolbar-actions">

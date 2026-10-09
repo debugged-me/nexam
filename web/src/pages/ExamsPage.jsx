@@ -1,3 +1,4 @@
+import '../styles/exams.css';
 /**
  * ExamsPage — exam board grouped like a Monday board.
  *
@@ -21,7 +22,6 @@ import {
   StatusPill, StatusSummary, BoardGroupHead, BoardGroupFoot,
   BoardAddRow, GroupChip, groupColor, statusOf, STATUS_LABELS, STATUS_ORDER,
 } from '../components/Board.jsx';
-import '../styles/exams.css';
 
 const COL_SPAN = 7;
 const EXAM_STATUSES = STATUS_ORDER.exam;
@@ -211,7 +211,7 @@ export default function ExamsPage() {
   }
 
   return (
-    <AppShell activeNav="exams" pageTitle="Exams" wide>
+    <AppShell pageClass="exams" activeNav="exams" pageTitle="Exams" wide>
       <header className="list-head">
         <div className="list-head-main">
           <span className="eyebrow">Workspace</span>
@@ -223,6 +223,7 @@ export default function ExamsPage() {
             <summary aria-label="About exams"><Info size={16} /></summary>
             <p>Draft and published papers assembled from your question bank.</p>
           </details>
+          <p className="page-description">Plan, assemble, and prepare your next assessment.</p>
         </div>
         <div className="list-head-actions">
           <button className="btn btn-primary btn-sm" onClick={() => navigate('/exams/new')}>

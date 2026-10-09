@@ -1,5 +1,5 @@
-/* AnalyticsPage: independent content layout and styles. */
-@scope (.page--analytics) {
+/* ItemAnalysisPage: independent content layout and styles. */
+@scope (.page--item-analysis) {
 /* Layout owned by this screen. */
 .page-header {
   display: flex;
@@ -22,18 +22,6 @@
 .page-header-actions { display: flex; align-items: center; gap: .5rem; flex-wrap: wrap; }
 
 
-.stats-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  gap: 12px;
-  margin-bottom: 1.1rem;
-}
-.detail-grid-2 {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 1.2rem;
-}
-@media (max-width: 768px) { .detail-grid-2 { grid-template-columns: 1fr; } }
 
 /* analytics.css — performance dashboard styles */
 

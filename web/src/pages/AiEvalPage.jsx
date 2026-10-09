@@ -1,3 +1,4 @@
+import '../styles/ai-eval.css';
 /**
  * AiEvalPage — AI component evaluation metrics.
  *
@@ -15,10 +16,9 @@ import { useToast } from '../components/Toast.jsx';
 import api from '../lib/api.js';
 import AppShell from '../components/AppShell.jsx';
 import { PageLoader } from '../components/Loaders.jsx';
-import '../styles/analytics.css';
 
 const BLOOM_LEVEL = { remember: 1, understand: 2, apply: 3, analyze: 4, evaluate: 5, create: 6 };
-const TYPE_LABELS = { mcq: 'Multiple choice', true_false: 'True / false', matching: 'Matching type', identification: 'Identification' };
+const TYPE_LABELS = { mcq: 'Multiple choice', true_false: 'True / false', matching: 'Matching type', identification: 'Fill in the blank' };
 
 function pct(v, digits = 1) {
   return ((Number(v) || 0) * 100).toFixed(digits);
@@ -39,7 +39,7 @@ export default function AiEvalPage() {
 
   if (!data) {
     return (
-      <AppShell activeNav="analytics" pageTitle="AI Evaluation" wide>
+      <AppShell pageClass="ai-eval" activeNav="analytics" pageTitle="AI Evaluation" wide>
         <PageLoader label="Loading evaluation metrics…" />
       </AppShell>
     );
@@ -55,7 +55,7 @@ export default function AiEvalPage() {
   const classes = cm.classes || [];
 
   return (
-    <AppShell activeNav="analytics" pageTitle="AI Evaluation" wide>
+    <AppShell pageClass="ai-eval" activeNav="analytics" pageTitle="AI Evaluation" wide>
       <div className="page-header">
         <div>
           <span className="eyebrow">Results &amp; insights</span>

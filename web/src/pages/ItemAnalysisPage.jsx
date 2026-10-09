@@ -1,3 +1,4 @@
+import '../styles/item-analysis.css';
 /**
  * ItemAnalysisPage — per-question response distributions and difficulty.
  *
@@ -11,7 +12,6 @@ import { useToast } from '../components/Toast.jsx';
 import api from '../lib/api.js';
 import AppShell from '../components/AppShell.jsx';
 import { PageLoader } from '../components/Loaders.jsx';
-import '../styles/analytics.css';
 
 const DIFF_CLASS = { easy: 'green', medium: 'amber', hard: 'red' };
 
@@ -33,7 +33,7 @@ export default function ItemAnalysisPage() {
   useEffect(() => { load(); }, [load]);
 
   return (
-    <AppShell activeNav="analytics" pageTitle="Item Analysis" wide>
+    <AppShell pageClass="item-analysis" activeNav="analytics" pageTitle="Item Analysis" wide>
       <div className="page-header">
         <div>
           <span className="eyebrow">Results &amp; insights</span>

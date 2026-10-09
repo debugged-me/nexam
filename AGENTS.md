@@ -54,6 +54,12 @@ QR payload: `{ v, examId, setId, set, count, types[] }`.
 - Use Lucide icons only.
 - Use the local Google Sans and Inter files in `web/public/fonts/`.
 - Keep page CSS in `web/src/styles/`; avoid executable inline scripts/styles.
+- Each page owns its content layout and a dedicated, scoped stylesheet. Import
+  that stylesheet from the page, not from `App.jsx`. Do not share page layout
+  rules across screens; detail, form, and list screens have separate styles.
+- Keep only app navigation, design tokens, basic controls, and authentication
+  logic common. Scope page rules to their `.page--<name>` wrapper so edits do
+  not leak into another screen.
 - All pages must work at 380px, 768px, and 1024px+ with 44px mobile targets.
 
 ## Verification

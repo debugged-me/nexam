@@ -1,3 +1,4 @@
+import '../styles/exam-detail.css';
 /**
  * ExamDetailPage — exam detail with question attachment, PDF generation,
  * download, and LMS export.
@@ -18,7 +19,6 @@ import api, { ApiError, getToken } from '../lib/api.js';
 import AppShell from '../components/AppShell.jsx';
 import { PageLoader } from '../components/Loaders.jsx';
 import { StatusPill, GroupChip, groupColor } from '../components/Board.jsx';
-import '../styles/exams.css';
 
 const BLOOM_LABELS = { remember: 'Remember', understand: 'Understand', apply: 'Apply', analyze: 'Analyze', evaluate: 'Evaluate', create: 'Create' };
 const TYPE_LABELS = { mcq: 'MCQ', true_false: 'T/F', matching: 'Match', identification: 'Ident' };
@@ -122,7 +122,7 @@ export default function ExamDetailPage() {
     return `${base}/exams/${id}/export/${format}?${params.toString()}`;
   }
 
-  if (!data) return <AppShell activeNav="exams" pageTitle="Exam"><PageLoader label="Loading exam…" /></AppShell>;
+  if (!data) return <AppShell pageClass="exam-detail" activeNav="exams" pageTitle="Exam"><PageLoader label="Loading exam…" /></AppShell>;
   const { exam, questions, tos, sets } = data;
   const published = exam.status === 'published';
   const print = exam.format === 'print';
@@ -134,7 +134,7 @@ export default function ExamDetailPage() {
     : Array.from({ length: exam.set_count }, (_, i) => String.fromCharCode(65 + i));
 
   return (
-    <AppShell activeNav="exams" pageTitle={exam.title}>
+    <AppShell pageClass="exam-detail" activeNav="exams" pageTitle={exam.title}>
       <div className="page-header">
         <div>
           <span className="eyebrow">Exam</span>

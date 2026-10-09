@@ -1,3 +1,4 @@
+import '../../styles/auth-register.css';
 /**
  * RegisterPage — create an instructor account.
  *

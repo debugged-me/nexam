@@ -9,7 +9,7 @@
 import { useContext, useLayoutEffect } from 'react';
 import { ShellMetaContext } from './shellMeta.js';
 
-export default function AppShell({ activeNav, pageTitle, wide = false, children }) {
+export default function AppShell({ activeNav, pageTitle, pageClass, wide = false, children }) {
   const setMeta = useContext(ShellMetaContext);
 
   // Layout effect so the topbar title updates in the same frame as the page.
@@ -17,5 +17,5 @@ export default function AppShell({ activeNav, pageTitle, wide = false, children 
     setMeta({ activeNav, pageTitle, wide: Boolean(wide) });
   }, [setMeta, activeNav, pageTitle, wide]);
 
-  return <div className="page-enter">{children}</div>;
+  return <div className={`page-enter page--${pageClass || activeNav}`}>{children}</div>;
 }

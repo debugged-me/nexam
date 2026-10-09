@@ -1,3 +1,4 @@
+import '../styles/questions.css';
 /**
  * QuestionsPage — question bank grid with filters, bulk review, create/edit,
  * GIFT/XML import and similarity review.
@@ -25,7 +26,6 @@ import {
   StatusPill, StatusSummary, BoardGroupHead, BoardGroupFoot,
   BoardAddRow, GroupChip, groupColor, statusOf, STATUS_ORDER,
 } from '../components/Board.jsx';
-import '../styles/questions.css';
 
 const BLOOM_LABELS = { remember: 'Remember', understand: 'Understand', apply: 'Apply', analyze: 'Analyze', evaluate: 'Evaluate', create: 'Create' };
 const BLOOM_ORDER = ['remember', 'understand', 'apply', 'analyze', 'evaluate', 'create'];
@@ -670,7 +670,7 @@ export default function QuestionsPage() {
   }
 
   return (
-    <AppShell activeNav="questions" pageTitle="Questions" wide>
+    <AppShell pageClass="questions" activeNav="questions" pageTitle="Questions" wide>
       <header className="list-head">
         <div className="list-head-main">
           <span className="eyebrow">Workspace</span>
@@ -684,6 +684,7 @@ export default function QuestionsPage() {
             <summary aria-label="About questions"><Info size={16} /></summary>
             <p>One reusable bank. Tag each item with a topic and Bloom level so blueprints can draw from it.</p>
           </details>
+          <p className="page-description">Your questions, from first draft to ready for the classroom.</p>
         </div>
         {draftCount > 0 && (
           <div className="list-head-actions">

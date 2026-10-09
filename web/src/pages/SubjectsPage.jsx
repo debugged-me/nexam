@@ -1,3 +1,4 @@
+import '../styles/subjects.css';
 /**
  * SubjectsPage — grid of instructor subjects with create/edit/delete.
  *
@@ -16,7 +17,6 @@ import api, { ApiError } from '../lib/api.js';
 import AppShell from '../components/AppShell.jsx';
 import { PageLoader } from '../components/Loaders.jsx';
 import { groupColor } from '../components/Board.jsx';
-import '../styles/subjects.css';
 
 const PAGE_SIZE = 25;
 const SORT_DIRS = { asc: 'asc', desc: 'desc' };
@@ -53,6 +53,7 @@ export default function SubjectsPage() {
   const [selected, setSelected] = useState(new Set());
   const [page, setPage] = useState(0);
   const [viewOpen, setViewOpen] = useState(false);
+  const [density, setDensity] = useState('comfortable');
   const searchRef = useRef(null);
 
   const load = useCallback(() => {
@@ -233,7 +234,7 @@ export default function SubjectsPage() {
   };
 
   return (
-    <AppShell activeNav="subjects" pageTitle="Subjects" wide>
+    <AppShell pageClass="subjects" activeNav="subjects" pageTitle="Subjects" wide>
       <header className="list-head">
         <div className="list-head-main">
           <span className="eyebrow">Manage</span>
@@ -247,6 +248,7 @@ export default function SubjectsPage() {
             <summary aria-label="What are subjects?"><Info size={16} /></summary>
             <p>Courses you teach. Each subject owns its own question bank, blueprints and exams.</p>
           </details>
+          <p className="page-description">A home for every course you teach.</p>
         </div>
       </header>
 
@@ -261,7 +263,7 @@ export default function SubjectsPage() {
           </button>
         </div>
       ) : (
-        <section className="dataset" data-dataset data-density="comfortable" data-selecting={selectMode ? 'true' : 'false'}>
+        <section className="dataset" data-dataset data-density={density} data-selecting={selectMode ? 'true' : 'false'}>
 
           {/* Toolbar */}
           <div className="dataset-bar">
@@ -294,8 +296,8 @@ export default function SubjectsPage() {
                   <div className="ds-menu-panel" role="group" aria-label="Table options">
                     <div className="ds-menu-label">Density</div>
                     <div className="ds-seg">
-                      <button aria-pressed={false} onClick={() => setViewOpen(false)}>Comfortable</button>
-                      <button aria-pressed={false} onClick={() => setViewOpen(false)}>Compact</button>
+                      <button aria-pressed={density === 'comfortable'} onClick={() => { setDensity('comfortable'); setViewOpen(false); }}>Comfortable</button>
+                      <button aria-pressed={density === 'compact'} onClick={() => { setDensity('compact'); setViewOpen(false); }}>Compact</button>
                     </div>
                   </div>
                 )}

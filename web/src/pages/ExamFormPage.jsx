@@ -1,3 +1,4 @@
+import '../styles/exam-form.css';
 /**
  * ExamFormPage — create or edit an exam.
  *
@@ -10,7 +11,6 @@ import { Check, Info } from 'lucide-react';
 import { useToast } from '../components/Toast.jsx';
 import api, { ApiError } from '../lib/api.js';
 import AppShell from '../components/AppShell.jsx';
-import '../styles/exams.css';
 
 const BLOOM_LABELS = { remember: 'Remember', understand: 'Understand', apply: 'Apply', analyze: 'Analyze', evaluate: 'Evaluate', create: 'Create' };
 
@@ -122,7 +122,7 @@ export default function ExamFormPage() {
   const distribution = distParts.join(', ');
 
   return (
-    <AppShell activeNav="exams" pageTitle={isEdit ? 'Edit exam' : 'New exam'}>
+    <AppShell pageClass="exam-form" activeNav="exams" pageTitle={isEdit ? 'Edit exam' : 'New exam'}>
       <div className="form-container form-container--wide">
         <div className="page-header">
           <div>

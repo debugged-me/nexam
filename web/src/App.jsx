@@ -15,49 +15,35 @@ import { ToastProvider, useToast } from './components/Toast.jsx';
 import { ConfirmProvider } from './components/ConfirmDialog.jsx';
 import AppLayout from './components/AppLayout.jsx';
 import { BootScreen } from './components/Loaders.jsx';
-import { useEffect } from 'react';
+import { useEffect, lazy, Suspense } from 'react';
 
-import LoginPage from './features/auth/LoginPage.jsx';
-import RegisterPage from './features/auth/RegisterPage.jsx';
-import VerifyPage from './features/auth/VerifyPage.jsx';
-import ForgotPage from './features/auth/ForgotPage.jsx';
-import ResetPage from './features/auth/ResetPage.jsx';
-import DashboardPage from './pages/DashboardPage.jsx';
-import SubjectsPage from './pages/SubjectsPage.jsx';
-import QuestionsPage from './pages/QuestionsPage.jsx';
-import SimilarityReviewPage from './pages/SimilarityReviewPage.jsx';
-import ReviewQueuePage from './pages/ReviewQueuePage.jsx';
-import TosPage from './pages/TosPage.jsx';
-import TosDetailPage from './pages/TosDetailPage.jsx';
-import ExamsPage from './pages/ExamsPage.jsx';
-import ExamDetailPage from './pages/ExamDetailPage.jsx';
-import ExamFormPage from './pages/ExamFormPage.jsx';
-import MaterialsPage from './pages/MaterialsPage.jsx';
-import AnalyticsPage from './pages/AnalyticsPage.jsx';
-import ItemAnalysisPage from './pages/ItemAnalysisPage.jsx';
-import AiEvalPage from './pages/AiEvalPage.jsx';
-import AccountPage from './pages/AccountPage.jsx';
-import WizardPage from './pages/WizardPage.jsx';
-import InstitutionBankPage from './pages/InstitutionBankPage.jsx';
+const LoginPage = lazy(() => import('./features/auth/LoginPage.jsx'));
+const RegisterPage = lazy(() => import('./features/auth/RegisterPage.jsx'));
+const VerifyPage = lazy(() => import('./features/auth/VerifyPage.jsx'));
+const ForgotPage = lazy(() => import('./features/auth/ForgotPage.jsx'));
+const ResetPage = lazy(() => import('./features/auth/ResetPage.jsx'));
+const DashboardPage = lazy(() => import('./pages/DashboardPage.jsx'));
+const SubjectsPage = lazy(() => import('./pages/SubjectsPage.jsx'));
+const QuestionsPage = lazy(() => import('./pages/QuestionsPage.jsx'));
+const SimilarityReviewPage = lazy(() => import('./pages/SimilarityReviewPage.jsx'));
+const ReviewQueuePage = lazy(() => import('./pages/ReviewQueuePage.jsx'));
+const TosPage = lazy(() => import('./pages/TosPage.jsx'));
+const TosDetailPage = lazy(() => import('./pages/TosDetailPage.jsx'));
+const ExamsPage = lazy(() => import('./pages/ExamsPage.jsx'));
+const ExamDetailPage = lazy(() => import('./pages/ExamDetailPage.jsx'));
+const ExamFormPage = lazy(() => import('./pages/ExamFormPage.jsx'));
+const MaterialsPage = lazy(() => import('./pages/MaterialsPage.jsx'));
+const AnalyticsPage = lazy(() => import('./pages/AnalyticsPage.jsx'));
+const ItemAnalysisPage = lazy(() => import('./pages/ItemAnalysisPage.jsx'));
+const AiEvalPage = lazy(() => import('./pages/AiEvalPage.jsx'));
+const AccountPage = lazy(() => import('./pages/AccountPage.jsx'));
+const WizardPage = lazy(() => import('./pages/WizardPage.jsx'));
+const InstitutionBankPage = lazy(() => import('./pages/InstitutionBankPage.jsx'));
 
 import './styles/tokens.css';
-import './styles/auth.css';
 import './styles/app.css';
-import './styles/grid.css';
-import './styles/board.css';
 import './styles/toast.css';
 import './styles/modal.css';
-import './styles/dashboard.css';
-import './styles/subjects.css';
-import './styles/questions.css';
-import './styles/review.css';
-import './styles/tos.css';
-import './styles/exams.css';
-import './styles/materials.css';
-import './styles/analytics.css';
-import './styles/account.css';
-import './styles/wizard.css';
-import './styles/institution.css';
 import './styles/loading.css';
 
 function RequireAuth({ children }) {
@@ -120,7 +106,9 @@ const PAGE_TITLES = [
 function TitleOnRoute() {
   const { pathname } = useLocation();
   useEffect(() => {
-    const match = PAGE_TITLES.find(([pattern]) => matchPath({ path: pattern, end: true }, pathname));
+    const match = PAGE_TITLES.find(([pattern]) =>
+      matchPath({ path: pattern, end: true }, pathname)
+    );
     document.title = match ? `nexam — ${match[1]}` : 'nexam';
   }, [pathname]);
   return null;
@@ -141,45 +129,81 @@ export default function App() {
     <ToastProvider>
       <AuthProvider>
         <ConfirmProvider>
-        <BrowserRouter>
-          <TitleOnRoute />
-          <ScrollToTop />
-          <ToastOnMount />
-          <Routes>
-            {/* Auth */}
-            <Route path="/login" element={<RedirectIfAuthed><LoginPage /></RedirectIfAuthed>} />
-            <Route path="/register" element={<RedirectIfAuthed><RegisterPage /></RedirectIfAuthed>} />
-            <Route path="/verify" element={<VerifyPage />} />
-            <Route path="/forgot" element={<RedirectIfAuthed><ForgotPage /></RedirectIfAuthed>} />
-            <Route path="/reset" element={<RedirectIfAuthed><ResetPage /></RedirectIfAuthed>} />
+          <BrowserRouter>
+            <TitleOnRoute />
+            <ScrollToTop />
+            <ToastOnMount />
+            <Suspense fallback={<BootScreen />}>
+              <Routes>
+                {/* Auth */}
+                <Route
+                  path="/login"
+                  element={
+                    <RedirectIfAuthed>
+                      <LoginPage />
+                    </RedirectIfAuthed>
+                  }
+                />
+                <Route
+                  path="/register"
+                  element={
+                    <RedirectIfAuthed>
+                      <RegisterPage />
+                    </RedirectIfAuthed>
+                  }
+                />
+                <Route path="/verify" element={<VerifyPage />} />
+                <Route
+                  path="/forgot"
+                  element={
+                    <RedirectIfAuthed>
+                      <ForgotPage />
+                    </RedirectIfAuthed>
+                  }
+                />
+                <Route
+                  path="/reset"
+                  element={
+                    <RedirectIfAuthed>
+                      <ResetPage />
+                    </RedirectIfAuthed>
+                  }
+                />
 
-            {/* App (protected) */}
-            <Route element={<RequireAuth><AppLayout /></RequireAuth>}>
-              <Route path="/wizard" element={<WizardPage />} />
-              <Route path="/dashboard" element={<DashboardPage />} />
-              <Route path="/subjects" element={<SubjectsPage />} />
-              <Route path="/questions" element={<QuestionsPage />} />
-              <Route path="/questions/institution" element={<InstitutionBankPage />} />
-              <Route path="/questions/review" element={<ReviewQueuePage />} />
-              <Route path="/questions/:id/similarity" element={<SimilarityReviewPage />} />
-              <Route path="/tos" element={<TosPage />} />
-              <Route path="/tos/:id" element={<TosDetailPage />} />
-              <Route path="/exams" element={<ExamsPage />} />
-              <Route path="/exams/new" element={<ExamFormPage />} />
-              <Route path="/exams/:id" element={<ExamDetailPage />} />
-              <Route path="/exams/:id/edit" element={<ExamFormPage />} />
-              <Route path="/materials" element={<MaterialsPage />} />
-              <Route path="/analytics" element={<AnalyticsPage />} />
-              <Route path="/analytics/items/:examId" element={<ItemAnalysisPage />} />
-              <Route path="/analytics/ai-eval" element={<AiEvalPage />} />
-              <Route path="/account" element={<AccountPage />} />
-            </Route>
+                {/* App (protected) */}
+                <Route
+                  element={
+                    <RequireAuth>
+                      <AppLayout />
+                    </RequireAuth>
+                  }
+                >
+                  <Route path="/wizard" element={<WizardPage />} />
+                  <Route path="/dashboard" element={<DashboardPage />} />
+                  <Route path="/subjects" element={<SubjectsPage />} />
+                  <Route path="/questions" element={<QuestionsPage />} />
+                  <Route path="/questions/institution" element={<InstitutionBankPage />} />
+                  <Route path="/questions/review" element={<ReviewQueuePage />} />
+                  <Route path="/questions/:id/similarity" element={<SimilarityReviewPage />} />
+                  <Route path="/tos" element={<TosPage />} />
+                  <Route path="/tos/:id" element={<TosDetailPage />} />
+                  <Route path="/exams" element={<ExamsPage />} />
+                  <Route path="/exams/new" element={<ExamFormPage />} />
+                  <Route path="/exams/:id" element={<ExamDetailPage />} />
+                  <Route path="/exams/:id/edit" element={<ExamFormPage />} />
+                  <Route path="/materials" element={<MaterialsPage />} />
+                  <Route path="/analytics" element={<AnalyticsPage />} />
+                  <Route path="/analytics/items/:examId" element={<ItemAnalysisPage />} />
+                  <Route path="/analytics/ai-eval" element={<AiEvalPage />} />
+                  <Route path="/account" element={<AccountPage />} />
+                </Route>
 
-            {/* Default → dashboard (which redirects to /login if not authed) */}
-            <Route path="/" element={<Navigate to="/dashboard" replace />} />
-            <Route path="*" element={<Navigate to="/dashboard" replace />} />
-          </Routes>
-        </BrowserRouter>
+                {/* Default → dashboard (which redirects to /login if not authed) */}
+                <Route path="/" element={<Navigate to="/dashboard" replace />} />
+                <Route path="*" element={<Navigate to="/dashboard" replace />} />
+              </Routes>
+            </Suspense>
+          </BrowserRouter>
         </ConfirmProvider>
       </AuthProvider>
     </ToastProvider>

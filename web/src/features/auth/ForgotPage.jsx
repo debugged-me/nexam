@@ -1,3 +1,4 @@
+import '../../styles/auth-forgot.css';
 /**
  * ForgotPage — request a password-reset OTP.
  *

@@ -1,3 +1,4 @@
+import '../styles/tos.css';
 /**
  * TosPage — list of TOS blueprints with create/edit/delete.
  *
@@ -17,7 +18,6 @@ import {
   StatusPill, StatusSummary, BoardGroupHead, BoardGroupFoot,
   GroupChip, groupColor, statusOf, STATUS_ORDER,
 } from '../components/Board.jsx';
-import '../styles/tos.css';
 
 const BLOOM_LABELS = { remember: 'Remember', understand: 'Understand', apply: 'Apply', analyze: 'Analyze', evaluate: 'Evaluate', create: 'Create' };
 const BLOOM_ORDER = ['remember', 'understand', 'apply', 'analyze', 'evaluate', 'create'];
@@ -188,7 +188,7 @@ export default function TosPage() {
   }
 
   return (
-    <AppShell activeNav="tos" pageTitle="Blueprints (TOS)" wide>
+    <AppShell pageClass="tos" activeNav="tos" pageTitle="Blueprints (TOS)" wide>
 
       <header className="list-head">
         <div className="list-head-main">
@@ -203,6 +203,7 @@ export default function TosPage() {
             <summary aria-label="What is a blueprint?"><Info size={16} /></summary>
             <p>A Table of Specification (TOS) defines how many items each topic and Bloom level contributes to an exam. Upload a syllabus and auto-generate one, or create it manually.</p>
           </details>
+          <p className="page-description">Give every topic and Bloom level its place.</p>
         </div>
         <div className="list-head-actions">
           <button className="btn btn-primary btn-sm" onClick={() => setEditing({ title: '', subject_id: subjects[0]?.id || '', total_items: 50, bloom_weights: { ...DEFAULT_BLOOM } })}>

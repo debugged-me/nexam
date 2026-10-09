@@ -86,28 +86,28 @@
   --brand:        #141413;
   --brand-deep:   #0C0C0B;
   --brand-soft:   #3D3D3A;
-  --brand-accent: #863BFF;  /* favicon violet — focus rings and the mark only */
+  --brand-accent: #7452C7;  /* restrained accent for actions and focus */
   --brand-blue:   #5B6BD6;   /* the mark's blue edge — reserved for *states*, never actions */
 
   /* Primary actions — Nexam violet, straight from the favicon mark */
-  --action-50:   #F4EFFF;
-  --action-100:  #EDE6FF;
-  --action-600:  #863BFF;
-  --action-700:  #6D28D9;
+  --action-50:   #F6F3FC;
+  --action-100:  #EDE7F8;
+  --action-600:  #7452C7;
+  --action-700:  #5E3DAC;
 
   /* ---- Violet scale (kept on the blue-* names so old refs follow) ---- */
-  --blue-50:  #F4EFFF;
-  --blue-100: #EDE6FF;
-  --blue-600: #863BFF;
-  --blue-700: #6D28D9;
+  --blue-50:  #F6F3FC;
+  --blue-100: #EDE7F8;
+  --blue-600: #7452C7;
+  --blue-700: #5E3DAC;
 
   /* ---- Bloom ramp: sequential neutral gray, 1 (Remember) → 6 (Create) ---- */
-  --bloom-1: #F1F0F5;
+  --bloom-1: #F6F7F9;
   --bloom-2: #E3E2EA;
   --bloom-3: #C9C8D2;
   --bloom-4: #9B99A8;
   --bloom-5: #6B6A78;
-  --bloom-6: #3B3A44;
+  --bloom-6: #45474F;
 
   /* ---- Status: muted, warm-tuned ---- */
   --green-50:  #F1F7EF;
@@ -139,18 +139,18 @@
   --accent-line: rgba(134, 59, 255, .32);
 
   /* ---- Ink: cool-tinted near-neutrals ---- */
-  --ink:       #16151C;
-  --ink-2:     #3B3A44;
-  --ink-3:     #6B6A75;
-  --ink-faint: #7A7886;   /* ~4:1 on white — carries meta text, not just icons */
+  --ink:       #24252A;
+  --ink-2:     #45474F;
+  --ink-3:     #686B75;
+  --ink-faint: #727580;   /* ~4:1 on white — carries meta text, not just icons */
 
   /* ---- Surfaces: white identity ---- */
-  --canvas:    #F7F7FA;   /* page backdrop — soft cool off-white */
+  --canvas:    #FFFFFF;   /* page backdrop — soft cool off-white */
   --surface:   #FFFFFF;
-  --surface-2: #F1F0F5;   /* dirty-white fill — subtle hover/inset tint */
-  --surface-3: #E9E8EF;
-  --line:        #E7E6EC;
-  --line-strong: #D8D6E0;
+  --surface-2: #F6F7F9;   /* dirty-white fill — subtle hover/inset tint */
+  --surface-3: #ECEEF2;
+  --line:        #E9EAEE;
+  --line-strong: #D8DAE1;
 
   /* ---- Shape ---- */
   --radius-xs: 5px;
@@ -189,21 +189,21 @@
   --ease: cubic-bezier(.16, 1, .3, 1);
 
   /* ---- Nav rail: same white as the page, hairline does the split ---- */
-  --sb-bg: #FFFFFF;
-  --sb-bg-sunken: #F1F0F5;
-  --sb-text: #6B6A75;
-  --sb-text-hover: #16151C;
-  --sb-text-active: #16151C;
-  --sb-title: #7A7886;
-  --sb-divider: #E7E6EC;
+  --sb-bg: #F8F9FB;
+  --sb-bg-sunken: #F6F7F9;
+  --sb-text: #686B75;
+  --sb-text-hover: #24252A;
+  --sb-text-active: #24252A;
+  --sb-title: #727580;
+  --sb-divider: #E9EAEE;
   --sb-hover: rgba(20, 19, 30, .04);
-  --sb-active: #F4EFFF;                      /* soft violet wash — the one brand accent */
-  --sb-active-ink: #5B21B6;
-  --sb-active-line: #863BFF;
+  --sb-active: #EEEBF5;                      /* soft violet wash — the one brand accent */
+  --sb-active-ink: #63489B;
+  --sb-active-line: #7452C7;
 
   /* ---- Layout ---- */
-  --sidebar-width: 224px;
-  --topbar-height: 56px;
+  --sidebar-width: 232px;
+  --topbar-height: 58px;
 
   /* ---- Aliases ---- */
   --primary: var(--action-600);
@@ -229,4 +229,31 @@
   --info: var(--blue-600);
   --radius-lg-alias: var(--radius-lg);
   --shadow: var(--shadow-md);
+}
+
+/* Status and subject colors; no page layout rules. */
+:root {
+  /* Status pill tones (muted ramp, tuned to the Nexam palette) */
+  --st-orange: #C68A28;   /* draft · working on it · pending */
+  --st-orange-deep: #9E6B15;
+  --st-green:  #4E8A57;   /* live · active · done · finalized · processed */
+  --st-green-deep: #3E6E46;
+  --st-red:    #C04434;   /* rejected · failed · stuck */
+  --st-red-deep: #9E3527;
+  --st-blue:   #5B6BD6;   /* published · ready — brand-blue, not the action violet */
+  --st-blue-deep: #4553B8;
+  --st-gray:   #7A7886;   /* archived · neutral */
+  --st-gray-deep: #6B6A75;
+  --st-purple: #7C5CD6;   /* in review */
+  --st-purple-deep: #6441C4;
+
+  /* Group accent ramp — muted jewel tones, assigned round-robin */
+  --gc-1: #7C5CD6;
+  --gc-2: #5B6BD6;
+  --gc-3: #4E8A57;
+  --gc-4: #B07D1E;
+  --gc-5: #C2677E;
+  --gc-6: #2D9BB8;
+  --gc-7: #6E6BA8;
+  --gc-8: #64748B;
 }

@@ -1,5 +1,5 @@
-/* AnalyticsPage: independent content layout and styles. */
-@scope (.page--analytics) {
+/* AiEvalPage: independent content layout and styles. */
+@scope (.page--ai-eval) {
 /* Layout owned by this screen. */
 .page-header {
   display: flex;

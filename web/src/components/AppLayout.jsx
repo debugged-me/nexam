@@ -1,74 +1,31 @@
-/**
- * AppLayout — the persistent application chrome: grouped sidebar + topbar +
- * content area, rendered once for every protected route.
- *
- * Pages render inside <Outlet/> and describe themselves through <AppShell>,
- * so moving between pages swaps only the content: the sidebar, topbar and
- * open menus stay put instead of remounting like a full page load. A thin
- * progress bar and topbar spinner show quietly while data refreshes.
- *
- * Hovering or focusing a nav item prefetches that screen's data so it
- * usually renders immediately on click.
- */
-import { useState, useEffect, useRef, useCallback } from 'react';
+/** Persistent instructor workspace, shared by every protected screen. */
+import { useState, useEffect, useRef, useCallback, Suspense } from 'react';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import {
-  Home, BookOpen, FolderOpen, CircleHelp,
-  PanelsTopLeft, FileText, BarChart3, Menu, ChevronDown,
-  LogOut, User, X, Sparkles, Library,
+  Menu,
+  ChevronDown,
+  ChevronRight,
+  LogOut,
+  User,
+  X,
+  Search,
+  Sparkles,
+  PanelLeft,
+  Settings2,
 } from 'lucide-react';
 import { useAuth } from '../features/auth/AuthContext.jsx';
 import api from '../lib/api.js';
 import useNetworkBusy from '../lib/useNetworkBusy.js';
 import { ShellMetaContext } from './shellMeta.js';
-import { Spinner } from './Loaders.jsx';
+import { Spinner, PageLoader } from './Loaders.jsx';
+import { NAV_ITEMS, BUILD_ACTION } from './navigation.js';
+import CommandMenu from './CommandMenu.jsx';
 
-// One flat list in workflow order: set up a subject → feed it materials →
-// plan with a blueprint → questions fill the bank → assemble an exam.
-const NAV_ITEMS = [
-  { label: 'Home', key: 'dashboard', icon: Home, to: '/dashboard', prefetch: ['/dashboard'] },
-  { label: 'Build an exam', key: 'wizard', icon: Sparkles, to: '/wizard', featured: true, prefetch: ['/subjects'] },
-  { label: 'Subjects', key: 'subjects', icon: BookOpen, to: '/subjects', prefetch: ['/subjects'] },
-  { label: 'Materials', key: 'materials', icon: FolderOpen, to: '/materials', prefetch: ['/materials', '/subjects'] },
-  { label: 'Blueprints', key: 'tos', icon: PanelsTopLeft, to: '/tos', prefetch: ['/tos', '/subjects'] },
-  { label: 'Questions', key: 'questions', icon: CircleHelp, to: '/questions', prefetch: ['/questions?', '/subjects', '/tos'] },
-  { label: 'Exams', key: 'exams', icon: FileText, to: '/exams', prefetch: ['/exams'] },
-  { label: 'Shared bank', key: 'institution', icon: Library, to: '/questions/institution', prefetch: ['/questions/institution', '/subjects'] },
-  { label: 'Results', key: 'analytics', icon: BarChart3, to: '/analytics', prefetch: ['/analytics/overview'] },
-];
-
-const SECTION_TITLES = {
-  dashboard: 'Home',
-  wizard: 'Build an exam',
-  subjects: 'Subjects',
-  materials: 'Materials',
-  tos: 'Blueprints',
-  questions: 'Questions',
-  institution: 'Shared question bank',
-  exams: 'Exams',
-  analytics: 'Results & insights',
-  account: 'Account',
-};
-
-/** Derive the active nav key from the current pathname. */
-function deriveActiveKey(pathname) {
-  if (pathname.startsWith('/dashboard')) return 'dashboard';
-  if (pathname.startsWith('/wizard')) return 'wizard';
-  if (pathname.startsWith('/subjects')) return 'subjects';
-  if (pathname.startsWith('/materials')) return 'materials';
+function activeFor(pathname) {
   if (pathname.startsWith('/questions/institution')) return 'institution';
+  if (pathname.startsWith('/questions/review')) return 'review';
   if (pathname.startsWith('/questions')) return 'questions';
-  if (pathname.startsWith('/tos')) return 'tos';
-  if (pathname.startsWith('/exams')) return 'exams';
-  if (pathname.startsWith('/analytics')) return 'analytics';
-  if (pathname.startsWith('/account')) return 'account';
-  return '';
-}
-
-/** Get user initials from full name. */
-function getInitials(name) {
-  if (!name) return 'U';
-  return name.split(' ').filter(Boolean).map((p) => p[0]).slice(0, 2).join('').toUpperCase();
+  return pathname.split('/')[1];
 }
 
 function prefetchAll(paths) {
@@ -83,75 +40,178 @@ export default function AppLayout() {
   const [meta, setMeta] = useState({});
   const [mobileOpen, setMobileOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const [commandOpen, setCommandOpen] = useState(false);
   const userMenuRef = useRef(null);
-
+  const sidebarRef = useRef(null);
+  const menuButtonRef = useRef(null);
   const updateMeta = useCallback((next) => {
-    setMeta((prev) => (
-      prev.activeNav === next.activeNav && prev.pageTitle === next.pageTitle && prev.wide === next.wide
+    setMeta((prev) =>
+      prev.activeNav === next.activeNav &&
+      prev.pageTitle === next.pageTitle &&
+      prev.wide === next.wide
         ? prev
         : next
-    ));
+    );
   }, []);
+  const closeCommand = useCallback(() => setCommandOpen(false), []);
+  const activeKey = activeFor(location.pathname) || meta.activeNav;
+  const section =
+    [...NAV_ITEMS, BUILD_ACTION].find((item) => item.key === activeKey)?.label || 'Account';
+  const title = activeKey === 'dashboard' ? 'Overview' : meta.pageTitle || section;
+  const initials = (user?.full_name || 'Instructor')
+    .split(' ')
+    .filter(Boolean)
+    .map((part) => part[0])
+    .slice(0, 2)
+    .join('')
+    .toUpperCase();
 
-  const activeKey = meta.activeNav || deriveActiveKey(location.pathname);
-  const title = meta.pageTitle || SECTION_TITLES[activeKey] || 'Dashboard';
-  const section = SECTION_TITLES[activeKey] || '';
-  const isSectionRoot = section === title;
-  const initials = getInitials(user?.full_name);
-
-  // Close menus on outside click
   useEffect(() => {
-    function handleClick(e) {
-      if (userMenuRef.current && !userMenuRef.current.contains(e.target)) {
+    function handleClick(event) {
+      if (userMenuRef.current && !userMenuRef.current.contains(event.target))
         setUserMenuOpen(false);
+    }
+    function handleKey(event) {
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') {
+        event.preventDefault();
+        setMobileOpen(false);
+        setCommandOpen((value) => !value);
+      }
+      if (event.key === 'Escape') {
+        setUserMenuOpen(false);
+        if (userMenuRef.current?.contains(document.activeElement))
+          userMenuRef.current.querySelector('button')?.focus();
       }
     }
     document.addEventListener('mousedown', handleClick);
-    return () => document.removeEventListener('mousedown', handleClick);
+    window.addEventListener('keydown', handleKey);
+    return () => {
+      document.removeEventListener('mousedown', handleClick);
+      window.removeEventListener('keydown', handleKey);
+    };
   }, []);
 
-  // Close the mobile sidebar and any open menu on route change
   useEffect(() => {
     setMobileOpen(false);
     setUserMenuOpen(false);
-  }, [location.pathname]);
+    setCommandOpen(false);
+  }, [location.pathname, location.search]);
+
+  // The mobile rail behaves as a dialog: contained focus, Escape, and return focus.
+  useEffect(() => {
+    if (!mobileOpen) return;
+    const previous = document.body.style.overflow;
+    const menuButton = menuButtonRef.current;
+    document.body.style.overflow = 'hidden';
+    sidebarRef.current.querySelector('button')?.focus();
+    function onKey(event) {
+      if (event.key === 'Escape') setMobileOpen(false);
+      if (event.key !== 'Tab') return;
+      const controls = [...sidebarRef.current.querySelectorAll('a[href], button')].filter(
+        (element) => element.getClientRects().length
+      );
+      const first = controls[0],
+        last = controls.at(-1);
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last?.focus();
+      }
+      if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first?.focus();
+      }
+    }
+    const desktop = window.matchMedia('(min-width: 992px)');
+    function onResize(event) {
+      if (event.matches) setMobileOpen(false);
+    }
+    desktop.addEventListener('change', onResize);
+    window.addEventListener('keydown', onKey);
+    return () => {
+      document.body.style.overflow = previous;
+      window.removeEventListener('keydown', onKey);
+      desktop.removeEventListener('change', onResize);
+      menuButton?.focus();
+    };
+  }, [mobileOpen]);
 
   return (
     <div className="app-shell">
-      {/* Sidebar */}
-      <aside className={`sidebar ${mobileOpen ? 'mobile-open' : ''}`}>
+      <a href="#workspace-content" className="skip-link">
+        Skip to content
+      </a>
+      <aside
+        ref={sidebarRef}
+        id="workspace-navigation"
+        className={`sidebar ${mobileOpen ? 'mobile-open' : ''}`}
+        role={mobileOpen ? 'dialog' : undefined}
+        aria-modal={mobileOpen || undefined}
+        aria-label="Workspace navigation"
+      >
         <div className="sidebar-brand">
-          <img className="sidebar-mark" src="/favicon.png" alt="" />
-          <span className="sidebar-wordmark">
-            nexam
-            <small>Faculty workspace</small>
-          </span>
-          <button className="sidebar-close" type="button" aria-label="Close navigation" onClick={() => setMobileOpen(false)}>
+          <Link to="/dashboard" className="sidebar-brand-link" aria-label="Nexam overview">
+            <img className="sidebar-mark" src="/favicon.png" alt="" />
+            <span className="sidebar-wordmark">
+              nexam<span className="sidebar-edition">workspace</span>
+            </span>
+          </Link>
+          <button
+            className="sidebar-close"
+            type="button"
+            aria-label="Close navigation"
+            onClick={() => setMobileOpen(false)}
+          >
             <X size={18} />
           </button>
         </div>
-
+        <button
+          type="button"
+          className="sidebar-search"
+          aria-haspopup="dialog"
+          onClick={() => {
+            setMobileOpen(false);
+            setCommandOpen(true);
+          }}
+        >
+          <Search size={15} />
+          <span>Quick navigation</span>
+          <kbd>⌘ K</kbd>
+        </button>
         <nav className="sidebar-nav" aria-label="Primary navigation">
-          {NAV_ITEMS.map((item) => {
-            const Icon = item.icon;
-            const isActive = activeKey === item.key;
-            return (
-              <Link
-                key={item.key}
-                to={item.to}
-                className={`nav-item ${isActive ? 'active' : ''} ${item.featured ? 'nav-item--featured' : ''}`}
-                aria-current={isActive ? 'page' : undefined}
-                onPointerEnter={() => prefetchAll(item.prefetch)}
-                onFocus={() => prefetchAll(item.prefetch)}
-              >
-                <Icon size={16} />
-                <span>{item.label}</span>
-              </Link>
-            );
-          })}
+          {['home', 'Workspace', 'Assessment', 'Institution'].map((group) => (
+            <div className="nav-group" key={group}>
+              {group !== 'home' && <div className="nav-group-label">{group}</div>}
+              {NAV_ITEMS.filter((item) => item.group === group).map((item) => {
+                const Icon = item.icon;
+                return (
+                  <Link
+                    key={item.key}
+                    to={item.to}
+                    className={`nav-item ${activeKey === item.key ? 'active' : ''}`}
+                    aria-current={activeKey === item.key ? 'page' : undefined}
+                    onPointerEnter={() => prefetchAll(item.prefetch)}
+                    onFocus={() => prefetchAll(item.prefetch)}
+                  >
+                    <Icon size={17} />
+                    <span>{item.label}</span>
+                  </Link>
+                );
+              })}
+            </div>
+          ))}
         </nav>
-
-        {/* Account card pinned to the rail bottom */}
+        <div className="sidebar-create">
+          <Link
+            to="/wizard"
+            className={`nav-item nav-item--featured ${activeKey === 'wizard' ? 'active' : ''}`}
+            aria-current={activeKey === 'wizard' ? 'page' : undefined}
+            onPointerEnter={() => prefetchAll(BUILD_ACTION.prefetch)}
+          >
+            <Sparkles size={17} />
+            <span>Build an exam</span>
+            <ChevronRight size={14} />
+          </Link>
+        </div>
         <Link
           to="/account"
           className="sidebar-foot"
@@ -160,75 +220,88 @@ export default function AppLayout() {
         >
           <span className="avatar avatar-sm">{initials}</span>
           <span className="sidebar-foot-meta">
-            <strong>{user?.full_name || 'nexam user'}</strong>
-            <small>{user?.email || 'Account settings'}</small>
+            <strong>{user?.full_name || 'Instructor'}</strong>
+            <small>Personal workspace</small>
           </span>
+          <Settings2 size={16} aria-hidden="true" />
         </Link>
-
       </aside>
-
-      {/* Mobile overlay */}
       {mobileOpen && (
-        <div className="mobile-sidebar-overlay show" onClick={() => setMobileOpen(false)} />
+        <div
+          className="mobile-sidebar-overlay show"
+          onClick={() => setMobileOpen(false)}
+          aria-hidden="true"
+        />
       )}
-
-      {/* Main content */}
-      <main className="main-content">
-        {/* Topbar */}
+      <main className="main-content" inert={mobileOpen}>
         <header className="topbar">
           <div className="topbar-left">
             <button
+              ref={menuButtonRef}
               className="rail-toggle"
               type="button"
-              aria-label="Toggle navigation"
-              onClick={() => setMobileOpen((v) => !v)}
+              aria-label="Open navigation"
+              aria-expanded={mobileOpen}
+              aria-controls="workspace-navigation"
+              onClick={() => setMobileOpen(true)}
             >
               <Menu size={18} />
             </button>
-
+            <PanelLeft size={16} className="topbar-workspace-icon" aria-hidden="true" />
             <div className="topbar-heading">
-              {!isSectionRoot && section && <span className="topbar-context">{section}</span>}
+              <span className="topbar-workspace">Faculty workspace</span>
+              <ChevronRight size={13} className="topbar-divider" aria-hidden="true" />
               <span className="topbar-title">{title}</span>
               <Spinner size="sm" className={`topbar-spinner ${busy ? 'is-active' : ''}`} />
             </div>
           </div>
-
           <div className="topbar-right">
-            {/* User menu */}
+            <button
+              className="topbar-search"
+              type="button"
+              aria-label="Open quick navigation"
+              aria-haspopup="dialog"
+              onClick={() => setCommandOpen(true)}
+            >
+              <Search size={17} />
+            </button>
             <div className="user-menu" ref={userMenuRef}>
               <button
                 className="user-trigger"
                 type="button"
                 aria-label="Account menu"
-                aria-haspopup="menu"
                 aria-expanded={userMenuOpen}
-                onClick={() => setUserMenuOpen((v) => !v)}
+                onClick={() => setUserMenuOpen((value) => !value)}
               >
                 <span className="avatar avatar-sm">{initials}</span>
-                <ChevronDown size={15} />
+                <ChevronDown size={14} />
               </button>
-
               {userMenuOpen && (
-                <div className="user-dropdown" role="menu">
+                <div className="user-dropdown">
                   <div className="user-dropdown-head">
                     <span className="avatar">{initials}</span>
                     <div className="ud-meta">
-                      <div className="ud-name">{user?.full_name || 'nexam user'}</div>
+                      <div className="ud-name">{user?.full_name || 'Instructor'}</div>
                       <div className="ud-email">{user?.email || ''}</div>
                     </div>
                   </div>
                   <button
                     className="user-dropdown-item"
-                    role="menuitem"
-                    onClick={() => { setUserMenuOpen(false); navigate('/account'); }}
+                    onClick={() => {
+                      setUserMenuOpen(false);
+                      navigate('/account');
+                    }}
                   >
-                    <User size={16} /> Change Profile
+                    <User size={16} /> Account settings
                   </button>
                   <div className="user-dropdown-sep" />
                   <button
                     className="user-dropdown-item danger"
-                    role="menuitem"
-                    onClick={() => { setUserMenuOpen(false); logout(); navigate('/login'); }}
+                    onClick={() => {
+                      setUserMenuOpen(false);
+                      logout();
+                      navigate('/login');
+                    }}
                   >
                     <LogOut size={16} /> Log out
                   </button>
@@ -236,17 +309,24 @@ export default function AppLayout() {
               )}
             </div>
           </div>
-
-          <div className={`top-progress ${busy ? 'is-active' : ''}`} aria-hidden="true"><span /></div>
+          <div className={`top-progress ${busy ? 'is-active' : ''}`} aria-hidden="true">
+            <span />
+          </div>
         </header>
-
-        {/* Page content */}
-        <div className={`page-content ${meta.wide ? 'page-content--wide' : ''}`} aria-busy={busy}>
+        <div
+          id="workspace-content"
+          tabIndex={-1}
+          className={`page-content ${meta.wide ? 'page-content--wide' : ''}`}
+          aria-busy={busy}
+        >
           <ShellMetaContext.Provider value={updateMeta}>
-            <Outlet />
+            <Suspense fallback={<PageLoader label="Opening workspace…" />}>
+              <Outlet />
+            </Suspense>
           </ShellMetaContext.Provider>
         </div>
       </main>
+      {commandOpen && <CommandMenu open onClose={closeCommand} />}
     </div>
   );
 }

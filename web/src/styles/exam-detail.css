@@ -1,36 +1,37 @@
+/* ExamDetailPage: independent content layout and styles. */
+@scope (.page--exam-detail) {
+/* Layout owned by this screen. */
+.page-header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  margin-bottom: 1.25rem;
+  padding: 4px 0 0;
+}
+.page-header h1,
+.page-header h2 {
+  font-family: var(--font-display, "Google Sans", sans-serif);
+  font-size: 1.45rem;
+  font-weight: 650;
+  letter-spacing: -.025em;
+  color: var(--ink);
+}
+.page-header .page-sub { font-size: .875rem; color: var(--ink-3); margin-top: 3px; }
+.page-header-actions { display: flex; align-items: center; gap: .5rem; flex-wrap: wrap; }
+
+
+
 /* ==========================================================================
-   board.css — Monday-style board language for nexam
+   Page-owned board and status presentation
    --------------------------------------------------------------------------
    Layered on top of the shared .dataset grid: colored group headers, solid
    status pills, per-group summary bars, and a group-by control. Keep colour
    on state and structure only — taxonomy stays typography.
    ========================================================================== */
 
-:root {
-  /* Status pill tones (muted ramp, tuned to the Nexam palette) */
-  --st-orange: #C68A28;   /* draft · working on it · pending */
-  --st-orange-deep: #9E6B15;
-  --st-green:  #4E8A57;   /* live · active · done · finalized · processed */
-  --st-green-deep: #3E6E46;
-  --st-red:    #C04434;   /* rejected · failed · stuck */
-  --st-red-deep: #9E3527;
-  --st-blue:   #5B6BD6;   /* published · ready — brand-blue, not the action violet */
-  --st-blue-deep: #4553B8;
-  --st-gray:   #7A7886;   /* archived · neutral */
-  --st-gray-deep: #6B6A75;
-  --st-purple: #7C5CD6;   /* in review */
-  --st-purple-deep: #6441C4;
 
-  /* Group accent ramp — muted jewel tones, assigned round-robin */
-  --gc-1: #7C5CD6;
-  --gc-2: #5B6BD6;
-  --gc-3: #4E8A57;
-  --gc-4: #B07D1E;
-  --gc-5: #C2677E;
-  --gc-6: #2D9BB8;
-  --gc-7: #6E6BA8;
-  --gc-8: #64748B;
-}
 
 /* ==========================================================================
    Group header — collapsible band that owns the rows beneath it
@@ -373,4 +374,138 @@ tr:hover .b-status { background: color-mix(in srgb, var(--st, var(--st-gray)) 18
 
 @media (prefers-reduced-motion: reduce) {
   .b-group-caret, .b-sum-seg, .b-status { transition: none; }
+}
+
+/* exams.css — exam view styles */
+
+/* ── Exam detail layout ────────────────────────────── */
+.exam-detail-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 292px;
+  gap: 14px;
+  align-items: start;
+}
+.exam-detail-main { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+.exam-detail-side { display: flex; flex-direction: column; gap: 14px; position: sticky; top: 70px; }
+
+.exam-meta { display: flex; align-items: center; gap: 8px; margin-top: 5px; flex-wrap: wrap; }
+
+.card-instructions { border-left: 3px solid var(--gc, var(--line-strong)); }
+
+/* Details definition list */
+.detail-rows { margin: 0; padding: 4px 14px 8px; }
+.detail-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 7px 0;
+  border-bottom: 1px solid var(--line);
+  min-height: 34px;
+}
+.detail-row:last-child { border-bottom: 0; }
+.detail-row dt { font-size: .8125rem; color: var(--ink-3); font-weight: 500; flex-shrink: 0; }
+.detail-row dd {
+  margin: 0;
+  font-size: .8125rem;
+  font-weight: 600;
+  color: var(--ink);
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  text-align: right;
+  min-width: 0;
+}
+.detail-row dd svg { color: var(--ink-3); flex-shrink: 0; }
+.detail-ellip { max-width: 168px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* ── Print packs — the payoff moment ────────────────
+   One card per set. The set letter is the hero; each artefact is a full-width
+   row with its own icon and target, not a 28px button. A violet top rule ties
+   the pack to the brand without painting the whole card. */
+.print-packs { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px; }
+.print-pack {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+}
+.print-pack::before { content: ''; position: absolute; inset: 0 0 auto 0; height: 1px; background: var(--line); }
+.print-pack-head {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  padding: 16px 16px 12px;
+}
+.print-pack-set {
+  display: inline-flex;
+  align-items: center;
+  min-height: 30px;
+  padding: 0 10px;
+  border-radius: 8px;
+  background: var(--surface-2);
+  color: var(--ink);
+  font: 650 .9375rem/1 var(--font-display, "Google Sans", sans-serif);
+  letter-spacing: -.01em;
+}
+.print-pack-meta { color: var(--ink-3); font-size: .75rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.print-pack-qr { color: var(--ink-faint); }
+.print-pack-files { display: flex; flex-direction: column; padding: 0 6px 6px; }
+.print-pack-file {
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr) 14px;
+  align-items: center;
+  gap: 10px;
+  min-height: 46px;
+  padding: 7px 10px;
+  border-radius: 9px;
+  color: var(--ink-2);
+  transition: background-color .13s ease, color .13s ease;
+}
+.print-pack-file:hover { background: var(--surface-2); color: var(--ink); }
+.print-pack-file:focus-visible { outline: 2px solid var(--brand-accent); outline-offset: -2px; }
+.print-pack-file > svg:first-child { color: var(--ink-3); }
+.print-pack-file > svg:last-child { color: var(--ink-faint); opacity: 0; transition: opacity .13s ease; }
+.print-pack-file:hover > svg:last-child { opacity: 1; }
+.print-pack-file > span { display: flex; min-width: 0; flex-direction: column; }
+.print-pack-file strong { font: 500 .8125rem/1.3 var(--font-display, "Google Sans", sans-serif); color: var(--ink); }
+.print-pack-file small { color: var(--ink-faint); font-size: .6875rem; }
+@media (hover: none) { .print-pack-file > svg:last-child { opacity: 1; } }
+
+/* Export card reuses the file-row language */
+.dl-body { display: flex; flex-direction: column; gap: 2px; padding: 6px; }
+.dl-body .print-pack-file { min-height: 44px; }
+
+@media (max-width: 900px) {
+  .exam-detail-layout { grid-template-columns: 1fr; }
+  .exam-detail-side { position: static; }
+}
+
+/* ── Question picker (modal) ───────────────────────── */
+.q-picker { display: flex; flex-direction: column; gap: 8px; max-height: 400px; overflow-y: auto; }
+.q-pick-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: background-color .15s ease, border-color .15s ease;
+}
+.q-pick-item:hover { background: var(--surface-2); border-color: var(--line-strong); }
+.q-pick-item.selected { background: var(--surface-2); border-color: var(--ink-3); }
+.q-pick-checkbox { margin-top: 2px; }
+.q-pick-stem { font-size: var(--text-sm); color: var(--ink); flex: 1; }
+.q-pick-meta { font-size: var(--text-xs); color: var(--ink-3); margin-top: 2px; }
+
+.list-head, .page-header { align-items: center; padding-top: 8px; margin-bottom: 26px; gap: 16px; }
+.list-head-title, .page-header h1, .page-header h2 { font-size: 1.8rem; font-weight: 500; letter-spacing: -.045em; }
+.list-head-main > .eyebrow, .page-header .eyebrow { color: var(--ink-3); font-size: .64rem; font-weight: 500; letter-spacing: .04em; margin-bottom: 9px; }
+.list-head-count { font-size: .7rem; padding: 2px 7px; border: 1px solid var(--line); background: var(--surface-2); border-radius: 5px; }
+.page-description { flex: 1 1 100%; font-size: .79rem; color: var(--ink-3); margin-top: 7px; line-height: 1.6; }
+@media (max-width: 599px) { .list-head-title, .page-header h1, .page-header h2 { font-size: 1.55rem; } .list-head, .page-header { margin-bottom: 20px; align-items: flex-start; } }
+
 }

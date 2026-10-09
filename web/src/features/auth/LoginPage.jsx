@@ -1,3 +1,4 @@
+import '../../styles/auth-login.css';
 /**
  * LoginPage — email + password sign-in.
  *
@@ -6,25 +7,26 @@
  * with a verify token (re-issued via a quick login-then-forgot flow is not
  * needed here because the API returns needsVerification + email).
  */
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { Mail, Lock, Eye, EyeOff, AlertCircle, GraduationCap } from 'lucide-react';
+import {
+  Mail,
+  Lock,
+  Eye,
+  EyeOff,
+  AlertCircle,
+  GraduationCap,
+  FileText,
+  ListChecks,
+  Layers,
+  ArrowDown,
+} from 'lucide-react';
 import { useAuth } from './AuthContext.jsx';
-import { AuthSplash } from '../../components/Loaders.jsx';
 import api, { ApiError } from '../../lib/api.js';
 
 export default function LoginPage() {
   const { login } = useAuth();
   const navigate = useNavigate();
-
-  // Brand splash on entry: hold ~1.4s, fade out over ~350ms, then unmount.
-  const [splash, setSplash] = useState(true);
-  const [leaving, setLeaving] = useState(false);
-  useEffect(() => {
-    const hold = setTimeout(() => setLeaving(true), 1400);
-    const done = setTimeout(() => setSplash(false), 1750);
-    return () => { clearTimeout(hold); clearTimeout(done); };
-  }, []);
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -54,29 +56,61 @@ export default function LoginPage() {
     }
   }
 
-  if (splash) return <AuthSplash leaving={leaving} />;
-
   return (
     <div className="auth-page auth-page-login">
-      <a href="#login-form" className="skip-link">Skip to login form</a>
+      <a href="#login-form" className="skip-link">
+        Skip to login form
+      </a>
       <div className="auth-wrap">
         {/* Brand panel */}
         <div className="auth-panel">
-          <div className="panel-hero" aria-hidden="true">
-            <span className="panel-disc panel-disc--outer" />
-            <span className="panel-disc panel-disc--inner" />
-            <img src="/favicon.png" alt="" />
+          <div className="auth-workflow" aria-label="From your materials to an exam">
+            <div className="auth-workflow-label">A clearer path to exam day</div>
+            <div className="auth-workflow-step">
+              <span className="auth-workflow-icon">
+                <FileText size={20} />
+              </span>
+              <span>
+                <strong>Your course materials</strong>
+                <small>Notes, syllabus, and references</small>
+              </span>
+              <span className="auth-workflow-number">01</span>
+            </div>
+            <ArrowDown className="auth-workflow-arrow" size={17} aria-hidden="true" />
+            <div className="auth-workflow-step">
+              <span className="auth-workflow-icon">
+                <ListChecks size={20} />
+              </span>
+              <span>
+                <strong>Questions you can trust</strong>
+                <small>Grounded drafts. Your review and approval.</small>
+              </span>
+              <span className="auth-workflow-number">02</span>
+            </div>
+            <ArrowDown className="auth-workflow-arrow" size={17} aria-hidden="true" />
+            <div className="auth-workflow-step">
+              <span className="auth-workflow-icon">
+                <Layers size={20} />
+              </span>
+              <span>
+                <strong>Ready for the classroom</strong>
+                <small>Set A + Set B, keys, and OMR sheets</small>
+              </span>
+              <span className="auth-workflow-number">03</span>
+            </div>
           </div>
-          <span className="panel-badge">Faculty Portal</span>
+          <span className="panel-badge">Built for instructors</span>
           <div className="panel-title">
-            Build TOS-aligned exams<em>faster, grounded in your own materials.</em>
+            Less busywork.<em>More thoughtful assessments.</em>
           </div>
           <p className="panel-tagline">
-            Nexam turns your syllabus and lecture notes into a vetted question bank —
-            with Bloom alignment, similarity checks, and print-ready output.
+            Your materials, your expertise, one organized place. Create balanced exams with a little
+            help along the way.
           </p>
           <div className="panel-footer">
-            <div className="panel-icon"><GraduationCap /></div>
+            <div className="panel-icon">
+              <GraduationCap />
+            </div>
             <div className="panel-org">
               nexam
               <small>TOS-aligned Exam Builder</small>
@@ -104,35 +138,61 @@ export default function LoginPage() {
             )}
 
             <div className="form-group">
-              <label className="form-label" htmlFor="email">Email <span className="req">*</span></label>
+              <label className="form-label" htmlFor="email">
+                Email <span className="req">*</span>
+              </label>
               <div className="input-wrap">
-                <span className="input-icon"><Mail /></span>
+                <span className="input-icon">
+                  <Mail />
+                </span>
                 <input
-                  id="email" type="email" className="form-input" autoComplete="email"
+                  id="email"
+                  type="email"
+                  className="form-input"
+                  autoComplete="email"
                   placeholder="you@school.edu"
-                  value={email} onChange={(e) => setEmail(e.target.value)} required
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
                 />
               </div>
             </div>
 
             <div className="form-group">
-              <label className="form-label" htmlFor="password">Password <span className="req">*</span></label>
+              <label className="form-label" htmlFor="password">
+                Password <span className="req">*</span>
+              </label>
               <div className="input-wrap password-wrap">
-                <span className="input-icon"><Lock /></span>
+                <span className="input-icon">
+                  <Lock />
+                </span>
                 <input
-                  id="password" type={showPw ? 'text' : 'password'} className="form-input"
-                  autoComplete="current-password" placeholder="••••••••"
-                  value={password} onChange={(e) => setPassword(e.target.value)} required
+                  id="password"
+                  type={showPw ? 'text' : 'password'}
+                  className="form-input"
+                  autoComplete="current-password"
+                  placeholder="••••••••"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
                 />
-                <button type="button" className="password-toggle" onClick={() => setShowPw((s) => !s)}
-                  aria-label={showPw ? 'Hide password' : 'Show password'}>
+                <button
+                  type="button"
+                  className="password-toggle"
+                  onClick={() => setShowPw((s) => !s)}
+                  aria-label={showPw ? 'Hide password' : 'Show password'}
+                >
                   {showPw ? <EyeOff /> : <Eye />}
                 </button>
               </div>
             </div>
 
             <div className="btn-row-stacked">
-              <button type="submit" className={`btn-login ${loading ? 'is-loading' : ''}`} disabled={loading}>
+              <button
+                type="submit"
+                className={`btn-login ${loading ? 'is-loading' : ''}`}
+                disabled={loading}
+              >
                 {loading && <span className="btn-spinner" aria-hidden="true" />}
                 {loading ? 'Signing in…' : 'Sign in'}
               </button>

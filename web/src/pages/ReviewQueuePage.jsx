@@ -1,3 +1,4 @@
+import '../styles/review.css';
 /**
  * ReviewQueuePage — one-draft-at-a-time human review of AI-generated questions.
  *
@@ -23,7 +24,6 @@ import Modal from '../components/Modal.jsx';
 import api, { ApiError } from '../lib/api.js';
 import AppShell from '../components/AppShell.jsx';
 import { PageLoader } from '../components/Loaders.jsx';
-import '../styles/review.css';
 
 const BLOOM_LABELS = { remember: 'Remember', understand: 'Understand', apply: 'Apply', analyze: 'Analyze', evaluate: 'Evaluate', create: 'Create' };
 const BLOOM_ORDER = ['remember', 'understand', 'apply', 'analyze', 'evaluate', 'create'];
@@ -477,7 +477,7 @@ export default function ReviewQueuePage() {
   );
 
   return (
-    <AppShell activeNav="questions" pageTitle="Review Queue">
+    <AppShell pageClass="review" activeNav="questions" pageTitle="Review Queue">
       <header className="rv-head">
         <div className="rv-head-main">
           <span className="eyebrow">Question bank</span>

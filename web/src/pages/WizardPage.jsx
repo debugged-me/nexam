@@ -1,3 +1,4 @@
+import '../styles/wizard.css';
 /**
  * WizardPage — guided syllabus-to-exam pipeline.
  *
@@ -26,7 +27,6 @@ import Modal from '../components/Modal.jsx';
 import api, { ApiError } from '../lib/api.js';
 import AppShell from '../components/AppShell.jsx';
 import { PageLoader } from '../components/Loaders.jsx';
-import '../styles/wizard.css';
 
 const STAGES = [
   { key: 'source', label: 'Add source', hint: 'Your syllabus or reference', icon: Upload },
@@ -140,7 +140,7 @@ export default function WizardPage() {
   };
 
   return (
-    <AppShell activeNav="wizard" pageTitle="Build an exam">
+    <AppShell pageClass="wizard" activeNav="wizard" pageTitle="Build an exam">
       <header className="wizard-head">
         <div className="wizard-head-copy">
           <span className="eyebrow"><Sparkles size={13} /> Guided workspace</span>

@@ -1,3 +1,4 @@
+import '../styles/similarity.css';
 /**
  * SimilarityReviewPage — shows a flagged question alongside its near-duplicate
  * candidates so the instructor can decide whether to keep or reject it.
@@ -11,7 +12,6 @@ import { useToast } from '../components/Toast.jsx';
 import api from '../lib/api.js';
 import AppShell from '../components/AppShell.jsx';
 import { PageLoader } from '../components/Loaders.jsx';
-import '../styles/questions.css';
 
 const BLOOM_LABELS = { remember: 'Remember', understand: 'Understand', apply: 'Apply', analyze: 'Analyze', evaluate: 'Evaluate', create: 'Create' };
 const BLOOM_LEVELS = { remember: 1, understand: 2, apply: 3, analyze: 4, evaluate: 5, create: 6 };
@@ -42,14 +42,14 @@ export default function SimilarityReviewPage() {
     }
   }
 
-  if (!data) return <AppShell activeNav="questions" pageTitle="Similarity Review"><PageLoader label="Checking similar questions…" /></AppShell>;
+  if (!data) return <AppShell pageClass="similarity" activeNav="questions" pageTitle="Similarity Review"><PageLoader label="Checking similar questions…" /></AppShell>;
 
   const { question, matches } = data;
   const bl = BLOOM_LEVELS;
   const questionLevel = question.bloom ? bl[question.bloom] || 0 : 0;
 
   return (
-    <AppShell activeNav="questions" pageTitle="Similarity Review">
+    <AppShell pageClass="similarity" activeNav="questions" pageTitle="Similarity Review">
       <div className="page-header">
         <div>
           <span className="eyebrow">Question bank</span>

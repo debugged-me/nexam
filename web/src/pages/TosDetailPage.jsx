@@ -1,3 +1,4 @@
+import '../styles/blueprint-detail.css';
 /**
  * TosDetailPage — TOS builder with topic management.
  *
@@ -16,7 +17,6 @@ import { useConfirm } from '../components/ConfirmDialog.jsx';
 import api, { ApiError } from '../lib/api.js';
 import AppShell from '../components/AppShell.jsx';
 import { PageLoader } from '../components/Loaders.jsx';
-import '../styles/tos.css';
 
 const BLOOM_LABELS = { remember: 'Remember', understand: 'Understand', apply: 'Apply', analyze: 'Analyze', evaluate: 'Evaluate', create: 'Create' };
 const BLOOM_ORDER = ['remember', 'understand', 'apply', 'analyze', 'evaluate', 'create'];
@@ -305,13 +305,13 @@ export default function TosDetailPage() {
     [data]
   );
 
-  if (!data) return <AppShell activeNav="tos" pageTitle="Blueprint"><PageLoader label="Loading blueprint…" /></AppShell>;
+  if (!data) return <AppShell pageClass="blueprint-detail" activeNav="tos" pageTitle="Blueprint"><PageLoader label="Loading blueprint…" /></AppShell>;
   const { tos, topics } = data;
   const finalized = tos.status === 'finalized';
   const totalHours = topics.reduce((s, t) => s + (Number(t.instructional_hours) || 0), 0);
 
   return (
-    <AppShell activeNav="tos" pageTitle={tos.title}>
+    <AppShell pageClass="blueprint-detail" activeNav="tos" pageTitle={tos.title}>
 
       <div className="page-header">
         <div>

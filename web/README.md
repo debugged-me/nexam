@@ -1,16 +1,44 @@
-# React + Vite
+# Nexam web
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+React and Vite instructor workspace. The Node API in `../api` is the only backend.
 
-Currently, two official plugins are available:
+Run `npm run dev` from this directory, or `npm run dev` at the repository root to
+start both servers. Verify web changes with `npm run build` and `npm run lint`.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## Editing a screen
 
-## React Compiler
+Each page imports its own CSS file from `src/styles/`. Page layout rules live
+inside `@scope (.page--<name>)`; the page passes that name as `pageClass` to
+`AppShell`. This wrapper only supplies route metadata and the CSS boundary.
+The actual content layout stays in the page's JSX and stylesheet.
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+List, detail, and form screens are independent. For example:
 
-## Expanding the Oxlint configuration
+| Screen | Component | Stylesheet |
+| --- | --- | --- |
+| Overview | `DashboardPage.jsx` | `dashboard.css` |
+| Subjects | `SubjectsPage.jsx` | `subjects.css` |
+| Question bank | `QuestionsPage.jsx` | `questions.css` |
+| Review queue | `ReviewQueuePage.jsx` | `review.css` |
+| Exam list | `ExamsPage.jsx` | `exams.css` |
+| Exam detail | `ExamDetailPage.jsx` | `exam-detail.css` |
+| Exam form | `ExamFormPage.jsx` | `exam-form.css` |
+| Blueprint list | `TosPage.jsx` | `tos.css` |
+| Blueprint detail | `TosDetailPage.jsx` | `blueprint-detail.css` |
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and Oxlint's TypeScript related rules in your project.
+Authentication pages each have `auth-<page>.css`, scoped to their own root.
+Use `:scope` when styling the scope root itself. Do not import a page's CSS
+from another screen or add page styles to `App.jsx`.
+
+Table and board rules are deliberately owned by each consuming page. Editing
+`subjects.css` will not change the question bank or exams table. Some CSS is
+duplicated to preserve this independence. Routes load their code and CSS on demand.
+
+`tokens.css` provides fonts, colors, and spacing. `app.css` provides application
+navigation and basic controls; dialog, toast, and loading primitives have their
+own styles. These are the limited common foundations. Avoid putting new page
+composition rules there.
+
+Quick navigation opens with Cmd/Ctrl+K. It searches page names and descriptions,
+not private instructor content. Respect reduced motion and verify pages at
+380px, 768px, and 1024px or wider, including keyboard focus and mobile navigation.

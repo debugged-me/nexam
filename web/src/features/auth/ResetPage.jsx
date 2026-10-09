@@ -1,3 +1,4 @@
+import '../../styles/auth-reset.css';
 /**
  * ResetPage — enter the reset OTP code + choose a new password.
  *

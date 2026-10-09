@@ -1,3 +1,4 @@
+import '../styles/institution.css';
 import { useEffect, useMemo, useState } from 'react';
 import { Copy, Library, Rows3, Search, StretchHorizontal } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
@@ -81,7 +82,7 @@ export default function InstitutionBankPage() {
   }
 
   return (
-    <AppShell activeNav="institution" pageTitle="Institution question bank" wide>
+    <AppShell pageClass="institution" activeNav="institution" pageTitle="Institution question bank" wide>
       <section className="institution-head">
         <div>
           <span className="eyebrow">Approved resources</span>

@@ -1,3 +1,4 @@
+import '../../styles/auth-verify.css';
 /**
  * VerifyPage — enter the 6-digit OTP code sent to the email.
  *

@@ -1,3 +1,4 @@
+import '../styles/analytics.css';
 /**
  * AnalyticsPage — performance dashboard with exam overview, score
  * distributions, and student scores.
@@ -18,7 +19,6 @@ import { useToast } from '../components/Toast.jsx';
 import api from '../lib/api.js';
 import AppShell from '../components/AppShell.jsx';
 import { PageLoader } from '../components/Loaders.jsx';
-import '../styles/analytics.css';
 
 /** Format a score with one decimal, e.g. 87.5%. */
 function fmtPct1(v) {
@@ -83,7 +83,7 @@ export default function AnalyticsPage() {
   // ── Loading ──────────────────────────────────────────
   if (!overview) {
     return (
-      <AppShell activeNav="analytics" pageTitle="Analytics" wide>
+      <AppShell pageClass="analytics" activeNav="analytics" pageTitle="Analytics" wide>
         <PageLoader label="Loading results…" />
       </AppShell>
     );
@@ -92,7 +92,7 @@ export default function AnalyticsPage() {
   // ── Exam detail view ─────────────────────────────────
   if (selectedExam) {
     return (
-      <AppShell activeNav="analytics" pageTitle="Analytics" wide>
+      <AppShell pageClass="analytics" activeNav="analytics" pageTitle="Analytics" wide>
         <ExamDetail
           examId={selectedExam}
           detail={examDetail}
@@ -108,7 +108,7 @@ export default function AnalyticsPage() {
   const recentScans = overview.recentScans || [];
 
   return (
-    <AppShell activeNav="analytics" pageTitle="Results & insights" wide>
+    <AppShell pageClass="analytics" activeNav="analytics" pageTitle="Results & insights" wide>
       <div className="page-header">
         <div>
           <span className="eyebrow">Results &amp; insights</span>

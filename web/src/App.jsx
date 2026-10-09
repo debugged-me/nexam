@@ -9,7 +9,7 @@
  * <RequireAuth>, which redirects to /login if no JWT is present. The layout
  * stays mounted between pages so navigation only swaps the page body.
  */
-import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useLocation, matchPath } from 'react-router-dom';
 import { AuthProvider, useAuth } from './features/auth/AuthContext.jsx';
 import { ToastProvider, useToast } from './components/Toast.jsx';
 import AppLayout from './components/AppLayout.jsx';
@@ -91,6 +91,40 @@ function ToastOnMount() {
   return null;
 }
 
+/** Route pattern → document title segment. Order matters: static segments
+ *  must precede param patterns that would also match (e.g. /exams/new vs
+ *  /exams/:id). */
+const PAGE_TITLES = [
+  ['/dashboard', 'Home'],
+  ['/wizard', 'Build an exam'],
+  ['/subjects', 'Subjects'],
+  ['/materials', 'Materials'],
+  ['/tos', 'Blueprints'],
+  ['/tos/:id', 'Blueprint'],
+  ['/questions/institution', 'Institution bank'],
+  ['/questions/review', 'Review drafts'],
+  ['/questions/:id/similarity', 'Similarity review'],
+  ['/questions', 'Question bank'],
+  ['/exams/new', 'New exam'],
+  ['/exams/:id/edit', 'Edit exam'],
+  ['/exams/:id', 'Exam'],
+  ['/exams', 'Exams'],
+  ['/analytics/items/:examId', 'Item analysis'],
+  ['/analytics/ai-eval', 'AI evaluation'],
+  ['/analytics', 'Results & insights'],
+  ['/account', 'Account'],
+];
+
+/** Keeps the browser tab title in sync with the current page. */
+function TitleOnRoute() {
+  const { pathname } = useLocation();
+  useEffect(() => {
+    const match = PAGE_TITLES.find(([pattern]) => matchPath({ path: pattern, end: true }, pathname));
+    document.title = match ? `nexam — ${match[1]}` : 'nexam';
+  }, [pathname]);
+  return null;
+}
+
 /** Start each screen at its beginning. BrowserRouter otherwise preserves the
  * previous document scroll position, which can make a new route look clipped. */
 function ScrollToTop() {
@@ -106,6 +140,7 @@ export default function App() {
     <ToastProvider>
       <AuthProvider>
         <BrowserRouter>
+          <TitleOnRoute />
           <ScrollToTop />
           <ToastOnMount />
           <Routes>

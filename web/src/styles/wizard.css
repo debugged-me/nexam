@@ -9,7 +9,7 @@
   border-bottom: 1px solid var(--line);
 }
 .wizard-head-copy { max-width: 680px; }
-.wizard-eyebrow { display: inline-flex; align-items: center; gap: 6px; margin-bottom: 9px; color: var(--action-700); font-family: var(--font-display); font-size: .68rem; font-weight: 700; letter-spacing: .09em; text-transform: uppercase; }
+.wizard-eyebrow { display: inline-flex; align-items: center; gap: 6px; margin-bottom: 9px; color: var(--action-700); font-family: var(--font-display); font-size: .75rem; font-weight: 600; }
 .wizard-head h1 { margin: 0; font-family: var(--font-display); font-size: clamp(1.35rem, 2.2vw, 1.75rem); font-weight: 650; letter-spacing: -.035em; line-height: 1.1; color: var(--ink); }
 .wizard-head p { max-width: 62ch; margin: 9px 0 0; color: var(--ink-3); font-size: .86rem; line-height: 1.6; }
 .wizard-subject-picker { display: grid; grid-template-columns: minmax(210px, 280px) 40px; gap: 7px; align-items: end; flex-shrink: 0; }
@@ -42,8 +42,8 @@
 .wizard-card h3 { max-width: 620px; margin: 0; font-family: var(--font-display); font-size: 1.15rem; font-weight: 650; letter-spacing: -.02em; color: var(--ink); }
 .wizard-card p { max-width: 680px; margin: 0; color: var(--ink-2); font-size: .84rem; line-height: 1.55; }
 .wizard-card .btn-primary { margin-top: 4px; }
-.wizard-card-error { border-color: #f1b6b6; background: var(--red-50); }
-.wizard-card-success { border-color: #9bdcc3; background: #f8fdfb; }
+.wizard-card-error { border-color: var(--red-100); background: var(--red-50); }
+.wizard-card-success { border-color: var(--green-100); background: var(--green-50); }
 
 /* Dashed upload affordance — matches the Materials drop-zone language. */
 .wizard-drop {

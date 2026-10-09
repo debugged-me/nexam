@@ -178,7 +178,7 @@
 .g-state.is-rejected { color: var(--ink-3); }
 .g-state.is-rejected::before {
     background: var(--red-600);
-    box-shadow: 0 0 0 4px rgba(220, 38, 38, .12);
+    box-shadow: 0 0 0 4px rgba(192, 68, 52, .12);
 }
 
 /* ---- Toolbar filter cluster ------------------------------------------

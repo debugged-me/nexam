@@ -1,0 +1,83 @@
+/**
+ * ConfirmDialog — promise-based confirmation modal.
+ *
+ * Replaces window.confirm() so every destructive action uses the app's own
+ * dialog chrome instead of the browser's native prompt. Call sites read like
+ * the native API:
+ *
+ *   const confirm = useConfirm();
+ *   if (!(await confirm('Delete this question?'))) return;
+ *
+ * Options: { title, confirmText, danger }. danger defaults to true (red
+ * button); pass danger: false for non-destructive confirmations such as
+ * publishing.
+ */
+import { createContext, useContext, useState, useCallback, useRef } from 'react';
+import { AlertTriangle } from 'lucide-react';
+import Modal from './Modal.jsx';
+
+const ConfirmContext = createContext(null);
+
+export function ConfirmProvider({ children }) {
+  const [state, setState] = useState(null);
+  const resolveRef = useRef(null);
+
+  const close = useCallback((result) => {
+    resolveRef.current?.(result);
+    resolveRef.current = null;
+    setState(null);
+  }, []);
+
+  const confirm = useCallback((message, options = {}) => {
+    resolveRef.current?.(false); // a new prompt supersedes a pending one
+    return new Promise((resolve) => {
+      resolveRef.current = resolve;
+      setState({
+        title: options.title || 'Are you sure?',
+        message,
+        confirmText: options.confirmText || 'Delete',
+        danger: options.danger !== false,
+      });
+    });
+  }, []);
+
+  return (
+    <ConfirmContext.Provider value={confirm}>
+      {children}
+      <Modal
+        open={!!state}
+        title={state?.title || ''}
+        onClose={() => close(false)}
+        size="sm"
+        footer={(
+          <>
+            <button type="button" className="btn" onClick={() => close(false)}>Cancel</button>
+            <button
+              type="button"
+              className={state?.danger ? 'btn btn-danger' : 'btn btn-primary'}
+              autoFocus
+              onClick={() => close(true)}
+            >
+              {state?.confirmText}
+            </button>
+          </>
+        )}
+      >
+        <div className="confirm-body">
+          {state?.danger && (
+            <span className="confirm-icon" aria-hidden="true">
+              <AlertTriangle size={18} />
+            </span>
+          )}
+          <p className="confirm-message">{state?.message}</p>
+        </div>
+      </Modal>
+    </ConfirmContext.Provider>
+  );
+}
+
+export function useConfirm() {
+  const ctx = useContext(ConfirmContext);
+  if (!ctx) throw new Error('useConfirm must be used inside <ConfirmProvider>');
+  return ctx;
+}

@@ -13,7 +13,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import {
-  GraduationCap, Home, BookOpen, FolderOpen, CircleHelp,
+  Home, BookOpen, FolderOpen, CircleHelp,
   PanelsTopLeft, FileText, BarChart3, Menu, ChevronDown,
   LogOut, User, X, Sparkles, Plus, Upload, Library, Layers,
 } from 'lucide-react';
@@ -139,7 +139,7 @@ export default function AppLayout() {
       {/* Sidebar */}
       <aside className={`sidebar ${mobileOpen ? 'mobile-open' : ''}`}>
         <div className="sidebar-brand">
-          <span className="sidebar-mark"><GraduationCap size={16} /></span>
+          <img className="sidebar-mark" src="/favicon.png" alt="" />
           <span className="sidebar-wordmark">
             nexam
             <small>Faculty workspace</small>
@@ -147,6 +147,34 @@ export default function AppLayout() {
           <button className="sidebar-close" type="button" aria-label="Close navigation" onClick={() => setMobileOpen(false)}>
             <X size={18} />
           </button>
+        </div>
+
+        {/* Primary action — Claude-style "+ New" pill pinned under the brand */}
+        <div className="sidebar-actions">
+          <div className="quick-create" ref={createMenuRef}>
+            <button className="quick-create-trigger" type="button" aria-haspopup="menu" aria-expanded={createMenuOpen} onClick={() => setCreateMenuOpen((v) => !v)}>
+              <Plus size={16} />
+              <span>Create</span>
+              <ChevronDown size={14} />
+            </button>
+            {createMenuOpen && (
+              <div className="quick-create-menu" role="menu">
+                <div className="quick-create-head">Create new</div>
+                <Link to="/exams/new" className="quick-create-item is-primary" role="menuitem" onClick={() => setCreateMenuOpen(false)}>
+                  <span><FileText size={17} /></span><div><strong>Exam</strong><small>Build from your question bank</small></div>
+                </Link>
+                <Link to="/questions?new=1" className="quick-create-item" role="menuitem" onClick={() => setCreateMenuOpen(false)}>
+                  <span><CircleHelp size={17} /></span><div><strong>Question</strong><small>Add one directly to the bank</small></div>
+                </Link>
+                <Link to="/materials?upload=1" className="quick-create-item" role="menuitem" onClick={() => setCreateMenuOpen(false)}>
+                  <span><Upload size={17} /></span><div><strong>Material</strong><small>Upload a syllabus or reference</small></div>
+                </Link>
+                <Link to="/subjects?new=1" className="quick-create-item" role="menuitem" onClick={() => setCreateMenuOpen(false)}>
+                  <span><BookOpen size={17} /></span><div><strong>Subject</strong><small>Start a new course workspace</small></div>
+                </Link>
+              </div>
+            )}
+          </div>
         </div>
 
         <nav className="sidebar-nav" aria-label="Primary navigation">
@@ -239,30 +267,6 @@ export default function AppLayout() {
           </div>
 
           <div className="topbar-right">
-            <div className="quick-create" ref={createMenuRef}>
-              <button className="quick-create-trigger" type="button" aria-haspopup="menu" aria-expanded={createMenuOpen} onClick={() => setCreateMenuOpen((v) => !v)}>
-                <Plus size={16} />
-                <span>Create</span>
-                <ChevronDown size={14} />
-              </button>
-              {createMenuOpen && (
-                <div className="quick-create-menu" role="menu">
-                  <div className="quick-create-head">Create new</div>
-                  <Link to="/exams/new" className="quick-create-item is-primary" role="menuitem" onClick={() => setCreateMenuOpen(false)}>
-                    <span><FileText size={17} /></span><div><strong>Exam</strong><small>Build from your question bank</small></div>
-                  </Link>
-                  <Link to="/questions?new=1" className="quick-create-item" role="menuitem" onClick={() => setCreateMenuOpen(false)}>
-                    <span><CircleHelp size={17} /></span><div><strong>Question</strong><small>Add one directly to the bank</small></div>
-                  </Link>
-                  <Link to="/materials?upload=1" className="quick-create-item" role="menuitem" onClick={() => setCreateMenuOpen(false)}>
-                    <span><Upload size={17} /></span><div><strong>Material</strong><small>Upload a syllabus or reference</small></div>
-                  </Link>
-                  <Link to="/subjects?new=1" className="quick-create-item" role="menuitem" onClick={() => setCreateMenuOpen(false)}>
-                    <span><BookOpen size={17} /></span><div><strong>Subject</strong><small>Start a new course workspace</small></div>
-                  </Link>
-                </div>
-              )}
-            </div>
             {/* User menu */}
             <div className="user-menu" ref={userMenuRef}>
               <button

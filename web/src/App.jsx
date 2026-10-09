@@ -12,6 +12,7 @@
 import { BrowserRouter, Routes, Route, Navigate, useLocation, matchPath } from 'react-router-dom';
 import { AuthProvider, useAuth } from './features/auth/AuthContext.jsx';
 import { ToastProvider, useToast } from './components/Toast.jsx';
+import { ConfirmProvider } from './components/ConfirmDialog.jsx';
 import AppLayout from './components/AppLayout.jsx';
 import { BootScreen } from './components/Loaders.jsx';
 import { useEffect } from 'react';
@@ -139,6 +140,7 @@ export default function App() {
   return (
     <ToastProvider>
       <AuthProvider>
+        <ConfirmProvider>
         <BrowserRouter>
           <TitleOnRoute />
           <ScrollToTop />
@@ -178,6 +180,7 @@ export default function App() {
             <Route path="*" element={<Navigate to="/dashboard" replace />} />
           </Routes>
         </BrowserRouter>
+        </ConfirmProvider>
       </AuthProvider>
     </ToastProvider>
   );

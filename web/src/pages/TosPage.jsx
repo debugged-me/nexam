@@ -8,6 +8,7 @@ import { useEffect, useState, useCallback, useMemo } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { Plus, Pencil, Trash2, Info, Eye, FilePlus2, Upload, Check, Layers } from 'lucide-react';
 import { useToast } from '../components/Toast.jsx';
+import { useConfirm } from '../components/ConfirmDialog.jsx';
 import Modal from '../components/Modal.jsx';
 import api, { ApiError } from '../lib/api.js';
 import AppShell from '../components/AppShell.jsx';
@@ -31,6 +32,7 @@ function fmtDate(iso) {
 
 export default function TosPage() {
   const toast = useToast();
+  const confirm = useConfirm();
   const [searchParams, setSearchParams] = useSearchParams();
   const [tosList, setTosList] = useState(() => api.peek('/tos')?.tos ?? null);
   const [subjects, setSubjects] = useState(() => api.peek('/subjects')?.subjects ?? []);
@@ -108,7 +110,7 @@ export default function TosPage() {
   }
 
   async function handleDelete(tos) {
-    if (!confirm(`Delete "${tos.title}"? This cannot be undone.`)) return;
+    if (!(await confirm(`Delete "${tos.title}"? This cannot be undone.`, { title: 'Delete blueprint' }))) return;
     try { await api.del(`/tos/${tos.id}`); toast.success('TOS deleted.'); load(); }
     catch (err) { toast.error(err.message || 'Delete failed.'); }
   }

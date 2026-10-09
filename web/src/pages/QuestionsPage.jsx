@@ -16,6 +16,7 @@ import {
   MoreVertical, FileText, ListChecks, RotateCcw, FilterX, Layers,
 } from 'lucide-react';
 import { useToast } from '../components/Toast.jsx';
+import { useConfirm } from '../components/ConfirmDialog.jsx';
 import Modal from '../components/Modal.jsx';
 import api, { ApiError } from '../lib/api.js';
 import AppShell from '../components/AppShell.jsx';
@@ -78,6 +79,7 @@ function questionsPath(filters) {
 
 export default function QuestionsPage() {
   const toast = useToast();
+  const confirm = useConfirm();
   const [searchParams, setSearchParams] = useSearchParams();
   const [questions, setQuestions] = useState(() => api.peek(questionsPath(DEFAULT_FILTERS))?.questions ?? null);
   const [subjects, setSubjects] = useState(() => api.peek('/subjects')?.subjects ?? []);
@@ -326,7 +328,7 @@ export default function QuestionsPage() {
   }
   async function handleDelete(q) {
     setMenuOpen(null);
-    if (!confirm('Delete this question? This cannot be undone.')) return;
+    if (!(await confirm('Delete this question? This cannot be undone.', { title: 'Delete question' }))) return;
     try { await api.del(`/questions/${q.id}`); toast.success('Question deleted.'); load(); }
     catch (err) { toast.error(err.message || 'Delete failed.'); }
   }
@@ -383,7 +385,7 @@ export default function QuestionsPage() {
   async function handleBulkDelete() {
     const ids = selectedRows.map((q) => q.id);
     if (!ids.length) return;
-    if (!confirm(`Delete ${ids.length} question${ids.length === 1 ? '' : 's'}? This cannot be undone — reject instead if you want to keep the record.`)) return;
+    if (!(await confirm(`Delete ${ids.length} question${ids.length === 1 ? '' : 's'}? This cannot be undone — reject instead if you want to keep the record.`, { title: 'Delete questions' }))) return;
     setBulkBusy('delete');
     try {
       const data = await api.post('/questions/bulk-delete', { ids });

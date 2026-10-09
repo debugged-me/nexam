@@ -12,6 +12,7 @@ import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { Plus, Trash2, BookOpen, ChevronRight, Sparkles, FileText, Pencil, ListOrdered, Layers, Clock, Check, X, AlertTriangle, Lock } from 'lucide-react';
 import { useToast } from '../components/Toast.jsx';
+import { useConfirm } from '../components/ConfirmDialog.jsx';
 import api, { ApiError } from '../lib/api.js';
 import AppShell from '../components/AppShell.jsx';
 import { PageLoader } from '../components/Loaders.jsx';
@@ -159,6 +160,7 @@ function buildMatrix(tos, topics) {
 export default function TosDetailPage() {
   const { id } = useParams();
   const toast = useToast();
+  const confirm = useConfirm();
   const navigate = useNavigate();
   const [data, setData] = useState(() => api.peek(`/tos/${id}`) ?? null);
   const [newTopic, setNewTopic] = useState({ title: '', instructional_hours: 0, outcomes: '' });
@@ -239,7 +241,7 @@ export default function TosDetailPage() {
   }
 
   async function handleDeleteTopic(topicId) {
-    if (!confirm('Remove this topic? This cannot be undone.')) return;
+    if (!(await confirm('Remove this topic? This cannot be undone.', { title: 'Remove topic', confirmText: 'Remove' }))) return;
     try {
       await api.del(`/tos/${id}/topics/${topicId}`);
       toast.success('Topic removed.');

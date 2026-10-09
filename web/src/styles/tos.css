@@ -307,7 +307,7 @@
     display: inline-flex;
     align-items: center;
     gap: 6px;
-    color: var(--amber-700, #b45309);
+    color: var(--amber-700, #8F6617);
     font: 500 .75rem/1.2 var(--font-body, "Inter", sans-serif);
 }
 .tos-matrix-drift svg { flex: none; }

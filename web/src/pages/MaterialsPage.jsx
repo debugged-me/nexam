@@ -21,6 +21,7 @@ import {
   BookOpen, Loader2, CheckCircle2, AlertCircle, RefreshCw, X,
 } from 'lucide-react';
 import { useToast } from '../components/Toast.jsx';
+import { useConfirm } from '../components/ConfirmDialog.jsx';
 import Modal from '../components/Modal.jsx';
 import api, { ApiError, getToken } from '../lib/api.js';
 import AppShell from '../components/AppShell.jsx';
@@ -69,6 +70,7 @@ function dragHasFiles(e) {
 
 export default function MaterialsPage() {
   const toast = useToast();
+  const confirm = useConfirm();
   const [searchParams, setSearchParams] = useSearchParams();
   const [materials, setMaterials] = useState(() => api.peek('/materials')?.materials ?? null);
   const [subjects, setSubjects] = useState(() => api.peek('/subjects')?.subjects ?? []);
@@ -339,7 +341,7 @@ export default function MaterialsPage() {
   }
 
   async function handleDelete(mat) {
-    if (!confirm('Delete this material? Its chunks and embeddings will be removed.')) return;
+    if (!(await confirm('Delete this material? Its chunks and embeddings will be removed.', { title: 'Delete material' }))) return;
     try { await api.del(`/materials/${mat.id}`); toast.success('Material deleted.'); load(); }
     catch (err) { toast.error(err.message || 'Delete failed.'); }
   }

@@ -82,73 +82,74 @@
   --font-display: "Google Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   --font-body: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 
-  /* ---- Brand ---- */
-  --brand:        #103A61;
-  --brand-deep:   #092945;
-  --brand-soft:   #1A5D99;
-  --brand-accent: #66B7FA;
+  /* ---- Brand: warm ink identity (Claude-style reskin) ---- */
+  --brand:        #141413;
+  --brand-deep:   #0C0C0B;
+  --brand-soft:   #3D3D3A;
+  --brand-accent: #D97757;
 
-  /* Primary actions */
-  --action-50:   #EFF7FF;
-  --action-100:  #D8EBFC;
-  --action-600:  #1E78D2;
-  --action-700:  #155FA9;
+  /* Primary actions — Claude coral */
+  --action-50:   #FBF1EC;
+  --action-100:  #F4E0D5;
+  --action-600:  #D97757;
+  --action-700:  #BE5C3D;
 
-  /* ---- Blue scale ---- */
-  --blue-50:  #EDF6FD;
-  --blue-100: #CFE6FA;
-  --blue-600: #2383E2;
-  --blue-700: #1A6CBD;
+  /* ---- Coral scale (kept on the blue-* names so old refs follow) ---- */
+  --blue-50:  #FBF1EC;
+  --blue-100: #F4E0D5;
+  --blue-600: #D97757;
+  --blue-700: #BE5C3D;
 
-  /* ---- Bloom ramp: sequential blue, ordinal 1 (Remember) → 6 (Create) ---- */
-  --bloom-1: #DCEDFB;
-  --bloom-2: #B5DAF8;
-  --bloom-3: #87C2F2;
-  --bloom-4: #57A6EA;
-  --bloom-5: #2383E2;
-  --bloom-6: #1A6CBD;
+  /* ---- Bloom ramp: sequential sand → terracotta, 1 (Remember) → 6 (Create) ---- */
+  --bloom-1: #F5EDE4;
+  --bloom-2: #EBD9C8;
+  --bloom-3: #DEBDA0;
+  --bloom-4: #D89B77;
+  --bloom-5: #D97757;
+  --bloom-6: #B85C3E;
 
-  /* ---- Status ---- */
-  --green-50:  #ECFDF5;
-  --green-100: #D1FAE5;
-  --green-600: #059669;
-  --green-700: #047857;
+  /* ---- Status: muted, warm-tuned ---- */
+  --green-50:  #F1F7EF;
+  --green-100: #DFF0DC;
+  --green-600: #4E8A57;
+  --green-700: #3E6E46;
 
-  --amber-50:  #FFFBEB;
-  --amber-100: #FEF3C7;
-  --amber-600: #D97706;
-  --amber-700: #B45309;
+  --amber-50:  #FAF4E4;
+  --amber-100: #F2E7C8;
+  --amber-600: #B07D1E;
+  --amber-700: #8F6617;
 
-  --red-50:  #FEF2F2;
-  --red-100: #FEE2E2;
-  --red-600: #DC2626;
-  --red-700: #B91C1C;
+  --red-50:  #FAECE8;
+  --red-100: #F3D5CC;
+  --red-600: #C04434;
+  --red-700: #9E3527;
 
-  --purple-50:  #F5F3FF;
-  --purple-600: #7C3AED;
-  --purple-700: #6D28D9;
+  --purple-50:  #F3F0F8;
+  --purple-600: #7C63B0;
+  --purple-700: #654E94;
 
-  --teal-50:  #EDF6FD;
-  --teal-600: #1A6CBD;
+  --teal-50:  #EBF3F0;
+  --teal-600: #4E8577;
 
   /* ---- Focus and wash ---- */
-  --ring:        rgba(35, 131, 226, .20);
-  --ring-soft:   rgba(35, 131, 226, .10);
-  --accent-wash: rgba(99, 179, 245, .14);
-  --accent-line: rgba(99, 179, 245, .30);
+  --ring:        rgba(217, 119, 87, .22);
+  --ring-soft:   rgba(217, 119, 87, .10);
+  --accent-wash: rgba(217, 119, 87, .12);
+  --accent-line: rgba(217, 119, 87, .32);
 
-  /* ---- Ink: cool greys ---- */
-  --ink:       #122033;
-  --ink-2:     #35465C;
-  --ink-3:     #607087;
-  --ink-faint: #8492A6;
+  /* ---- Ink: warm greys ---- */
+  --ink:       #141413;
+  --ink-2:     #3D3D3A;
+  --ink-3:     #6F6E69;
+  --ink-faint: #8F8D84;
 
-  /* ---- Surfaces ---- */
+  /* ---- Surfaces: white identity ---- */
+  --canvas:    #FFFFFF;   /* page backdrop — pure white */
   --surface:   #FFFFFF;
-  --surface-2: #F4F7FB;
-  --surface-3: #EAF0F7;
-  --line:        #DDE6F0;
-  --line-strong: #C2D0DF;
+  --surface-2: #FAFAF8;   /* dirty-white fill — subtle hover/inset tint */
+  --surface-3: #F2F1ED;
+  --line:        #E9E8E3;
+  --line-strong: #DAD8D1;
 
   /* ---- Shape ---- */
   --radius-xs: 6px;
@@ -158,10 +159,10 @@
   --radius-md: 12px;   /* between base and lg — callouts, tiles */
   --radius-xl: 18px;   /* hero surfaces — KPI tiles */
 
-  /* ---- Elevation ---- */
-  --shadow-sm: 0 1px 3px rgba(15, 35, 56, .05);
-  --shadow-md: 0 8px 24px rgba(15, 42, 68, .08);
-  --shadow-lg: 0 18px 48px rgba(8, 30, 52, .16);
+  /* ---- Elevation: soft, near-neutral ---- */
+  --shadow-sm: 0 1px 3px rgba(28, 26, 22, .05);
+  --shadow-md: 0 8px 24px rgba(30, 27, 22, .07);
+  --shadow-lg: 0 18px 48px rgba(30, 27, 22, .12);
 
   /* ---- Type scale ---- */
   --text-xs:   .75rem;
@@ -185,17 +186,17 @@
   /* ---- Motion ---- */
   --ease: cubic-bezier(.16, 1, .3, 1);
 
-  /* ---- Nav rail (sidebar-specific) ---- */
-  --sb-bg: var(--brand);
-  --sb-bg-sunken: var(--brand-deep);
-  --sb-text: #A7BAD9;
-  --sb-text-hover: #DCE7F6;
-  --sb-text-active: #FFFFFF;
-  --sb-title: #7D95BC;
-  --sb-divider: rgba(167, 186, 217, .15);
-  --sb-hover: rgba(255, 255, 255, .06);
-  --sb-active: rgba(99, 179, 245, .16);
-  --sb-active-line: rgba(99, 179, 245, .26);
+  /* ---- Nav rail: same white as the page, hairline does the split ---- */
+  --sb-bg: #FFFFFF;
+  --sb-bg-sunken: #F2F1ED;
+  --sb-text: #6F6E69;
+  --sb-text-hover: #141413;
+  --sb-text-active: #141413;
+  --sb-title: #8F8D84;
+  --sb-divider: #E9E8E3;
+  --sb-hover: rgba(20, 20, 19, .04);
+  --sb-active: rgba(20, 20, 19, .06);
+  --sb-active-line: rgba(217, 119, 87, .30);
 
   /* ---- Layout ---- */
   --sidebar-width: 224px;
@@ -214,7 +215,7 @@
   --muted: var(--ink-3);
   --text-light: var(--ink-faint);
   --border: var(--line);
-  --bg: var(--surface-2);
+  --bg: var(--canvas);
   --bg-card: var(--surface);
   --bg-hover: var(--surface-2);
   --white: #FFFFFF;

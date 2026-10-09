@@ -7,29 +7,29 @@
    ========================================================================== */
 
 :root {
-  /* Status pill tones (Monday ramp, tuned to sit next to the navy rail) */
-  --st-orange: #E2890B;   /* draft · working on it · pending */
-  --st-orange-deep: #B96F08;
-  --st-green:  #00A461;   /* live · active · done · finalized · processed */
-  --st-green-deep: #037E4B;
-  --st-red:    #DF2F4A;   /* rejected · failed · stuck */
-  --st-red-deep: #B3243B;
-  --st-blue:   #2E88E5;   /* published · ready */
-  --st-blue-deep: #1A6CBD;
-  --st-gray:   #9AA8BC;   /* archived · neutral */
-  --st-gray-deep: #7D8BA0;
-  --st-purple: #7C3AED;   /* in review */
-  --st-purple-deep: #6428C9;
+  /* Status pill tones (muted ramp, tuned to the warm Claude palette) */
+  --st-orange: #C68A28;   /* draft · working on it · pending */
+  --st-orange-deep: #9E6B15;
+  --st-green:  #4E8A57;   /* live · active · done · finalized · processed */
+  --st-green-deep: #3E6E46;
+  --st-red:    #C04434;   /* rejected · failed · stuck */
+  --st-red-deep: #9E3527;
+  --st-blue:   #D97757;   /* published · ready */
+  --st-blue-deep: #B85C3E;
+  --st-gray:   #8F8D84;   /* archived · neutral */
+  --st-gray-deep: #6F6E69;
+  --st-purple: #7C63B0;   /* in review */
+  --st-purple-deep: #654E94;
 
-  /* Group accent ramp — assigned round-robin so a group keeps its colour */
-  --gc-1: #2E88E5;
-  --gc-2: #7C3AED;
-  --gc-3: #00A461;
-  --gc-4: #E2890B;
-  --gc-5: #E5528C;
-  --gc-6: #0E9AA8;
-  --gc-7: #5B69E2;
-  --gc-8: #C25E10;
+  /* Group accent ramp — muted earth/jewel tones, assigned round-robin */
+  --gc-1: #D97757;
+  --gc-2: #7C63B0;
+  --gc-3: #4E8A57;
+  --gc-4: #B07D1E;
+  --gc-5: #C2677E;
+  --gc-6: #4E8577;
+  --gc-7: #6E6BA8;
+  --gc-8: #A0613B;
 }
 
 /* ==========================================================================
@@ -37,15 +37,15 @@
    ========================================================================== */
 
 .b-group-head > td {
-  height: 34px !important;
+  height: 38px !important;
   padding: 0 var(--grid-x) 0 8px !important;
-  border-bottom: 1px solid color-mix(in srgb, var(--gc, var(--line)) 22%, var(--line)) !important;
-  background: color-mix(in srgb, var(--gc, var(--line)) 7%, var(--surface));
+  border-bottom: 1px solid var(--line) !important;
+  background: transparent;
   white-space: nowrap;
   transition: background-color .13s ease;
 }
 tr.b-group-head:hover > td {
-  background: color-mix(in srgb, var(--gc, var(--line)) 12%, var(--surface));
+  background: var(--surface-2);
 }
 
 .b-group-toggle {
@@ -57,11 +57,20 @@ tr.b-group-head:hover > td {
   padding: 0;
   border: 0;
   background: transparent;
-  color: var(--gc, var(--ink-2));
-  font: 650 .8125rem/1 var(--font-display, "Google Sans", sans-serif);
+  color: var(--ink);
+  font: 600 .8125rem/1 var(--font-display, "Google Sans", sans-serif);
   letter-spacing: -.005em;
   text-align: left;
   cursor: pointer;
+}
+/* The subject colour survives as a quiet dot, not a painted band. */
+.b-group-toggle::before {
+  content: '';
+  width: 8px;
+  height: 8px;
+  flex: 0 0 auto;
+  border-radius: 3px;
+  background: var(--gc, var(--line-strong));
 }
 .b-group-toggle:focus-visible { outline: 2px solid var(--brand-accent); outline-offset: -2px; border-radius: 4px; }
 
@@ -73,7 +82,7 @@ tr.b-group-head:hover > td {
   height: 22px;
   flex: 0 0 auto;
   border-radius: 6px;
-  color: var(--gc, var(--ink-3));
+  color: var(--ink-faint);
   transition: transform .16s var(--ease), background-color .13s ease;
 }
 .b-group-caret svg { width: 15px !important; height: 15px !important; display: block; }
@@ -88,9 +97,9 @@ tr.b-group-head:hover > td {
   min-height: 18px;
   padding: 0 7px;
   border-radius: 99px;
-  background: color-mix(in srgb, var(--gc, var(--ink-3)) 12%, transparent);
-  color: var(--gc, var(--ink-3));
-  font: 600 .6875rem/1 var(--font-body, "Inter", sans-serif);
+  background: var(--surface-3);
+  color: var(--ink-3);
+  font: 500 .6875rem/1 var(--font-body, "Inter", sans-serif);
   font-variant-numeric: tabular-nums;
 }
 
@@ -102,21 +111,9 @@ tr.b-group-head:hover > td {
   white-space: nowrap;
 }
 
-/* Coloured spine down a group's left edge — the board cue. Applied to the
-   first visible cell of every row so collapsed groups lose it too. */
-.b-group .b-row > td:first-child,
-.b-group .b-add-row > td:first-child,
-.b-group-head > td:first-child,
-.b-group-foot > td:first-child {
-  box-shadow: inset 3px 0 0 var(--gc, transparent);
-}
-.b-group .b-row > td:first-child { padding-left: calc(var(--grid-x) + 3px); }
-.b-group .b-add-row > td:first-child { padding-left: calc(var(--grid-x) - 1px); }
-.b-group-foot > td:first-child { padding-left: calc(var(--grid-x) + 3px); }
-
-/* Hover picks up a whisper of the group accent instead of neutral gray. */
+/* Hover is a quiet neutral wash — the group colour lives on the dot alone. */
 table.grid .b-group tr.b-row:hover > td {
-  background: color-mix(in srgb, var(--gc, var(--line)) 4%, var(--surface-2));
+  background: var(--surface-2);
 }
 
 /* Hide group rows without dropping them from React's tree — display:none on
@@ -137,36 +134,35 @@ table.grid .b-group tr.b-row:hover > td {
   width: 100%;
   max-width: 118px;
   margin-inline: auto;
-  height: 26px;
-  padding: 0 9px;
-  border-radius: 6px;
-  background: var(--st, var(--st-gray));
-  color: #fff;
-  font: 550 .71875rem/1 var(--font-body, "Inter", sans-serif);
-  letter-spacing: .015em;
+  height: 25px;
+  padding: 0 10px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--st, var(--st-gray)) 13%, var(--surface));
+  color: var(--st-deep, var(--st-gray-deep));
+  font: 500 .71875rem/1 var(--font-body, "Inter", sans-serif);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  transition: filter .12s ease;
+  transition: background-color .12s ease;
 }
-tr:hover .b-status { filter: brightness(1.06); }
+tr:hover .b-status { background: color-mix(in srgb, var(--st, var(--st-gray)) 18%, var(--surface)); }
 .b-status svg { width: 12px !important; height: 12px !important; flex: 0 0 auto; }
 
-.b-status[data-tone="draft"]     { --st: var(--st-orange); }
-.b-status[data-tone="pending"]   { --st: var(--st-orange); }
-.b-status[data-tone="live"]      { --st: var(--st-green); }
-.b-status[data-tone="active"]    { --st: var(--st-green); }
-.b-status[data-tone="finalized"] { --st: var(--st-green); }
-.b-status[data-tone="processed"] { --st: var(--st-green); }
-.b-status[data-tone="published"] { --st: var(--st-blue); }
-.b-status[data-tone="rejected"]  { --st: var(--st-red); }
-.b-status[data-tone="failed"]    { --st: var(--st-red); }
-.b-status[data-tone="archived"]  { --st: var(--st-gray); }
-.b-status[data-tone="review"]    { --st: var(--st-purple); }
-.b-status[data-tone="none"]      { --st: var(--surface-3); color: var(--ink-3); box-shadow: none; }
+.b-status[data-tone="draft"]     { --st: var(--st-orange); --st-deep: var(--st-orange-deep); }
+.b-status[data-tone="pending"]   { --st: var(--st-orange); --st-deep: var(--st-orange-deep); }
+.b-status[data-tone="live"]      { --st: var(--st-green); --st-deep: var(--st-green-deep); }
+.b-status[data-tone="active"]    { --st: var(--st-green); --st-deep: var(--st-green-deep); }
+.b-status[data-tone="finalized"] { --st: var(--st-green); --st-deep: var(--st-green-deep); }
+.b-status[data-tone="processed"] { --st: var(--st-green); --st-deep: var(--st-green-deep); }
+.b-status[data-tone="published"] { --st: var(--st-blue); --st-deep: var(--st-blue-deep); }
+.b-status[data-tone="rejected"]  { --st: var(--st-red); --st-deep: var(--st-red-deep); }
+.b-status[data-tone="failed"]    { --st: var(--st-red); --st-deep: var(--st-red-deep); }
+.b-status[data-tone="archived"]  { --st: var(--st-gray); --st-deep: var(--st-gray-deep); }
+.b-status[data-tone="review"]    { --st: var(--st-purple); --st-deep: var(--st-purple-deep); }
+.b-status[data-tone="none"]      { --st: var(--st-gray); --st-deep: var(--ink-3); }
 
 /* Compact pill for dense panels (dashboard rows, cards) */
-.b-status--sm { height: 22px; max-width: 96px; padding: 0 7px; font-size: .6875rem; border-radius: 5px; }
+.b-status--sm { height: 22px; max-width: 96px; padding: 0 8px; font-size: .6875rem; }
 
 /* Inline variant for headers/meta lines — shrinks to its text. */
 .b-status--inline { display: inline-flex; width: auto; margin-inline: 0; }
@@ -179,7 +175,7 @@ tr:hover .b-status { filter: brightness(1.06); }
   height: 30px !important;
   padding: 0 var(--grid-x) !important;
   border-bottom: 1px solid var(--line) !important;
-  background: color-mix(in srgb, var(--gc, var(--surface-2)) 5%, var(--surface-2));
+  background: var(--surface-2);
   color: var(--ink-3);
   font-size: .6875rem;
   white-space: nowrap;
@@ -257,7 +253,7 @@ tr:hover .b-status { filter: brightness(1.06); }
   transition: background-color .13s ease, color .13s ease;
 }
 .b-add svg { width: 14px !important; height: 14px !important; }
-.b-add:hover { background: var(--surface-2); color: var(--gc, var(--action-700)); }
+.b-add:hover { background: var(--surface-2); color: var(--gc, var(--ink)); }
 .b-add:focus-visible { outline: 2px solid var(--brand-accent); outline-offset: -2px; }
 
 /* ==========================================================================
@@ -339,7 +335,7 @@ tr:hover .b-status { filter: brightness(1.06); }
    Board card — standalone grouped board (dashboard, non-table surfaces)
    ========================================================================== */
 
-.b-card { overflow: hidden; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); box-shadow: 0 1px 2px rgba(15, 35, 56, .04), 0 8px 22px -10px rgba(15, 35, 56, .08); }
+.b-card { overflow: hidden; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); box-shadow: var(--shadow-sm); }
 
 /* Mini board rows inside a panel (dashboard "Recent exams") */
 .b-rowline {
@@ -352,7 +348,7 @@ tr:hover .b-status { filter: brightness(1.06); }
   border-top: 1px solid var(--line);
   transition: background-color .13s ease;
 }
-.b-rowline:hover { background: color-mix(in srgb, var(--gc, var(--line)) 4%, #f8fafc); }
+.b-rowline:hover { background: color-mix(in srgb, var(--gc, var(--line)) 4%, #faf9f5); }
 .b-rowline:focus-visible { outline: 2px solid var(--brand-accent); outline-offset: -2px; }
 .b-rowline-main { display: flex; align-items: center; gap: 12px; min-width: 0; }
 .b-rowline-title { display: block; min-width: 0; overflow: hidden; color: var(--ink); font: 500 .875rem/1.4 var(--font-display); text-overflow: ellipsis; white-space: nowrap; }

@@ -12,6 +12,7 @@ import {
   Pencil, HelpCircle, Clock, Monitor,
 } from 'lucide-react';
 import { useToast } from '../components/Toast.jsx';
+import { useConfirm } from '../components/ConfirmDialog.jsx';
 import Modal from '../components/Modal.jsx';
 import api, { ApiError, getToken } from '../lib/api.js';
 import AppShell from '../components/AppShell.jsx';
@@ -25,6 +26,7 @@ const TYPE_LABELS = { mcq: 'MCQ', true_false: 'T/F', matching: 'Match', identifi
 export default function ExamDetailPage() {
   const { id } = useParams();
   const toast = useToast();
+  const confirm = useConfirm();
   const navigate = useNavigate();
   const [data, setData] = useState(() => api.peek(`/exams/${id}`) ?? null);
   const [pickerOpen, setPickerOpen] = useState(false);
@@ -96,7 +98,7 @@ export default function ExamDetailPage() {
   }
 
   async function handlePublish() {
-    if (!confirm('Publish exam? The exam will be marked as published and ready for use.')) return;
+    if (!(await confirm('Publish exam? The exam will be marked as published and ready for use.', { title: 'Publish exam', confirmText: 'Publish', danger: false }))) return;
     try {
       await api.put(`/exams/${id}`, { ...data.exam, status: 'published' });
       toast.success('Exam published.');

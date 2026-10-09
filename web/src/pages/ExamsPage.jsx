@@ -13,6 +13,7 @@ import {
   Layers, ChevronUp, ChevronDown, Printer, MonitorSmartphone,
 } from 'lucide-react';
 import { useToast } from '../components/Toast.jsx';
+import { useConfirm } from '../components/ConfirmDialog.jsx';
 import api, { ApiError } from '../lib/api.js';
 import AppShell from '../components/AppShell.jsx';
 import { PageLoader } from '../components/Loaders.jsx';
@@ -43,6 +44,7 @@ function statusCounts(list) {
 
 export default function ExamsPage() {
   const toast = useToast();
+  const confirm = useConfirm();
   const navigate = useNavigate();
   const [exams, setExams] = useState(() => api.peek('/exams')?.exams ?? null);
   const [query, setQuery] = useState('');
@@ -150,7 +152,7 @@ export default function ExamsPage() {
   }
 
   async function handleDelete(exam) {
-    if (!confirm(`Delete exam "${exam.title}"? This cannot be undone.`)) return;
+    if (!(await confirm(`Delete exam "${exam.title}"? This cannot be undone.`, { title: 'Delete exam' }))) return;
     try { await api.del(`/exams/${exam.id}`); toast.success('Exam deleted.'); load(); }
     catch (err) { toast.error(err instanceof ApiError ? err.message : 'Delete failed.'); }
   }

@@ -77,31 +77,29 @@ export default function DashboardPage() {
             <h1>{greeting()}, {firstName}</h1>
             <p>Pick up an exam or prepare your next assessment.</p>
           </div>
-          <Link to="/wizard" className="btn btn-primary dash-build"><Sparkles size={16} aria-hidden="true" /> Build an exam</Link>
+          <div className="dash-actions">
+            <Link to="/questions?new=1" className="btn btn-outline"><Plus size={15} aria-hidden="true" /> Question</Link>
+            <Link to="/materials?upload=1" className="btn btn-outline"><Upload size={15} aria-hidden="true" /> Material</Link>
+            <Link to="/wizard" className="btn btn-primary"><Sparkles size={15} aria-hidden="true" /> Build an exam</Link>
+          </div>
         </header>
 
-        <div className="dash-overview">
-          <dl className="dash-totals" aria-label="Workspace totals">
-            {[
-              ['Exams', stats.exams, '/exams', 'violet', FileText],
-              ['Questions', stats.questions, '/questions', 'green', CircleHelp],
-              ['Subjects', stats.subjects, '/subjects', 'blue', BookOpen],
-              ['Blueprints', stats.tos, '/tos', 'cyan', PanelsTopLeft],
-            ].map(([label, value, url, tone, Icon]) => (
-              <div key={label} className={`dash-total dash-total--${tone}`}>
-                <dt><Link to={url}>{label}</Link></dt>
-                <dd>
-                  <span className="dash-total-icon" aria-hidden="true"><Icon size={17} /></span>
-                  {count(value).toLocaleString()}
-                </dd>
-              </div>
-            ))}
-          </dl>
-          <nav className="dash-quick-links" aria-label="Quick actions">
-            <Link to="/questions?new=1"><Plus size={15} aria-hidden="true" /> Add question</Link>
-            <Link to="/materials?upload=1"><Upload size={15} aria-hidden="true" /> Upload material</Link>
-          </nav>
-        </div>
+        <dl className="dash-totals" aria-label="Workspace totals">
+          {[
+            ['Exams', stats.exams, '/exams', 'violet', FileText],
+            ['Questions', stats.questions, '/questions', 'green', CircleHelp],
+            ['Subjects', stats.subjects, '/subjects', 'blue', BookOpen],
+            ['Blueprints', stats.tos, '/tos', 'cyan', PanelsTopLeft],
+          ].map(([label, value, url, tone, Icon]) => (
+            <div key={label} className={`dash-total dash-total--${tone}`}>
+              <dt><Link to={url}>{label}</Link></dt>
+              <dd>
+                <span className="dash-total-icon" aria-hidden="true"><Icon size={16} /></span>
+                {count(value).toLocaleString()}
+              </dd>
+            </div>
+          ))}
+        </dl>
 
         {count(stats.subjects) === 0 && (
           <section className="dash-start" aria-labelledby="dash-start-title">
@@ -113,6 +111,7 @@ export default function DashboardPage() {
 
         <div className="dash-content-grid">
           <section className="dash-panel dash-exams" aria-labelledby="dash-exams-title">
+            {/* sections stack in one centred column — Claude-style home */}
             <header className="dash-panel-head">
               <div><h2 id="dash-exams-title">Recent exams</h2><p>Continue where you left off</p></div>
               <Link to="/exams/new" className="dash-text-link"><Plus size={15} aria-hidden="true" /> New exam</Link>

@@ -57,7 +57,7 @@ const COLORS = {
   success: { bg: 'var(--green-50)', border: 'var(--green-100)', color: 'var(--green-700)' },
   error:   { bg: 'var(--red-50)',   border: 'var(--red-100)',   color: 'var(--red-700)' },
   warning: { bg: 'var(--amber-50)', border: 'var(--amber-100)', color: 'var(--amber-700)' },
-  info:    { bg: 'var(--action-50)', border: 'var(--action-100)', color: 'var(--action-700)' },
+  info:    { bg: 'var(--surface-2)', border: 'var(--line)', color: 'var(--ink-2)' },
 };
 
 function ToastItem({ toast, onDismiss }) {

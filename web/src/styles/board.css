@@ -7,29 +7,29 @@
    ========================================================================== */
 
 :root {
-  /* Status pill tones (muted ramp, tuned to the warm Claude palette) */
+  /* Status pill tones (muted ramp, tuned to the Nexam palette) */
   --st-orange: #C68A28;   /* draft · working on it · pending */
   --st-orange-deep: #9E6B15;
   --st-green:  #4E8A57;   /* live · active · done · finalized · processed */
   --st-green-deep: #3E6E46;
   --st-red:    #C04434;   /* rejected · failed · stuck */
   --st-red-deep: #9E3527;
-  --st-blue:   #D97757;   /* published · ready */
-  --st-blue-deep: #B85C3E;
-  --st-gray:   #8F8D84;   /* archived · neutral */
-  --st-gray-deep: #6F6E69;
-  --st-purple: #7C63B0;   /* in review */
-  --st-purple-deep: #654E94;
+  --st-blue:   #5B6BD6;   /* published · ready — brand-blue, not the action violet */
+  --st-blue-deep: #4553B8;
+  --st-gray:   #7A7886;   /* archived · neutral */
+  --st-gray-deep: #6B6A75;
+  --st-purple: #7C5CD6;   /* in review */
+  --st-purple-deep: #6441C4;
 
-  /* Group accent ramp — muted earth/jewel tones, assigned round-robin */
-  --gc-1: #D97757;
-  --gc-2: #7C63B0;
+  /* Group accent ramp — muted jewel tones, assigned round-robin */
+  --gc-1: #7C5CD6;
+  --gc-2: #5B6BD6;
   --gc-3: #4E8A57;
   --gc-4: #B07D1E;
   --gc-5: #C2677E;
-  --gc-6: #4E8577;
+  --gc-6: #2D9BB8;
   --gc-7: #6E6BA8;
-  --gc-8: #A0613B;
+  --gc-8: #64748B;
 }
 
 /* ==========================================================================
@@ -293,7 +293,7 @@ tr:hover .b-status { background: color-mix(in srgb, var(--st, var(--st-gray)) 18
 }
 .b-groupby select:hover { border-color: var(--line-strong); }
 .b-groupby select:focus-visible { border-color: var(--line-strong); box-shadow: 0 0 0 3px var(--ring-soft); }
-.b-groupby select[data-active="true"] { border-color: var(--action-100); background-color: var(--action-50); color: var(--action-700); }
+.b-groupby select[data-active="true"] { border-color: var(--line-strong); background-color: var(--surface-2); color: var(--ink); }
 
 /* ==========================================================================
    Subject colour chip — deterministic accent per subject row/cell
@@ -348,11 +348,11 @@ tr:hover .b-status { background: color-mix(in srgb, var(--st, var(--st-gray)) 18
   border-top: 1px solid var(--line);
   transition: background-color .13s ease;
 }
-.b-rowline:hover { background: color-mix(in srgb, var(--gc, var(--line)) 4%, #faf9f5); }
+.b-rowline:hover { background: color-mix(in srgb, var(--gc, var(--line)) 4%, #f9f9fc); }
 .b-rowline:focus-visible { outline: 2px solid var(--brand-accent); outline-offset: -2px; }
 .b-rowline-main { display: flex; align-items: center; gap: 12px; min-width: 0; }
 .b-rowline-title { display: block; min-width: 0; overflow: hidden; color: var(--ink); font: 500 .875rem/1.4 var(--font-display); text-overflow: ellipsis; white-space: nowrap; }
-.b-rowline:hover .b-rowline-title { color: var(--action-700); }
+.b-rowline:hover .b-rowline-title { color: var(--ink); }
 .b-rowline-meta { display: block; margin-top: 2px; color: var(--ink-3); font-size: .71875rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .b-rowline .b-status { flex: 0 0 auto; width: auto; min-width: 88px; margin-inline: 0; justify-self: end; }
 

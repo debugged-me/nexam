@@ -111,6 +111,7 @@ export default function AnalyticsPage() {
     <AppShell activeNav="analytics" pageTitle="Results & insights" wide>
       <div className="page-header">
         <div>
+          <span className="eyebrow">Results &amp; insights</span>
           <h1>Analytics</h1>
           <p className="page-sub">Performance insights from scanned OMR answer sheets.</p>
         </div>
@@ -129,6 +130,7 @@ export default function AnalyticsPage() {
         <div className="stat-card">
           <div className="stat-icon green"><ScanLine size={18} /></div>
           <div className="stat-info"><div className="stat-value">{parseInt(o.total_scans || 0, 10)}</div><div className="stat-label">Scanned Sheets</div></div>
+          <div className="stat-context">across {parseInt(o.total_exams || 0, 10)} {parseInt(o.total_exams || 0, 10) === 1 ? 'exam' : 'exams'}</div>
         </div>
         <div className="stat-card">
           <div className="stat-icon purple"><Users size={18} /></div>
@@ -137,6 +139,7 @@ export default function AnalyticsPage() {
         <div className="stat-card">
           <div className="stat-icon amber"><AlertCircle size={18} /></div>
           <div className="stat-info"><div className="stat-value">{parseInt(o.needs_review || 0, 10)}</div><div className="stat-label">Need Review</div></div>
+          <div className="stat-context">{parseInt(o.total_scans || 0, 10) > 0 ? `${Math.round((parseInt(o.needs_review || 0, 10) / parseInt(o.total_scans, 10)) * 100)}% of scans flagged` : 'no scans yet'}</div>
         </div>
       </div>
 
@@ -251,6 +254,7 @@ function ExamDetail({ examId, detail, onBack }) {
     <>
       <div className="page-header">
         <div>
+          <span className="eyebrow">Results &amp; insights</span>
           <h1>{exam?.title || 'Exam Analytics'}</h1>
           <p className="page-sub">Class performance and score distribution.</p>
         </div>

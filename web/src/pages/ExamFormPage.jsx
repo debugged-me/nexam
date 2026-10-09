@@ -1,15 +1,12 @@
 /**
  * ExamFormPage — create or edit an exam.
  *
- * Uses form-container--wide, page-header with page-sub, creation-panel
- * for new exams (blueprints or empty), callout-warning for TOS-based creation,
- * and a card with form-sections (Details / Content) + sticky form-actions.
+ * One card: Source (blank or a finalized blueprint) → Details → Content,
+ * with sticky form-actions. Blueprint summary sits inline under the picker.
  */
 import { useEffect, useState, useCallback } from 'react';
 import { useParams, useNavigate, useSearchParams, Link } from 'react-router-dom';
-import {
-  Check, ChevronRight, ArrowRight, Table as TableIcon, Info,
-} from 'lucide-react';
+import { Check, Info } from 'lucide-react';
 import { useToast } from '../components/Toast.jsx';
 import api, { ApiError } from '../lib/api.js';
 import AppShell from '../components/AppShell.jsx';
@@ -28,8 +25,8 @@ export default function ExamFormPage() {
   const toast = useToast();
   const navigate = useNavigate();
   const isEdit = !!id;
-  const tosId = searchParams.get('tos');
   const subjectParam = searchParams.get('subject_id');
+  const [selectedTosId, setSelectedTosId] = useState(() => searchParams.get('tos') || '');
 
   const [subjects, setSubjects] = useState(() => api.peek('/subjects')?.subjects ?? []);
   const [tosList, setTosList] = useState(() => finalizedOnly(api.peek('/tos')?.tos));
@@ -72,10 +69,10 @@ export default function ExamFormPage() {
 
   useEffect(() => { loadExam(); }, [loadExam]);
 
-  // Load TOS details if creating from a blueprint
+  // Load TOS details when a blueprint is selected
   useEffect(() => {
-    if (isEdit || !tosId) return;
-    api.get(`/tos/${tosId}`)
+    if (isEdit || !selectedTosId) return;
+    api.get(`/tos/${selectedTosId}`)
       .then((d) => {
         setTos(d.tos);
         setForm((f) => ({
@@ -85,7 +82,7 @@ export default function ExamFormPage() {
         }));
       })
       .catch(() => {});
-  }, [isEdit, tosId]);
+  }, [isEdit, selectedTosId]);
 
   async function handleSave(e) {
     e.preventDefault();
@@ -94,7 +91,7 @@ export default function ExamFormPage() {
       const body = {
         title: form.title,
         subject_id: form.subject_id,
-        tos_id: tosId || undefined,
+        tos_id: selectedTosId || undefined,
         format: form.format || 'print',
         set_count: 2,
         duration_minutes: form.duration_minutes ? Number(form.duration_minutes) : undefined,
@@ -117,7 +114,6 @@ export default function ExamFormPage() {
     }
   }
 
-  const showCreationPanel = !isEdit && !tosId;
   const showTosCallout = !isEdit && !!tos;
   const bloomWeights = tos?.bloom_weights || {};
   const distParts = Object.entries(bloomWeights)
@@ -130,68 +126,55 @@ export default function ExamFormPage() {
       <div className="form-container form-container--wide">
         <div className="page-header">
           <div>
+            <span className="eyebrow">Exams</span>
             <h1>{isEdit ? 'Edit exam' : 'New exam'}</h1>
             <p className="page-sub">{isEdit ? 'Update the exam details.' : 'Start from a blueprint or create a blank exam.'}</p>
           </div>
         </div>
 
-        {showCreationPanel && (
-          <section className="creation-panel mb-2" aria-labelledby="creation-method-title">
-            <div className="creation-panel-head">
-              <div>
-                <h2 id="creation-method-title">Start from a blueprint</h2>
-                <p>Exactly fill a finalized blueprint's topic and Bloom allocations with approved questions.</p>
-              </div>
-              <span className="creation-tag">Recommended</span>
-            </div>
-            <div className="creation-panel-body">
-              {tosList.length > 0 ? (
-                <>
-                  <div className="creation-blueprints">
-                    {tosList.slice(0, 3).map((bp) => (
-                      <Link key={bp.id} to={`/exams/new?tos=${bp.id}`} className="creation-blueprint-link">
-                        <span>
+        <div className="card">
+          <div className="card-body">
+            <form onSubmit={handleSave} noValidate>
+              {!isEdit && (
+                <div className="form-section">
+                  <div className="form-section-title">Source</div>
+                  <div className="src-options" role="radiogroup" aria-label="Exam source">
+                    <label className={`src-option ${selectedTosId === '' ? 'is-selected' : ''}`}>
+                      <input type="radio" name="source" checked={selectedTosId === ''} onChange={() => { setSelectedTosId(''); setTos(null); }} />
+                      <span className="src-option-copy">
+                        <strong>Blank exam</strong>
+                        <small>Assemble questions yourself after creating.</small>
+                      </span>
+                    </label>
+                    {tosList.map((bp) => (
+                      <label key={bp.id} className={`src-option ${selectedTosId === bp.id ? 'is-selected' : ''}`}>
+                        <input type="radio" name="source" checked={selectedTosId === bp.id}
+                          onChange={() => setSelectedTosId(bp.id)} />
+                        <span className="src-option-copy">
                           <strong>{bp.title}</strong>
                           <small>{bp.subject_name || bp.subject_code} · {bp.total_items} items</small>
                         </span>
-                        <ChevronRight size={15} />
-                      </Link>
+                        <span className="src-option-tag">Blueprint</span>
+                      </label>
                     ))}
                   </div>
-                  <Link to="/tos" className="creation-mode-action">View all blueprints <ArrowRight size={14} /></Link>
-                </>
-              ) : (
-                <div className="creation-empty">
-                  <span>No blueprints yet.</span>
-                  <Link to="/tos">Create a blueprint</Link>
+                  {tosList.length === 0 && (
+                    <p className="form-hint">No finalized blueprints yet — <Link to="/tos">create a blueprint</Link> to auto-fill the exam from your question bank.</p>
+                  )}
+                  {showTosCallout && (
+                    <div className="src-summary">
+                      <Info size={14} aria-hidden="true" />
+                      <span>
+                        <strong>{tos.total_items} items</strong> from your approved question bank
+                        {distribution && <> · {distribution}</>}
+                        {' '}— drafts are not pulled. Need more?{' '}
+                        <Link to={`/tos/${selectedTosId}`}>Generate questions on the blueprint</Link>.
+                      </span>
+                    </div>
+                  )}
                 </div>
               )}
-            </div>
-          </section>
-        )}
 
-        {showTosCallout && (
-          <div className="callout callout-warning mb-2">
-            <div className="callout-icon"><TableIcon size={18} /></div>
-            <div>
-              <div className="callout-title">Generating from TOS: {tos.title}</div>
-              <div className="callout-detail">
-                Total items: {tos.total_items}
-                {distribution && ` · Bloom distribution: ${distribution}`}
-              </div>
-              <div className="callout-note">
-                <Info size={13} />
-                This pulls from your <strong>approved (active)</strong> question bank — not drafts. If you need more questions, use the blueprint's "Auto-generate Questions" button first, then approve the drafts on the Questions page.
-              </div>
-            </div>
-          </div>
-        )}
-
-        {(isEdit || showTosCallout) && (
-          <>
-            <div className="card">
-              <div className="card-body">
-                <form onSubmit={handleSave} noValidate>
                   <div className="form-section">
                     <div className="form-section-title">Details</div>
                     <div className="form-group">
@@ -260,18 +243,16 @@ export default function ExamFormPage() {
                     )}
                   </div>
 
-                  <div className="form-actions form-actions--sticky">
-                    <button type="submit" className="btn btn-primary" disabled={saving}>
-                      {saving ? <span className="btn-spinner" /> : <Check size={16} />}
-                      {isEdit ? 'Update Exam' : (showTosCallout ? 'Generate Exam' : 'Create Blank Exam')}
-                    </button>
-                    <Link to={isEdit ? `/exams/${id}` : '/exams'} className="btn btn-outline">Cancel</Link>
-                  </div>
-                </form>
+              <div className="form-actions form-actions--sticky">
+                <button type="submit" className="btn btn-primary" disabled={saving}>
+                  {saving ? <span className="btn-spinner" /> : <Check size={16} />}
+                  {isEdit ? 'Update exam' : (selectedTosId ? 'Generate exam' : 'Create blank exam')}
+                </button>
+                <Link to={isEdit ? `/exams/${id}` : '/exams'} className="btn btn-outline">Cancel</Link>
               </div>
-            </div>
-          </>
-        )}
+            </form>
+          </div>
+        </div>
       </div>
     </AppShell>
   );

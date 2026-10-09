@@ -356,6 +356,22 @@ export default function MaterialsPage() {
   }
 
   async function handleGenerateTos(mat) {
+    // Warn — don't block — if the subject already has blueprints. Generating
+    // again is legitimate (new term, new syllabus), so this is a heads-up,
+    // not a wall.
+    try {
+      const data = await api.get(`/tos?subject_id=${encodeURIComponent(mat.subject_id)}`);
+      const existing = data?.tos || [];
+      if (existing.length) {
+        const subjectLabel = matSubjectOf(mat)?.name || 'this subject';
+        const proceed = await confirm(
+          `${subjectLabel} already has ${existing.length} blueprint${existing.length === 1 ? '' : 's'} (${existing[0].title}). Generate another one anyway?`,
+          { title: 'Blueprint already exists', confirmText: 'Generate anyway', danger: false }
+        );
+        if (!proceed) return;
+      }
+    } catch { /* if the check fails, still let the user generate */ }
+
     try {
       await api.post('/ai/syllabus-tos', { materialId: mat.id });
       toast.success('TOS generation queued. Check the Blueprints (TOS) page shortly.');
@@ -367,12 +383,13 @@ export default function MaterialsPage() {
   const SOURCE_ICONS = { pdf: FileText, docx: FileText, pptx: FileText, text: FileText, url: Link2, youtube: Video, file: FileStack };
 
   const subjectName = subjects.find((s) => String(s.id) === String(form.subject_id));
+  const matSubjectOf = (m) => subjects.find((s) => String(s.id) === String(m.subject_id));
   const queueReady = queue.filter((it) => it.state === 'queued' || it.state === 'error').length;
 
   return (
     <AppShell activeNav="materials" pageTitle="Materials">
       <div className="mat-toolbar">
-            <h1>Materials</h1>
+            <div><span className="eyebrow">Manage</span><h1>Materials</h1></div>
             <div className="mat-toolbar-actions">
               <button className="btn" onClick={handleRefresh} disabled={refreshing} title="Refresh list">
                 <RefreshCw size={16} className={refreshing ? 'mat-spin' : undefined} /> Refresh
@@ -411,21 +428,25 @@ export default function MaterialsPage() {
             </div>
           ) : (
             <div className="mat-list">
-              {materials.map((m) => {
+              {materials.map((m, i) => {
                 const Icon = SOURCE_ICONS[m.source_type] || FileText;
-                const matSubject = subjects.find((s) => String(s.id) === String(m.subject_id));
+                const matSubject = matSubjectOf(m);
                 return (
-                  <div key={m.id} className="mat-card" style={{ '--gc': groupColor(m.subject_id) }}>
+                  <div key={m.id} className="mat-card" style={{ '--gc': groupColor(m.subject_id), '--i': Math.min(i, 8) }}>
                     <div className="mat-card-main">
-                      <Icon size={20} style={{ color: 'var(--ink-3)' }} />
-                      <div>
-                        <div className="mat-card-title">{m.title}</div>
+                      <span className="mat-filetype" data-type={m.source_type} aria-hidden="true">
+                        <Icon size={15} />
+                        <b>{String(m.source_type || 'file').toUpperCase().slice(0, 4)}</b>
+                      </span>
+                      <div className="mat-card-body">
+                        <div className="mat-card-title">
+                          <span className="mat-card-name">{m.title}</span>
+                          <StatusPill status={m.status} small />
+                          {Boolean(Number(m.is_syllabus)) && <span className="mat-syl-tag">Syllabus</span>}
+                        </div>
                         <div className="mat-card-meta">
                           {matSubject ? `${matSubject.code || matSubject.name} · ` : ''}
                           {m.source_type} · {m.chunk_count || 0} chunks
-                          {m.is_syllabus ? ' · syllabus' : ''}
-                          {' '}<StatusPill status={m.status} small />
-                          {m.error && ` · ${m.error}`}
                         </div>
                         {m.status === 'pending' && (
                           <div className="mat-card-progress">
@@ -435,17 +456,21 @@ export default function MaterialsPage() {
                               : 'Processing — chunks and embeddings are being built.'}
                           </div>
                         )}
+                        {m.status === 'failed' && (
+                          <div className="mat-card-error" role="alert">
+                            <AlertCircle size={13} />
+                            <span>{m.error || 'Processing failed.'}</span>
+                            <button className="mat-retry" onClick={() => handleReprocess(m)}>
+                              <RotateCw size={12} /> Retry
+                            </button>
+                          </div>
+                        )}
                       </div>
                     </div>
                     <div className="mat-card-actions">
                       {Boolean(Number(m.is_syllabus)) && m.status === 'processed' && (
-                        <button className="btn btn-primary btn-sm" onClick={() => handleGenerateTos(m)} title="Auto-create a Table of Specification blueprint from this syllabus">
+                        <button className="btn btn-brand btn-sm" onClick={() => handleGenerateTos(m)} title="Auto-create a Table of Specification blueprint from this syllabus">
                           <Sparkles size={14} /> Auto-generate Blueprint
-                        </button>
-                      )}
-                      {m.status === 'failed' && (
-                        <button className="btn" onClick={() => handleReprocess(m)} title="Reprocess">
-                          <RotateCw size={14} />
                         </button>
                       )}
                       <button className="btn mat-delete" onClick={() => handleDelete(m)} title="Delete material" aria-label={`Delete ${m.title}`}>

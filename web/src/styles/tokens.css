@@ -82,31 +82,32 @@
   --font-display: "Google Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   --font-body: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 
-  /* ---- Brand: warm ink identity (Claude-style reskin) ---- */
+  /* ---- Brand: ink identity + Nexam violet accent (favicon) ---- */
   --brand:        #141413;
   --brand-deep:   #0C0C0B;
   --brand-soft:   #3D3D3A;
-  --brand-accent: #D97757;
+  --brand-accent: #863BFF;  /* favicon violet — focus rings and the mark only */
+  --brand-blue:   #5B6BD6;   /* the mark's blue edge — reserved for *states*, never actions */
 
-  /* Primary actions — Claude coral */
-  --action-50:   #FBF1EC;
-  --action-100:  #F4E0D5;
-  --action-600:  #D97757;
-  --action-700:  #BE5C3D;
+  /* Primary actions — Nexam violet, straight from the favicon mark */
+  --action-50:   #F4EFFF;
+  --action-100:  #EDE6FF;
+  --action-600:  #863BFF;
+  --action-700:  #6D28D9;
 
-  /* ---- Coral scale (kept on the blue-* names so old refs follow) ---- */
-  --blue-50:  #FBF1EC;
-  --blue-100: #F4E0D5;
-  --blue-600: #D97757;
-  --blue-700: #BE5C3D;
+  /* ---- Violet scale (kept on the blue-* names so old refs follow) ---- */
+  --blue-50:  #F4EFFF;
+  --blue-100: #EDE6FF;
+  --blue-600: #863BFF;
+  --blue-700: #6D28D9;
 
-  /* ---- Bloom ramp: sequential sand → terracotta, 1 (Remember) → 6 (Create) ---- */
-  --bloom-1: #F5EDE4;
-  --bloom-2: #EBD9C8;
-  --bloom-3: #DEBDA0;
-  --bloom-4: #D89B77;
-  --bloom-5: #D97757;
-  --bloom-6: #B85C3E;
+  /* ---- Bloom ramp: sequential neutral gray, 1 (Remember) → 6 (Create) ---- */
+  --bloom-1: #F1F0F5;
+  --bloom-2: #E3E2EA;
+  --bloom-3: #C9C8D2;
+  --bloom-4: #9B99A8;
+  --bloom-5: #6B6A78;
+  --bloom-6: #3B3A44;
 
   /* ---- Status: muted, warm-tuned ---- */
   --green-50:  #F1F7EF;
@@ -124,45 +125,46 @@
   --red-600: #C04434;
   --red-700: #9E3527;
 
-  --purple-50:  #F3F0F8;
-  --purple-600: #7C63B0;
-  --purple-700: #654E94;
+  --purple-50:  #F3EFFF;
+  --purple-600: #7C5CD6;
+  --purple-700: #6441C4;
 
-  --teal-50:  #EBF3F0;
-  --teal-600: #4E8577;
+  --teal-50:  #ECF7FB;
+  --teal-600: #2D9BB8;
 
   /* ---- Focus and wash ---- */
-  --ring:        rgba(217, 119, 87, .22);
-  --ring-soft:   rgba(217, 119, 87, .10);
-  --accent-wash: rgba(217, 119, 87, .12);
-  --accent-line: rgba(217, 119, 87, .32);
+  --ring:        rgba(134, 59, 255, .22);
+  --ring-soft:   rgba(134, 59, 255, .10);
+  --accent-wash: rgba(134, 59, 255, .12);
+  --accent-line: rgba(134, 59, 255, .32);
 
-  /* ---- Ink: warm greys ---- */
-  --ink:       #141413;
-  --ink-2:     #3D3D3A;
-  --ink-3:     #6F6E69;
-  --ink-faint: #8F8D84;
+  /* ---- Ink: cool-tinted near-neutrals ---- */
+  --ink:       #16151C;
+  --ink-2:     #3B3A44;
+  --ink-3:     #6B6A75;
+  --ink-faint: #7A7886;   /* ~4:1 on white — carries meta text, not just icons */
 
   /* ---- Surfaces: white identity ---- */
-  --canvas:    #FFFFFF;   /* page backdrop — pure white */
+  --canvas:    #F7F7FA;   /* page backdrop — soft cool off-white */
   --surface:   #FFFFFF;
-  --surface-2: #FAFAF8;   /* dirty-white fill — subtle hover/inset tint */
-  --surface-3: #F2F1ED;
-  --line:        #E9E8E3;
-  --line-strong: #DAD8D1;
+  --surface-2: #F1F0F5;   /* dirty-white fill — subtle hover/inset tint */
+  --surface-3: #E9E8EF;
+  --line:        #E7E6EC;
+  --line-strong: #D8D6E0;
 
   /* ---- Shape ---- */
-  --radius-xs: 6px;
-  --radius-sm: 8px;
-  --radius: 10px;
-  --radius-lg: 14px;
-  --radius-md: 12px;   /* between base and lg — callouts, tiles */
-  --radius-xl: 18px;   /* hero surfaces — KPI tiles */
+  --radius-xs: 5px;
+  --radius-sm: 7px;
+  --radius: 9px;
+  --radius-lg: 12px;
+  --radius-md: 10px;   /* between base and lg — callouts, tiles */
+  --radius-xl: 14px;   /* hero surfaces — KPI tiles */
 
-  /* ---- Elevation: soft, near-neutral ---- */
-  --shadow-sm: 0 1px 3px rgba(28, 26, 22, .05);
-  --shadow-md: 0 8px 24px rgba(30, 27, 22, .07);
-  --shadow-lg: 0 18px 48px rgba(30, 27, 22, .12);
+  /* ---- Elevation: soft lift so white cards read off the canvas ---- */
+  --shadow-sm: 0 1px 2px rgba(22, 20, 38, .05), 0 2px 6px rgba(22, 20, 38, .04);
+  --shadow-md: 0 8px 24px rgba(24, 21, 40, .08);
+  --shadow-lg: 0 18px 48px rgba(24, 21, 40, .13);
+  --shadow-card-hover: 0 2px 4px rgba(22, 20, 38, .05), 0 8px 20px rgba(24, 21, 40, .08);
 
   /* ---- Type scale ---- */
   --text-xs:   .75rem;
@@ -188,15 +190,16 @@
 
   /* ---- Nav rail: same white as the page, hairline does the split ---- */
   --sb-bg: #FFFFFF;
-  --sb-bg-sunken: #F2F1ED;
-  --sb-text: #6F6E69;
-  --sb-text-hover: #141413;
-  --sb-text-active: #141413;
-  --sb-title: #8F8D84;
-  --sb-divider: #E9E8E3;
-  --sb-hover: rgba(20, 20, 19, .04);
-  --sb-active: rgba(20, 20, 19, .06);
-  --sb-active-line: rgba(217, 119, 87, .30);
+  --sb-bg-sunken: #F1F0F5;
+  --sb-text: #6B6A75;
+  --sb-text-hover: #16151C;
+  --sb-text-active: #16151C;
+  --sb-title: #7A7886;
+  --sb-divider: #E7E6EC;
+  --sb-hover: rgba(20, 19, 30, .04);
+  --sb-active: #F4EFFF;                      /* soft violet wash — the one brand accent */
+  --sb-active-ink: #5B21B6;
+  --sb-active-line: #863BFF;
 
   /* ---- Layout ---- */
   --sidebar-width: 224px;

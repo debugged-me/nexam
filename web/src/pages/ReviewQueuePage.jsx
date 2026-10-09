@@ -480,6 +480,7 @@ export default function ReviewQueuePage() {
     <AppShell activeNav="questions" pageTitle="Review Queue">
       <header className="rv-head">
         <div className="rv-head-main">
+          <span className="eyebrow">Question bank</span>
           <h1 className="rv-head-title">Review queue</h1>
           <p className="rv-head-sub">
             Every AI-drafted question needs your decision before it joins the bank. One item at a time, in full.

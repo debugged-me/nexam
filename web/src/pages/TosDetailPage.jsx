@@ -315,6 +315,7 @@ export default function TosDetailPage() {
 
       <div className="page-header">
         <div>
+          <span className="eyebrow">Blueprint</span>
           <h1>{tos.title}</h1>
           {tos.subject_name && (
             <Link to="/subjects" className="crumb-link">
@@ -333,7 +334,7 @@ export default function TosDetailPage() {
               {finalizing ? <span className="btn-spinner" /> : <Lock size={14} />} Finalize TOS
             </button>
           )}
-          <button type="button" className="btn btn-primary btn-sm" onClick={handleGenerate} disabled={generating || !finalized}
+          <button type="button" className="btn btn-brand btn-sm" onClick={handleGenerate} disabled={generating || !finalized}
             title="AI drafts questions from your materials based on this blueprint">
             {generating ? <span className="btn-spinner" /> : <Sparkles size={14} />} Auto-generate Questions
           </button>
@@ -365,14 +366,17 @@ export default function TosDetailPage() {
         <div className="stat-card">
           <div className="stat-icon blue"><ListOrdered size={18} /></div>
           <div className="stat-info"><div className="stat-value">{Number(tos.total_items)}</div><div className="stat-label">Total Items</div></div>
+          <div className="stat-context">{finalized ? 'blueprint finalized' : 'draft — finalize to generate'}</div>
         </div>
         <div className="stat-card">
           <div className="stat-icon amber"><Layers size={18} /></div>
           <div className="stat-info"><div className="stat-value">{topics.length}</div><div className="stat-label">Topics</div></div>
+          <div className="stat-context">{topics.length > 0 ? `~${Math.round(Number(tos.total_items) / topics.length)} items per topic` : 'add topics to allocate items'}</div>
         </div>
         <div className="stat-card">
           <div className="stat-icon green"><Clock size={18} /></div>
           <div className="stat-info"><div className="stat-value">{totalHours}</div><div className="stat-label">Instructional Hours</div></div>
+          <div className="stat-context">{Number(totalHours) > 0 ? `${(Number(tos.total_items) / Number(totalHours)).toFixed(1)} items per hour` : 'hours drive allocation'}</div>
         </div>
       </div>
 
@@ -381,14 +385,14 @@ export default function TosDetailPage() {
           <span className="card-title">Bloom's Taxonomy Distribution</span>
         </div>
         <div className="card-body">
-          {BLOOM_ORDER.map((k) => {
+          {BLOOM_ORDER.map((k, i) => {
             const pct = Number(tos.bloom_weights?.[k]) || 0;
             const itemCount = Math.round((pct / 100) * Number(tos.total_items));
             return (
               <div key={k} className="bloom-bar-row">
                 <div className="bloom-bar-label">{BLOOM_LABELS[k]}</div>
                 <div className="bloom-bar-track">
-                  <div className="bloom-bar-fill" style={{ width: `${pct}%` }} />
+                  <div className="bloom-bar-fill" data-level={i + 1} style={{ width: `${pct}%` }} />
                 </div>
                 <div className="bloom-bar-meta">
                   <span className="badge badge-gray">{pct}%</span>

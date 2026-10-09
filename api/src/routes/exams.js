@@ -378,6 +378,11 @@ router.post('/:id/questions', requireAuth, async (req, res, next) => {
       { ids: validIds, uid: req.user.id, subjectId: exam.subject_id, tosId: exam.tos_id }
     );
     const ownedIds = ownedRows.map((r) => r.id);
+    if (!ownedIds.length) {
+      return res.status(422).json({
+        error: 'None of the selected questions can be attached. Questions must be active, similarity-checked, and aligned to this exam\'s blueprint.',
+      });
+    }
 
     // Get current max sort_order
     const [maxRows] = await pool.query(

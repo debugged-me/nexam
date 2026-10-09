@@ -118,6 +118,7 @@ export default function WizardPage() {
     if (!pipeline) return 'pending';
     const hasExam = Boolean(pipeline.exam);
     const autoFailed = Boolean(failedStage);
+    if (hasExam) return 'done';
     if (stageKey === 'source') return effectiveStage === 'upload' ? 'current' : 'done';
     if (stageKey === 'generate') {
       if (autoFailed) return 'failed';
@@ -142,7 +143,7 @@ export default function WizardPage() {
     <AppShell activeNav="wizard" pageTitle="Build an exam">
       <header className="wizard-head">
         <div className="wizard-head-copy">
-          <span className="wizard-eyebrow"><Sparkles size={13} /> Guided workspace</span>
+          <span className="eyebrow"><Sparkles size={13} /> Guided workspace</span>
           <h1>Build an exam</h1>
           <p>Choose a subject and add one source. Nexam handles the setup work; you review the questions and stay in control.</p>
         </div>
@@ -173,42 +174,43 @@ export default function WizardPage() {
       ) : loading && !pipeline ? (
         <PageLoader label="Loading your workflow…" />
       ) : pipeline && (
-        <div className="wizard-pipeline">
-          {/* Stage indicators */}
-          <div className="wizard-stages">
+        <div className="wizard-layout">
+          {/* Stage rail — vertical checklist, Linear-style */}
+          <ol className="wizard-steps">
             {STAGES.map((stage, idx) => {
               const status = stageStatus(stage.key);
               const isFailed = status === 'failed';
               const Icon = stage.icon;
               return (
-                <div key={stage.key} className={`wizard-stage ${status} ${isFailed ? 'failed' : ''}`}>
-                  <div className="wizard-stage-icon">
-                    {status === 'done' ? <CheckCircle2 size={20} /> :
-                     status === 'active' ? <Loader2 size={20} className="spin" /> :
-                     isFailed ? <AlertCircle size={20} /> :
-                     <Icon size={20} />}
-                  </div>
-                  <div className="wizard-stage-label">
-                    <span className="wizard-stage-name">{stage.label}</span>
-                    <span className="wizard-stage-status">
+                <li key={stage.key} className={`wizard-step ${status} ${isFailed ? 'failed' : ''}`}>
+                  <span className="wizard-step-ic">
+                    {status === 'done' ? <CheckCircle2 size={14} /> :
+                     status === 'active' ? <Loader2 size={14} className="spin" /> :
+                     isFailed ? <AlertCircle size={14} /> :
+                     <Icon size={14} />}
+                  </span>
+                  <span className="wizard-step-copy">
+                    <span className="wizard-step-name">{stage.label}</span>
+                    <span className="wizard-step-hint">
                       {status === 'done' ? 'Complete' :
-                       status === 'active' ? 'Working automatically…' :
+                       status === 'active' ? 'Running…' :
                        status === 'current' ? stage.hint :
                        isFailed ? 'Failed' :
                        stage.hint}
                     </span>
-                  </div>
-                  {idx < STAGES.length - 1 && <div className="wizard-stage-connector" />}
-                </div>
+                  </span>
+                  <span className="wizard-step-num">{idx + 1}</span>
+                </li>
               );
             })}
-          </div>
+          </ol>
 
           {/* Current stage detail */}
           <div className="wizard-detail">
-            {effectiveStage === 'upload' && (
+            {effectiveStage === 'upload' && !pipeline.exam && (
               <div className="wizard-card">
-                <h3>Step 1: Upload Syllabus</h3>
+                <span className="wizard-step-tag">Step 1 of 4</span>
+                <h3>Upload syllabus</h3>
                 <p>Upload a college syllabus — the system will extract topics, instructional hours, and learning outcomes to build the exam blueprint.</p>
                 <button type="button" className="wizard-drop" onClick={() => setUploadOpen(true)}>
                   <span className="wizard-drop-icon"><Upload size={18} /></span>
@@ -222,7 +224,8 @@ export default function WizardPage() {
 
             {(effectiveStage === 'extracting' || effectiveStage === 'embedding') && (
               <div className="wizard-card">
-                <h3>Processing Syllabus</h3>
+                <span className="wizard-step-tag">Step 1 of 4 · Automatic</span>
+                <h3>Processing syllabus</h3>
                 <p>Extracting text and embedding chunks into the vector store. This happens automatically — no action needed.</p>
                 {pipeline.syllabus && (
                   <div className="wizard-info">
@@ -235,16 +238,18 @@ export default function WizardPage() {
 
             {effectiveStage === 'tos_generating' && (
               <div className="wizard-card">
-                <h3>Generating Blueprint (TOS)</h3>
+                <span className="wizard-step-tag">Step 2 of 4 · Automatic</span>
+                <h3>Generating blueprint (TOS)</h3>
                 <p>The AI is extracting topics and instructional hours from your syllabus and computing item weights. This happens automatically.</p>
               </div>
             )}
 
             {effectiveStage === 'tos_review' && pipeline.tos && (
               <div className="wizard-card">
-                <h3>Review & Finalize the Blueprint</h3>
+                <span className="wizard-step-tag">Step 2 of 4</span>
+                <h3>Review &amp; finalize the blueprint</h3>
                 <p>Confirm the extracted topics, instructional hours, item allocation, and Bloom weights. Question generation stays locked until you finalize this TOS.</p>
-                <Link to={`/tos/${pipeline.tos.id}`} className="btn btn-primary">
+                <Link to={`/tos/${pipeline.tos.id}`} className="btn btn-brand">
                   <ClipboardCheck size={16} /> Review TOS <ArrowRight size={14} />
                 </Link>
               </div>
@@ -252,9 +257,10 @@ export default function WizardPage() {
 
             {effectiveStage === 'ready_to_generate' && pipeline.tos && (
               <div className="wizard-card">
-                <h3>Generate Grounded Questions</h3>
+                <span className="wizard-step-tag">Step 2 of 4</span>
+                <h3>Generate grounded questions</h3>
                 <p>The TOS is finalized. Start generation from the blueprint; drafts will be grounded in retrieved source chunks and remain unavailable to exams until duplicate checking and instructor approval finish.</p>
-                <Link to={`/tos/${pipeline.tos.id}`} className="btn btn-primary">
+                <Link to={`/tos/${pipeline.tos.id}`} className="btn btn-brand">
                   <Sparkles size={16} /> Open Finalized TOS <ArrowRight size={14} />
                 </Link>
               </div>
@@ -262,7 +268,8 @@ export default function WizardPage() {
 
             {effectiveStage === 'question_generating' && (
               <div className="wizard-card">
-                <h3>Generating Questions</h3>
+                <span className="wizard-step-tag">Step 2 of 4 · Automatic</span>
+                <h3>Generating questions</h3>
                 <p>The AI is generating RAG-grounded questions from your materials based on the blueprint. This may take a few minutes due to rate limits.</p>
                 {pipeline.tos && (
                   <div className="wizard-info">
@@ -274,7 +281,8 @@ export default function WizardPage() {
 
             {effectiveStage === 'review' && (
               <div className="wizard-card">
-                <h3>Review & Approve Questions</h3>
+                <span className="wizard-step-tag">Step 3 of 4</span>
+                <h3>Review &amp; approve questions</h3>
                 <p>Generated questions are drafts awaiting your approval. Review each one — only approved questions enter the question bank and can be used in exams.</p>
                 <div className="wizard-stats">
                   <div className="wizard-stat">
@@ -290,7 +298,7 @@ export default function WizardPage() {
                     <span className="wizard-stat-label">Rejected</span>
                   </div>
                 </div>
-                <Link to="/questions" className="btn btn-primary">
+                <Link to="/questions" className="btn btn-brand">
                   <ClipboardCheck size={16} /> Review Questions <ArrowRight size={14} />
                 </Link>
               </div>
@@ -298,14 +306,15 @@ export default function WizardPage() {
 
             {effectiveStage === 'exam_ready' && (
               <div className="wizard-card">
-                <h3>Create Exam</h3>
+                <span className="wizard-step-tag">Step 4 of 4</span>
+                <h3>Create exam</h3>
                 <p>All questions are approved. Create an exam from your blueprint and generate print-ready PDFs, answer keys, and OMR sheets.</p>
                 {pipeline.tos && (
                   <div className="wizard-info">
                     <Link to={`/tos/${pipeline.tos.id}`} className="g-link">Blueprint: {pipeline.tos.title}</Link>
                   </div>
                 )}
-                <Link to="/exams/new" className="btn btn-primary">
+                <Link to="/exams/new" className="btn btn-brand">
                   <FilePlus2 size={16} /> Create Exam <ArrowRight size={14} />
                 </Link>
               </div>
@@ -326,13 +335,14 @@ export default function WizardPage() {
               </div>
             )}
 
-            {/* Already has an exam */}
+            {/* Already has an exam — the finished state */}
             {pipeline.exam && (
               <div className="wizard-card wizard-card-success">
-                <h3>Exam Created</h3>
-                <p>An exam has already been generated for this subject.</p>
+                <span className="wizard-step-tag">Complete</span>
+                <h3>Exam ready</h3>
+                <p>An exam has been generated for this subject. Open it to review sets, print OMR sheets, and export.</p>
                 <Link to={`/exams/${pipeline.exam.id}`} className="btn btn-primary">
-                  View Exam <ArrowRight size={14} />
+                  View exam <ArrowRight size={14} />
                 </Link>
               </div>
             )}

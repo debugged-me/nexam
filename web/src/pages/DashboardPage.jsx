@@ -2,8 +2,8 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
-  ArrowRight, BookOpen, ChevronRight, CircleHelp, FileText,
-  ListChecks, PanelsTopLeft, Plus, Sparkles, Upload,
+  ArrowRight, BookOpen, Check, ChevronRight, FileText,
+  ListChecks, Plus, Sparkles, Upload,
 } from 'lucide-react';
 import { useAuth } from '../features/auth/AuthContext.jsx';
 import AppShell from '../components/AppShell.jsx';
@@ -64,50 +64,117 @@ export default function DashboardPage() {
   const firstName = (user?.full_name || 'there').trim().split(/\s+/)[0];
   const approved = count(bank.approved);
   const drafts = count(bank.draft);
+  const rejected = count(bank.rejected);
   const total = count(bank.total);
   const readyPct = total ? Math.min(100, Math.round((approved / total) * 100)) : 0;
   const recentExams = (data.recentExams || []).slice(0, 5);
   const recentSubjects = (data.recentSubjects || []).slice(0, 4);
+  const plural = (n, one, many) => `${n.toLocaleString()} ${n === 1 ? one : many}`;
+
+  // The product pipeline as a checklist — the first incomplete step is what
+  // to do next, so nobody has to guess where to start or what "select".
+  const guideSteps = [
+    { label: 'Create a subject', hint: 'A workspace for each course you teach', to: '/subjects?new=1', done: count(stats.subjects) > 0 },
+    { label: 'Upload materials', hint: 'Syllabus or references the AI reads from', to: '/materials?upload=1', done: count(stats.materials) > 0 },
+    { label: 'Create a blueprint', hint: 'The topic × Bloom plan your exam follows', to: '/tos', done: count(stats.tos) > 0 },
+    { label: 'Generate questions', hint: 'AI drafts built from your materials', to: '/wizard', done: count(stats.questions) > 0 },
+    { label: 'Review & approve', hint: 'Approve drafts so they can enter exams', to: '/questions/review', done: approved > 0 || (total > 0 && drafts === 0) },
+    { label: 'Build your exam', hint: 'Assemble sets, print papers and OMR sheets', to: '/exams/new', done: count(stats.exams) > 0 },
+  ];
+  const guideDone = guideSteps.every((s) => s.done);
+  const nextStep = guideSteps.find((s) => !s.done);
 
   return (
     <AppShell activeNav="dashboard" pageTitle="Home" wide>
       <div className="dash-home">
         <header className="dash-heading">
           <div>
-            <h1>{greeting()}, {firstName}</h1>
-            <p>Pick up an exam or prepare your next assessment.</p>
+            <span className="eyebrow">{greeting()}, {firstName}</span>
+            <h1>Workspace</h1>
+            <p className="dash-meta">
+              <Link to="/exams">{plural(count(stats.exams), 'exam', 'exams')}</Link>
+              <span aria-hidden="true"> · </span>
+              <Link to="/questions">{plural(total, 'question', 'questions')}</Link>
+              <span aria-hidden="true"> · </span>
+              <Link to="/subjects">{plural(count(stats.subjects), 'subject', 'subjects')}</Link>
+              <span aria-hidden="true"> · </span>
+              <Link to="/tos">{plural(count(stats.tos), 'blueprint', 'blueprints')}</Link>
+            </p>
           </div>
           <div className="dash-actions">
             <Link to="/questions?new=1" className="btn btn-outline"><Plus size={15} aria-hidden="true" /> Question</Link>
             <Link to="/materials?upload=1" className="btn btn-outline"><Upload size={15} aria-hidden="true" /> Material</Link>
-            <Link to="/wizard" className="btn btn-primary"><Sparkles size={15} aria-hidden="true" /> Build an exam</Link>
+            <Link to="/wizard" className="btn btn-brand"><Sparkles size={15} aria-hidden="true" /> Build an exam</Link>
           </div>
         </header>
 
-        <dl className="dash-totals" aria-label="Workspace totals">
-          {[
-            ['Exams', stats.exams, '/exams', 'violet', FileText],
-            ['Questions', stats.questions, '/questions', 'green', CircleHelp],
-            ['Subjects', stats.subjects, '/subjects', 'blue', BookOpen],
-            ['Blueprints', stats.tos, '/tos', 'cyan', PanelsTopLeft],
-          ].map(([label, value, url, tone, Icon]) => (
-            <div key={label} className={`dash-total dash-total--${tone}`}>
-              <dt><Link to={url}>{label}</Link></dt>
-              <dd>
-                <span className="dash-total-icon" aria-hidden="true"><Icon size={16} /></span>
-                {count(value).toLocaleString()}
-              </dd>
-            </div>
-          ))}
-        </dl>
-
-        {count(stats.subjects) === 0 && (
-          <section className="dash-start" aria-labelledby="dash-start-title">
-            <BookOpen size={22} aria-hidden="true" />
-            <div><h2 id="dash-start-title">Start with a subject</h2><p>Keep your course materials, questions, and exams together.</p></div>
-            <Link to="/subjects?new=1" className="btn btn-outline">Create subject <ArrowRight size={15} aria-hidden="true" /></Link>
+        {/* Guided path — only while the pipeline isn't fully set up yet. */}
+        {!guideDone && (
+          <section className="dash-panel dash-guide" aria-labelledby="dash-guide-title">
+            <header className="dash-panel-head">
+              <div>
+                <h2 id="dash-guide-title">How nexam works</h2>
+                <p>Follow these steps in order — materials in, exam out.</p>
+              </div>
+            </header>
+            <ol className="dash-steps">
+              {guideSteps.map((step, i) => {
+                const isNext = step === nextStep;
+                return (
+                  <li key={step.label}>
+                    <Link
+                      to={step.to}
+                      className={`dash-step ${step.done ? 'is-done' : ''} ${isNext ? 'is-next' : ''}`}
+                    >
+                      <span className="dash-step-num" aria-hidden="true">
+                        {step.done ? <Check size={13} /> : i + 1}
+                      </span>
+                      <span className="dash-step-main">
+                        <strong>{step.label}</strong>
+                        <small>{step.hint}</small>
+                      </span>
+                      {isNext
+                        ? <span className="dash-step-cta">Do this next <ArrowRight size={13} aria-hidden="true" /></span>
+                        : <ChevronRight size={15} className="dash-step-arrow" aria-hidden="true" />}
+                    </Link>
+                  </li>
+                );
+              })}
+            </ol>
           </section>
         )}
+
+        {/* The job-to-be-done, first: drafts move through review into the approved bank. */}
+        <section className="dash-pipeline" aria-label="Question pipeline">
+          <ol className="dash-pipe">
+            <li className="dash-pipe-stage is-draft">
+              <Link to="/questions?status=draft">
+                <span className="dash-pipe-num">{drafts.toLocaleString()}</span>
+                <span className="dash-pipe-label">Drafts</span>
+                <span className="dash-pipe-sub">awaiting review</span>
+              </Link>
+            </li>
+            <li className="dash-pipe-arrow" aria-hidden="true"><ArrowRight size={16} /></li>
+            <li className="dash-pipe-stage is-active">
+              <Link to="/questions?status=active">
+                <span className="dash-pipe-num">{approved.toLocaleString()}</span>
+                <span className="dash-pipe-label">Active</span>
+                <span className="dash-pipe-sub">{readyPct}% of bank ready</span>
+              </Link>
+            </li>
+            <li className="dash-pipe-arrow" aria-hidden="true"><ArrowRight size={16} /></li>
+            <li className="dash-pipe-stage is-rejected">
+              <Link to="/questions?status=rejected">
+                <span className="dash-pipe-num">{rejected.toLocaleString()}</span>
+                <span className="dash-pipe-label">Rejected</span>
+                <span className="dash-pipe-sub">kept for audit</span>
+              </Link>
+            </li>
+          </ol>
+          {drafts > 0
+            ? <Link to="/questions/review" className="btn btn-brand dash-pipe-cta"><ListChecks size={16} aria-hidden="true" /> Review {plural(drafts, 'draft', 'drafts')} <ArrowRight size={15} aria-hidden="true" /></Link>
+            : <Link to="/wizard" className="btn btn-outline dash-pipe-cta"><Sparkles size={16} aria-hidden="true" /> Generate questions <ArrowRight size={15} aria-hidden="true" /></Link>}
+        </section>
 
         <div className="dash-content-grid">
           <section className="dash-panel dash-exams" aria-labelledby="dash-exams-title">
@@ -156,26 +223,6 @@ export default function DashboardPage() {
           </section>
 
           <div className="dash-side">
-            <section className="dash-panel dash-bank" aria-labelledby="dash-bank-title">
-              <header className="dash-panel-head"><h2 id="dash-bank-title">Question bank</h2><CircleHelp size={18} aria-hidden="true" /></header>
-              <div className="dash-bank-body">
-                <div className="dash-ready-label"><span>{approved.toLocaleString()} of {total.toLocaleString()} ready to use</span><strong>{readyPct}%</strong></div>
-                <span className="b-sum-bar dash-bank-track" role="img" aria-label={`${approved} active, ${drafts} to review, ${count(bank.rejected)} rejected, ${count(bank.other)} other`}>
-                  {approved > 0 && <span className="b-sum-seg" data-tone="active" style={{ width: `${(approved / total) * 100}%` }} />}
-                  {drafts > 0 && <span className="b-sum-seg" data-tone="draft" style={{ width: `${(drafts / total) * 100}%` }} />}
-                  {count(bank.rejected) > 0 && <span className="b-sum-seg" data-tone="rejected" style={{ width: `${(count(bank.rejected) / total) * 100}%` }} />}
-                  {count(bank.other) > 0 && <span className="b-sum-seg" data-tone="other" style={{ width: `${(count(bank.other) / total) * 100}%` }} />}
-                </span>
-                <dl className="dash-bank-counts">
-                  <div><dt>Active</dt><dd>{approved.toLocaleString()}</dd></div>
-                  <div className={drafts > 0 ? 'has-drafts' : undefined}><dt>To review</dt><dd>{drafts.toLocaleString()}</dd></div>
-                  {count(bank.rejected) > 0 && <div className="has-rejected"><dt>Rejected</dt><dd>{count(bank.rejected).toLocaleString()}</dd></div>}
-                </dl>
-                {drafts > 0 ? <Link to="/questions/review" className="btn btn-primary dash-review"><ListChecks size={16} aria-hidden="true" /> Review {drafts.toLocaleString()} {drafts === 1 ? 'draft' : 'drafts'}<ArrowRight size={15} aria-hidden="true" /></Link>
-                  : <Link to="/questions" className="btn btn-outline dash-review">Open question bank <ArrowRight size={15} aria-hidden="true" /></Link>}
-              </div>
-            </section>
-
             <section className="dash-panel dash-subjects" aria-labelledby="dash-subjects-title">
               <header className="dash-panel-head">
                 <h2 id="dash-subjects-title">Subjects</h2>

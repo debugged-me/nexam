@@ -6,12 +6,9 @@
   margin-bottom: var(--space-5);
 }
 
-.institution-head .eyebrow {
-  color: var(--action-700);
-  font: 600 .75rem/1.4 var(--font-display);
-}
-.institution-head h1 { margin: .25rem 0 .4rem; font: 700 var(--text-xl)/1.2 var(--font-display); color: var(--ink); }
+.institution-head h1 { margin: 0 0 .4rem; font: 650 1.45rem/1.2 var(--font-display); letter-spacing: -.025em; color: var(--ink); }
 .institution-head p { max-width: 48rem; margin: 0; color: var(--ink-3); }
+.institution-head-side { display: flex; align-items: center; gap: var(--space-3); flex-shrink: 0; }
 .institution-count { display: flex; align-items: center; gap: .45rem; white-space: nowrap; color: var(--ink-2); font: 600 var(--text-sm)/1 var(--font-display); }
 
 .institution-toolbar {
@@ -49,17 +46,31 @@
 .institution-search input { padding: 0 .85rem 0 2.45rem; }
 
 .institution-list { display: grid; gap: var(--space-3); }
-.institution-question { border: 1px solid var(--line); border-radius: 12px; padding: var(--space-5); background: var(--surface); }
+.institution-question { position: relative; border: 1px solid var(--line); border-radius: 12px; padding: var(--space-5); background: var(--surface); }
 .institution-question h2 { margin: .65rem 0; color: var(--ink); font: 600 var(--text-md)/1.5 var(--font-display); }
 .institution-meta { display: flex; flex-wrap: wrap; gap: .45rem .9rem; color: var(--ink-3); font-size: var(--text-xs); }
 .institution-meta span + span::before { content: "·"; margin-right: .9rem; color: var(--line-strong); }
 .institution-options { margin: .5rem 0 .75rem 1.4rem; color: var(--ink-2); }
 .institution-answer { margin-bottom: var(--space-4); color: var(--ink-2); font-size: var(--text-sm); }
+
+/* Compact density — one hairline list, stem only, reuse action pinned right.
+   Browsing a bank of hundreds is a scanning job; the full card is for reading. */
+.institution-list[data-density="compact"] { gap: 0; overflow: hidden; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); }
+.institution-list[data-density="compact"] .institution-question { border: 0; border-bottom: 1px solid var(--line); border-radius: 0; padding: 10px var(--space-4) 10px; padding-right: 150px; }
+.institution-list[data-density="compact"] .institution-question:last-child { border-bottom: 0; }
+.institution-list[data-density="compact"] .institution-question:hover { background: var(--surface-2); }
+.institution-list[data-density="compact"] .institution-question h2 { margin: 4px 0 0; font: 500 var(--text-sm)/1.45 var(--font-display); overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+.institution-list[data-density="compact"] .institution-options,
+.institution-list[data-density="compact"] .institution-answer { display: none; }
+.institution-list[data-density="compact"] .institution-reuse { position: absolute; top: 50%; right: var(--space-4); transform: translateY(-50%); }
 .institution-empty { min-height: 13rem; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: .5rem; border: 1px dashed var(--line-strong); border-radius: var(--radius-lg); color: var(--ink-3); text-align: center; }
 .institution-reuse-form p { margin-top: 0; color: var(--ink-3); }
 
 @media (max-width: 760px) {
   .institution-head { flex-direction: column; }
+  .institution-head-side { width: 100%; justify-content: space-between; }
   .institution-toolbar { grid-template-columns: 1fr; }
   .institution-question { padding: var(--space-4); }
+  .institution-list[data-density="compact"] .institution-question { padding-right: var(--space-4); }
+  .institution-list[data-density="compact"] .institution-reuse { position: static; transform: none; margin-top: 8px; }
 }

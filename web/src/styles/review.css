@@ -26,9 +26,9 @@
 
 .rv-head-title {
     font-family: var(--font-display, "Google Sans", sans-serif);
-    font-size: 1.3rem;
-    font-weight: 700;
-    letter-spacing: -.02em;
+    font-size: 1.45rem;
+    font-weight: 650;
+    letter-spacing: -.025em;
     color: var(--ink);
 }
 
@@ -71,9 +71,9 @@
 .rv-select:hover { border-color: var(--line-strong); color: var(--ink); }
 .rv-select:focus-visible { border-color: var(--brand-accent); box-shadow: 0 0 0 3px var(--ring); }
 .rv-select[data-active="true"] {
-    background-color: var(--action-50);
-    border-color: var(--action-100);
-    color: var(--action-700);
+    background-color: var(--surface-2);
+    border-color: var(--line-strong);
+    color: var(--ink);
 }
 
 /* ---- Progress -------------------------------------------------------- */
@@ -127,7 +127,7 @@
 .rv-progress-fill {
     height: 100%;
     border-radius: 999px;
-    background: var(--action-600);
+    background: var(--ink);
     transition: width .25s var(--ease);
 }
 
@@ -183,7 +183,7 @@
     font-size: var(--text-xs);
     color: var(--ink-3);
 }
-.rv-undo-note a { color: var(--action-700); text-decoration: underline; }
+.rv-undo-note a { color: var(--ink); text-decoration: underline; }
 
 /* ---- The draft card -------------------------------------------------- */
 
@@ -227,7 +227,7 @@
     font-family: var(--font-display, "Google Sans", sans-serif);
     font-weight: 600;
 }
-.rv-chip-ai { background: var(--purple-50); color: var(--purple-700); }
+.rv-chip-ai { background: var(--surface-2); color: var(--ink-2); }
 .rv-chip-source { margin-left: auto; }
 
 /* ---- Duplicate warning ----------------------------------------------- */
@@ -432,13 +432,13 @@
     line-height: 1.5;
     color: var(--ink-3);
 }
-.rv-note a { color: var(--action-700); text-decoration: underline; }
+.rv-note a { color: var(--ink); text-decoration: underline; }
 
 .rv-linkbtn {
     border: 0;
     background: none;
     padding: 0;
-    color: var(--action-700);
+    color: var(--ink);
     font: inherit;
     text-decoration: underline;
     cursor: pointer;
@@ -452,7 +452,7 @@
     z-index: 20;
     margin-top: var(--space-4);
     padding: var(--space-3) 0 var(--space-4);
-    background: linear-gradient(to bottom, rgba(250, 249, 245, 0), var(--surface-2) 28%);
+    background: linear-gradient(to bottom, rgba(247, 247, 250, 0), var(--canvas) 28%);
 }
 
 .rv-actions-main {

@@ -13,8 +13,8 @@
   flex-shrink: 0;
   width: 20px;
   height: 20px;
-  border: 2px solid var(--action-100);
-  border-top-color: var(--action-600);
+  border: 2px solid var(--surface-3);
+  border-top-color: var(--ink-3);
   border-radius: 50%;
   animation: spin .7s linear infinite;
 }
@@ -49,9 +49,7 @@
   gap: 18px;
   min-height: 100vh;
   min-height: 100dvh;
-  background:
-    radial-gradient(60% 42% at 50% 0%, rgba(217, 119, 87, .08), transparent 62%),
-    var(--canvas);
+  background: var(--canvas);
   animation: loader-in .3s ease-out .1s backwards;
 }
 .boot-mark {
@@ -61,8 +59,8 @@
   width: 48px;
   height: 48px;
   border-radius: var(--radius-md);
-  background: var(--brand-accent);
-  box-shadow: 0 8px 20px rgba(190, 92, 61, .22);
+  background: var(--ink);
+  box-shadow: var(--shadow-sm);
   color: #fff;
 }
 
@@ -76,9 +74,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background:
-    radial-gradient(60% 42% at 50% 0%, rgba(217, 119, 87, .09), transparent 62%),
-    var(--canvas);
+  background: var(--canvas);
   animation: loader-in .26s ease-out backwards;
   transition: opacity .34s ease;
 }
@@ -102,20 +98,20 @@
 .splash-disc--outer {
   width: 220px;
   height: 220px;
-  background: var(--action-100);
+  background: var(--surface-2);
 }
 .splash-disc--inner {
   width: 156px;
   height: 156px;
-  background: var(--action-50);
-  box-shadow: inset 0 0 0 1px rgba(217, 119, 87, .08);
+  background: var(--surface);
+  box-shadow: inset 0 0 0 1px var(--line);
 }
 .splash-logo {
   position: relative;
   width: 120px;
   height: 120px;
   display: block;
-  filter: drop-shadow(0 16px 28px rgba(190, 92, 61, .26));
+  filter: drop-shadow(0 16px 28px rgba(22, 20, 30, .18));
   animation: splash-breathe 1.4s ease-in-out infinite alternate;
 }
 
@@ -184,7 +180,7 @@
   left: 0;
   width: 38%;
   border-radius: 2px;
-  background: linear-gradient(90deg, transparent, var(--action-600) 35%, var(--brand-accent) 70%, transparent);
+  background: linear-gradient(90deg, transparent, var(--ink-3) 35%, var(--ink) 70%, transparent);
   animation: progress-slide 1.15s cubic-bezier(.45, .05, .55, .95) infinite;
   animation-play-state: paused;
 }

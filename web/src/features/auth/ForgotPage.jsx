@@ -80,7 +80,7 @@ export default function ForgotPage() {
               </div>
             )}
             {info && !error && (
-              <div className="form-alert" role="status" style={{ background: 'var(--action-50)', borderColor: 'var(--action-100)', color: 'var(--action-700)' }}>
+              <div className="form-alert" role="status" style={{ background: 'var(--surface-2)', borderColor: 'var(--line)', color: 'var(--ink-2)' }}>
                 <AlertCircle />
                 <span>{info}</span>
               </div>

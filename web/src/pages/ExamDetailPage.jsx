@@ -9,7 +9,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import {
   Plus, Trash2, FileText, FileCheck, Download, Send, Printer,
-  Pencil, HelpCircle, Clock, Monitor,
+  Pencil, HelpCircle, Clock, Monitor, QrCode, ScanLine, Sparkles,
 } from 'lucide-react';
 import { useToast } from '../components/Toast.jsx';
 import { useConfirm } from '../components/ConfirmDialog.jsx';
@@ -137,6 +137,7 @@ export default function ExamDetailPage() {
     <AppShell activeNav="exams" pageTitle={exam.title}>
       <div className="page-header">
         <div>
+          <span className="eyebrow">Exam</span>
           <h1>{exam.title}</h1>
           <div className="exam-meta">
             {exam.subject_name && <GroupChip color={accent}>{exam.subject_name}</GroupChip>}
@@ -149,9 +150,9 @@ export default function ExamDetailPage() {
               <Send size={14} /> Publish
             </button>
           )}
-          <button className="btn btn-outline btn-sm" onClick={handleGenerate} disabled={generating || !questions.length}>
-            {generating ? <span className="btn-spinner" /> : <FileText size={14} />}
-            Generate PDFs
+          <button className={`btn btn-sm ${hasSets ? 'btn-outline' : 'btn-brand'}`} onClick={handleGenerate} disabled={generating || !questions.length}>
+            {generating ? <span className="btn-spinner" /> : <Sparkles size={14} />}
+            {hasSets ? 'Regenerate sets' : 'Generate sets'}
           </button>
           {print && (
             <button className="btn btn-outline btn-sm" onClick={() => window.print()}>
@@ -166,6 +167,32 @@ export default function ExamDetailPage() {
 
       <div className="exam-detail-layout">
         <div className="exam-detail-main">
+          {/* The payoff: parallel print packs. One card per set, every artefact a real target. */}
+          {showDownloads && (
+            <section className="print-packs" id="exam-downloads" aria-label="Generated print packs">
+              {setLabels.map((label) => (
+                <article key={label} className="print-pack">
+                  <header className="print-pack-head">
+                    <span className="print-pack-set">Set {label}</span>
+                    <span className="print-pack-meta">{questions.length} {questions.length === 1 ? 'item' : 'items'}{print ? ' · print' : ' · digital'}</span>
+                    <QrCode size={18} className="print-pack-qr" aria-hidden="true" />
+                  </header>
+                  <div className="print-pack-files">
+                    <a className="print-pack-file" href={downloadUrl('exam', label)} target="_blank" rel="noreferrer">
+                      <FileText size={16} aria-hidden="true" /><span><strong>Exam paper</strong><small>PDF</small></span><Download size={14} aria-hidden="true" />
+                    </a>
+                    <a className="print-pack-file" href={downloadUrl('answerkey', label)} target="_blank" rel="noreferrer">
+                      <FileCheck size={16} aria-hidden="true" /><span><strong>Answer key</strong><small>PDF</small></span><Download size={14} aria-hidden="true" />
+                    </a>
+                    <a className="print-pack-file" href={downloadUrl('omr', label)} target="_blank" rel="noreferrer">
+                      <ScanLine size={16} aria-hidden="true" /><span><strong>OMR sheet</strong><small>QR-linked · PDF</small></span><Download size={14} aria-hidden="true" />
+                    </a>
+                  </div>
+                </article>
+              ))}
+            </section>
+          )}
+
           {exam.instructions && (
             <div className="card card-instructions" style={{ '--gc': accent }}>
               <div className="card-header"><span className="card-title">Instructions</span></div>
@@ -257,50 +284,20 @@ export default function ExamDetailPage() {
             </dl>
           </div>
 
-          {showDownloads && (
-            <div className="card" id="exam-downloads">
-              <div className="card-header">
-                <span className="card-title">Downloads</span>
-                <span className="text-muted meta-sm">Generated PDFs</span>
-              </div>
-              <div className="card-body dl-body">
-                {setLabels.map((label) => (
-                  <div key={label} className="dl-set">
-                    <span className="dl-set-label">Set {label}</span>
-                    <div className="dl-set-btns">
-                      <a className="btn btn-outline btn-sm" href={downloadUrl('exam', label)} target="_blank" rel="noreferrer" title="Exam PDF">
-                        <FileText size={13} /> Exam
-                      </a>
-                      <a className="btn btn-outline btn-sm" href={downloadUrl('answerkey', label)} target="_blank" rel="noreferrer" title="Answer key">
-                        <FileCheck size={13} /> Key
-                      </a>
-                      <a className="btn btn-outline btn-sm" href={downloadUrl('omr', label)} target="_blank" rel="noreferrer" title="OMR sheet">
-                        <Download size={13} /> OMR
-                      </a>
-                    </div>
-                  </div>
-                ))}
-                {tos && (
-                  <a className="btn btn-outline btn-sm dl-tos" href={downloadUrl('tos-report')} target="_blank" rel="noreferrer">
-                    <FileText size={13} /> TOS report
-                  </a>
-                )}
-              </div>
-            </div>
-          )}
-
           <div className="card">
-            <div className="card-header"><span className="card-title">LMS export</span></div>
-            <div className="card-body">
-              <p className="text-muted meta-sm lms-hint">Push this exam to Moodle or Canvas.</p>
-              <div className="lms-btns">
-                <a className="btn btn-outline btn-sm" href={exportUrl('gift')} target="_blank" rel="noreferrer">
-                  <Download size={13} /> Moodle GIFT
+            <div className="card-header"><span className="card-title">Export</span></div>
+            <div className="card-body dl-body">
+              {showDownloads && tos && (
+                <a className="print-pack-file" href={downloadUrl('tos-report')} target="_blank" rel="noreferrer">
+                  <FileText size={16} aria-hidden="true" /><span><strong>TOS report</strong><small>Blueprint coverage · PDF</small></span><Download size={14} aria-hidden="true" />
                 </a>
-                <a className="btn btn-outline btn-sm" href={exportUrl('xml')} target="_blank" rel="noreferrer">
-                  <Download size={13} /> Canvas XML
-                </a>
-              </div>
+              )}
+              <a className="print-pack-file" href={exportUrl('gift')} target="_blank" rel="noreferrer">
+                <Download size={16} aria-hidden="true" /><span><strong>Moodle</strong><small>GIFT</small></span><Download size={14} aria-hidden="true" />
+              </a>
+              <a className="print-pack-file" href={exportUrl('xml')} target="_blank" rel="noreferrer">
+                <Download size={16} aria-hidden="true" /><span><strong>Canvas</strong><small>QTI XML</small></span><Download size={14} aria-hidden="true" />
+              </a>
             </div>
           </div>
         </aside>

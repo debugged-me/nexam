@@ -85,6 +85,7 @@ export default function AccountPage() {
 
       <div className="page-header">
         <div>
+          <span className="eyebrow">Settings</span>
           <h1>Account</h1>
           <p className="page-sub">Manage your profile and password.</p>
         </div>

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Copy, Library, Search } from 'lucide-react';
+import { Copy, Library, Rows3, Search, StretchHorizontal } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import AppShell from '../components/AppShell.jsx';
 import { PageLoader } from '../components/Loaders.jsx';
@@ -28,6 +28,13 @@ export default function InstitutionBankPage() {
   const [reusing, setReusing] = useState(null);
   const [targetSubjectId, setTargetSubjectId] = useState('');
   const [saving, setSaving] = useState(false);
+  const [density, setDensity] = useState(() => localStorage.getItem('nexam.institution.density') || 'comfortable');
+
+  function toggleDensity() {
+    const next = density === 'compact' ? 'comfortable' : 'compact';
+    setDensity(next);
+    localStorage.setItem('nexam.institution.density', next);
+  }
 
   useEffect(() => {
     Promise.all([api.get('/questions/institution'), api.get('/subjects')])
@@ -81,7 +88,13 @@ export default function InstitutionBankPage() {
           <h1>Institution question bank</h1>
           <p>Search approved questions across the school. Reused items enter your private review queue before they can be placed in an exam.</p>
         </div>
-        <div className="institution-count"><Library size={18} /> {filtered.length} questions</div>
+        <div className="institution-head-side">
+          <div className="institution-count"><Library size={18} /> {filtered.length} questions</div>
+          <button type="button" className="ds-btn" onClick={toggleDensity} aria-pressed={density === 'compact'} title={density === 'compact' ? 'Show full questions' : 'Show compact list'}>
+            {density === 'compact' ? <StretchHorizontal size={15} /> : <Rows3 size={15} />}
+            {density === 'compact' ? 'Comfortable' : 'Compact'}
+          </button>
+        </div>
       </section>
 
       <section className="institution-toolbar" aria-label="Institution bank filters">
@@ -109,7 +122,7 @@ export default function InstitutionBankPage() {
           <span>Questions appear here after an instructor approves them.</span>
         </div>
       ) : (
-        <div className="institution-list">
+        <div className="institution-list" data-density={density}>
           {filtered.map((question) => (
             <article className="institution-question" key={question.id}>
               <div className="institution-meta">
@@ -127,7 +140,7 @@ export default function InstitutionBankPage() {
                 </ol>
               )}
               <div className="institution-answer"><strong>Answer:</strong> {question.answer || 'Not specified'}</div>
-              <button className="btn btn-primary" type="button" onClick={() => openReuse(question)} disabled={!subjects.length}>
+              <button className="btn btn-outline btn-sm institution-reuse" type="button" onClick={() => openReuse(question)} disabled={!subjects.length}>
                 <Copy size={15} /> Reuse as draft
               </button>
             </article>

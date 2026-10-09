@@ -52,6 +52,7 @@ export default function SimilarityReviewPage() {
     <AppShell activeNav="questions" pageTitle="Similarity Review">
       <div className="page-header">
         <div>
+          <span className="eyebrow">Question bank</span>
           <h1>Similarity Review</h1>
           <p className="page-sub">This question was flagged as a potential duplicate. Compare it with existing questions and decide whether to keep or reject it.</p>
         </div>
@@ -67,7 +68,10 @@ export default function SimilarityReviewPage() {
         <div className="card-header">
           <span className="card-title">Flagged Question</span>
           {question.similarity_score != null && (
-            <span className="text-muted meta-sm">Highest similarity: {(question.similarity_score * 100).toFixed(1)}%</span>
+            <span className="sim-score" data-band={question.similarity_score >= 0.9 ? 'high' : question.similarity_score >= 0.75 ? 'mid' : 'low'}>
+              <span className="sim-score-track" aria-hidden="true"><i style={{ width: `${Math.min(100, question.similarity_score * 100)}%` }} /></span>
+              {(question.similarity_score * 100).toFixed(1)}% highest match
+            </span>
           )}
         </div>
         <div className="card-body">
@@ -133,7 +137,10 @@ export default function SimilarityReviewPage() {
                           {BLOOM_LABELS[m.match_bloom] || '—'}
                         </span>
                       )}
-                      <span className="sim-match-score">{((m.score || 0) * 100).toFixed(1)}% similar</span>
+                      <span className="sim-score sim-match-score" data-band={(m.score || 0) >= 0.9 ? 'high' : (m.score || 0) >= 0.75 ? 'mid' : 'low'}>
+                        <span className="sim-score-track" aria-hidden="true"><i style={{ width: `${Math.min(100, (m.score || 0) * 100)}%` }} /></span>
+                        {((m.score || 0) * 100).toFixed(1)}% similar
+                      </span>
                       {m.decision && (
                         <span className="badge badge-gray">{m.decision.charAt(0).toUpperCase() + m.decision.slice(1)}</span>
                       )}

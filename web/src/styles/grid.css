@@ -26,6 +26,7 @@
     background: var(--surface);
     border: 1px solid var(--line);
     border-radius: 12px;
+    box-shadow: var(--shadow-sm);
 }
 
 .dataset[data-density="compact"] {
@@ -130,12 +131,12 @@
 }
 
 .ds-filter-btn[data-active="true"] {
-    background: var(--action-50);
-    border-color: var(--action-100);
-    color: var(--action-600);
+    background: var(--surface-2);
+    border-color: var(--line-strong);
+    color: var(--ink);
 }
 
-.ds-filter-btn[data-active="true"] svg { color: var(--action-600); }
+.ds-filter-btn[data-active="true"] svg { color: var(--ink); }
 
 .ds-filter-badge {
     display: inline-flex;
@@ -146,7 +147,7 @@
     padding: 0 4px;
     margin-left: 2px;
     border-radius: 99px;
-    background: var(--action-600);
+    background: var(--ink);
     color: #fff;
     font: 700 .625rem/1 var(--font-body, "Inter", sans-serif);
     font-variant-numeric: tabular-nums;
@@ -190,8 +191,8 @@
 .ds-filter-option:focus-visible { outline: 2px solid var(--brand-accent); outline-offset: 1px; }
 
 .ds-filter-option[aria-pressed="true"] {
-    background: var(--action-600);
-    border-color: var(--action-600);
+    background: var(--ink);
+    border-color: var(--ink);
     color: #fff;
 }
 
@@ -228,9 +229,9 @@
     gap: 5px;
     height: 24px;
     padding: 0 4px 0 9px;
-    border: 1px solid var(--action-100);
+    border: 1px solid var(--line-strong);
     border-radius: 99px;
-    background: var(--action-50);
+    background: var(--surface-2);
     color: var(--ink-2);
     font: 500 .75rem/1 var(--font-body, "Inter", sans-serif);
     white-space: nowrap;
@@ -521,8 +522,8 @@ table.grid tbody td {
 
 table.grid tbody tr:last-child > td { border-bottom: 0; }
 table.grid tbody tr:hover > td { background: var(--surface-2); }
-table.grid tbody tr.is-selected > td { background: var(--action-50); }
-table.grid tbody tr.is-selected:hover > td { background: var(--action-100); }
+table.grid tbody tr.is-selected > td { background: var(--surface-2); }
+table.grid tbody tr.is-selected:hover > td { background: var(--surface-3); }
 
 /* The sort arrow sits after the header label and reserves width even while
    invisible, so a right-aligned header would otherwise float left of its own
@@ -776,8 +777,8 @@ table.grid td.col-select {
 
 .ds-check input:checked + span,
 .ds-check input:indeterminate + span {
-    border-color: var(--action-600);
-    background: var(--action-600) 50% 50% / 11px no-repeat;
+    border-color: var(--ink);
+    background: var(--ink) 50% 50% / 11px no-repeat;
 }
 
 .ds-check input:checked + span {
@@ -823,14 +824,14 @@ table.grid td.col-actions {
 /* Tinted rather than solid so a page of drafts doesn't read as a wall of
    blue; the button fills in on hover to confirm the action. */
 .row-actions .btn-primary.btn-xs {
-    border-color: var(--action-100);
-    background: var(--action-50);
-    color: var(--action-700);
+    border-color: var(--line-strong);
+    background: var(--surface-2);
+    color: var(--ink);
     box-shadow: none;
 }
 .row-actions .btn-primary.btn-xs:hover {
-    border-color: var(--action-600);
-    background: var(--action-600);
+    border-color: var(--ink);
+    background: var(--ink);
     color: #fff;
 }
 .row-actions .btn-outline.btn-xs { color: var(--ink-3); }

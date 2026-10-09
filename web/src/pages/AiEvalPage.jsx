@@ -58,6 +58,7 @@ export default function AiEvalPage() {
     <AppShell activeNav="analytics" pageTitle="AI Evaluation" wide>
       <div className="page-header">
         <div>
+          <span className="eyebrow">Results &amp; insights</span>
           <h1>AI Component Evaluation</h1>
           <p className="page-sub">Quality metrics for AI-generated questions, similarity detection, and material extraction.</p>
         </div>
@@ -72,14 +73,17 @@ export default function AiEvalPage() {
         <div className="stat-card">
           <div className="stat-icon green"><Sparkles size={18} /></div>
           <div className="stat-info"><div className="stat-value">{pct(gen.precision)}%</div><div className="stat-label">Generation Precision</div></div>
+          <div className="stat-context"><b>{gen.approved || 0}</b> approved of {(gen.approved || 0) + (gen.rejected || 0)} decided</div>
         </div>
         <div className="stat-card">
           <div className="stat-icon blue"><CheckCircle size={18} /></div>
           <div className="stat-info"><div className="stat-value">{pct(gen.approvalRate)}%</div><div className="stat-label">Approval Rate</div></div>
+          <div className="stat-context">{gen.pending || 0} still pending review</div>
         </div>
         <div className="stat-card">
           <div className="stat-icon amber"><CopyCheck size={18} /></div>
           <div className="stat-info"><div className="stat-value">{pct(sim.flagRate)}%</div><div className="stat-label">Similarity Flag Rate</div></div>
+          <div className="stat-context">of {gen.totalGenerated || 0} generated drafts</div>
         </div>
         <div className="stat-card">
           <div className="stat-icon purple"><FileSearch size={18} /></div>

@@ -48,8 +48,8 @@ export function AuthSplash({ leaving = false }) {
         <div className="splash-title">nexam</div>
         <p className="splash-msg">TOS-aligned Exam Builder</p>
         <svg className="splash-arc" viewBox="0 0 40 40" fill="none" aria-hidden="true">
-          <circle cx="20" cy="20" r="17" stroke="var(--action-100)" strokeWidth="3.5" />
-          <circle className="splash-arc-sweep" cx="20" cy="20" r="17" stroke="var(--action-600)"
+          <circle cx="20" cy="20" r="17" stroke="var(--surface-3)" strokeWidth="3.5" />
+          <circle className="splash-arc-sweep" cx="20" cy="20" r="17" stroke="var(--ink-3)"
             strokeWidth="3.5" strokeLinecap="round" strokeDasharray="67 107" />
         </svg>
         <span className="sr-only">Loading nexam…</span>

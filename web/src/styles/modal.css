@@ -2,7 +2,7 @@
 .modal-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(24, 22, 18, .45);
+  background: rgba(18, 16, 32, .45);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -101,7 +101,7 @@
   border-color: var(--ink);
   color: #fff;
 }
-.btn-primary:hover { background: #2A2926; border-color: #2A2926; color: #fff; }
+.btn-primary:hover { background: #2B2A33; border-color: #2B2A33; color: #fff; }
 .btn-danger {
   background: var(--red-600);
   border-color: var(--red-600);

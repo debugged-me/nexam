@@ -22,15 +22,21 @@ import { safePublicFetch } from './safeUrl.js';
 import { readProtectedFile } from './storageCrypto.js';
 
 const require = createRequire(import.meta.url);
-// pdf-parse is CommonJS/UMD — load via require.
-const pdfParse = require('pdf-parse');
+// pdf-parse ≥2.x exposes a PDFParse class over pdf.js, not a bare function.
+const { PDFParse } = require('pdf-parse');
 const JSZip = require('jszip');
 
 /** Extract text from a PDF file. Rejects scanned/image-only PDFs. */
 async function extractPdf(filePath) {
   const buffer = await readProtectedFile(filePath);
-  const data = await pdfParse(buffer);
-  const text = (data.text || '').trim();
+  const parser = new PDFParse({ data: new Uint8Array(buffer) });
+  let text;
+  try {
+    const data = await parser.getText();
+    text = (data.text || '').trim();
+  } finally {
+    await parser.destroy().catch(() => {});
+  }
   if (!text || text.length < 20) {
     throw new Error('No selectable text found in this PDF. It may be a scanned image. The system cannot extract content from image-based PDFs (see scope limitations).');
   }

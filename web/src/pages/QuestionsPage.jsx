@@ -338,6 +338,20 @@ export default function QuestionsPage() {
    * moves drafts, so a 20-row selection with 8 active rows comes back with
    * approved:12 — the toast has to say 12.
    */
+  /** Turn the API's per-reason tally into one readable clause. */
+  function blockSummary(reasons) {
+    if (!reasons) return '';
+    if (reasons.firstMessage) return reasons.firstMessage;
+    const parts = [];
+    if (reasons.similarity_pending) parts.push(`${reasons.similarity_pending} still in similarity check`);
+    if (reasons.similarity_flagged) parts.push(`${reasons.similarity_flagged} need similarity review`);
+    if (reasons.similarity_error) parts.push(`${reasons.similarity_error} failed the similarity check`);
+    if (reasons.not_draft) parts.push(`${reasons.not_draft} were not drafts`);
+    if (reasons.unsupported_type) parts.push(`${reasons.unsupported_type} have an unsupported type`);
+    if (reasons.other) parts.push(`${reasons.other} blocked by grounding review`);
+    return parts.join(', ') || 'they could not be approved';
+  }
+
   function reportBulk(done, asked, verb, noun) {
     if (!done) {
       toast.warning(`No questions were ${verb} — ${noun}`);
@@ -356,7 +370,7 @@ export default function QuestionsPage() {
     setBulkBusy('approve');
     try {
       const data = await api.post('/questions/bulk-approve', { ids });
-      reportBulk(data?.approved || 0, ids.length, 'approved', 'approving only affects drafts.');
+      reportBulk(data?.approved || 0, ids.length, 'approved', blockSummary(data?.reasons) || 'approving only affects drafts.');
       clearSelection();
       load();
     } catch (err) {
@@ -659,6 +673,7 @@ export default function QuestionsPage() {
     <AppShell activeNav="questions" pageTitle="Questions" wide>
       <header className="list-head">
         <div className="list-head-main">
+          <span className="eyebrow">Workspace</span>
           <h1 className="list-head-title">
             Questions
             {filteredQuestions && filteredQuestions.length > 0 && (
@@ -672,7 +687,7 @@ export default function QuestionsPage() {
         </div>
         {draftCount > 0 && (
           <div className="list-head-actions">
-            <Link to="/questions/review" className="btn btn-primary btn-sm q-review-cta">
+            <Link to="/questions/review" className="btn btn-brand btn-sm q-review-cta">
               <ListChecks size={15} /> Review {draftCount} draft{draftCount === 1 ? '' : 's'}
             </Link>
           </div>

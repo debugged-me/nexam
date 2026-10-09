@@ -36,6 +36,7 @@ export default function ItemAnalysisPage() {
     <AppShell activeNav="analytics" pageTitle="Item Analysis" wide>
       <div className="page-header">
         <div>
+          <span className="eyebrow">Results &amp; insights</span>
           <h1>Item Analysis</h1>
           <p className="page-sub">Response distributions and difficulty per question.</p>
         </div>

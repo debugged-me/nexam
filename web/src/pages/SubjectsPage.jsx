@@ -236,6 +236,7 @@ export default function SubjectsPage() {
     <AppShell activeNav="subjects" pageTitle="Subjects" wide>
       <header className="list-head">
         <div className="list-head-main">
+          <span className="eyebrow">Manage</span>
           <h1 className="list-head-title">
             Subjects
             {subjects && subjects.length > 0 && (

@@ -214,6 +214,7 @@ export default function ExamsPage() {
     <AppShell activeNav="exams" pageTitle="Exams" wide>
       <header className="list-head">
         <div className="list-head-main">
+          <span className="eyebrow">Workspace</span>
           <h1 className="list-head-title">
             Exams
             {exams && exams.length > 0 && <span className="list-head-count">{exams.length}</span>}

@@ -524,20 +524,41 @@ router.post('/bulk-approve', async (req, res, next) => {
     );
     if (!validIds.length) return res.json({ approved: 0 });
 
-    const [eligible] = await pool.query(
-      `SELECT * FROM questions
-       WHERE id IN (:ids) AND created_by = :uid AND status = 'draft'
-         AND type IN ('mcq','true_false','matching','identification')
-         AND similarity_checked_at IS NOT NULL
-         AND similarity_error IS NULL
-         AND similarity_flag = 'none'`,
+    const [selected] = await pool.query(
+      `SELECT * FROM questions WHERE id IN (:ids) AND created_by = :uid`,
       { ids: validIds, uid: req.user.id }
     );
-    const eligibleIds = [];
-    for (const question of eligible) {
-      if (!(await approvalBlockReason(question))) eligibleIds.push(question.id);
+
+    // Cheap field-level triage first — the heavier grounding check only runs
+    // on rows that pass it. Every skipped row gets a reason so the client can
+    // say *why* instead of "approving only affects drafts".
+    const reasons = {};
+    const bump = (key) => { reasons[key] = (reasons[key] || 0) + 1; };
+    if (validIds.length > selected.length) bump('not_owned');
+    const candidates = [];
+    for (const q of selected) {
+      if (q.status !== 'draft') bump('not_draft');
+      else if (!QUESTION_TYPES.includes(q.type)) bump('unsupported_type');
+      else if (q.similarity_error) bump('similarity_error');
+      else if (!q.similarity_checked_at) bump('similarity_pending');
+      else if (q.similarity_flag === 'flagged') bump('similarity_flagged');
+      else if (q.similarity_flag === 'rejected') bump('not_draft');
+      else candidates.push(q);
     }
-    if (!eligibleIds.length) return res.json({ approved: 0, blocked: validIds.length });
+
+    const eligibleIds = [];
+    for (const question of candidates) {
+      const block = await approvalBlockReason(question);
+      if (block) {
+        bump('other');
+        if (!reasons.firstMessage) reasons.firstMessage = block;
+      } else {
+        eligibleIds.push(question.id);
+      }
+    }
+    if (!eligibleIds.length) {
+      return res.json({ approved: 0, blocked: validIds.length, reasons });
+    }
 
     const [result] = await pool.query(
       `UPDATE questions SET status = 'active', approved_by = :uid, approved_at = NOW(), updated_at = NOW()
@@ -558,6 +579,7 @@ router.post('/bulk-approve', async (req, res, next) => {
       approved: result.affectedRows,
       approvedIds: eligibleIds,
       blocked: validIds.length - result.affectedRows,
+      reasons: Object.keys(reasons).length ? reasons : undefined,
     });
   } catch (err) { next(err); }
 });

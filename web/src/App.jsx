@@ -42,6 +42,7 @@ const InstitutionBankPage = lazy(() => import('./pages/InstitutionBankPage.jsx')
 
 import './styles/tokens.css';
 import './styles/app.css';
+import './styles/board.css';
 import './styles/toast.css';
 import './styles/modal.css';
 import './styles/loading.css';

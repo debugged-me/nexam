@@ -1,26 +1,6 @@
 /* ItemAnalysisPage: independent content layout and styles. */
 @scope (.page--item-analysis) {
 /* Layout owned by this screen. */
-.page-header {
-  display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  gap: var(--space-3);
-  margin-bottom: 1.25rem;
-  padding: 4px 0 0;
-}
-.page-header h1,
-.page-header h2 {
-  font-family: var(--font-display, "Google Sans", sans-serif);
-  font-size: 1.45rem;
-  font-weight: 650;
-  letter-spacing: -.025em;
-  color: var(--ink);
-}
-.page-header .page-sub { font-size: .875rem; color: var(--ink-3); margin-top: 3px; }
-.page-header-actions { display: flex; align-items: center; gap: .5rem; flex-wrap: wrap; }
-
 
 
 /* analytics.css — performance dashboard styles */
@@ -201,11 +181,5 @@
   color: var(--ink-3, #6F6E69);
 }
 
-.list-head, .page-header { align-items: center; padding-top: 8px; margin-bottom: 26px; gap: 16px; }
-.list-head-title, .page-header h1, .page-header h2 { font-size: 1.8rem; font-weight: 500; letter-spacing: -.045em; }
-.list-head-main > .eyebrow, .page-header .eyebrow { color: var(--ink-3); font-size: .64rem; font-weight: 500; letter-spacing: .04em; margin-bottom: 9px; }
-.list-head-count { font-size: .7rem; padding: 2px 7px; border: 1px solid var(--line); background: var(--surface-2); border-radius: 5px; }
-.page-description { flex: 1 1 100%; font-size: .79rem; color: var(--ink-3); margin-top: 7px; line-height: 1.6; }
-@media (max-width: 599px) { .list-head-title, .page-header h1, .page-header h2 { font-size: 1.55rem; } .list-head, .page-header { margin-bottom: 20px; align-items: flex-start; } }
 
 }

@@ -8,7 +8,7 @@ import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import {
   Plus, Pencil, Trash2, Info, Search, CheckSquare,
-  Settings2, Ellipsis, Eye, CircleHelp, Check,
+  Ellipsis, Eye, CircleHelp, Check,
   ChevronUp, ChevronDown, ChevronFirst, ChevronLeft, ChevronRight, ChevronLast,
 } from 'lucide-react';
 import { useToast } from '../components/Toast.jsx';
@@ -52,8 +52,7 @@ export default function SubjectsPage() {
   const [selectMode, setSelectMode] = useState(false);
   const [selected, setSelected] = useState(new Set());
   const [page, setPage] = useState(0);
-  const [viewOpen, setViewOpen] = useState(false);
-  const [density, setDensity] = useState('comfortable');
+
   const searchRef = useRef(null);
 
   const load = useCallback(() => {
@@ -263,7 +262,7 @@ export default function SubjectsPage() {
           </button>
         </div>
       ) : (
-        <section className="dataset" data-dataset data-density={density} data-selecting={selectMode ? 'true' : 'false'}>
+        <section className="dataset" data-dataset data-select-mode="true" data-selecting={selectMode ? 'true' : 'false'}>
 
           {/* Toolbar */}
           <div className="dataset-bar">
@@ -288,20 +287,6 @@ export default function SubjectsPage() {
               <button type="button" className="ds-btn" onClick={toggleSelectMode} aria-pressed={selectMode}>
                 <CheckSquare size={15} /> Select
               </button>
-              <div className="ds-menu">
-                <button type="button" className="ds-btn" aria-expanded={viewOpen} aria-haspopup="true" onClick={() => setViewOpen((v) => !v)}>
-                  <Settings2 size={15} /> Options
-                </button>
-                {viewOpen && (
-                  <div className="ds-menu-panel" role="group" aria-label="Table options">
-                    <div className="ds-menu-label">Density</div>
-                    <div className="ds-seg">
-                      <button aria-pressed={density === 'comfortable'} onClick={() => { setDensity('comfortable'); setViewOpen(false); }}>Comfortable</button>
-                      <button aria-pressed={density === 'compact'} onClick={() => { setDensity('compact'); setViewOpen(false); }}>Compact</button>
-                    </div>
-                  </div>
-                )}
-              </div>
               <button type="button" className="btn btn-primary btn-sm" onClick={openNew}>
                 <Plus size={14} /> New Subject
               </button>
@@ -355,14 +340,14 @@ export default function SubjectsPage() {
                       </span>
                     </td>
                   </tr>
-                ) : pageRows.map((s) => {
+                ) : pageRows.map((s, i) => {
                   const q = s.question_count || 0;
                   const t = s.tos_count || 0;
                   const e = s.exam_count || 0;
                   const desc = s.description ? clip(s.description, 90) : 'No description';
                   const descTitle = s.description ? clip(s.description, 200) : '';
                   return (
-                    <tr key={s.id} data-id={s.id} className={selected.has(s.id) ? 'is-selected' : ''}>
+                    <tr key={s.id} data-id={s.id} style={{ '--i': Math.min(i, 12), '--gc': groupColor(s.id) }} className={selected.has(s.id) ? 'is-selected' : ''}>
                       <td className="col-select">
                         {selectMode && (
                           <label className="ds-check">
@@ -373,9 +358,14 @@ export default function SubjectsPage() {
                         )}
                       </td>
                       <td>
-                        <span className="g-primary">
-                          <Link to={`/subjects/${encodeURIComponent(s.id)}`} className="g-title g-subject" style={{ '--gc': groupColor(s.id) }}>{s.name}</Link>
-                          <span className="g-meta" title={descTitle}>{desc}</span>
+                        <span className="g-entity">
+                          <span className="g-entity-mark" aria-hidden="true">
+                            {(s.name || 'S').trim().split(/\s+/).slice(0, 2).map((w) => w[0]).join('').toUpperCase()}
+                          </span>
+                          <span className="g-primary">
+                            <Link to={`/subjects/${encodeURIComponent(s.id)}`} className="g-title">{s.name}</Link>
+                            <span className="g-meta" title={descTitle}>{desc}</span>
+                          </span>
                         </span>
                       </td>
                       <td>

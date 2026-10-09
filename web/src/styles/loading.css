@@ -180,7 +180,7 @@
   left: 0;
   width: 38%;
   border-radius: 2px;
-  background: linear-gradient(90deg, transparent, var(--ink-3) 35%, var(--ink) 70%, transparent);
+  background: linear-gradient(90deg, transparent, var(--action-400) 35%, var(--action-600) 70%, transparent);
   animation: progress-slide 1.15s cubic-bezier(.45, .05, .55, .95) infinite;
   animation-play-state: paused;
 }

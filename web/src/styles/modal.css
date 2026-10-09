@@ -2,7 +2,9 @@
 .modal-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(18, 16, 32, .45);
+  background: rgba(28, 30, 37, .4);
+  -webkit-backdrop-filter: blur(2px);
+  backdrop-filter: blur(2px);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -14,7 +16,8 @@
 
 .modal-card {
   background: var(--surface);
-  border-radius: 18px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
   box-shadow: var(--shadow-lg);
   width: 100%;
   max-height: 90vh;
@@ -77,38 +80,7 @@
   border-top: 1px solid var(--line);
 }
 
-/* Shared button styles (used across app pages) */
-.btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  height: 40px;
-  padding: 0 16px;
-  border: 1px solid var(--line-strong);
-  border-radius: 10px;
-  background: var(--surface);
-  color: var(--ink);
-  font-family: var(--font-display);
-  font-size: var(--text-sm);
-  font-weight: 500;
-  cursor: pointer;
-  transition: background-color .15s ease, border-color .15s ease, color .15s ease;
-}
-.btn:hover { background: var(--surface-2); border-color: var(--ink-faint); color: var(--ink); }
-.btn-primary {
-  background: var(--ink);
-  border-color: var(--ink);
-  color: #fff;
-}
-.btn-primary:hover { background: #2B2A33; border-color: #2B2A33; color: #fff; }
-.btn-danger {
-  background: var(--red-600);
-  border-color: var(--red-600);
-  color: #fff;
-}
-.btn-danger:hover { background: var(--red-700); border-color: var(--red-700); color: #fff; }
-.btn:disabled { opacity: .5; cursor: not-allowed; }
+/* Buttons come from the shared system in app.css — do not redeclare them here. */
 
 /* Confirm dialog — icon beside the message, Linear-style */
 .confirm-body {

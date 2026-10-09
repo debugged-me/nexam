@@ -82,75 +82,77 @@
   --font-display: "Google Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   --font-body: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 
-  /* ---- Brand: ink identity + Nexam violet accent (favicon) ---- */
+  /* ---- Brand: ink identity + monday-blue accent ---- */
   --brand:        #141413;
   --brand-deep:   #0C0C0B;
   --brand-soft:   #3D3D3A;
-  --brand-accent: #7452C7;  /* restrained accent for actions and focus */
-  --brand-blue:   #5B6BD6;   /* the mark's blue edge — reserved for *states*, never actions */
+  --brand-accent: #0073EA;  /* monday blue for actions and focus */
+  --brand-blue:   #579BFC;   /* light blue — reserved for *states*, never actions */
 
-  /* Primary actions — Nexam violet, straight from the favicon mark */
-  --action-50:   #F6F3FC;
-  --action-100:  #EDE7F8;
-  --action-600:  #7452C7;
-  --action-700:  #5E3DAC;
+  /* Primary actions — monday blue */
+  --action-50:   #EEF4FE;
+  --action-100:  #DCE9FD;
+  --action-300:  #8FBDF9;   /* accent highlights */
+  --action-400:  #5B9CF5;
+  --action-600:  #0073EA;
+  --action-700:  #005FBE;
 
-  /* ---- Violet scale (kept on the blue-* names so old refs follow) ---- */
-  --blue-50:  #F6F3FC;
-  --blue-100: #EDE7F8;
-  --blue-600: #7452C7;
-  --blue-700: #5E3DAC;
+  /* ---- Blue scale ---- */
+  --blue-50:  #EEF4FE;
+  --blue-100: #DCE9FD;
+  --blue-600: #0073EA;
+  --blue-700: #005FBE;
 
-  /* ---- Bloom ramp: sequential neutral gray, 1 (Remember) → 6 (Create) ---- */
-  --bloom-1: #F6F7F9;
-  --bloom-2: #E3E2EA;
-  --bloom-3: #C9C8D2;
-  --bloom-4: #9B99A8;
-  --bloom-5: #6B6A78;
-  --bloom-6: #45474F;
+  /* ---- Bloom ramp: sequential blue, 1 (Remember) → 6 (Create) ---- */
+  --bloom-1: #EDF3FD;
+  --bloom-2: #D7E4FA;
+  --bloom-3: #ACC8F2;
+  --bloom-4: #76A5EA;
+  --bloom-5: #3E7FDF;
+  --bloom-6: #1D5BB5;
 
-  /* ---- Status: muted, warm-tuned ---- */
-  --green-50:  #F1F7EF;
-  --green-100: #DFF0DC;
-  --green-600: #4E8A57;
-  --green-700: #3E6E46;
+  /* ---- Status: richer monday-tuned hues ---- */
+  --green-50:  #E9F6EF;
+  --green-100: #CFEADB;
+  --green-600: #23A265;
+  --green-700: #177446;
 
-  --amber-50:  #FAF4E4;
-  --amber-100: #F2E7C8;
+  --amber-50:  #FBF1DC;
+  --amber-100: #F5E1B4;
   --amber-600: #B07D1E;
   --amber-700: #8F6617;
 
-  --red-50:  #FAECE8;
-  --red-100: #F3D5CC;
-  --red-600: #C04434;
-  --red-700: #9E3527;
+  --red-50:  #FCEBEA;
+  --red-100: #F6D2CD;
+  --red-600: #DC4445;
+  --red-700: #AE3334;
 
   --purple-50:  #F3EFFF;
   --purple-600: #7C5CD6;
   --purple-700: #6441C4;
 
-  --teal-50:  #ECF7FB;
-  --teal-600: #2D9BB8;
+  --teal-50:  #E7F5FA;
+  --teal-600: #2199B8;
 
   /* ---- Focus and wash ---- */
-  --ring:        rgba(134, 59, 255, .22);
-  --ring-soft:   rgba(134, 59, 255, .10);
-  --accent-wash: rgba(134, 59, 255, .12);
-  --accent-line: rgba(134, 59, 255, .32);
+  --ring:        rgba(0, 115, 234, .24);
+  --ring-soft:   rgba(0, 115, 234, .10);
+  --accent-wash: rgba(0, 115, 234, .12);
+  --accent-line: rgba(0, 115, 234, .32);
 
   /* ---- Ink: cool-tinted near-neutrals ---- */
-  --ink:       #24252A;
-  --ink-2:     #45474F;
-  --ink-3:     #686B75;
-  --ink-faint: #727580;   /* ~4:1 on white — carries meta text, not just icons */
+  --ink:       #212329;
+  --ink-2:     #42454D;
+  --ink-3:     #666A74;
+  --ink-faint: #767A85;   /* meta text */
 
-  /* ---- Surfaces: white identity ---- */
-  --canvas:    #FFFFFF;   /* page backdrop — soft cool off-white */
+  /* ---- Surfaces: white canvas ---- */
+  --canvas:    #FFFFFF;
   --surface:   #FFFFFF;
   --surface-2: #F6F7F9;   /* dirty-white fill — subtle hover/inset tint */
   --surface-3: #ECEEF2;
-  --line:        #E9EAEE;
-  --line-strong: #D8DAE1;
+  --line:        #E7E8ED;
+  --line-strong: #D6D8E0;
 
   /* ---- Shape ---- */
   --radius-xs: 5px;
@@ -161,10 +163,11 @@
   --radius-xl: 14px;   /* hero surfaces — KPI tiles */
 
   /* ---- Elevation: soft lift so white cards read off the canvas ---- */
-  --shadow-sm: 0 1px 2px rgba(22, 20, 38, .05), 0 2px 6px rgba(22, 20, 38, .04);
-  --shadow-md: 0 8px 24px rgba(24, 21, 40, .08);
-  --shadow-lg: 0 18px 48px rgba(24, 21, 40, .13);
-  --shadow-card-hover: 0 2px 4px rgba(22, 20, 38, .05), 0 8px 20px rgba(24, 21, 40, .08);
+  --shadow-xs: 0 1px 2px rgba(24, 21, 45, .05);
+  --shadow-sm: 0 1px 2px rgba(24, 21, 45, .05), 0 2px 6px rgba(24, 21, 45, .04);
+  --shadow-md: 0 6px 20px rgba(24, 21, 45, .08), 0 1px 4px rgba(24, 21, 45, .04);
+  --shadow-lg: 0 18px 48px rgba(24, 21, 45, .14), 0 4px 12px rgba(24, 21, 45, .06);
+  --shadow-card-hover: 0 2px 6px rgba(24, 21, 45, .06), 0 10px 28px rgba(24, 21, 45, .09);
 
   /* ---- Type scale ---- */
   --text-xs:   .75rem;
@@ -188,22 +191,24 @@
   /* ---- Motion ---- */
   --ease: cubic-bezier(.16, 1, .3, 1);
 
-  /* ---- Nav rail: same white as the page, hairline does the split ---- */
-  --sb-bg: #F8F9FB;
-  --sb-bg-sunken: #F6F7F9;
-  --sb-text: #686B75;
-  --sb-text-hover: #24252A;
-  --sb-text-active: #24252A;
-  --sb-title: #727580;
-  --sb-divider: #E9EAEE;
-  --sb-hover: rgba(20, 19, 30, .04);
-  --sb-active: #EEEBF5;                      /* soft violet wash — the one brand accent */
-  --sb-active-ink: #63489B;
-  --sb-active-line: #7452C7;
+  /* ---- Nav rail: monday light workspace panel ---- */
+  --sb-bg: #F6F7FB;
+  --sb-bg-deep: #ECEEF3;
+  --sb-text: #5B5E69;
+  --sb-text-hover: #323338;
+  --sb-text-active: #323338;
+  --sb-title: #9699A3;
+  --sb-divider: #E3E5EB;
+  --sb-hover: rgba(50, 51, 56, .05);
+  --sb-active: #CCE5FF;                      /* monday's selected blue */
+  --sb-active-ink: #323338;
+  --sb-active-line: #0073EA;
+  --sb-field: rgba(50, 51, 56, .05);
+  --sb-field-line: rgba(50, 51, 56, .08);
 
   /* ---- Layout ---- */
-  --sidebar-width: 232px;
-  --topbar-height: 58px;
+  --sidebar-width: 240px;
+  --topbar-height: 56px;
 
   /* ---- Aliases ---- */
   --primary: var(--action-600);
@@ -233,27 +238,27 @@
 
 /* Status and subject colors; no page layout rules. */
 :root {
-  /* Status pill tones (muted ramp, tuned to the Nexam palette) */
-  --st-orange: #C68A28;   /* draft · working on it · pending */
-  --st-orange-deep: #9E6B15;
-  --st-green:  #4E8A57;   /* live · active · done · finalized · processed */
-  --st-green-deep: #3E6E46;
-  --st-red:    #C04434;   /* rejected · failed · stuck */
-  --st-red-deep: #9E3527;
-  --st-blue:   #5B6BD6;   /* published · ready — brand-blue, not the action violet */
-  --st-blue-deep: #4553B8;
-  --st-gray:   #7A7886;   /* archived · neutral */
-  --st-gray-deep: #6B6A75;
-  --st-purple: #7C5CD6;   /* in review */
-  --st-purple-deep: #6441C4;
+  /* Status block tones — solid monday-style cell colors, white-text safe */
+  --st-orange: #EC8A1C;   /* draft · working on it · pending */
+  --st-orange-deep: #9E5E0C;
+  --st-green:  #23A265;   /* live · active · done · finalized · processed */
+  --st-green-deep: #17744A;
+  --st-red:    #DE4A4B;   /* rejected · failed · stuck */
+  --st-red-deep: #A93536;
+  --st-blue:   #4E8DEB;   /* published · ready */
+  --st-blue-deep: #2F62C4;
+  --st-gray:   #838797;   /* archived · neutral */
+  --st-gray-deep: #5F6270;
+  --st-purple: #9B5CD8;   /* in review */
+  --st-purple-deep: #7640B4;
 
-  /* Group accent ramp — muted jewel tones, assigned round-robin */
-  --gc-1: #7C5CD6;
-  --gc-2: #5B6BD6;
-  --gc-3: #4E8A57;
-  --gc-4: #B07D1E;
-  --gc-5: #C2677E;
-  --gc-6: #2D9BB8;
-  --gc-7: #6E6BA8;
-  --gc-8: #64748B;
+  /* Group accent ramp — jewel tones, assigned round-robin */
+  --gc-1: #8B5CF6;
+  --gc-2: #4E8DEB;
+  --gc-3: #23A265;
+  --gc-4: #D98E1F;
+  --gc-5: #D45D79;
+  --gc-6: #2FA3BD;
+  --gc-7: #5C6BC0;
+  --gc-8: #6B7A90;
 }

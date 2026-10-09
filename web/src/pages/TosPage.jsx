@@ -205,11 +205,6 @@ export default function TosPage() {
           </details>
           <p className="page-description">Give every topic and Bloom level its place.</p>
         </div>
-        <div className="list-head-actions">
-          <button className="btn btn-primary btn-sm" onClick={() => setEditing({ title: '', subject_id: subjects[0]?.id || '', total_items: 50, bloom_weights: { ...DEFAULT_BLOOM } })}>
-            <Plus size={16} /> New Blueprint
-          </button>
-        </div>
       </header>
 
       {tosList === null ? (
@@ -231,6 +226,9 @@ export default function TosPage() {
         <div className="dataset">
           <div className="dataset-bar">
             <div className="dataset-bar-lead">
+              <button className="btn btn-primary btn-sm" onClick={() => setEditing({ title: '', subject_id: subjects[0]?.id || '', total_items: 50, bloom_weights: { ...DEFAULT_BLOOM } })}>
+                <Plus size={14} /> New Blueprint
+              </button>
               <span className="b-groupby">
                 <Layers size={14} aria-hidden="true" />
                 <select

@@ -225,11 +225,6 @@ export default function ExamsPage() {
           </details>
           <p className="page-description">Plan, assemble, and prepare your next assessment.</p>
         </div>
-        <div className="list-head-actions">
-          <button className="btn btn-primary btn-sm" onClick={() => navigate('/exams/new')}>
-            <Plus size={16} /> New exam
-          </button>
-        </div>
       </header>
 
       {exams === null ? (
@@ -246,6 +241,9 @@ export default function ExamsPage() {
         <section className="dataset" data-density="comfortable">
           <div className="dataset-bar">
             <div className="dataset-bar-lead">
+              <button className="btn btn-primary btn-sm" onClick={() => navigate('/exams/new')}>
+                <Plus size={14} /> New exam
+              </button>
               <label className="ds-search" htmlFor="exams-search">
                 <Search size={15} />
                 <span className="sr-only">Search exams</span>

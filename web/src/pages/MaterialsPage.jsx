@@ -510,7 +510,7 @@ export default function MaterialsPage() {
         <div className="form-row">
           <div className="form-group">
             <label className="form-label" htmlFor="mat-subject">Subject <span className="req">*</span></label>
-            <select id="mat-subject" className="form-input" style={{ paddingLeft: 16 }} value={form.subject_id}
+            <select id="mat-subject" className="form-control" value={form.subject_id}
               onChange={(e) => setSubject(e.target.value)}>
               <option value="">Select…</option>
               {subjects.map((s) => <option key={s.id} value={s.id}>{s.code || s.name} — {s.name}</option>)}
@@ -521,7 +521,7 @@ export default function MaterialsPage() {
           </div>
           <div className="form-group">
             <label className="form-label" htmlFor="mat-title">Title (optional)</label>
-            <input id="mat-title" className="form-input" style={{ paddingLeft: 16 }} value={form.title} maxLength={255}
+            <input id="mat-title" className="form-control" value={form.title} maxLength={255}
               disabled={uploadMode === 'file' && queueReady > 1}
               onChange={(e) => setForm({ ...form, title: e.target.value })} />
             {uploadMode === 'file' && queueReady > 1 && (
@@ -626,7 +626,7 @@ export default function MaterialsPage() {
           <form onSubmit={handleUrlSubmit}>
             <div className="form-group">
               <label className="form-label">URL <span className="req">*</span></label>
-              <input className="form-input" style={{ paddingLeft: 16 }} placeholder="https://… or https://youtube.com/…"
+              <input className="form-control" placeholder="https://… or https://youtube.com/…"
                 value={form.url} required
                 onChange={(e) => setForm({ ...form, url: e.target.value })} />
             </div>
@@ -643,7 +643,7 @@ export default function MaterialsPage() {
           <form onSubmit={handleTextSubmit}>
             <div className="form-group">
               <label className="form-label">Content <span className="req">*</span></label>
-              <textarea className="form-input" style={{ minHeight: 200, padding: '12px 16px', resize: 'vertical' }}
+              <textarea className="form-control" style={{ minHeight: 200 }}
                 placeholder="Paste text content here…" value={form.content} required
                 onChange={(e) => setForm({ ...form, content: e.target.value })} />
             </div>

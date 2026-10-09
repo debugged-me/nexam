@@ -723,6 +723,9 @@ export default function QuestionsPage() {
           {/* Toolbar */}
           <div className="dataset-bar">
             <div className="dataset-bar-lead">
+              <button type="button" className="btn btn-primary btn-sm" onClick={() => setEditing({ type: 'mcq', status: 'draft', subject_id: filters.subject_id || (subjects[0]?.id || '') })}>
+                <Plus size={14} /> New Question
+              </button>
               <label className="ds-search" htmlFor="questions-search">
                 <Search size={15} />
                 <span className="sr-only">Search questions</span>
@@ -829,9 +832,6 @@ export default function QuestionsPage() {
             <div className="dataset-bar-trail">
               <button type="button" className="btn btn-outline btn-sm" onClick={openImport}>
                 <Upload size={16} /> Import
-              </button>
-              <button type="button" className="btn btn-primary btn-sm" onClick={() => setEditing({ type: 'mcq', status: 'draft', subject_id: filters.subject_id || (subjects[0]?.id || '') })}>
-                <Plus size={16} /> New Question
               </button>
             </div>
           </div>

@@ -51,8 +51,11 @@ svg.lucide { stroke-width: 1.5; }
   z-index: 1000;
   display: flex;
   flex-direction: column;
-  background: var(--sb-bg);
-  border-right: 1px solid var(--line);
+  /* Deep-ink rail with a quiet blue glow up top, same family as auth. */
+  background:
+    radial-gradient(120% 55% at 50% -8%, rgba(0, 115, 234, .18), transparent 62%),
+    linear-gradient(180deg, #1C1D23 0%, var(--sb-bg) 55%, var(--sb-bg-deep) 100%);
+  border-right: 1px solid rgba(255, 255, 255, .07);
   transition: transform .22s var(--ease);
 }
 
@@ -75,7 +78,7 @@ svg.lucide { stroke-width: 1.5; }
 
 .sidebar-wordmark {
   min-width: 0;
-  color: var(--ink);
+  color: #fff;
   font-family: var(--font-display, "Google Sans", sans-serif);
   font-size: 1rem;
   font-weight: 650;
@@ -100,7 +103,7 @@ svg.lucide { stroke-width: 1.5; }
   padding: 10px 11px 18px;
 }
 .sidebar-nav::-webkit-scrollbar { width: 8px; }
-.sidebar-nav::-webkit-scrollbar-thumb { background: rgba(50, 51, 56, .14); border-radius: 8px; }
+.sidebar-nav::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, .14); border-radius: 8px; }
 .sidebar-nav::-webkit-scrollbar-track { background: transparent; }
 
 .nav-item {
@@ -159,11 +162,11 @@ svg.lucide { stroke-width: 1.5; }
 .sidebar-foot:hover { background: var(--sb-hover); }
 .sidebar-foot:focus { outline: none; }
 .sidebar-foot:focus-visible { outline: 2px solid var(--action-600); outline-offset: -2px; }
-.sidebar-foot .avatar { background: var(--action-100); border-color: var(--action-100); color: var(--action-700); }
+.sidebar-foot .avatar { background: var(--action-600); border-color: transparent; color: #fff; }
 .sidebar-foot-icon { display: flex; width: 29px; height: 29px; flex-shrink: 0; align-items: center; justify-content: center; border-radius: 8px; background: var(--sb-field); color: var(--sb-text); }
 .sidebar-foot-meta { min-width: 0; flex: 1; }
 .sidebar-foot strong, .sidebar-foot small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.sidebar-foot strong { font-family: var(--font-display); font-size: .78rem; font-weight: 600; color: var(--ink); }
+.sidebar-foot strong { font-family: var(--font-display); font-size: .78rem; font-weight: 600; color: #fff; }
 .sidebar-foot small { margin-top: 1px; font-size: .66rem; color: var(--sb-title); }
 
 /* Mobile sidebar overlay */
@@ -1214,12 +1217,12 @@ select.form-control:not([multiple]) {
 .sidebar-brand-link { display: flex; align-items: center; gap: 9px; min-width: 0; min-height: 44px; }
 .sidebar-mark { width: 27px; height: 27px; }
 .sidebar-wordmark { display: flex; align-items: baseline; gap: 6px; font-size: 1.28rem; font-weight: 600; letter-spacing: -.055em; }
-.sidebar-edition { color: var(--action-600); font: 500 .59rem var(--font-body); letter-spacing: .02em; }
+.sidebar-edition { color: var(--action-300); font: 500 .59rem var(--font-body); letter-spacing: .02em; }
 .sidebar-search { display: flex; align-items: center; gap: 8px; min-height: 34px; padding: 0 9px; margin: 0 14px 10px; border: 1px solid var(--sb-field-line); border-radius: 7px; background: var(--sb-field); color: var(--sb-text); cursor: pointer; transition: background-color .13s ease, border-color .13s ease; }
 .sidebar-search svg { color: var(--sb-title); }
 .sidebar-search span { font-size: .7rem; flex: 1; text-align: left; }
-.sidebar-search kbd { font: 500 .59rem var(--font-body); color: var(--sb-title); border: 1px solid var(--line-strong); border-radius: 3px; padding: 1px 4px; }
-.sidebar-search:hover { background: rgba(50,51,56,.08); border-color: rgba(50,51,56,.14); color: var(--sb-text-hover); }
+.sidebar-search kbd { font: 500 .59rem var(--font-body); color: var(--sb-title); border: 1px solid var(--sb-field-line); border-radius: 3px; padding: 1px 4px; }
+.sidebar-search:hover { background: rgba(255,255,255,.09); border-color: rgba(255,255,255,.16); color: var(--sb-text-hover); }
 .sidebar-nav { gap: 19px; padding: 8px 12px 20px; }
 .nav-group { display: grid; gap: 2px; }
 .nav-group-label { padding: 0 10px; margin: 0 0 7px; font-size: .61rem; color: var(--sb-title); font-weight: 550; letter-spacing: .085em; text-transform: uppercase; }

@@ -146,8 +146,8 @@
   --ink-3:     #666A74;
   --ink-faint: #767A85;   /* meta text */
 
-  /* ---- Surfaces: white canvas ---- */
-  --canvas:    #FFFFFF;
+  /* ---- Surfaces: tinted canvas, white cards read off it ---- */
+  --canvas:    #ECEDF2;
   --surface:   #FFFFFF;
   --surface-2: #F6F7F9;   /* dirty-white fill — subtle hover/inset tint */
   --surface-3: #ECEEF2;
@@ -163,11 +163,11 @@
   --radius-xl: 14px;   /* hero surfaces — KPI tiles */
 
   /* ---- Elevation: soft lift so white cards read off the canvas ---- */
-  --shadow-xs: 0 1px 2px rgba(24, 21, 45, .05);
-  --shadow-sm: 0 1px 2px rgba(24, 21, 45, .05), 0 2px 6px rgba(24, 21, 45, .04);
-  --shadow-md: 0 6px 20px rgba(24, 21, 45, .08), 0 1px 4px rgba(24, 21, 45, .04);
-  --shadow-lg: 0 18px 48px rgba(24, 21, 45, .14), 0 4px 12px rgba(24, 21, 45, .06);
-  --shadow-card-hover: 0 2px 6px rgba(24, 21, 45, .06), 0 10px 28px rgba(24, 21, 45, .09);
+  --shadow-xs: 0 1px 2px rgba(24, 21, 45, .07), 0 1px 1px rgba(24, 21, 45, .05);
+  --shadow-sm: 0 1px 2px rgba(24, 21, 45, .06), 0 2px 8px rgba(24, 21, 45, .05);
+  --shadow-md: 0 8px 24px rgba(24, 21, 45, .10), 0 2px 6px rgba(24, 21, 45, .05);
+  --shadow-lg: 0 18px 48px rgba(24, 21, 45, .16), 0 4px 12px rgba(24, 21, 45, .07);
+  --shadow-card-hover: 0 2px 6px rgba(24, 21, 45, .07), 0 12px 32px rgba(24, 21, 45, .11);
 
   /* ---- Type scale ---- */
   --text-xs:   .75rem;
@@ -191,20 +191,20 @@
   /* ---- Motion ---- */
   --ease: cubic-bezier(.16, 1, .3, 1);
 
-  /* ---- Nav rail: monday light workspace panel ---- */
-  --sb-bg: #F6F7FB;
-  --sb-bg-deep: #ECEEF3;
-  --sb-text: #5B5E69;
-  --sb-text-hover: #323338;
-  --sb-text-active: #323338;
-  --sb-title: #9699A3;
-  --sb-divider: #E3E5EB;
-  --sb-hover: rgba(50, 51, 56, .05);
-  --sb-active: #CCE5FF;                      /* monday's selected blue */
-  --sb-active-ink: #323338;
-  --sb-active-line: #0073EA;
-  --sb-field: rgba(50, 51, 56, .05);
-  --sb-field-line: rgba(50, 51, 56, .08);
+  /* ---- Nav rail: deep-ink workspace panel ---- */
+  --sb-bg: #16171C;
+  --sb-bg-deep: #0F1013;
+  --sb-text: rgba(255, 255, 255, .58);
+  --sb-text-hover: #FFFFFF;
+  --sb-text-active: #FFFFFF;
+  --sb-title: rgba(255, 255, 255, .38);
+  --sb-divider: rgba(255, 255, 255, .10);
+  --sb-hover: rgba(255, 255, 255, .065);
+  --sb-active: rgba(0, 115, 234, .30);       /* blue wash on ink */
+  --sb-active-ink: #FFFFFF;
+  --sb-active-line: #579BFC;
+  --sb-field: rgba(255, 255, 255, .06);
+  --sb-field-line: rgba(255, 255, 255, .11);
 
   /* ---- Layout ---- */
   --sidebar-width: 240px;

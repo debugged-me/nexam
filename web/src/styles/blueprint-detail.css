@@ -219,6 +219,14 @@
 .tos-edit-hours { max-width: 110px; }
 .tos-edit-outcomes { min-height: 62px; font-size: var(--text-sm); }
 .tos-action-save { color: var(--green-600); }
+
+/* Finalized blueprints lock the topic rows — a static lock glyph replaces the
+   dead action icons so the state explains itself. */
+.action-icon.is-locked {
+    cursor: default;
+    color: var(--ink-faint);
+}
+.action-icon.is-locked:hover { background: none; }
 .tos-action-save:hover { background: var(--green-50); color: var(--green-700); }
 .tos-action-save:disabled { cursor: default; opacity: .6; }
 
@@ -247,9 +255,27 @@
 
 .tos-matrix-scroll {
     position: relative;
-    overflow-x: auto;
+    overflow: auto;
+    /* Cap the block so a long topic list cannot stretch the page — the matrix
+       stays complete, header and totals row pin while the middle scrolls. */
+    max-height: 560px;
     -webkit-overflow-scrolling: touch;
 }
+
+.data-table.tos-matrix thead th {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+}
+.tos-matrix thead .tos-matrix-topic-col { z-index: 3; }
+
+.tos-matrix tfoot th,
+.tos-matrix tfoot td {
+    position: sticky;
+    bottom: 0;
+    z-index: 2;
+}
+.tos-matrix tfoot .tos-matrix-topic-col { z-index: 3; }
 
 .tos-matrix { min-width: 680px; }
 
@@ -292,6 +318,11 @@
 .tos-matrix td.is-zero { color: var(--ink-faint); }
 .tos-matrix td.is-total { font-weight: 600; color: var(--ink); }
 
+/* Coverage: short cells go amber (banked/needed), satisfied cells stay quiet. */
+.tos-matrix td.is-short { color: var(--amber-700, #8F6617); font-weight: 600; }
+.tos-matrix td.is-short .tos-matrix-need { font-weight: 400; color: var(--ink-faint); }
+.tos-matrix td.is-met { color: var(--green-700, #1E7B34); }
+
 .tos-matrix tfoot th,
 .tos-matrix tfoot td {
     height: 42px;
@@ -324,6 +355,3 @@
     font: 500 .75rem/1.2 var(--font-body, "Inter", sans-serif);
 }
 .tos-matrix-drift svg { flex: none; }
-
-
-}

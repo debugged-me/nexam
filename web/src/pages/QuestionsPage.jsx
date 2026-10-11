@@ -14,7 +14,8 @@ import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import {
   Plus, Pencil, Trash2, Check, X, Info, Search, Upload, Sparkles,
-  Ellipsis, FileText, ListChecks, RotateCcw, FilterX, Layers, Copy, Eye,
+  Ellipsis, FileText, ListChecks, RotateCcw, FilterX, Layers, Copy, Eye, ListFilter,
+  ChevronFirst, ChevronLeft, ChevronRight, ChevronLast,
 } from 'lucide-react';
 import { useToast } from '../components/Toast.jsx';
 import { useContextMenu, useCopyText } from '../components/ContextMenu.jsx';
@@ -77,6 +78,7 @@ function formatFromName(name) {
 }
 
 const DEFAULT_FILTERS = { subject_id: '', bloom: '', type: '', status: '', tos_id: '', topic: '' };
+const PAGE_SIZE = 25;
 
 /** API path for a filter set — also the cache key api.peek() looks up. */
 function questionsPath(filters) {
@@ -107,10 +109,18 @@ export default function QuestionsPage() {
   const [importState, setImportState] = useState(null);
   const [importing, setImporting] = useState(false);
   const [viewing, setViewing] = useState(null);
+  const [filtersOpen, setFiltersOpen] = useState(false);
   const [groupBy, setGroupBy] = useState('none'); // none | subject | status | bloom
   const [collapsed, setCollapsed] = useState(() => new Set());
+  const [page, setPage] = useState(0);
   const searchRef = useRef(null);
   const lastPickedRef = useRef(null); // anchor row index for shift-click ranges
+
+  /** Any change to what the grid shows restarts paging at the first page. */
+  function updateFilters(next) {
+    setPage(0);
+    setFilters(next);
+  }
 
   const load = useCallback(() => {
     api.get(questionsPath(filters))
@@ -127,9 +137,11 @@ export default function QuestionsPage() {
     const requestedStatus = searchParams.get('status');
     const requestedSubject = searchParams.get('subject_id');
     if (requestedSubject && subjects.some((subject) => String(subject.id) === requestedSubject)) {
+      setPage(0);
       setFilters((current) => current.subject_id === requestedSubject ? current : { ...current, subject_id: requestedSubject, tos_id: '' });
     }
     if (['draft', 'active', 'rejected'].includes(requestedStatus)) {
+      setPage(0);
       setFilters((current) => current.status === requestedStatus ? current : { ...current, status: requestedStatus });
     }
     if (searchParams.get('new') === '1') {
@@ -198,6 +210,7 @@ export default function QuestionsPage() {
   const activeFilterCount = [filters.subject_id, filters.bloom, filters.type, filters.status, filters.tos_id, filters.topic].filter(Boolean).length;
 
   const clearFilters = useCallback(() => {
+    setPage(0);
     setFilters(DEFAULT_FILTERS);
     setSearch('');
   }, []);
@@ -223,12 +236,20 @@ export default function QuestionsPage() {
 
   const rows = useMemo(() => filteredQuestions || [], [filteredQuestions]);
 
-  // Board grouping — visual only. Rows keep their global `rows` index so
-  // checkboxes and shift-click ranges behave exactly as the flat list.
+  // Pagination slices the filtered rows; every row still carries its global
+  // `rows` index so selection and shift-click ranges never notice the split.
+  const pageCount = Math.max(1, Math.ceil(rows.length / PAGE_SIZE));
+  const safePage = Math.min(page, pageCount - 1);
+  const pageRows = rows.slice(safePage * PAGE_SIZE, safePage * PAGE_SIZE + PAGE_SIZE);
+  const pageStart = rows.length ? safePage * PAGE_SIZE + 1 : 0;
+  const pageEnd = Math.min((safePage + 1) * PAGE_SIZE, rows.length);
+
+  // Board grouping — visual only, computed over the current page's rows.
   const qGroups = useMemo(() => {
-    if (groupBy === 'none' || !rows.length) return null;
+    if (groupBy === 'none' || !pageRows.length) return null;
     const map = new Map();
-    rows.forEach((q, index) => {
+    pageRows.forEach((q, i) => {
+      const index = safePage * PAGE_SIZE + i;
       let key, title, color, orderKey;
       if (groupBy === 'subject') {
         key = q.subject_id || q.subject_name || 'none';
@@ -252,7 +273,7 @@ export default function QuestionsPage() {
       map.get(key).rows.push({ q, index });
     });
     return [...map.values()].sort((a, b) => a.orderKey.localeCompare(b.orderKey));
-  }, [rows, groupBy]);
+  }, [pageRows, groupBy, safePage]);
 
   function toggleGroup(key) {
     setCollapsed((prev) => {
@@ -614,7 +635,7 @@ export default function QuestionsPage() {
       );
     }
     if (!qGroups) {
-      return <tbody>{rows.map((q, index) => renderQuestionRow(q, index))}</tbody>;
+      return <tbody>{pageRows.map((q, i) => renderQuestionRow(q, safePage * PAGE_SIZE + i))}</tbody>;
     }
     return qGroups.map((g) => {
       const isCollapsed = collapsed.has(g.key);
@@ -732,82 +753,21 @@ export default function QuestionsPage() {
                   autoComplete="off"
                   placeholder="Search stems and topics…"
                   value={search}
-                  onChange={(e) => setSearch(e.target.value)}
+                  onChange={(e) => { setPage(0); setSearch(e.target.value); }}
                 />
                 <kbd aria-hidden="true">/</kbd>
               </label>
 
-              <div className="q-filters" data-tour="questions-filters">
-                <select
-                  className="q-filter-select"
-                  aria-label="Filter by subject"
-                  data-active={!!filters.subject_id}
-                  value={filters.subject_id}
-                  onChange={(e) => setFilters({ ...filters, subject_id: e.target.value, tos_id: '' })}
-                >
-                  <option value="">All subjects</option>
-                  {subjects.map((s) => <option key={s.id} value={s.id}>{s.code || s.name} — {s.name}</option>)}
-                </select>
-                <select
-                  className="q-filter-select"
-                  aria-label="Filter by blueprint"
-                  data-active={!!filters.tos_id}
-                  value={filters.tos_id}
-                  onChange={(e) => setFilters({ ...filters, tos_id: e.target.value })}
-                >
-                  <option value="">All blueprints</option>
-                  {tosOptions.map((t) => (
-                    <option key={t.id} value={t.id}>{t.title}</option>
-                  ))}
-                </select>
-                <select
-                  className="q-filter-select"
-                  aria-label="Filter by topic"
-                  data-active={!!filters.topic}
-                  value={filters.topic}
-                  onChange={(e) => setFilters({ ...filters, topic: e.target.value })}
-                >
-                  <option value="">All topics</option>
-                  {topicOptions.map((t) => <option key={t} value={t}>{t}</option>)}
-                </select>
-                <select
-                  className="q-filter-select"
-                  aria-label="Filter by status"
-                  data-active={!!filters.status}
-                  value={filters.status}
-                  onChange={(e) => setFilters({ ...filters, status: e.target.value })}
-                >
-                  <option value="">All statuses</option>
-                  <option value="active">Active</option>
-                  <option value="draft">Draft</option>
-                  <option value="rejected">Rejected</option>
-                </select>
-                <select
-                  className="q-filter-select"
-                  aria-label="Filter by Bloom level"
-                  data-active={!!filters.bloom}
-                  value={filters.bloom}
-                  onChange={(e) => setFilters({ ...filters, bloom: e.target.value })}
-                >
-                  <option value="">All Bloom</option>
-                  {BLOOM_ORDER.map((b) => <option key={b} value={b}>{BLOOM_LABELS[b]}</option>)}
-                </select>
-                <select
-                  className="q-filter-select"
-                  aria-label="Filter by question type"
-                  data-active={!!filters.type}
-                  value={filters.type}
-                  onChange={(e) => setFilters({ ...filters, type: e.target.value })}
-                >
-                  <option value="">All types</option>
-                  {Object.entries(TYPE_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
-                </select>
-                {(activeFilterCount > 0 || search) && (
-                  <button type="button" className="ds-filter-clear" onClick={clearFilters}>
-                    <FilterX size={12} /> Clear
-                  </button>
-                )}
-              </div>
+              <button
+                type="button"
+                className="btn btn-outline btn-sm q-filters-btn"
+                data-tour="questions-filters"
+                data-active={activeFilterCount > 0 || undefined}
+                onClick={() => setFiltersOpen(true)}
+              >
+                <ListFilter size={15} /> Filters
+                {activeFilterCount > 0 && <span className="q-filter-badge">{activeFilterCount}</span>}
+              </button>
 
               <span className="b-groupby">
                 <Layers size={14} aria-hidden="true" />
@@ -815,7 +775,7 @@ export default function QuestionsPage() {
                   aria-label="Group questions by"
                   data-active={groupBy !== 'none'}
                   value={groupBy}
-                  onChange={(e) => { setGroupBy(e.target.value); setCollapsed(new Set()); }}
+                  onChange={(e) => { setGroupBy(e.target.value); setCollapsed(new Set()); setPage(0); }}
                 >
                   <option value="none">Group: None</option>
                   <option value="subject">Group: Subject</option>
@@ -896,12 +856,100 @@ export default function QuestionsPage() {
           {/* Footer */}
           <div className="dataset-foot">
             <div className="ds-range">
-              <b>{rows.length}</b> question{rows.length !== 1 ? 's' : ''}
+              <b>{pageStart}</b>–<b>{pageEnd}</b> of <b>{rows.length}</b> question{rows.length !== 1 ? 's' : ''}
               {selecting && <span className="q-foot-note"> · {selectionCount} selected</span>}
             </div>
+            {rows.length > PAGE_SIZE && (
+              <div className="ds-pager">
+                <button type="button" className="ds-page" onClick={() => setPage(0)} disabled={safePage === 0} aria-label="First page">
+                  <ChevronFirst size={15} />
+                </button>
+                <button type="button" className="ds-page" onClick={() => setPage((p) => Math.max(0, p - 1))} disabled={safePage === 0} aria-label="Previous page">
+                  <ChevronLeft size={15} />
+                </button>
+                <span className="ds-page" aria-current="page">{safePage + 1}</span>
+                <span className="ds-gap">/</span>
+                <span className="ds-page">{pageCount}</span>
+                <button type="button" className="ds-page" onClick={() => setPage((p) => Math.min(pageCount - 1, p + 1))} disabled={safePage >= pageCount - 1} aria-label="Next page">
+                  <ChevronRight size={15} />
+                </button>
+                <button type="button" className="ds-page" onClick={() => setPage(pageCount - 1)} disabled={safePage >= pageCount - 1} aria-label="Last page">
+                  <ChevronLast size={15} />
+                </button>
+              </div>
+            )}
           </div>
         </section>
       )}
+
+      {/* Filters modal — the six facets live here so the toolbar stays one row */}
+      <Modal
+        open={filtersOpen}
+        title="Filter questions"
+        subtitle="Narrow the bank — filters combine. The list updates as you pick."
+        onClose={() => setFiltersOpen(false)}
+        footer={
+          <>
+            <button type="button" className="btn btn-outline" onClick={clearFilters} disabled={!activeFilterCount && !search}>
+              <FilterX size={14} /> Clear all
+            </button>
+            <button type="button" className="btn btn-primary" onClick={() => setFiltersOpen(false)}>Done</button>
+          </>
+        }
+      >
+        <div className="q-filter-grid">
+          <div className="form-group">
+            <label className="form-label" htmlFor="qf-subject">Subject</label>
+            <select id="qf-subject" className="form-control form-select" value={filters.subject_id}
+              onChange={(e) => updateFilters({ ...filters, subject_id: e.target.value, tos_id: '' })}>
+              <option value="">All subjects</option>
+              {subjects.map((s) => <option key={s.id} value={s.id}>{s.code || s.name} — {s.name}</option>)}
+            </select>
+          </div>
+          <div className="form-group">
+            <label className="form-label" htmlFor="qf-tos">Blueprint</label>
+            <select id="qf-tos" className="form-control form-select" value={filters.tos_id}
+              onChange={(e) => updateFilters({ ...filters, tos_id: e.target.value })}>
+              <option value="">All blueprints</option>
+              {tosOptions.map((t) => <option key={t.id} value={t.id}>{t.title}</option>)}
+            </select>
+          </div>
+          <div className="form-group">
+            <label className="form-label" htmlFor="qf-topic">Topic</label>
+            <select id="qf-topic" className="form-control form-select" value={filters.topic}
+              onChange={(e) => updateFilters({ ...filters, topic: e.target.value })}>
+              <option value="">All topics</option>
+              {topicOptions.map((t) => <option key={t} value={t}>{t}</option>)}
+            </select>
+          </div>
+          <div className="form-group">
+            <label className="form-label" htmlFor="qf-status">Status</label>
+            <select id="qf-status" className="form-control form-select" value={filters.status}
+              onChange={(e) => updateFilters({ ...filters, status: e.target.value })}>
+              <option value="">All statuses</option>
+              <option value="active">Active</option>
+              <option value="draft">Draft</option>
+              <option value="rejected">Rejected</option>
+            </select>
+          </div>
+          <div className="form-group">
+            <label className="form-label" htmlFor="qf-bloom">Bloom level</label>
+            <select id="qf-bloom" className="form-control form-select" value={filters.bloom}
+              onChange={(e) => updateFilters({ ...filters, bloom: e.target.value })}>
+              <option value="">All Bloom levels</option>
+              {BLOOM_ORDER.map((b) => <option key={b} value={b}>{BLOOM_LABELS[b]}</option>)}
+            </select>
+          </div>
+          <div className="form-group">
+            <label className="form-label" htmlFor="qf-type">Question type</label>
+            <select id="qf-type" className="form-control form-select" value={filters.type}
+              onChange={(e) => updateFilters({ ...filters, type: e.target.value })}>
+              <option value="">All types</option>
+              {Object.entries(TYPE_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+            </select>
+          </div>
+        </div>
+      </Modal>
 
       {/* Create/edit question modal */}
       <Modal

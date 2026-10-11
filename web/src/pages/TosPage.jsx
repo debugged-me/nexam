@@ -191,6 +191,14 @@ export default function TosPage() {
               {topics
                 ? `${topics} ${topics === 1 ? 'topic' : 'topics'} · ${items} items`
                 : 'No topics defined yet'}
+              {topics > 0 && (
+                <>
+                  {' · '}
+                  <span className={t.banked >= items ? 'g-meta-met' : 'g-meta-short'}>
+                    {Math.min(Number(t.banked || 0), items)} of {items} banked
+                  </span>
+                </>
+              )}
               {t.title && t.title.length > 40 && (
                 <>
                   {' · '}

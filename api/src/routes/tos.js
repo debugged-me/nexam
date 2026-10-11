@@ -148,12 +148,35 @@ router.get('/', async (req, res, next) => {
     const [tosList] = await pool.query(
       `SELECT t.id, t.subject_id, t.title, t.total_items, t.bloom_weights,
               t.status, t.finalized_by, t.finalized_at,
-              t.created_at, t.updated_at, s.name AS subject_name, s.code AS subject_code
+              t.created_at, t.updated_at, s.name AS subject_name, s.code AS subject_code,
+              (SELECT COUNT(*) FROM tos_topics tt WHERE tt.tos_id = t.id) AS topic_count
        FROM tos t JOIN subjects s ON s.id = t.subject_id
        WHERE ${where.join(' AND ')}
        ORDER BY t.created_at DESC`,
       params
     );
+
+    // Live (non-rejected) questions already linked to each blueprint — the
+    // "banked" count the list shows next to the item target.
+    const [bankedRows] = await pool.query(
+      `SELECT links.tos_id, COUNT(DISTINCT links.question_id) AS n
+       FROM (
+         SELECT q.id AS question_id, q.tos_id AS tos_id FROM questions q
+         WHERE q.created_by = :uid AND q.tos_id IS NOT NULL
+           AND q.status <> 'rejected'
+           AND (q.similarity_flag IS NULL OR q.similarity_flag <> 'rejected')
+         UNION
+         SELECT qt.question_id, qt.tos_id FROM question_tos qt
+         JOIN questions q ON q.id = qt.question_id
+         WHERE q.created_by = :uid
+           AND q.status <> 'rejected'
+           AND (q.similarity_flag IS NULL OR q.similarity_flag <> 'rejected')
+       ) links
+       GROUP BY links.tos_id`,
+      { uid: req.user.id }
+    );
+    const bankedByTos = Object.fromEntries(bankedRows.map((r) => [r.tos_id, Number(r.n)]));
+    for (const t of tosList) t.banked = bankedByTos[t.id] || 0;
 
     // Parse bloom_weights JSON
     for (const t of tosList) {
@@ -225,7 +248,30 @@ router.get('/:id', async (req, res, next) => {
     tos.subject_code = subjRows[0]?.code;
     tos.bloom_weights = tos.bloom_weights ? JSON.parse(tos.bloom_weights) : DEFAULT_BLOOM;
 
-    res.json({ tos, topics });
+    // Per-cell question coverage — same matching rules as the generation
+    // worker: live = not rejected, not similarity-rejected, linked via tos_id
+    // or question_tos. Keyed "topic||bloom" so the matrix can show have/need.
+    const [covRows] = await pool.query(
+      `SELECT q.topic, q.bloom, q.status, COUNT(*) AS n
+       FROM questions q
+       WHERE q.subject_id = :subjectId AND q.created_by = :userId
+         AND q.status <> 'rejected'
+         AND (q.similarity_flag IS NULL OR q.similarity_flag <> 'rejected')
+         AND (q.tos_id = :tosId OR EXISTS (
+           SELECT 1 FROM question_tos qt WHERE qt.question_id = q.id AND qt.tos_id = :tosId
+         ))
+       GROUP BY q.topic, q.bloom, q.status`,
+      { subjectId: tos.subject_id, userId: req.user.id, tosId: tos.id }
+    );
+    const coverage = {};
+    for (const r of covRows) {
+      const key = `${r.topic}||${r.bloom}`;
+      const cell = coverage[key] || (coverage[key] = { live: 0, approved: 0 });
+      cell.live += Number(r.n);
+      if (r.status === 'active') cell.approved += Number(r.n);
+    }
+
+    res.json({ tos, topics, coverage });
   } catch (err) { next(err); }
 });
 

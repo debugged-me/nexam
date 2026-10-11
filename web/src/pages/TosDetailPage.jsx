@@ -11,7 +11,7 @@ import '../styles/blueprint-detail.css';
  */
 import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { Plus, Trash2, BookOpen, ChevronRight, Sparkles, FileText, Pencil, ListOrdered, Layers, Clock, Check, X, AlertTriangle, Lock } from 'lucide-react';
+import { Plus, Trash2, BookOpen, ChevronRight, Sparkles, FileText, Pencil, ListOrdered, Layers, Clock, Check, X, AlertTriangle, Lock, ChevronFirst, ChevronLeft, ChevronLast } from 'lucide-react';
 import { useToast } from '../components/Toast.jsx';
 import { useConfirm } from '../components/ConfirmDialog.jsx';
 import api, { ApiError } from '../lib/api.js';
@@ -24,6 +24,9 @@ const BLOOM_ORDER = ['remember', 'understand', 'apply', 'analyze', 'evaluate', '
 
 /** How many learning outcomes a collapsed topic row shows before "+N more". */
 const OUTCOME_PREVIEW = 2;
+
+/** Topics table page size — rows carry outcome lists, so they are tall. */
+const TOPIC_PAGE_SIZE = 10;
 
 /** Split a textarea's contents into trimmed, non-empty outcome lines. */
 function splitLines(text) {
@@ -170,6 +173,7 @@ export default function TosDetailPage() {
   const [editDraft, setEditDraft] = useState({ title: '', instructional_hours: 0, outcomes: '' });
   const [savingEdit, setSavingEdit] = useState(false);
   const [expanded, setExpanded] = useState(() => new Set());
+  const [topicPage, setTopicPage] = useState(0);
   const [generating, setGenerating] = useState(false);
   const [finalizing, setFinalizing] = useState(false);
   const titleRef = useRef(null);
@@ -315,9 +319,33 @@ export default function TosDetailPage() {
   );
 
   if (!data) return <AppShell pageClass="blueprint-detail" activeNav="tos" pageTitle="Blueprint"><PageLoader label="Loading blueprint…" /></AppShell>;
-  const { tos, topics } = data;
+  const { tos, topics, coverage = {} } = data;
   const finalized = tos.status === 'finalized';
   const totalHours = topics.reduce((s, t) => s + (Number(t.instructional_hours) || 0), 0);
+
+  // Live questions already banked for a topic × Bloom cell (drafts + approved;
+  // rejected never counts — same rule the generation worker applies).
+  const coveredFor = (topicTitle, bloom) =>
+    Number(coverage[`${topicTitle}||${bloom}`]?.live || 0);
+  let coveredSlots = 0;
+  let missingSlots = 0;
+  if (matrix) {
+    for (const { topic, cells } of matrix.rows) {
+      cells.forEach((need, c) => {
+        const have = coveredFor(topic.title, BLOOM_ORDER[c]);
+        coveredSlots += Math.min(have, need);
+        missingSlots += Math.max(0, need - have);
+      });
+    }
+  }
+
+  // The topics table paginates; safeTopicPage self-heals if deletions shrink
+  // the last page. Rows index into matrix.rows by ABSOLUTE position.
+  const topicPageCount = Math.max(1, Math.ceil(topics.length / TOPIC_PAGE_SIZE));
+  const safeTopicPage = Math.min(topicPage, topicPageCount - 1);
+  const pageTopics = topics.slice(safeTopicPage * TOPIC_PAGE_SIZE, safeTopicPage * TOPIC_PAGE_SIZE + TOPIC_PAGE_SIZE);
+  const topicStart = topics.length ? safeTopicPage * TOPIC_PAGE_SIZE + 1 : 0;
+  const topicEnd = Math.min((safeTopicPage + 1) * TOPIC_PAGE_SIZE, topics.length);
 
   return (
     <AppShell pageClass="blueprint-detail" activeNav="tos" pageTitle={tos.title}>
@@ -347,13 +375,17 @@ export default function TosDetailPage() {
             type="button"
             className="btn btn-brand btn-sm"
             onClick={handleGenerate}
-            disabled={generating || !finalized || generationActive}
+            disabled={generating || !finalized || generationActive || !matrix?.rows.length || missingSlots === 0}
             title={generationActive
               ? 'A generation run for this blueprint is already in progress — watch it under Background work'
-              : 'AI drafts questions from your materials based on this blueprint'}
+              : !matrix?.rows.length
+                ? 'Add topics to the blueprint first'
+                : missingSlots > 0
+                  ? `Drafts only the ${missingSlots} item${missingSlots === 1 ? '' : 's'} still missing — existing questions are kept`
+                  : 'Every matrix cell is already covered — nothing to generate'}
           >
             {generating || generationActive ? <span className="btn-spinner" /> : <Sparkles size={14} />}
-            {generationActive ? 'Generating…' : 'Auto-generate Questions'}
+            {generationActive ? 'Generating…' : missingSlots > 0 ? `Generate ${missingSlots} missing` : 'Auto-generate Questions'}
           </button>
           <Link to={`/exams/new?tos=${id}`} className="btn btn-outline btn-sm">
             <FileText size={14} /> Build Exam
@@ -426,14 +458,16 @@ export default function TosDetailPage() {
           <div className="card-header">
             <div>
               <span className="card-title">Specification Matrix</span>
-              <p className="card-sub">Items per topic and cognitive level — each row totals that topic's items, each column follows the blueprint's Bloom weight.</p>
+              <p className="card-sub">Each cell reads banked/needed. Amber cells are short — generate to fill them; rejected questions never count.</p>
             </div>
             {matrix.reconciled ? (
               <span className="tos-matrix-drift" title={`Stored per-topic counts total ${matrix.storedSum}, blueprint total is ${Number(tos.total_items)}.`}>
                 <AlertTriangle size={13} aria-hidden="true" /> Item counts re-derived from hours
               </span>
             ) : (
-              <span className="text-muted meta-sm">{matrix.grand} of {Number(tos.total_items)} items placed</span>
+              <span className="text-muted meta-sm">
+                {coveredSlots} of {matrix.grand} covered{missingSlots > 0 ? ` · ${missingSlots} to draft` : ''}
+              </span>
             )}
           </div>
           <div className="tos-matrix-scroll">
@@ -459,9 +493,17 @@ export default function TosDetailPage() {
                 {matrix.rows.map(({ topic, items, cells }) => (
                   <tr key={topic.id}>
                     <th scope="row" className="tos-matrix-topic-col">{topic.title}</th>
-                    {cells.map((n, c) => (
-                      <td key={BLOOM_ORDER[c]} className={`tos-matrix-num${n === 0 ? ' is-zero' : ''}`}>{n}</td>
-                    ))}
+                    {cells.map((n, c) => {
+                      const have = n > 0 ? coveredFor(topic.title, BLOOM_ORDER[c]) : 0;
+                      const short = n > 0 && have < n;
+                      return (
+                        <td key={BLOOM_ORDER[c]}
+                          className={`tos-matrix-num${n === 0 ? ' is-zero' : ''}${short ? ' is-short' : ''}${n > 0 && !short ? ' is-met' : ''}`}
+                          title={n > 0 ? `${have} of ${n} banked for ${topic.title} · ${BLOOM_LABELS[BLOOM_ORDER[c]]}` : undefined}>
+                          {n === 0 ? 0 : (short ? <>{have}<span className="tos-matrix-need">/{n}</span></> : n)}
+                        </td>
+                      );
+                    })}
                     <td className="tos-matrix-num is-total">{items}</td>
                   </tr>
                 ))}
@@ -505,16 +547,17 @@ export default function TosDetailPage() {
                 </tr>
               </thead>
               <tbody>
-                {topics.map((tp, i) => {
+                {pageTopics.map((tp, i) => {
+                  const absI = safeTopicPage * TOPIC_PAGE_SIZE + i;
                   const editing = editingId === tp.id;
                   const outcomes = parseOutcomes(tp.learning_outcomes);
                   const open = expanded.has(tp.id);
                   const shown = open ? outcomes : outcomes.slice(0, OUTCOME_PREVIEW);
-                  const items = matrix?.rows[i]?.items ?? (Number(tp.item_count) || 0);
+                  const items = matrix?.rows[absI]?.items ?? (Number(tp.item_count) || 0);
 
                   return (
                     <tr key={tp.id} className={editing ? 'tos-row-editing' : undefined}>
-                      <td className="text-muted">{i + 1}</td>
+                      <td className="text-muted">{absI + 1}</td>
                       <td>
                         {editing ? (
                           <input type="text" className="form-control" maxLength={255} autoFocus
@@ -566,22 +609,30 @@ export default function TosDetailPage() {
                         <div className="action-icons">
                           {editing ? (
                             <>
-                              <button className="action-icon tos-action-save" aria-label="Save changes"
+                              <button className="action-icon tos-action-save" aria-label="Save changes" title="Save changes"
                                 disabled={savingEdit} onClick={() => handleSaveEdit(tp.id)}>
                                 {savingEdit ? <span className="btn-spinner" /> : <Check size={15} />}
                               </button>
-                              <button className="action-icon" aria-label="Cancel editing"
+                              <button className="action-icon" aria-label="Cancel editing" title="Cancel editing"
                                 disabled={savingEdit} onClick={cancelEdit}>
                                 <X size={15} />
                               </button>
                             </>
+                          ) : finalized ? (
+                            // Finalized blueprints are locked — show why instead
+                            // of two dead buttons.
+                            <span className="action-icon is-locked" role="img"
+                              title="Finalized — the topic matrix is permanently locked"
+                              aria-label="Topics locked — blueprint is finalized">
+                              <Lock size={14} />
+                            </span>
                           ) : (
                             <>
-                              <button className="action-icon" aria-label={`Edit ${tp.title}`} onClick={() => startEdit(tp)} disabled={finalized}>
+                              <button className="action-icon" aria-label={`Edit ${tp.title}`} title="Edit topic" onClick={() => startEdit(tp)}>
                                 <Pencil size={15} />
                               </button>
-                              <button className="action-icon danger is-quiet" aria-label={`Remove ${tp.title}`}
-                                onClick={() => handleDeleteTopic(tp.id)} disabled={finalized}>
+                              <button className="action-icon danger is-quiet" aria-label={`Remove ${tp.title}`} title="Remove topic"
+                                onClick={() => handleDeleteTopic(tp.id)}>
                                 <Trash2 size={15} />
                               </button>
                             </>
@@ -593,6 +644,31 @@ export default function TosDetailPage() {
                 })}
               </tbody>
             </table>
+          </div>
+        )}
+
+        {topics.length > TOPIC_PAGE_SIZE && (
+          <div className="dataset-foot">
+            <div className="ds-range">
+              <b>{topicStart}</b>–<b>{topicEnd}</b> of <b>{topics.length}</b>
+            </div>
+            <div className="ds-pager">
+              <button type="button" className="ds-page" onClick={() => setTopicPage(0)} disabled={safeTopicPage === 0} aria-label="First page">
+                <ChevronFirst size={15} />
+              </button>
+              <button type="button" className="ds-page" onClick={() => setTopicPage((p) => Math.max(0, p - 1))} disabled={safeTopicPage === 0} aria-label="Previous page">
+                <ChevronLeft size={15} />
+              </button>
+              <span className="ds-page" aria-current="page">{safeTopicPage + 1}</span>
+              <span className="ds-gap">/</span>
+              <span className="ds-page">{topicPageCount}</span>
+              <button type="button" className="ds-page" onClick={() => setTopicPage((p) => Math.min(topicPageCount - 1, p + 1))} disabled={safeTopicPage >= topicPageCount - 1} aria-label="Next page">
+                <ChevronRight size={15} />
+              </button>
+              <button type="button" className="ds-page" onClick={() => setTopicPage(topicPageCount - 1)} disabled={safeTopicPage >= topicPageCount - 1} aria-label="Last page">
+                <ChevronLast size={15} />
+              </button>
+            </div>
           </div>
         )}
 

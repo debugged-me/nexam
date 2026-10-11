@@ -84,6 +84,32 @@ The Node process serves the compiled React build (`web/dist`) as well as
   are safe to expose publicly**.
 - Rotate `JWT_SECRET` and keys per `AGENTS.md` before any real launch.
 
+## Disaster recovery (learned the hard way)
+
+**Never delete the app directory or domain while the Passenger app is
+still registered/running.** Correct removal order:
+
+1. Setup Node.js App → **STOP** the app
+2. **Remove/unregister** the app entry
+3. Then delete `nexam-app/` and `nodevenv/nexam-app/`
+4. Then remove the domain if needed
+
+Deleting files first strands the running Passenger processes → the
+account saturates its LVE limit (PMEM/NPROC) → `cagefs_enter: Unable to
+fork` on cPanel pages and **every site on the account returns 503**.
+
+**If that happens (no shell, cPanel pages can't fork):**
+
+- App registrations live in `~/.cl.selector/node-selector.json` —
+  edit it via File Manager to `{}` to unregister stuck apps
+- A graceful restart (MultiPHP version toggle) does NOT reap wedged
+  Passenger procs; neither does `.lsphp_restart.txt` (PHP only)
+- A `pkill -9 -u matigov` cron job can't run when NPROC is fully
+  saturated — nothing inside the LVE can fork
+- **The fix that works: WHM → Account Functions → Manage Account
+  Suspension → Suspend → wait 30s → Unsuspend.** Suspending kills all
+  processes under the account. (Requires WHM/reseller access.)
+
 ## Smoke test after every deploy
 
 1. `https://nexam.mati.gov.ph/api/health` → `{"status":"ok",...}`

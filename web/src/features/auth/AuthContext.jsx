@@ -6,6 +6,7 @@
  */
 import { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import api, { getToken, setToken } from '../../lib/api.js';
+import { applyUserTheme, clearUserTheme } from '../../lib/theme.js';
 
 const AuthContext = createContext(null);
 
@@ -21,7 +22,7 @@ export function AuthProvider({ children }) {
       return;
     }
     api.get('/auth/me')
-      .then((data) => setUser(data.user))
+      .then((data) => { setUser(data.user); applyUserTheme(data.user); })
       .catch(() => setToken(''))
       .finally(() => setLoading(false));
   }, []);
@@ -29,16 +30,18 @@ export function AuthProvider({ children }) {
   const login = useCallback((token, userObj) => {
     setToken(token);
     setUser(userObj);
+    applyUserTheme(userObj);
   }, []);
 
   const logout = useCallback(() => {
     setToken('');
     setUser(null);
+    clearUserTheme();
   }, []);
 
   const refreshUser = useCallback(() => {
     return api.get('/auth/me')
-      .then((data) => { setUser(data.user); return data.user; })
+      .then((data) => { setUser(data.user); applyUserTheme(data.user); return data.user; })
       .catch(() => {});
   }, []);
 

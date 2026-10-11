@@ -205,7 +205,7 @@ router.post('/login', async (req, res, next) => {
     }
 
     const [rows] = await pool.query(
-      `SELECT id, full_name, email, password_hash, role, email_verified, status, avatar_path, avatar_v FROM users WHERE email = :email LIMIT 1`,
+      `SELECT id, full_name, email, password_hash, role, email_verified, status, avatar_path, avatar_v, theme FROM users WHERE email = :email LIMIT 1`,
       { email }
     );
     const user = rows[0];
@@ -269,6 +269,7 @@ router.post('/login', async (req, res, next) => {
         role: user.role,
         has_avatar: !!user.avatar_path,
         avatar_v: user.avatar_v,
+        theme: user.theme,
       },
     });
   } catch (err) {
@@ -648,7 +649,7 @@ router.post('/reset', async (req, res, next) => {
 router.get('/me', requireAnyAuth, async (req, res, next) => {
   try {
     const [rows] = await pool.query(
-      `SELECT id, first_name, middle_name, last_name, name_ext, full_name, email, role, email_verified, status, avatar_path, avatar_v, created_at,
+      `SELECT id, first_name, middle_name, last_name, name_ext, full_name, email, role, email_verified, status, avatar_path, avatar_v, theme, created_at,
         (avatar_path IS NOT NULL) AS has_avatar FROM users WHERE id = :id LIMIT 1`,
       { id: req.user.id }
     );
@@ -676,11 +677,29 @@ router.put('/me', requireAnyAuth, async (req, res, next) => {
     );
 
     const [rows] = await pool.query(
-      `SELECT id, first_name, middle_name, last_name, name_ext, full_name, email, role, email_verified, avatar_v,
+      `SELECT id, first_name, middle_name, last_name, name_ext, full_name, email, role, email_verified, avatar_v, theme,
         (avatar_path IS NOT NULL) AS has_avatar, created_at FROM users WHERE id = :id`,
       { id: req.user.id }
     );
     res.json({ user: rows[0] });
+  } catch (err) {
+    next(err);
+  }
+});
+
+/**
+ * PUT /api/auth/theme — persist the account's appearance mode
+ * (light | dark | system). Applied client-side on every login/me load so
+ * the preference follows the account across browsers and devices.
+ */
+router.put('/theme', requireAnyAuth, async (req, res, next) => {
+  try {
+    const theme = String(req.body?.theme || '');
+    if (!['light', 'dark', 'system'].includes(theme)) {
+      return res.status(422).json({ error: 'Invalid theme.' });
+    }
+    await pool.query('UPDATE users SET theme = :t WHERE id = :id', { t: theme, id: req.user.id });
+    res.json({ theme });
   } catch (err) {
     next(err);
   }

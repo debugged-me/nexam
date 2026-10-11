@@ -34,6 +34,9 @@ const DDL = [
   `ALTER TABLE users MODIFY COLUMN avatar_path VARCHAR(255) NULL`,
   `ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_v INT UNSIGNED NOT NULL DEFAULT 0`,
 
+  // 009_theme — per-account appearance preference (light | dark | system)
+  `ALTER TABLE users ADD COLUMN IF NOT EXISTS theme VARCHAR(10) NULL`,
+
   // 007_superadmin — superadmin actions and security events
   `CREATE TABLE IF NOT EXISTS audit_logs (
     id VARCHAR(36) PRIMARY KEY,

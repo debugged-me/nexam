@@ -15,6 +15,7 @@ import { ToastProvider, useToast } from './components/Toast.jsx';
 import { ConfirmProvider } from './components/ConfirmDialog.jsx';
 import AppLayout from './components/AppLayout.jsx';
 import { BootScreen } from './components/Loaders.jsx';
+import { pinTheme, unpinTheme } from './lib/theme.js';
 import { useEffect, useRef, lazy, Suspense } from 'react';
 
 const LoginPage = lazy(() => import('./features/auth/LoginPage.jsx'));
@@ -96,6 +97,16 @@ function RequireAnyAuth({ children }) {
   return children;
 }
 
+/** Guest pages (auth + legal) always render light — no account is bound
+ *  there, so nobody's saved theme should bleed into them. */
+function PinLightTheme({ children }) {
+  useEffect(() => {
+    pinTheme('light');
+    return () => unpinTheme();
+  }, []);
+  return children;
+}
+
 /** Reads a `toast` from router state and shows it once on mount. */
 function ToastOnMount() {
   const location = useLocation();
@@ -174,12 +185,14 @@ export default function App() {
             <ToastOnMount />
             <Suspense fallback={<BootScreen />}>
               <Routes>
-                {/* Auth */}
+                {/* Auth — always light; themes are per-account now */}
                 <Route
                   path="/login"
                   element={
                     <RedirectIfAuthed>
-                      <LoginPage />
+                      <PinLightTheme>
+                        <LoginPage />
+                      </PinLightTheme>
                     </RedirectIfAuthed>
                   }
                 />
@@ -187,12 +200,14 @@ export default function App() {
                   path="/register"
                   element={
                     <RedirectIfAuthed>
-                      <RegisterPage />
+                      <PinLightTheme>
+                        <RegisterPage />
+                      </PinLightTheme>
                     </RedirectIfAuthed>
                   }
                 />
-                <Route path="/privacy" element={<LegalPage doc="privacy" />} />
-                <Route path="/terms" element={<LegalPage doc="terms" />} />
+                <Route path="/privacy" element={<PinLightTheme><LegalPage doc="privacy" /></PinLightTheme>} />
+                <Route path="/terms" element={<PinLightTheme><LegalPage doc="terms" /></PinLightTheme>} />
 
                 {/* Superadmin console — same shell, console nav */}
                 <Route
@@ -205,12 +220,14 @@ export default function App() {
                   <Route path="/admin" element={<AdminPage />} />
                   <Route path="/admin/:view" element={<AdminPage />} />
                 </Route>
-                <Route path="/verify" element={<VerifyPage />} />
+                <Route path="/verify" element={<PinLightTheme><VerifyPage /></PinLightTheme>} />
                 <Route
                   path="/forgot"
                   element={
                     <RedirectIfAuthed>
-                      <ForgotPage />
+                      <PinLightTheme>
+                        <ForgotPage />
+                      </PinLightTheme>
                     </RedirectIfAuthed>
                   }
                 />
@@ -218,7 +235,9 @@ export default function App() {
                   path="/reset"
                   element={
                     <RedirectIfAuthed>
-                      <ResetPage />
+                      <PinLightTheme>
+                        <ResetPage />
+                      </PinLightTheme>
                     </RedirectIfAuthed>
                   }
                 />

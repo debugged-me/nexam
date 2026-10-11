@@ -1,37 +1,34 @@
-import '../../styles/auth-login.css';
+import '../../styles/auth-shared.css';
 /**
- * LoginPage — email + password sign-in.
+ * LoginPage — premium split-panel sign-in.
  *
- * On success, stores the JWT and redirects to the dashboard.
- * If the server reports the email is unverified, redirects to /verify
- * with a verify token (re-issued via a quick login-then-forgot flow is not
- * needed here because the API returns needsVerification + email).
+ * Left: quiet brand panel with the three-step product story.
+ * Right: the working form — same contract as before: POST /auth/login,
+ * store token via useAuth().login, role-based redirect, and the
+ * needsVerification detour to /verify.
+ *
+ * Entrance: one GSAP timeline on mount (card settles, side panel steps in,
+ * fields cascade). prefers-reduced-motion renders the final state.
  */
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import {
-  Mail,
-  Lock,
-  Eye,
-  EyeOff,
-  AlertCircle,
-  FileText,
-  ListChecks,
-  Layers,
-  ArrowDown,
-} from 'lucide-react';
+import { Mail, Lock, Eye, EyeOff, AlertCircle, ArrowRight } from 'lucide-react';
 import { useAuth } from './AuthContext.jsx';
 import api, { ApiError } from '../../lib/api.js';
+import { useAuthEntrance } from './authEntrance.js';
 
 export default function LoginPage() {
   const { login } = useAuth();
   const navigate = useNavigate();
+  const pageRef = useRef(null);
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPw, setShowPw] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+
+  useAuthEntrance(pageRef);
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -56,94 +53,72 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="auth-page auth-page-login page--auth-login">
+    <div className="auth-page auth-page-login page--auth-login" ref={pageRef}>
       <a href="#login-form" className="skip-link">
         Skip to login form
       </a>
-      <div className="auth-wrap">
-        {/* Brand panel */}
-        <div className="auth-panel">
-          <div className="auth-workflow" aria-label="From your materials to an exam">
-            <div className="auth-workflow-label">A clearer path to exam day</div>
-            <div className="auth-workflow-step">
-              <span className="auth-workflow-icon">
-                <FileText size={20} />
-              </span>
+
+      <div className="auth-shell">
+        {/* Brand side */}
+        <aside className="auth-side">
+          <div className="auth-side-brand anim-in">
+            <img src="/favicon.png" alt="" />
+            <span>nexam</span>
+          </div>
+          <h2 className="anim-in">Less busywork.<br /><em>More thoughtful assessments.</em></h2>
+          <p className="auth-side-tag anim-in">
+            Your materials, your expertise, one organized place.
+          </p>
+          <ol className="auth-steps">
+            <li className="anim-in">
+              <i>01</i>
               <span>
                 <strong>Your course materials</strong>
                 <small>Notes, syllabus, and references</small>
               </span>
-              <span className="auth-workflow-number">01</span>
-            </div>
-            <ArrowDown className="auth-workflow-arrow" size={17} aria-hidden="true" />
-            <div className="auth-workflow-step">
-              <span className="auth-workflow-icon">
-                <ListChecks size={20} />
-              </span>
+            </li>
+            <li className="anim-in">
+              <i>02</i>
               <span>
                 <strong>Questions you can trust</strong>
                 <small>Grounded drafts. Your review and approval.</small>
               </span>
-              <span className="auth-workflow-number">02</span>
-            </div>
-            <ArrowDown className="auth-workflow-arrow" size={17} aria-hidden="true" />
-            <div className="auth-workflow-step">
-              <span className="auth-workflow-icon">
-                <Layers size={20} />
-              </span>
+            </li>
+            <li className="anim-in">
+              <i>03</i>
               <span>
                 <strong>Ready for the classroom</strong>
                 <small>Set A + Set B, keys, and OMR sheets</small>
               </span>
-              <span className="auth-workflow-number">03</span>
-            </div>
-          </div>
-          <span className="panel-badge">Built for instructors</span>
-          <div className="panel-title">
-            Less busywork.<em>More thoughtful assessments.</em>
-          </div>
-          <p className="panel-tagline">
-            Your materials, your expertise, one organized place. Create balanced exams with a little
-            help along the way.
-          </p>
-          <div className="panel-footer">
-            <div className="panel-icon">
-              <img src="/favicon.png" alt="" />
-            </div>
-            <div className="panel-org">
-              nexam
-              <small>TOS-aligned Exam Builder</small>
-            </div>
-          </div>
-        </div>
+            </li>
+          </ol>
+        </aside>
 
-        {/* Form panel */}
-        <div className="auth-form-wrap">
+        {/* Form card */}
+        <main className="auth-card">
           <form id="login-form" onSubmit={handleSubmit} noValidate>
-            <div className="auth-logo">
-              <img className="logo-mark-img" src="/favicon.png" alt="" />
+            <div className="auth-card-brand anim-in">
+              <img src="/favicon.png" alt="" />
               <span>nexam</span>
             </div>
-            <div className="auth-heading">
+            <div className="auth-heading anim-in">
               <h1>Welcome back</h1>
               <p>Sign in to your instructor account.</p>
             </div>
 
             {error && (
-              <div className="form-alert" role="alert">
+              <div className="form-alert anim-in" role="alert">
                 <AlertCircle />
                 <span>{error}</span>
               </div>
             )}
 
-            <div className="form-group">
+            <div className="form-group anim-in">
               <label className="form-label" htmlFor="email">
                 Email <span className="req">*</span>
               </label>
               <div className="input-wrap">
-                <span className="input-icon">
-                  <Mail />
-                </span>
+                <span className="input-icon"><Mail /></span>
                 <input
                   id="email"
                   type="email"
@@ -157,14 +132,12 @@ export default function LoginPage() {
               </div>
             </div>
 
-            <div className="form-group">
+            <div className="form-group anim-in">
               <label className="form-label" htmlFor="password">
                 Password <span className="req">*</span>
               </label>
               <div className="input-wrap password-wrap">
-                <span className="input-icon">
-                  <Lock />
-                </span>
+                <span className="input-icon"><Lock /></span>
                 <input
                   id="password"
                   type={showPw ? 'text' : 'password'}
@@ -186,30 +159,29 @@ export default function LoginPage() {
               </div>
             </div>
 
-            <div className="btn-row-stacked">
-              <button
-                type="submit"
-                className={`btn-login ${loading ? 'is-loading' : ''}`}
-                disabled={loading}
-              >
+            <div className="anim-in">
+              <button type="submit" className={`btn-login${loading ? ' is-loading' : ''}`} disabled={loading}>
                 {loading && <span className="btn-spinner" aria-hidden="true" />}
                 {loading ? 'Signing in…' : 'Sign in'}
+                {!loading && <ArrowRight size={15} aria-hidden="true" />}
               </button>
-              <Link to="/register" className="btn-register">
-                Create account
-              </Link>
             </div>
 
-            <div className="form-links">
+            <div className="form-links anim-in">
               <Link to="/forgot">Forgot password?</Link>
             </div>
-            <div className="form-links form-links--legal">
-              <Link to="/privacy">Data Privacy</Link>
-              <span aria-hidden="true">·</span>
-              <Link to="/terms">Terms of Use</Link>
-            </div>
           </form>
-        </div>
+
+          <div className="auth-card-foot">
+            <span>New to nexam?</span>
+            <Link to="/register" className="auth-foot-link">Create account</Link>
+          </div>
+          <div className="auth-legal">
+            <Link to="/privacy">Data Privacy</Link>
+            <span aria-hidden="true">·</span>
+            <Link to="/terms">Terms of Use</Link>
+          </div>
+        </main>
       </div>
     </div>
   );

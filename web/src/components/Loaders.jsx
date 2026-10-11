@@ -4,8 +4,6 @@
  * PageLoader fades in after a short delay, so a screen that loads quickly
  * never flashes a spinner; BootScreen covers the session restore on launch.
  */
-import { GraduationCap } from 'lucide-react';
-
 export function Spinner({ size = 'md', className = '' }) {
   return <span className={`spinner spinner--${size} ${className}`} aria-hidden="true" />;
 }
@@ -22,8 +20,8 @@ export function PageLoader({ label = 'Loading…', compact = false }) {
 export function BootScreen() {
   return (
     <div className="boot-screen" role="status">
-      <span className="boot-mark"><GraduationCap size={22} /></span>
-      <Spinner size="md" />
+      <span className="boot-mark"><img src="/favicon.png" alt="" /></span>
+      <span className="boot-bar" aria-hidden="true"><i /></span>
       <span className="sr-only">Loading nexam…</span>
     </div>
   );

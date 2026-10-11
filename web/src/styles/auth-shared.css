@@ -1,0 +1,351 @@
+/* Auth pages: shared split-panel layout and controls. */
+@scope (.page--auth-login, .page--auth-register, .page--auth-forgot, .page--auth-reset, .page--auth-verify) {
+/* ==========================================================================
+   auth-shared.css — premium split-panel auth shell
+   --------------------------------------------------------------------------
+   One raised card per page: tinted brand panel left, working form right.
+   Shared controls (.form-input, .input-wrap, .btn-spinner) come from
+   app.css — this file owns the shell, panel, and auth-specific pieces.
+   ========================================================================== */
+
+:scope {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  min-height: 100dvh;
+  padding: 24px;
+  background-color: var(--canvas);
+  font-family: var(--font-body, "Inter", sans-serif);
+  font-size: 15px;
+  line-height: 1.6;
+  color: var(--ink);
+  -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+}
+/* Soft ambient wash — quiet, not decorative noise. */
+:scope::before {
+  content: "";
+  position: absolute;
+  top: -220px; left: 50%;
+  width: 880px; height: 560px;
+  transform: translateX(-50%);
+  background: radial-gradient(closest-side, color-mix(in srgb, var(--action-600) 9%, transparent), transparent 70%);
+  pointer-events: none;
+}
+
+a { color: inherit; text-decoration: none; }
+
+/* Skip link — visible on focus only */
+.skip-link {
+  position: fixed;
+  top: 10px;
+  left: 10px;
+  z-index: 100000;
+  padding: 10px 14px;
+  border-radius: var(--radius-sm);
+  background: var(--action-700);
+  color: #fff;
+  font-family: var(--font-display);
+  font-weight: 600;
+  transform: translateY(-160%);
+  transition: transform .15s ease;
+}
+.skip-link:focus { transform: translateY(0); }
+
+/* ==========================================================================
+   Shell — the split card
+   ========================================================================== */
+
+.auth-shell {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, .9fr) minmax(0, 1.1fr);
+  width: 100%;
+  max-width: 880px;
+  min-height: 600px;
+  border: 1px solid var(--line);
+  border-radius: 22px;
+  background: var(--surface);
+  box-shadow: 0 1px 2px rgba(0,0,0,.05), 0 32px 80px -40px rgba(60,40,10,.28);
+  overflow: hidden;
+}
+
+/* ==========================================================================
+   Brand panel
+   ========================================================================== */
+
+.auth-side {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  padding: 44px 40px;
+  background:
+    radial-gradient(120% 90% at 0% 0%, color-mix(in srgb, var(--action-600) 12%, transparent), transparent 60%),
+    var(--surface-2);
+  border-right: 1px solid var(--line);
+}
+.auth-side-brand { display: flex; align-items: center; gap: 9px; }
+.auth-side-brand img { width: 22px; height: 22px; }
+.auth-side-brand span { font: 650 1.05rem/1 var(--font-display); letter-spacing: -.02em; }
+
+.auth-side h2 {
+  margin: auto 0 0;
+  font-family: var(--font-display);
+  font-size: 1.8rem;
+  font-weight: 650;
+  letter-spacing: -.03em;
+  line-height: 1.18;
+}
+.auth-side h2 em { font-style: normal; color: var(--ink-3); }
+.auth-side-tag { margin: 12px 0 0; color: var(--ink-3); font-size: .875rem; }
+
+.auth-steps { display: flex; flex-direction: column; gap: 14px; margin: 34px 0 0; padding: 0; list-style: none; }
+.auth-steps li { display: flex; align-items: flex-start; gap: 12px; }
+.auth-steps i {
+  display: grid;
+  place-items: center;
+  width: 26px; height: 26px;
+  flex: 0 0 auto;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--ink-3);
+  font: 600 .5625rem var(--font-body);
+  font-style: normal;
+  letter-spacing: .04em;
+}
+.auth-steps strong { display: block; font: 600 .8125rem var(--font-body); color: var(--ink); }
+.auth-steps small { display: block; margin-top: 1px; color: var(--ink-faint); font-size: .71875rem; }
+
+/* ==========================================================================
+   Form card
+   ========================================================================== */
+
+.auth-card {
+  display: flex;
+  flex-direction: column;
+  padding: 44px 48px 0;
+}
+
+/* Brand shown only when the side panel is hidden (small screens). */
+.auth-card-brand { display: none; align-items: center; gap: 8px; margin-bottom: 26px; }
+.auth-card-brand img { width: 22px; height: 22px; }
+.auth-card-brand span { font: 650 1rem var(--font-display); letter-spacing: -.02em; }
+
+.auth-heading h1 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 1.625rem;
+  font-weight: 650;
+  letter-spacing: -.03em;
+}
+.auth-heading p { margin: 6px 0 22px; color: var(--ink-3); font-size: .875rem; }
+
+.form-group { margin-bottom: 14px; min-width: 0; }
+.form-label { display: block; margin-bottom: 6px; font: 550 .8125rem var(--font-body); color: var(--ink-2); }
+.form-label .req { color: var(--red-600); }
+.field-optional { color: var(--ink-faint); font-weight: 400; }
+
+/* Two-up field rows (name, passwords). */
+.form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.form-row-ext { display: grid; grid-template-columns: 1fr 112px; gap: 12px; }
+
+.form-alert {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin-bottom: 14px;
+  padding: 10px 12px;
+  border: 1px solid color-mix(in srgb, var(--red-600) 24%, transparent);
+  border-radius: var(--radius-sm);
+  background: var(--red-50);
+  color: var(--red-700);
+  font-size: .8125rem;
+}
+.form-alert svg { width: 15px; height: 15px; flex: 0 0 auto; margin-top: 2px; }
+.form-alert--info {
+  border-color: var(--line);
+  background: var(--surface-2);
+  color: var(--ink-2);
+}
+
+/* Input with leading icon — polish on top of shared controls. */
+.input-wrap { position: relative; display: flex; align-items: center; }
+.input-icon {
+  position: absolute;
+  left: 12px;
+  display: inline-flex;
+  color: var(--ink-faint);
+  pointer-events: none;
+}
+.input-icon svg { width: 15px; height: 15px; }
+.input-wrap .form-input,
+.input-wrap .form-select {
+  width: 100%;
+  height: 44px;
+  padding: 0 14px 0 36px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface-2);
+  color: var(--ink);
+  font: 400 .875rem var(--font-body);
+  outline: none;
+  transition: border-color .15s ease, box-shadow .15s ease, background-color .15s ease;
+}
+.input-wrap .form-input::placeholder { color: var(--ink-faint); }
+.input-wrap .form-input:focus,
+.input-wrap .form-select:focus {
+  background: var(--surface);
+  border-color: var(--action-600);
+  box-shadow: 0 0 0 3px var(--ring-soft);
+}
+/* Selects have no leading icon and need their own affordance. */
+.input-wrap-select .form-select {
+  padding: 0 30px 0 12px;
+  appearance: none;
+  background-image: linear-gradient(45deg, transparent 50%, var(--ink-3) 50%), linear-gradient(135deg, var(--ink-3) 50%, transparent 50%);
+  background-position: calc(100% - 16px) 55%, calc(100% - 11px) 55%;
+  background-size: 5px 5px;
+  background-repeat: no-repeat;
+}
+/* Only fields with the visibility toggle need the extra right room. */
+.password-wrap .form-input { padding-right: 42px; }
+.password-toggle {
+  position: absolute;
+  right: 6px;
+  display: grid;
+  place-items: center;
+  width: 32px; height: 32px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--ink-faint);
+  cursor: pointer;
+  transition: color .15s ease, background-color .15s ease;
+}
+.password-toggle:hover { color: var(--ink-2); background: var(--surface-3); }
+.password-toggle svg { width: 16px; height: 16px; }
+
+.recaptcha-box { margin: 4px 0 14px; }
+
+/* Step transitions (reset code → password) — a short rise+fade when the
+   next step mounts. */
+@keyframes step-in {
+  from { opacity: 0; transform: translateY(10px); }
+}
+.step-in { animation: step-in .3s var(--ease, ease) backwards; }
+
+/* OTP code field — no icon, centered letter-spaced characters. */
+.form-input.code-input {
+  height: 52px;
+  padding: 0 14px;
+  text-align: center;
+  letter-spacing: .55em;
+  font-size: 1.05rem;
+  font-weight: 600;
+}
+.form-input.code-input::placeholder { letter-spacing: .35em; }
+
+/* Primary button — full-width, quiet Apple-style weight. */
+.btn-login {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  height: 44px;
+  margin-top: 6px;
+  border: 0;
+  border-radius: 12px;
+  background: var(--action-600);
+  color: #fff;
+  font: 600 .875rem var(--font-body);
+  cursor: pointer;
+  transition: background-color .18s ease, transform .18s ease, box-shadow .18s ease;
+  box-shadow: 0 8px 20px -10px color-mix(in srgb, var(--action-600) 55%, transparent);
+}
+.btn-login:hover:not(:disabled) { background: var(--action-700); }
+.btn-login:active:not(:disabled) { transform: scale(.985); }
+.btn-login:disabled { opacity: .7; cursor: default; }
+.btn-login svg { transition: transform .18s ease; }
+.btn-login:hover:not(:disabled) svg { transform: translateX(2px); }
+.btn-login.is-loading svg { display: none; }
+
+/* Secondary action — "Back to sign in" ghost button under the primary.
+   Used as both <a> and <button> (resend code on /verify). */
+.btn-register {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  height: 42px;
+  margin-top: 10px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface);
+  color: var(--ink-2);
+  font: 600 .8125rem var(--font-body);
+  cursor: pointer;
+  transition: color .15s ease, background-color .15s ease, border-color .15s ease;
+}
+.btn-register:hover:not(:disabled) { color: var(--ink); background: var(--surface-2); border-color: var(--line-strong); }
+.btn-register:disabled { opacity: .6; cursor: default; }
+.btn-register svg { width: 14px; height: 14px; }
+
+.form-links { margin-top: 14px; text-align: center; }
+.form-links a { color: var(--action-600); font-size: .8125rem; font-weight: 500; }
+.form-links a:hover { text-decoration: underline; text-underline-offset: 3px; }
+
+/* Form vertically centers in the card's free space — equal auto margins
+   above and below — while the foot + legal trail after it to the card's
+   bottom edge. */
+.auth-card > form { margin-block: auto; }
+
+/* Card foot — create-account row + legal, sits under the centered form. */
+.auth-card-foot {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 22px 0 0;
+  color: var(--ink-3);
+  font-size: .8125rem;
+}
+.auth-foot-link { color: var(--action-600); font-weight: 600; }
+.auth-foot-link:hover { text-decoration: underline; text-underline-offset: 3px; }
+
+.auth-legal {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px 0 20px;
+  color: var(--ink-faint);
+  font-size: .71875rem;
+}
+.auth-legal a { color: var(--ink-faint); }
+.auth-legal a:hover { color: var(--ink-2); }
+
+/* ==========================================================================
+   Responsive
+   ========================================================================== */
+
+@media (max-width: 760px) {
+  .auth-shell { grid-template-columns: 1fr; max-width: 460px; min-height: 0; }
+  .auth-side { display: none; }
+  .auth-card { padding: 34px 26px 0; }
+  .auth-card-brand { display: flex; }
+}
+
+@media (max-width: 420px) {
+  .form-row { grid-template-columns: 1fr; gap: 0; }
+  .form-row-ext { grid-template-columns: 1fr 96px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .btn-login, .btn-register, .password-toggle { transition: none; }
+  .step-in { animation: none; }
+}
+} /* end @scope auth pages */

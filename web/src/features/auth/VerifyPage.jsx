@@ -1,4 +1,4 @@
-import '../../styles/auth-verify.css';
+import '../../styles/auth-shared.css';
 /**
  * VerifyPage — enter the 6-character OTP code sent to the email.
  *
@@ -11,15 +11,18 @@ import '../../styles/auth-verify.css';
  */
 import { useState, useRef, useEffect } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
-import { AlertCircle, RotateCw } from 'lucide-react';
+import { AlertCircle, RotateCw, Mail, ArrowRight } from 'lucide-react';
 import api, { ApiError } from '../../lib/api.js';
 import { useAuth } from './AuthContext.jsx';
+import { useAuthEntrance } from './authEntrance.js';
 
 export default function VerifyPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const { logout } = useAuth();
   const { verifyToken, email, unverified } = location.state || {};
+  const pageRef = useRef(null);
+  useAuthEntrance(pageRef);
 
   const [code, setCode] = useState('');
   const [error, setError] = useState('');
@@ -139,46 +142,72 @@ export default function VerifyPage() {
   }
 
   return (
-    <div className="auth-page auth-page-verify page--auth-verify">
-      <div className="auth-wrap">
-        <div className="auth-panel">
-          <span className="panel-badge">Verify Email</span>
-          <div className="panel-title">
-            One last step<em>confirm your email address.</em>
+    <div className="auth-page auth-page-verify page--auth-verify" ref={pageRef}>
+      <a href="#verify-form" className="skip-link">Skip to verification form</a>
+
+      <div className="auth-shell">
+        {/* Brand side */}
+        <aside className="auth-side">
+          <div className="auth-side-brand anim-in">
+            <img src="/favicon.png" alt="" />
+            <span>nexam</span>
           </div>
-          <p className="panel-tagline">
+          <h2 className="anim-in">One last step —<br /><em>confirm your email.</em></h2>
+          <p className="auth-side-tag anim-in">
             Enter the 6-character code we sent to your inbox. It expires in 15 minutes.
           </p>
-          <div className="panel-footer">
-            <div className="panel-icon"><img src="/favicon.png" alt="" /></div>
-            <div className="panel-org">
-              nexam
-              <small>TOS-aligned Exam Builder</small>
-            </div>
-          </div>
-        </div>
+          <ol className="auth-steps">
+            <li className="anim-in">
+              <i>01</i>
+              <span>
+                <strong>We sent a code</strong>
+                <small>6 characters, valid 15 minutes</small>
+              </span>
+            </li>
+            <li className="anim-in">
+              <i>02</i>
+              <span>
+                <strong>Enter it here</strong>
+                <small>Activates your instructor account</small>
+              </span>
+            </li>
+            <li className="anim-in">
+              <i>03</i>
+              <span>
+                <strong>You're in</strong>
+                <small>Build your first blueprint</small>
+              </span>
+            </li>
+          </ol>
+        </aside>
 
-        <div className="auth-form-wrap">
-          <form onSubmit={handleSubmit} noValidate>
-            <div className="auth-logo">
-              <img className="logo-mark-img" src="/favicon.png" alt="" />
+        {/* Form card */}
+        <main className="auth-card">
+          <form id="verify-form" onSubmit={handleSubmit} noValidate>
+            <div className="auth-card-brand anim-in">
+              <img src="/favicon.png" alt="" />
               <span>nexam</span>
             </div>
-            <div className="auth-heading">
+            <div className="auth-heading anim-in">
               <h1>Check your email</h1>
               <p>Enter the verification code to activate your account.</p>
             </div>
 
-            {email && <div className="verify-email-line">We sent a code to <strong>{email}</strong></div>}
+            {email && (
+              <div className="form-alert form-alert--info anim-in" role="status">
+                <Mail />
+                <span>We sent a code to <strong>{email}</strong></span>
+              </div>
+            )}
 
             {error && (
-              <div className="form-alert" role="alert">
+              <div className="form-alert anim-in" role="alert">
                 <AlertCircle />
                 <span>{error}</span>
               </div>
             )}
             {(cooldown > 0 || (info && !error)) && (
-              <div className="form-alert" role="status" style={{ background: 'var(--surface-2)', borderColor: 'var(--line)', color: 'var(--ink-2)' }}>
+              <div className="form-alert form-alert--info anim-in" role="status">
                 <AlertCircle />
                 <span>
                   {cooldown > 0
@@ -188,7 +217,7 @@ export default function VerifyPage() {
               </div>
             )}
 
-            <div className="form-group">
+            <div className="form-group anim-in">
               <label className="form-label" htmlFor="code">Verification Code <span className="req">*</span></label>
               <div className="input-wrap">
                 <input
@@ -199,10 +228,11 @@ export default function VerifyPage() {
               </div>
             </div>
 
-            <div className="btn-row-stacked">
-              <button type="submit" className={`btn-login ${loading ? 'is-loading' : ''}`} disabled={loading}>
+            <div className="anim-in">
+              <button type="submit" className={`btn-login${loading ? ' is-loading' : ''}`} disabled={loading}>
                 {loading && <span className="btn-spinner" aria-hidden="true" />}
                 {loading ? 'Verifying…' : 'Verify email'}
+                {!loading && <ArrowRight size={15} aria-hidden="true" />}
               </button>
               <button type="button" className="btn-register" onClick={handleResend} disabled={resending || cooldown > 0}>
                 <RotateCw />
@@ -210,11 +240,17 @@ export default function VerifyPage() {
               </button>
             </div>
 
-            <div className="form-links">
+            <div className="form-links anim-in">
               <Link to="/login">Back to sign in</Link>
             </div>
           </form>
-        </div>
+
+          <div className="auth-legal">
+            <Link to="/privacy">Data Privacy</Link>
+            <span aria-hidden="true">·</span>
+            <Link to="/terms">Terms of Use</Link>
+          </div>
+        </main>
       </div>
     </div>
   );

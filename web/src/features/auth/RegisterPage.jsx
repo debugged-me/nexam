@@ -1,4 +1,4 @@
-import '../../styles/auth-register.css';
+import '../../styles/auth-shared.css';
 /**
  * RegisterPage — create an instructor account.
  *
@@ -9,13 +9,16 @@ import '../../styles/auth-register.css';
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import {
-  Mail, Lock, Eye, EyeOff, AlertCircle, User,
+  Mail, Lock, Eye, EyeOff, AlertCircle, User, ArrowRight,
 } from 'lucide-react';
 import api, { ApiError } from '../../lib/api.js';
 import Recaptcha from '../../components/Recaptcha.jsx';
+import { useAuthEntrance } from './authEntrance.js';
 
 export default function RegisterPage() {
   const navigate = useNavigate();
+  const pageRef = useRef(null);
+  useAuthEntrance(pageRef);
 
   const [form, setForm] = useState({
     first_name: '', middle_name: '', last_name: '', name_ext: '',
@@ -78,49 +81,65 @@ export default function RegisterPage() {
   }
 
   return (
-    <div className="auth-page auth-page-register page--auth-register">
+    <div className="auth-page auth-page-register page--auth-register" ref={pageRef}>
       <a href="#register-form" className="skip-link">Skip to registration form</a>
-      <div className="auth-wrap">
-        {/* Brand panel */}
-        <div className="auth-panel">
-          <span className="panel-badge">New Account</span>
-          <div className="panel-title">
-            Join nexam<em>and let your materials build the exam.</em>
-          </div>
-          <p className="panel-tagline">
-            Upload your syllabus and lecture notes. Nexam drafts objective items
-            grounded in your content, checks them for similarity, and assembles
-            print-ready exams aligned to your Table of Specifications.
-          </p>
-          <div className="panel-footer">
-            <div className="panel-icon"><img src="/favicon.png" alt="" /></div>
-            <div className="panel-org">
-              nexam
-              <small>TOS-aligned Exam Builder</small>
-            </div>
-          </div>
-        </div>
 
-        {/* Form panel */}
-        <div className="auth-form-wrap">
+      <div className="auth-shell">
+        {/* Brand side */}
+        <aside className="auth-side">
+          <div className="auth-side-brand anim-in">
+            <img src="/favicon.png" alt="" />
+            <span>nexam</span>
+          </div>
+          <h2 className="anim-in">Your materials<br /><em>become the exam.</em></h2>
+          <p className="auth-side-tag anim-in">
+            Create an instructor account — verify your email to get started.
+          </p>
+          <ol className="auth-steps">
+            <li className="anim-in">
+              <i>01</i>
+              <span>
+                <strong>Upload your materials</strong>
+                <small>Syllabus, notes, and references</small>
+              </span>
+            </li>
+            <li className="anim-in">
+              <i>02</i>
+              <span>
+                <strong>Review grounded drafts</strong>
+                <small>Every item cites its source passage</small>
+              </span>
+            </li>
+            <li className="anim-in">
+              <i>03</i>
+              <span>
+                <strong>Print and score</strong>
+                <small>Set A + Set B with QR-linked OMR keys</small>
+              </span>
+            </li>
+          </ol>
+        </aside>
+
+        {/* Form card */}
+        <main className="auth-card">
           <form id="register-form" onSubmit={handleSubmit} noValidate>
-            <div className="auth-logo">
-              <img className="logo-mark-img" src="/favicon.png" alt="" />
+            <div className="auth-card-brand anim-in">
+              <img src="/favicon.png" alt="" />
               <span>nexam</span>
             </div>
-            <div className="auth-heading">
+            <div className="auth-heading anim-in">
               <h1>Create your account</h1>
               <p>Instructor access — verify your email to get started.</p>
             </div>
 
             {error && (
-              <div className="form-alert" role="alert">
+              <div className="form-alert anim-in" role="alert">
                 <AlertCircle />
                 <span>{error}</span>
               </div>
             )}
 
-            <div className="form-row">
+            <div className="form-row anim-in">
               <div className="form-group">
                 <label className="form-label" htmlFor="first_name">First Name <span className="req">*</span></label>
                 <div className="input-wrap">
@@ -139,8 +158,8 @@ export default function RegisterPage() {
               </div>
             </div>
 
-            <div className="form-row-ext">
-              <div className="form-group form-group-ext">
+            <div className="form-row-ext anim-in">
+              <div className="form-group">
                 <label className="form-label" htmlFor="middle_name">
                   Middle Name <span className="field-optional">(optional)</span>
                 </label>
@@ -167,7 +186,7 @@ export default function RegisterPage() {
               </div>
             </div>
 
-            <div className="form-group">
+            <div className="form-group anim-in">
               <label className="form-label" htmlFor="email">Email <span className="req">*</span></label>
               <div className="input-wrap">
                 <span className="input-icon"><Mail /></span>
@@ -176,13 +195,13 @@ export default function RegisterPage() {
               </div>
             </div>
 
-            <div className="form-row">
+            <div className="form-row anim-in">
               <div className="form-group">
                 <label className="form-label" htmlFor="password">Password <span className="req">*</span></label>
                 <div className="input-wrap password-wrap">
                   <span className="input-icon"><Lock /></span>
                   <input id="password" type={showPw ? 'text' : 'password'} className="form-input"
-                    autoComplete="new-password" placeholder="Min. 8 characters"
+                    autoComplete="new-password" placeholder="8+ characters"
                     value={form.password} onChange={set('password')} maxLength={128} required />
                   <button type="button" className="password-toggle" onClick={() => setShowPw((s) => !s)}
                     aria-label={showPw ? 'Hide password' : 'Show password'}>
@@ -191,7 +210,7 @@ export default function RegisterPage() {
                 </div>
               </div>
               <div className="form-group">
-                <label className="form-label" htmlFor="confirm_password">Confirm Password <span className="req">*</span></label>
+                <label className="form-label" htmlFor="confirm_password">Confirm <span className="req">*</span></label>
                 <div className="input-wrap">
                   <span className="input-icon"><Lock /></span>
                   <input id="confirm_password" type={showPw ? 'text' : 'password'} className="form-input"
@@ -202,18 +221,31 @@ export default function RegisterPage() {
             </div>
 
             {captchaSiteKey && (
-              <Recaptcha ref={captchaRef} siteKey={captchaSiteKey} onChange={setCaptchaToken} />
+              <div className="anim-in">
+                <Recaptcha ref={captchaRef} siteKey={captchaSiteKey} onChange={setCaptchaToken} />
+              </div>
             )}
 
-            <div className="btn-row-stacked">
-              <button type="submit" className={`btn-login ${loading ? 'is-loading' : ''}`} disabled={loading}>
+            <div className="anim-in">
+              <button type="submit" className={`btn-login${loading ? ' is-loading' : ''}`} disabled={loading}>
                 {loading && <span className="btn-spinner" aria-hidden="true" />}
                 {loading ? 'Creating account…' : 'Create account'}
+                {!loading && <ArrowRight size={15} aria-hidden="true" />}
               </button>
               <Link to="/login" className="btn-register">Back to sign in</Link>
             </div>
           </form>
-        </div>
+
+          <div className="auth-card-foot">
+            <span>Already have an account?</span>
+            <Link to="/login" className="auth-foot-link">Sign in</Link>
+          </div>
+          <div className="auth-legal">
+            <Link to="/privacy">Data Privacy</Link>
+            <span aria-hidden="true">·</span>
+            <Link to="/terms">Terms of Use</Link>
+          </div>
+        </main>
       </div>
     </div>
   );

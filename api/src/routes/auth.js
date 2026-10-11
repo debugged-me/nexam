@@ -153,6 +153,19 @@ async function verifyOtp(userId, code) {
   return true;
 }
 
+/** Read-only OTP check for the two-step reset UI — same query as verifyOtp
+ *  but never marks the code used, so /reset can still consume it later. */
+async function checkOtp(userId, code) {
+  const [rows] = await pool.query(
+    `SELECT id FROM otp_codes
+     WHERE user_id = :userId AND code = :code AND used = 0
+       AND expires_at > NOW()
+     ORDER BY created_at DESC LIMIT 1`,
+    { userId, code: String(code).toUpperCase() }
+  );
+  return rows.length > 0;
+}
+
 // ── Routes ────────────────────────────────────────────
 
 /**
@@ -638,6 +651,53 @@ router.post('/reset', async (req, res, next) => {
     );
 
     res.json({ message: 'Password reset successfully! You can now log in.' });
+  } catch (err) {
+    next(err);
+  }
+});
+
+/**
+ * POST /api/auth/reset/check
+ * Body: { resetToken, code } — validates a reset OTP WITHOUT consuming it.
+ * Lets the web client confirm the code before revealing the password step;
+ * /reset still performs the authoritative verify-and-consume on submit.
+ * Shares the reset_code rate bucket so check attempts can't be used to
+ * brute-force codes around /reset's limit.
+ */
+router.post('/reset/check', async (req, res, next) => {
+  try {
+    const { resetToken, code } = req.body || {};
+    if (!resetToken || !code) {
+      return res.status(400).json({ error: 'Reset token and code are required.' });
+    }
+    if (!/^[0-9A-Z]{6}$/i.test(String(code))) {
+      return res.status(400).json({ error: 'The code must be 6 characters.' });
+    }
+
+    let payload;
+    try {
+      payload = jwt.verify(resetToken, env.jwt.secret);
+    } catch {
+      return res.status(401).json({ error: 'Your reset session has expired. Please request a new code.' });
+    }
+    if (payload.sub !== 'reset' || !payload.uid) {
+      return res.status(401).json({ error: 'Invalid reset token.' });
+    }
+
+    const ip = req.ip;
+    const key = rateKey('reset_code', payload.uid, ip);
+    if (rateExceeded(key, 5, 900)) {
+      return res.status(429).json({ error: 'Too many invalid code attempts. Please wait 15 minutes and try again.' });
+    }
+
+    const valid = await checkOtp(payload.uid, String(code));
+    if (!valid) {
+      rateRecord(key, 900);
+      return res.status(400).json({ error: 'Invalid or expired verification code.' });
+    }
+    rateClear(key);
+
+    res.json({ valid: true });
   } catch (err) {
     next(err);
   }

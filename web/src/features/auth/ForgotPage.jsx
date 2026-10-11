@@ -1,17 +1,21 @@
-import '../../styles/auth-forgot.css';
+import '../../styles/auth-shared.css';
 /**
  * ForgotPage — request a password-reset OTP.
  *
  * On success, the API returns a resetToken (short-lived JWT) + email.
  * We navigate to /reset carrying both.
  */
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { Mail, AlertCircle } from 'lucide-react';
+import { Mail, AlertCircle, ArrowRight } from 'lucide-react';
 import api, { ApiError } from '../../lib/api.js';
+import { useAuthEntrance } from './authEntrance.js';
 
 export default function ForgotPage() {
   const navigate = useNavigate();
+  const pageRef = useRef(null);
+  useAuthEntrance(pageRef);
+
   const [email, setEmail] = useState('');
   const [error, setError] = useState('');
   const [info, setInfo] = useState('');
@@ -38,51 +42,72 @@ export default function ForgotPage() {
   }
 
   return (
-    <div className="auth-page auth-page-forgot page--auth-forgot">
-      <div className="auth-wrap">
-        <div className="auth-panel">
-          <span className="panel-badge">Reset Password</span>
-          <div className="panel-title">
-            Forgot your password?<em>we'll send a reset code.</em>
-          </div>
-          <p className="panel-tagline">
-            Enter the email on your account. If it exists, we'll send a 6-character
-            code valid for 15 minutes.
-          </p>
-          <div className="panel-footer">
-            <div className="panel-icon"><img src="/favicon.png" alt="" /></div>
-            <div className="panel-org">
-              nexam
-              <small>TOS-aligned Exam Builder</small>
-            </div>
-          </div>
-        </div>
+    <div className="auth-page auth-page-forgot page--auth-forgot" ref={pageRef}>
+      <a href="#forgot-form" className="skip-link">Skip to reset form</a>
 
-        <div className="auth-form-wrap">
-          <form onSubmit={handleSubmit} noValidate>
-            <div className="auth-logo">
-              <img className="logo-mark-img" src="/favicon.png" alt="" />
+      <div className="auth-shell">
+        {/* Brand side */}
+        <aside className="auth-side">
+          <div className="auth-side-brand anim-in">
+            <img src="/favicon.png" alt="" />
+            <span>nexam</span>
+          </div>
+          <h2 className="anim-in">Locked out?<br /><em>We'll get you back in.</em></h2>
+          <p className="auth-side-tag anim-in">
+            Enter the email on your account. If it exists, we'll send a
+            6-character code valid for 15 minutes.
+          </p>
+          <ol className="auth-steps">
+            <li className="anim-in">
+              <i>01</i>
+              <span>
+                <strong>Enter your email</strong>
+                <small>The one on your instructor account</small>
+              </span>
+            </li>
+            <li className="anim-in">
+              <i>02</i>
+              <span>
+                <strong>Check your inbox</strong>
+                <small>A short-lived reset code arrives</small>
+              </span>
+            </li>
+            <li className="anim-in">
+              <i>03</i>
+              <span>
+                <strong>Choose a new password</strong>
+                <small>Back to your workspace in a minute</small>
+              </span>
+            </li>
+          </ol>
+        </aside>
+
+        {/* Form card */}
+        <main className="auth-card">
+          <form id="forgot-form" onSubmit={handleSubmit} noValidate>
+            <div className="auth-card-brand anim-in">
+              <img src="/favicon.png" alt="" />
               <span>nexam</span>
             </div>
-            <div className="auth-heading">
+            <div className="auth-heading anim-in">
               <h1>Reset your password</h1>
               <p>Enter your account email to receive a reset code.</p>
             </div>
 
             {error && (
-              <div className="form-alert" role="alert">
+              <div className="form-alert anim-in" role="alert">
                 <AlertCircle />
                 <span>{error}</span>
               </div>
             )}
             {info && !error && (
-              <div className="form-alert" role="status" style={{ background: 'var(--surface-2)', borderColor: 'var(--line)', color: 'var(--ink-2)' }}>
+              <div className="form-alert form-alert--info anim-in" role="status">
                 <AlertCircle />
                 <span>{info}</span>
               </div>
             )}
 
-            <div className="form-group">
+            <div className="form-group anim-in">
               <label className="form-label" htmlFor="email">Email <span className="req">*</span></label>
               <div className="input-wrap">
                 <span className="input-icon"><Mail /></span>
@@ -92,15 +117,22 @@ export default function ForgotPage() {
               </div>
             </div>
 
-            <div className="btn-row-stacked">
-              <button type="submit" className={`btn-login ${loading ? 'is-loading' : ''}`} disabled={loading}>
+            <div className="anim-in">
+              <button type="submit" className={`btn-login${loading ? ' is-loading' : ''}`} disabled={loading}>
                 {loading && <span className="btn-spinner" aria-hidden="true" />}
                 {loading ? 'Sending…' : 'Send reset code'}
+                {!loading && <ArrowRight size={15} aria-hidden="true" />}
               </button>
               <Link to="/login" className="btn-register">Back to sign in</Link>
             </div>
           </form>
-        </div>
+
+          <div className="auth-legal">
+            <Link to="/privacy">Data Privacy</Link>
+            <span aria-hidden="true">·</span>
+            <Link to="/terms">Terms of Use</Link>
+          </div>
+        </main>
       </div>
     </div>
   );

@@ -40,28 +40,50 @@
 
 @keyframes loader-in { from { opacity: 0; } }
 
-/* ---- Boot screen (restoring the session on launch) ---- */
+/* ---- Boot screen (restoring the session on launch / lazy chunks) ----
+   Quiet by design: a soft logo tile + thin sliding bar, and the whole thing
+   waits ~.45s before fading in so fast loads never flash a loader. */
 .boot-screen {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 18px;
+  gap: 16px;
   min-height: 100vh;
   min-height: 100dvh;
   background: var(--canvas);
-  animation: loader-in .3s ease-out .1s backwards;
+  animation: loader-in .3s ease-out .45s backwards;
 }
 .boot-mark {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 48px;
-  height: 48px;
-  border-radius: var(--radius-md);
-  background: var(--ink);
+  width: 46px;
+  height: 46px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--surface);
   box-shadow: var(--shadow-sm);
-  color: #fff;
+}
+.boot-mark img { width: 24px; height: 24px; }
+.boot-bar {
+  width: 46px;
+  height: 3px;
+  border-radius: 2px;
+  background: var(--surface-3);
+  overflow: hidden;
+}
+.boot-bar i {
+  display: block;
+  width: 42%;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--ink-3);
+  animation: boot-bar-slide 1.1s cubic-bezier(.45, .05, .55, .95) infinite;
+}
+@keyframes boot-bar-slide {
+  from { transform: translateX(-110%); }
+  to   { transform: translateX(265%); }
 }
 
 /* ---- Auth splash (brand moment before the login page) ----
@@ -208,6 +230,7 @@
   .splash-logo { animation: none; }
   .spinner { animation-duration: 1.6s; }
   .splash-arc-sweep { animation-duration: 1.6s; }
+  .boot-bar i { animation: none; width: 100%; opacity: .5; }
   .top-progress span { animation: none; width: 100%; opacity: .6; }
   .topbar-spinner { transition: none; }
 }

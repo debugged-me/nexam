@@ -13,12 +13,15 @@ import { Link } from 'react-router-dom';
 import {
   FileText, ScanLine, Users, AlertCircle, BarChart3,
   TrendingUp, TrendingDown, Sparkles, ListChecks, ArrowLeft,
-  CheckCircle,
+  CheckCircle, Lightbulb, AlertTriangle, Layers,
 } from 'lucide-react';
 import { useToast } from '../components/Toast.jsx';
 import api from '../lib/api.js';
 import AppShell from '../components/AppShell.jsx';
 import { PageLoader } from '../components/Loaders.jsx';
+import {
+  MasteryBarChart, BloomRadarChart, TrendLineChart, DistBarChart, PassDoughnut,
+} from '../components/AnalyticsCharts.jsx';
 
 /** Format a score with one decimal, e.g. 87.5%. */
 function fmtPct1(v) {
@@ -48,6 +51,157 @@ function fmtScanned(iso) {
 function trimwd(s, n = 30) {
   if (!s) return '';
   return s.length > n ? s.slice(0, n) + '...' : s;
+}
+
+const BLOOM_LABELS = { remember: 'Remember', understand: 'Understand', apply: 'Apply', analyze: 'Analyze', evaluate: 'Evaluate', create: 'Create' };
+const BLOOM_ORDER = ['remember', 'understand', 'apply', 'analyze', 'evaluate', 'create'];
+const LOWER_ORDER = ['remember', 'understand', 'apply'];
+const HIGHER_ORDER = ['analyze', 'evaluate', 'create'];
+const PASS_MARK = 75;
+const BINS = Array.from({ length: 10 }, (_, i) => i * 10);
+
+/** Weighted average correct rate across the given Bloom levels. */
+function bloomGroupRate(blooms, keys) {
+  let correct = 0;
+  let responses = 0;
+  for (const b of blooms) {
+    if (!keys.includes(b.bloom)) continue;
+    correct += Number(b.correct_count || 0);
+    responses += Number(b.responses || 0);
+  }
+  return responses ? (correct / responses) * 100 : null;
+}
+
+/**
+ * Turn the raw aggregates into narrative insights — the system reads the
+ * numbers so the instructor doesn't have to.
+ */
+function buildInsights({ themes, bloomLevels, trend, stats, setComparison, pendingReviews }) {
+  const out = [];
+  const usable = (themes || []).filter((t) => Number(t.responses) >= 3);
+
+  if (usable.length) {
+    const weakest = usable[0]; // API sorts ascending by correct rate
+    const strongest = usable[usable.length - 1];
+    if (weakest.correctRate < 60) {
+      out.push({ tone: 'warn', icon: AlertTriangle, text: `Least-mastered topic: ${weakest.topic} — only ${weakest.correctRate}% correct across ${weakest.responses} responses.` });
+    }
+    if (strongest.correctRate >= PASS_MARK && strongest.topic !== weakest.topic) {
+      out.push({ tone: 'good', icon: CheckCircle, text: `Strongest topic: ${strongest.topic} — ${strongest.correctRate}% correct.` });
+    }
+  }
+
+  const lower = bloomGroupRate(bloomLevels || [], LOWER_ORDER);
+  const higher = bloomGroupRate(bloomLevels || [], HIGHER_ORDER);
+  if (lower !== null && higher !== null) {
+    const gap = lower - higher;
+    if (gap >= 10) {
+      out.push({ tone: 'warn', icon: Layers, text: `Higher-order items (Analyze–Create) run ${Math.round(gap)} pts below lower-order — a reasoning gap, not a recall gap.` });
+    } else if (gap <= -10) {
+      out.push({ tone: 'good', icon: Layers, text: `Higher-order items outscore lower-order by ${Math.round(-gap)} pts — students reason well, not just recall.` });
+    }
+  }
+
+  if (stats && Number(stats.total_scans || 0) > 0) {
+    const passRate = (Number(stats.passing_count || 0) / Number(stats.total_scans)) * 100;
+    if (passRate < 60) {
+      out.push({ tone: 'warn', icon: AlertTriangle, text: `Only ${Math.round(passRate)}% of students reached the ${PASS_MARK}% mark.` });
+    } else if (passRate >= PASS_MARK) {
+      out.push({ tone: 'good', icon: CheckCircle, text: `${Math.round(passRate)}% of students passed (≥${PASS_MARK}%).` });
+    }
+  }
+
+  if ((setComparison || []).length >= 2) {
+    const [a, b] = setComparison;
+    const delta = Number(a.avg_score || 0) - Number(b.avg_score || 0);
+    if (Math.abs(delta) >= 8) {
+      const hi = delta > 0 ? a : b;
+      const lo = delta > 0 ? b : a;
+      out.push({ tone: 'warn', icon: AlertTriangle, text: `Set ${hi.set_label} averages ${Number(hi.avg_score).toFixed(1)}% vs Set ${lo.set_label} at ${Number(lo.avg_score).toFixed(1)}% — the parallel sets may not be equivalent.` });
+    }
+  }
+
+  if ((trend || []).length >= 4) {
+    const mid = Math.floor(trend.length / 2);
+    const older = trend.slice(0, mid);
+    const recent = trend.slice(mid);
+    const avg = (rows) => rows.reduce((sum, r) => sum + Number(r.avg_score || 0), 0) / rows.length;
+    const delta = avg(recent) - avg(older);
+    if (Math.abs(delta) >= 3) {
+      out.push({ tone: delta > 0 ? 'good' : 'warn', icon: delta > 0 ? TrendingUp : TrendingDown, text: `Class scores are trending ${delta > 0 ? 'up' : 'down'} about ${Math.abs(Math.round(delta))} pts over the recent scan days.` });
+    }
+  }
+
+  if (Number(pendingReviews || 0) > 0) {
+    out.push({ tone: 'info', icon: AlertCircle, text: `${pendingReviews} scanned ${Number(pendingReviews) === 1 ? 'sheet is' : 'sheets are'} flagged for review — figures may shift once resolved.` });
+  }
+
+  return out;
+}
+
+/** Narrative insight card — icon-tagged findings derived from the data. */
+function InsightsCard({ insights, tour }) {
+  if (!insights.length) return null;
+  return (
+    <div className="card mb-3" data-tour={tour}>
+      <div className="card-header">
+        <span className="card-title"><Lightbulb size={15} className="card-title-icon" /> Key insights</span>
+      </div>
+      <div className="insight-list">
+        {insights.map((ins, i) => (
+          <div className="insight-row" key={i}>
+            <span className={`insight-icon tone-${ins.tone}`}><ins.icon size={14} /></span>
+            <p className="insight-text">{ins.text}</p>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/** Horizontal mastery chart — one animated bar per topic. */
+function MasteryCard({ title, rows, tour }) {
+  return (
+    <div className="card" data-tour={tour}>
+      <div className="card-header">
+        <span className="card-title">{title}</span>
+        <span className="text-muted meta-sm">{rows.length} {rows.length === 1 ? 'group' : 'groups'} · % correct</span>
+      </div>
+      <div className="chart-scroll">
+        <MasteryBarChart rows={rows} />
+      </div>
+    </div>
+  );
+}
+
+/** Bloom radar card — the cognitive shape of the class. */
+function BloomRadarCard({ blooms, tour }) {
+  return (
+    <div className="card" data-tour={tour}>
+      <div className="card-header">
+        <span className="card-title">By cognitive level</span>
+        <span className="text-muted meta-sm">% correct per Bloom level</span>
+      </div>
+      <div className="card-body">
+        <BloomRadarChart rows={blooms} order={BLOOM_ORDER} labels={BLOOM_LABELS} />
+      </div>
+    </div>
+  );
+}
+
+/** Daily score trend — animated line, oldest → newest. */
+function TrendCard({ trend, tour }) {
+  return (
+    <div className="card" data-tour={tour}>
+      <div className="card-header">
+        <span className="card-title">Score trend</span>
+        <span className="text-muted meta-sm">class avg per scan day</span>
+      </div>
+      <div className="card-body">
+        <TrendLineChart trend={trend} />
+      </div>
+    </div>
+  );
 }
 
 export default function AnalyticsPage() {
@@ -106,6 +260,15 @@ export default function AnalyticsPage() {
   const o = overview.overview || {};
   const examAverages = overview.examAverages || [];
   const recentScans = overview.recentScans || [];
+  const themes = overview.themes || [];
+  const blooms = overview.bloomLevels || [];
+  const trend = (overview.scoreTrend || []).slice().reverse(); // oldest → newest
+  const weakItems = overview.weakItems || [];
+  const themeRows = themes.map((t) => ({ ...t, name: t.topic }));
+  const insights = buildInsights({
+    themes, bloomLevels: blooms, trend,
+    pendingReviews: o.needs_review,
+  });
 
   return (
     <AppShell pageClass="analytics" activeNav="analytics" pageTitle="Results & insights" wide>
@@ -143,6 +306,19 @@ export default function AnalyticsPage() {
         </div>
       </div>
 
+      <InsightsCard insights={insights} tour="analytics-insights" />
+
+      {(themeRows.length > 0 || blooms.length > 0) && (
+        <div className="detail-grid-2 mb-3">
+          {themeRows.length > 0 && (
+            <MasteryCard title="Mastery by topic" rows={themeRows} tour="analytics-topics" />
+          )}
+          {blooms.length > 0 && (
+            <BloomRadarCard blooms={blooms} tour="analytics-bloom" />
+          )}
+        </div>
+      )}
+
       <div className="detail-grid-2 mb-3">
         {/* Exam Averages */}
         <div className="card" data-tour="analytics-averages">
@@ -167,6 +343,7 @@ export default function AnalyticsPage() {
                           <button type="button" className="cell-title" onClick={() => selectExam(ea.id)}>
                             {ea.title}
                           </button>
+                          {ea.subject && <div className="text-muted meta-sm">{ea.subject}</div>}
                         </td>
                         <td className="text-muted">{parseInt(ea.scan_count || 0, 10)}</td>
                         <td>
@@ -227,6 +404,32 @@ export default function AnalyticsPage() {
           )}
         </div>
       </div>
+
+      {(trend.length > 0 || weakItems.length > 0) && (
+        <div className="detail-grid-2">
+          {trend.length > 0 && <TrendCard trend={trend} tour="analytics-trend" />}
+          {weakItems.length > 0 && (
+            <div className="card" data-tour="analytics-attention">
+              <div className="card-header">
+                <span className="card-title">Items needing attention</span>
+                <span className="text-muted meta-sm">lowest correct rate</span>
+              </div>
+              <div className="weak-list">
+                {weakItems.map((w, i) => (
+                  <button type="button" className="weak-row" key={i} onClick={() => selectExam(w.exam_id)}
+                    title={`${w.stem} — ${w.correct_count}/${w.responses} correct`}>
+                    <span className="weak-stem">{trimwd(w.stem, 64)}</span>
+                    <span className="weak-meta">
+                      <span className="text-muted">{trimwd(w.exam_title, 26)}</span>
+                      <span className={`badge badge-${Number(w.correctRate) >= 50 ? 'amber' : 'red'}`}>{Number(w.correctRate).toFixed(0)}%</span>
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
     </AppShell>
   );
 }
@@ -240,15 +443,21 @@ function ExamDetail({ examId, detail, onBack }) {
     return <PageLoader label="Loading exam analytics…" />;
   }
 
-  const { exam, stats, distribution, students } = detail;
+  const { exam, stats, distribution, students, setComparison, themes, bloomLevels } = detail;
   const s = stats || {};
   const dist = distribution || [];
   const studs = students || [];
+  const themeRows = (themes || []).map((t) => ({ ...t, name: t.topic }));
+  const blooms = bloomLevels || [];
+  const insights = buildInsights({
+    themes, bloomLevels, stats: s,
+    setComparison: setComparison || [],
+    pendingReviews: s.needs_review_count,
+  });
 
   // Build the 10-bin distribution map (0-9, 10-19, ... 90-99)
   const distMap = {};
   for (const d of dist) distMap[parseInt(d.bin_start, 10)] = parseInt(d.count, 10);
-  const maxCount = Math.max(1, dist.length ? Math.max(...dist.map((d) => Number(d.count))) : 0);
 
   return (
     <>
@@ -285,27 +494,41 @@ function ExamDetail({ examId, detail, onBack }) {
           <div className="stat-icon purple"><TrendingUp size={18} /></div>
           <div className="stat-info"><div className="stat-value">{fmtPct0(s.max_score ?? 0)}%</div><div className="stat-label">Highest</div></div>
         </div>
+        <div className="stat-card">
+          <div className="stat-icon green"><CheckCircle size={18} /></div>
+          <div className="stat-info">
+            <div className="stat-value">{parseInt(s.passing_count || 0, 10)}/{parseInt(s.total_scans || 0, 10)}</div>
+            <div className="stat-label">Passed (≥{PASS_MARK}%)</div>
+          </div>
+        </div>
       </div>
 
-      {/* Score Distribution */}
-      <div className="card mb-3">
-        <div className="card-header"><span className="card-title">Score Distribution</span></div>
-        <div className="card-body">
-          <div className="score-distribution">
-            {Array.from({ length: 10 }, (_, i) => {
-              const binStart = i * 10;
-              const count = distMap[binStart] || 0;
-              const heightPct = (count / maxCount) * 100;
-              return (
-                <div className="dist-bar" key={binStart}>
-                  <div className="dist-bar-count">{count}</div>
-                  <div className="dist-bar-track">
-                    <div className="dist-bar-fill" style={{ height: `${heightPct}%` }} />
-                  </div>
-                  <div className="dist-bar-label">{binStart}-{binStart + 9}</div>
-                </div>
-              );
-            })}
+      <InsightsCard insights={insights} tour="analytics-insights" />
+
+      {(themeRows.length > 0 || blooms.length > 0) && (
+        <div className="detail-grid-2 mb-3">
+          {themeRows.length > 0 && <MasteryCard title="Mastery by topic" rows={themeRows} tour="analytics-topics" />}
+          {blooms.length > 0 && <BloomRadarCard blooms={blooms} tour="analytics-bloom" />}
+        </div>
+      )}
+
+      <div className="detail-grid-2 mb-3">
+        {/* Score Distribution */}
+        <div className="card">
+          <div className="card-header"><span className="card-title">Score Distribution</span></div>
+          <div className="card-body">
+            <DistBarChart distMap={distMap} bins={BINS} />
+          </div>
+        </div>
+
+        {/* Pass rate */}
+        <div className="card">
+          <div className="card-header"><span className="card-title">Pass rate</span></div>
+          <div className="card-body">
+            <PassDoughnut
+              passing={parseInt(s.passing_count || 0, 10)}
+              failing={parseInt(s.failing_count || 0, 10)}
+            />
           </div>
         </div>
       </div>

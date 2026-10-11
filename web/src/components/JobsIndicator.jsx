@@ -146,6 +146,7 @@ export default function JobsIndicator() {
       <button
         className={`jobs-trigger${activeCount > 0 ? ' is-live' : ''}`}
         type="button"
+        data-tour="shell-jobs"
         aria-label={activeCount > 0 ? `Background work — ${activeCount} task${activeCount === 1 ? '' : 's'} in progress` : 'Background work'}
         aria-expanded={open}
         title="Background work"

@@ -91,6 +91,11 @@ export const TOURS = [
         description: 'Build an exam walks this exact pipeline as a guided path — pick a subject and it carries you stage by stage.',
       },
       {
+        sel: '[data-tour="shell-jobs"]', side: 'bottom', align: 'end',
+        title: 'Work keeps running while you move',
+        description: 'Extraction, blueprint drafting, question generation, and duplicate checks are background jobs — this badge counts them. Open it to see each task’s title and live slot progress, or press its stop button to cancel. Finished work announces itself wherever you are.',
+      },
+      {
         sel: '[data-tour="dash-focus"]', side: 'left',
         title: 'Where to look each day',
         description: 'This panel is always the next real action: drafts awaiting your review, unfinished exams, or blueprint item shortfalls.',
@@ -164,7 +169,7 @@ export const TOURS = [
       {
         sel: '[data-tour="materials-list"]', side: 'top',
         title: 'From file to fuel',
-        description: 'Text extraction and embedding run in the background. Right-click a card (or its ⋯ button) for the menu — a processed syllabus gains “Auto-generate Blueprint”, the bridge to Stage 3. Long titles wrap two lines and “Read more” opens the full details.',
+        description: 'Text extraction and embedding run as background jobs — watch them under the topbar badge. Right-click a card (or its ⋯ button) for the menu — a processed syllabus gains “Auto-generate Blueprint”, the bridge to Stage 3. Long titles wrap two lines and “Read more” opens the full details.',
       },
     ],
   },
@@ -183,7 +188,7 @@ export const TOURS = [
       {
         sel: '[data-tour="tos-table"]', side: 'top',
         title: 'Draft vs finalized',
-        description: 'Drafts are editable; finalized is the locked contract. Generation refuses anything less — that is what guarantees your exam matches the plan. Right-click a row (or its ⋯ button) for the menu — “View details” / “Read more” shows full titles the column clips.',
+        description: 'Drafts are editable; finalized is the locked contract — its meta line tracks how many items are already banked. Right-click a row (or its ⋯ button) for the menu: “Build exam” opens the exam form with this blueprint pre-selected, and “View details” / “Read more” shows what the column clips.',
       },
     ],
   },
@@ -201,18 +206,18 @@ export const TOURS = [
       },
       {
         sel: '[data-tour="tos-detail-actions"]', side: 'bottom', align: 'end',
-        title: 'The unlock switch',
-        description: 'Auto-generate stays disabled until you finalize — the matrix must be exact before anything may build on it.',
+        title: 'Fill only what is missing',
+        description: 'Auto-generate unlocks once finalized — and it is gap-aware: when cells are short the button counts down (“Generate N missing”), it first reuses matching questions your bank already holds, then drafts only the true deficit.',
       },
       {
         sel: '[data-tour="tos-matrix"]', side: 'top',
-        title: 'The specification',
-        description: 'Each cell is the item count a topic owes at that Bloom level; row totals follow instructional hours, columns follow your Bloom weights.',
+        title: 'The specification, live',
+        description: 'Each cell reads banked/needed — amber means that topic × Bloom cell is still short. The matrix scrolls with its header and totals pinned, so long topic lists stay readable.',
       },
       {
         sel: '[data-tour="tos-topics"]', side: 'top',
-        title: 'Topics size the matrix',
-        description: 'Edit instructional hours to rebalance how many items each topic must contribute.',
+        title: 'Slice blueprints per exam period',
+        description: 'Tick topics to act on them: “New blueprint” spins the selection into its own draft — a Prelim or Midterm covering just those topics — and “Remove” trims on drafts. Once finalized the rows lock behind a lock icon.',
       },
     ],
   },
@@ -236,12 +241,12 @@ export const TOURS = [
       {
         sel: '[data-tour="questions-filters"]', side: 'bottom',
         title: 'See it like the blueprint does',
-        description: 'Filter by blueprint, topic, and Bloom level — the same dimensions the TOS matrix uses, so gaps are easy to spot.',
+        description: 'The Filters button opens every facet — blueprint, topic, Bloom, status, type — in one modal; the badge counts active filters. Search sits in the toolbar itself.',
       },
       {
         sel: '[data-tour="questions-table"]', side: 'top',
         title: 'Status is everything',
-        description: 'draft → active | rejected. Bulk-approve from here — or right-click a row / tap its ⋯ button for the full menu. “View details” and the “Read more” link display any stem the column truncates.',
+        description: 'draft → active | rejected. Rows paginate 25 at a time — check-all still spans every matching page for bulk approval. Right-click a row / tap its ⋯ button for the full menu; “Read more” opens any stem the column truncates.',
       },
     ],
   },
@@ -264,8 +269,8 @@ export const TOURS = [
       },
       {
         sel: '[data-tour="review-tools"]', side: 'bottom', align: 'end',
-        title: 'Scope & bulk',
-        description: 'Filter to one subject, or approve checked drafts at once — bulk skips the per-item read this screen exists for.',
+        title: 'Scope, bulk & background',
+        description: 'Filter to one subject, approve checked drafts at once, or Clear queue to wipe undecided drafts. While jobs run, a live panel here shows their progress — and stop buttons cancel them.',
       },
     ],
   },
@@ -308,7 +313,7 @@ export const TOURS = [
       {
         sel: '[data-tour="institution-list"]', side: 'top',
         title: 'Reuse still passes through you',
-        description: 'Copying lands the item in YOUR review queue with a similarity check — it never goes straight into an exam. The gate applies to everything.',
+        description: 'Copying lands the item in YOUR review queue with a similarity check — it never goes straight into an exam. Results paginate so large banks stay fast.',
       },
     ],
   },
@@ -322,7 +327,7 @@ export const TOURS = [
       {
         sel: '[data-tour="exam-source"]', side: 'bottom',
         title: 'Start from a blueprint',
-        description: 'Pick a finalized TOS and nexam auto-assembles the exact topic × Bloom allocation from your approved bank. Blank works too, if you prefer full manual control.',
+        description: 'Pick a finalized TOS and nexam auto-assembles the exact topic × Bloom allocation from your approved bank. If the bank is short, an alert lists the exact missing cells — generate the deficit from the blueprint page. Blank works too, for full manual control.',
       },
       {
         sel: '[data-tour="exam-details"]', side: 'top',
@@ -430,9 +435,24 @@ export const TOURS = [
         description: 'Exams, sheets scanned, students graded, and flags needing review.',
       },
       {
+        sel: '[data-tour="analytics-insights"]', side: 'bottom',
+        title: 'The system reads it for you',
+        description: 'Plain-language findings: weakest and strongest topics, higher-order vs recall gaps, score trends, and anything still pending review.',
+      },
+      {
+        sel: '[data-tour="analytics-topics"]', side: 'right',
+        title: 'Thematic mastery',
+        description: 'Every scanned item traces back to its blueprint topic and Bloom level — see exactly which themes students struggle with, green → amber → red.',
+      },
+      {
         sel: '[data-tour="analytics-averages"]', side: 'right',
         title: 'Per-exam results',
-        description: 'Click an exam for its score distribution and per-student rows.',
+        description: 'Click an exam for its score distribution, per-student rows, and that exam’s own topic and cognitive-level breakdown.',
+      },
+      {
+        sel: '[data-tour="analytics-ai"]', side: 'bottom', align: 'end',
+        title: 'And the AI’s own grade',
+        description: 'How accurate generated questions have been — measured against your review decisions.',
       },
       {
         sel: '[data-tour="analytics-ai"]', side: 'bottom', align: 'end',

@@ -18,13 +18,19 @@ class RegisterScreen extends StatefulWidget {
 }
 
 class _RegisterScreenState extends State<RegisterScreen> {
+  /// Matches the web register form's extension options.
+  static const _nameExtensions = ['', 'Jr.', 'Sr.', 'II', 'III', 'IV'];
+
   final _formKey = GlobalKey<FormState>();
   final _firstController = TextEditingController();
   final _lastController = TextEditingController();
+  final _middleController = TextEditingController();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+  final _confirmController = TextEditingController();
   final _api = AuthApi();
 
+  String _nameExt = '';
   bool _busy = false;
   bool _obscure = true;
   String? _error;
@@ -33,8 +39,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
   void dispose() {
     _firstController.dispose();
     _lastController.dispose();
+    _middleController.dispose();
     _emailController.dispose();
     _passwordController.dispose();
+    _confirmController.dispose();
     super.dispose();
   }
 
@@ -50,6 +58,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
         lastName: _lastController.text,
         email: _emailController.text,
         password: _passwordController.text,
+        middleName: _middleController.text,
+        nameExt: _nameExt,
       );
       if (!mounted) return;
       final verified = await Navigator.of(context).push<bool>(
@@ -189,6 +199,56 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       ],
                     ),
                     const SizedBox(height: 16),
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(
+                          flex: 3,
+                          child: Column(
+                            crossAxisAlignment:
+                                CrossAxisAlignment.start,
+                            children: [
+                              _label('Middle Name (optional)'),
+                              TextFormField(
+                                controller: _middleController,
+                                textInputAction: TextInputAction.next,
+                                autofillHints: const [
+                                  AutofillHints.middleName
+                                ],
+                                decoration: _pillDecoration(),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          flex: 2,
+                          child: Column(
+                            crossAxisAlignment:
+                                CrossAxisAlignment.start,
+                            children: [
+                              _label('Ext. (optional)'),
+                              DropdownButtonFormField<String>(
+                                initialValue: _nameExt,
+                                items: _nameExtensions
+                                    .map(
+                                      (e) => DropdownMenuItem(
+                                        value: e,
+                                        child: Text(
+                                            e.isEmpty ? '—' : e),
+                                      ),
+                                    )
+                                    .toList(),
+                                onChanged: (v) => setState(
+                                    () => _nameExt = v ?? ''),
+                                decoration: _pillDecoration(),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
                     _label('Email Address'),
                     TextFormField(
                       controller: _emailController,
@@ -213,8 +273,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     TextFormField(
                       controller: _passwordController,
                       obscureText: _obscure,
-                      textInputAction: TextInputAction.done,
-                      onFieldSubmitted: (_) => _submit(),
+                      textInputAction: TextInputAction.next,
                       autofillHints: const [AutofillHints.newPassword],
                       validator: (v) {
                         final value = v ?? '';
@@ -238,6 +297,28 @@ class _RegisterScreenState extends State<RegisterScreen> {
                             size: 19,
                           ),
                         ),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    _label('Confirm Password'),
+                    TextFormField(
+                      controller: _confirmController,
+                      obscureText: _obscure,
+                      textInputAction: TextInputAction.done,
+                      onFieldSubmitted: (_) => _submit(),
+                      autofillHints: const [AutofillHints.newPassword],
+                      validator: (v) {
+                        if (v == null || v.isEmpty) {
+                          return 'Confirm your password.';
+                        }
+                        if (v != _passwordController.text) {
+                          return 'Passwords do not match.';
+                        }
+                        return null;
+                      },
+                      decoration: _pillDecoration(
+                        hint: 'Re-enter password',
+                        icon: Icons.lock_outline_rounded,
                       ),
                     ),
                     if (_error != null) ...[

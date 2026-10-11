@@ -21,10 +21,11 @@ import { Router } from 'express';
 import { v4 as uuid } from 'uuid';
 import pool from '../config/db.js';
 import { requireAuth } from '../middleware/auth.js';
-import { parseGIFT, parseCanvasXML } from '../services/lmsExport.js';
+import { parseGIFT, parseCanvasXML, parseMoodleXML, normalizeImportItem } from '../services/lmsExport.js';
 import { enqueue } from '../services/jobs.js';
 import { indexQuestionIfActive, removeQuestionFromIndex } from '../services/questionIndex.js';
 import { answerOptionIndex } from '../services/scoring.js';
+import { rateLimit } from '../middleware/rateLimit.js';
 
 const router = Router();
 router.use(requireAuth);
@@ -736,49 +737,79 @@ router.post('/:id/similarity/decide', async (req, res, next) => {
 });
 
 // ── Import GIFT/XML ──────────────────────────────────
-router.post('/import', async (req, res, next) => {
+
+/** Detect the bank format — explicit format wins, else sniff the content. */
+function detectImportFormat(content) {
+  const head = String(content).slice(0, 4000);
+  if (/<\?xml|<quiz[\s>]|<questestinterop[\s>]|<item\b[\s\S]*?<mattext/i.test(head)) return 'xml';
+  return 'gift';
+}
+
+function parseImportBody({ format, content }) {
+  if (!content || content.trim().length < 10) {
+    return { error: 'Content is too short to parse.' };
+  }
+  const fmt = ['gift', 'xml'].includes(format) ? format : detectImportFormat(content);
+  let questions;
   try {
-    const { format, content, subjectId, bloom, topic } = req.body;
-    if (!format || !['gift', 'xml'].includes(format)) {
-      return res.status(400).json({ error: 'Format must be "gift" or "xml".' });
-    }
-    if (!content || content.trim().length < 10) {
-      return res.status(400).json({ error: 'Content is too short to parse.' });
-    }
+    // 'xml' covers both dialects — Moodle question-bank export (<quiz>) and
+    // Canvas/QTI (<questestinterop>/<item>). Detect by the root element.
+    questions = fmt === 'gift'
+      ? parseGIFT(content)
+      : /<quiz[\s>]/i.test(content) ? parseMoodleXML(content) : parseCanvasXML(content);
+  } catch (err) {
+    return { error: `Failed to parse ${fmt.toUpperCase()}: ${err.message}` };
+  }
+  if (!questions?.length) return { error: 'No questions could be parsed.' };
+  if (questions.length > 500) return { error: 'Import is limited to 500 questions per file.' };
+  return { questions, format: fmt };
+}
+
+// Parse + normalize without writing — drives the preview list in the UI.
+router.post('/import/preview', rateLimit({ name: 'question-import', max: 30, windowSec: 300 }), (req, res) => {
+  const parsed = parseImportBody(req.body || {});
+  if (parsed.error) return res.status(400).json({ error: parsed.error });
+  const items = parsed.questions.map((q, i) => {
+    const n = normalizeImportItem(q, i);
+    return n.skip ? { ok: false, reason: n.skip } : { ok: true, data: n.data, explanation: q.explanation || null };
+  });
+  res.json({ items, format: parsed.format });
+});
+
+router.post('/import', rateLimit({ name: 'question-import', max: 10, windowSec: 300 }), async (req, res, next) => {
+  try {
+    const { subjectId, topic, exclude } = req.body;
+    const parsed = parseImportBody(req.body || {});
+    if (parsed.error) return res.status(400).json({ error: parsed.error });
     if (!subjectId) return res.status(400).json({ error: 'subjectId is required.' });
+    const excluded = new Set(Array.isArray(exclude) ? exclude : []);
 
     const [subjectRows] = await pool.query(
       `SELECT id FROM subjects WHERE id = :id AND instructor_id = :uid`,
       { id: subjectId, uid: req.user.id }
     );
     if (!subjectRows.length) return res.status(403).json({ error: 'Subject not found or not owned by you.' });
+    const questions = parsed.questions;
 
-    let questions;
-    try {
-      questions = format === 'gift' ? parseGIFT(content) : parseCanvasXML(content);
-    } catch (err) {
-      return res.status(400).json({ error: `Failed to parse ${format.toUpperCase()}: ${err.message}` });
-    }
-    if (!questions?.length) return res.status(400).json({ error: `No questions could be parsed.` });
-
-    const defaultBloom = bloom || 'remember';
     const inserted = [];
-    for (const q of questions) {
-      const checked = validate({
-        ...q,
-        subject_id: subjectId,
-        bloom: q.bloom || defaultBloom,
-        status: 'draft',
-      });
-      if (checked.error) continue;
+    const skipped = [];
+    for (let i = 0; i < questions.length; i++) {
+      if (excluded.has(i)) continue;
+      const normalized = normalizeImportItem(questions[i], i);
+      if (normalized.skip) {
+        skipped.push(normalized.skip);
+        continue;
+      }
+      const q = normalized.data;
       const id = uuid();
-      const optionsJson = q.options ? JSON.stringify(q.options) : null;
       await pool.query(
         `INSERT INTO questions
-         (id, subject_id, stem, type, options, answer, bloom, topic, status, source, created_by, created_at, updated_at)
-         VALUES (:id, :subjectId, :stem, :type, :options, :answer, :bloom, :topic, 'draft', 'import', :uid, NOW(), NOW())`,
-        { id, subjectId, stem: q.stem, type: q.type, options: optionsJson, answer: q.answer || '',
-          bloom: q.bloom || defaultBloom, topic: q.topic || topic || null, uid: req.user.id }
+         (id, subject_id, stem, type, options, answer, explanation, bloom, topic, status, source, created_by, created_at, updated_at)
+         VALUES (:id, :subjectId, :stem, :type, :options, :answer, :explanation, :bloom, :topic, 'draft', 'import', :uid, NOW(), NOW())`,
+        { id, subjectId, stem: q.stem, type: q.type,
+          options: q.options ? JSON.stringify(q.options) : null,
+          answer: q.answer || '', explanation: questions[i].explanation || null,
+          bloom: q.bloom || 'remember', topic: topic || null, uid: req.user.id }
       );
       inserted.push({ id, type: q.type, stem: q.stem.slice(0, 80) });
 
@@ -798,9 +829,12 @@ router.post('/import', async (req, res, next) => {
       }
     }
     if (!inserted.length) {
-      return res.status(422).json({ error: 'No supported, valid objective questions were found in the import.' });
+      return res.status(422).json({
+        error: 'No supported, valid objective questions were found in the import.',
+        skipped,
+      });
     }
-    res.status(201).json({ imported: inserted.length, questions: inserted });
+    res.status(201).json({ imported: inserted.length, questions: inserted, skipped });
   } catch (err) { next(err); }
 });
 

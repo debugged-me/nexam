@@ -125,6 +125,16 @@
 .q-pick-item:hover { background: var(--surface-2); border-color: var(--line-strong); }
 .q-pick-item.selected { background: var(--surface-2); border-color: var(--ink-3); }
 .q-pick-checkbox { margin-top: 2px; }
+/* Select-all row — sticky so it stays reachable while the list scrolls. */
+.q-pick-all {
+  position: sticky;
+  top: -1px;
+  z-index: 1;
+  background: var(--surface);
+  border-color: var(--line-strong);
+  font-weight: 600;
+}
+.q-pick-all .q-pick-stem { color: var(--accent); }
 .q-pick-stem { font-size: var(--text-sm); color: var(--ink); flex: 1; }
 .q-pick-meta { font-size: var(--text-xs); color: var(--ink-3); margin-top: 2px; }
 

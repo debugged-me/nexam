@@ -14,6 +14,7 @@
 import { v4 as uuid } from 'uuid';
 import pool from '../../config/db.js';
 import { generate } from '../../services/aiProvider.js';
+import { recalcTopicItemCounts } from '../../services/tosTopics.js';
 
 /** Default Bloom distribution for a newly extracted syllabus. */
 const DEFAULT_BLOOM = {
@@ -103,6 +104,58 @@ ${material.content.slice(0, 30000)}
 
   if (!parsed.topics || !Array.isArray(parsed.topics) || parsed.topics.length === 0) {
     throw new Error('No topics could be extracted from this syllabus. Try a different document or add topics manually.');
+  }
+
+  // ── Fill an existing draft blueprint ────────────────
+  // tosId in the payload = append extracted topics into that TOS instead of
+  // creating a new one. Item counts are recomputed proportionally by the
+  // shared recalc so existing + new topics split total_items exactly.
+  if (job.payload.tosId) {
+    const tosId = job.payload.tosId;
+    const [tosRows] = await pool.query(
+      `SELECT id, subject_id, status FROM tos WHERE id = :id`, { id: tosId }
+    );
+    const tos = tosRows[0];
+    if (!tos) throw new Error(`Blueprint ${tosId} not found.`);
+    if (tos.status === 'finalized') throw new Error('Blueprint is finalized — topics are locked.');
+    if (tos.subject_id !== material.subject_id) {
+      throw new Error('Syllabus subject does not match the blueprint subject.');
+    }
+
+    const [existing] = await pool.query(
+      `SELECT LOWER(TRIM(title)) AS t FROM tos_topics WHERE tos_id = :id`, { id: tosId }
+    );
+    const taken = new Set(existing.map((r) => r.t));
+    const [maxRow] = await pool.query(
+      `SELECT COALESCE(MAX(sort_order), 0) AS m FROM tos_topics WHERE tos_id = :id`, { id: tosId }
+    );
+    let sortOrder = Number(maxRow[0].m) + 1;
+    let added = 0;
+    let skipped = 0;
+
+    for (const topic of parsed.topics.slice(0, 30)) {
+      const title = String(topic.topic || '').trim();
+      if (!title || taken.has(title.toLowerCase())) { skipped++; continue; }
+      await pool.query(
+        `INSERT INTO tos_topics (id, tos_id, title, instructional_hours, learning_outcomes, item_count, sort_order)
+         VALUES (:id, :tosId, :title, :hours, :outcomes, 0, :sortOrder)`,
+        {
+          id: uuid(), tosId, title,
+          hours: topic.instructional_hours || 3,
+          outcomes: JSON.stringify(topic.learning_outcomes || []),
+          sortOrder: sortOrder++,
+        }
+      );
+      taken.add(title.toLowerCase());
+      added++;
+    }
+
+    await recalcTopicItemCounts(tosId);
+    return {
+      tosId, added, skipped,
+      provider: result.provider, model: result.model,
+      filledExisting: true,
+    };
   }
 
   // ── Compute item weights (proportional to instructional hours) ──

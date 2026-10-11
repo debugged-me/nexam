@@ -6,6 +6,7 @@ function installedChromePath() {
     process.env.CHROME_EXECUTABLE,
     process.platform === 'darwin' ? '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome' : null,
     process.platform === 'darwin' ? '/Applications/Chromium.app/Contents/MacOS/Chromium' : null,
+    process.platform === 'darwin' ? '/Applications/Helium.app/Contents/MacOS/Helium' : null,
     process.platform === 'win32' ? 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe' : null,
     process.platform === 'linux' ? '/usr/bin/google-chrome' : null,
     process.platform === 'linux' ? '/usr/bin/chromium' : null,

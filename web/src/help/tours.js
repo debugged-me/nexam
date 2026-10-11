@@ -98,7 +98,7 @@ export const TOURS = [
       {
         sel: '[data-tour="dash-focus"]', side: 'left',
         title: 'Where to look each day',
-        description: 'This panel is always the next real action: drafts awaiting your review, unfinished exams, or blueprint item shortfalls.',
+        description: 'A prioritized queue: scans needing verification, drafts awaiting review, named blueprint shortfalls, and publish-ready exams — each row deep-links to where the work happens.',
       },
       {
         title: 'That’s the whole system',
@@ -509,7 +509,7 @@ export const TOURS = [
       {
         sel: '[data-tour="shell-nav"]', minWidth: 992, side: 'right',
         title: 'Console sections',
-        description: 'Users, login logs, audit trail, and settings — the security sections are superadmin-only.',
+        description: 'Users, usage reports, login logs, audit trail, and settings — the security sections are superadmin-only. Reports prints or exports to Excel.',
       },
       NAV_STEP_MOBILE,
       {

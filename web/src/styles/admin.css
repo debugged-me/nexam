@@ -34,6 +34,7 @@
   padding: 10px 14px;
   border-bottom: 1px solid var(--line);
 }
+.adm-toolbar:last-child { border-bottom: none; }
 .adm-chips { display: flex; gap: 6px; flex-wrap: wrap; }
 .adm-chip {
   font-size: .75rem;

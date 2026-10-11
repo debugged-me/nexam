@@ -372,3 +372,73 @@
     font: 500 .75rem/1.2 var(--font-body, "Inter", sans-serif);
 }
 .tos-matrix-drift svg { flex: none; }
+
+/* ---- Suggested topics modal ------------------------------------------- */
+
+.tos-head-right { display: flex; align-items: center; gap: 10px; }
+.tos-sugg-badge {
+    font-size: .68rem;
+    font-weight: 700;
+    color: var(--brand, #1a56db);
+    background: var(--brand-50, #eef4ff);
+    border-radius: 999px;
+    padding: 1px 6px;
+    margin-left: 2px;
+}
+
+.tos-sugg-syllabus {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+    padding: 12px 14px;
+    margin-bottom: 12px;
+    border: 1px dashed var(--line, #d5dae2);
+    border-radius: var(--radius-md, 10px);
+    background: var(--surface-2, #f6f8fa);
+    color: var(--ink);
+    font: 500 .875rem/1.35 var(--font-body, "Inter", sans-serif);
+    text-align: left;
+    cursor: pointer;
+    min-height: 44px;
+    transition: border-color .15s ease, background .15s ease;
+}
+.tos-sugg-syllabus:hover:not(:disabled) {
+    border-color: var(--brand, #1a56db);
+    background: var(--brand-50, #eef4ff);
+}
+.tos-sugg-syllabus:disabled { opacity: .65; cursor: default; }
+.tos-sugg-syllabus > svg { flex: none; color: var(--brand, #1a56db); }
+.tos-sugg-syllabus-text { display: flex; flex-direction: column; gap: 1px; }
+.tos-sugg-syllabus-text small { color: var(--ink-3, var(--muted)); }
+
+.tos-sugg-list {
+    display: flex;
+    flex-direction: column;
+    max-height: 380px;
+    overflow-y: auto;
+    border: 1px solid var(--line, #e2e7ee);
+    border-radius: var(--radius-md, 10px);
+}
+.tos-sugg-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 9px 12px;
+    min-height: 44px;
+}
+.tos-sugg-row + .tos-sugg-row { border-top: 1px solid var(--line, #e2e7ee); }
+.tos-sugg-main { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.tos-sugg-title {
+    font: 500 .875rem/1.3 var(--font-body, "Inter", sans-serif);
+    color: var(--ink);
+    overflow-wrap: anywhere;
+}
+.tos-sugg-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; }
+.tos-sugg-hours {
+    font-size: .72rem;
+    font-weight: 600;
+    color: var(--ink-3, var(--muted));
+}
+.tos-sugg-row .btn { flex: none; }
+

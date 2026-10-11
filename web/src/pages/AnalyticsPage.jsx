@@ -9,19 +9,25 @@ import '../styles/analytics.css';
  * Uses the shared application and analytics styles.
  */
 import { useEffect, useState, useCallback } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import {
   FileText, ScanLine, Users, AlertCircle, BarChart3,
   TrendingUp, TrendingDown, Sparkles, ListChecks, ArrowLeft,
   CheckCircle, Lightbulb, AlertTriangle, Layers,
+  Printer, FileDown, FileSpreadsheet,
 } from 'lucide-react';
 import { useToast } from '../components/Toast.jsx';
 import api from '../lib/api.js';
+import { downloadCsv, downloadXlsx } from '../lib/exports.js';
 import AppShell from '../components/AppShell.jsx';
 import { PageLoader } from '../components/Loaders.jsx';
 import {
   MasteryBarChart, BloomRadarChart, TrendLineChart, DistBarChart, PassDoughnut,
 } from '../components/AnalyticsCharts.jsx';
+import { BLOOM_LABELS, BLOOM_ORDER, PASS_MARK, buildInsights } from '../lib/insights.js';
+
+/** Insight icon keys → Lucide components (lib stays framework-free). */
+const INSIGHT_ICONS = { alert: AlertTriangle, check: CheckCircle, layers: Layers, up: TrendingUp, down: TrendingDown, info: AlertCircle };
 
 /** Format a score with one decimal, e.g. 87.5%. */
 function fmtPct1(v) {
@@ -53,91 +59,8 @@ function trimwd(s, n = 30) {
   return s.length > n ? s.slice(0, n) + '...' : s;
 }
 
-const BLOOM_LABELS = { remember: 'Remember', understand: 'Understand', apply: 'Apply', analyze: 'Analyze', evaluate: 'Evaluate', create: 'Create' };
-const BLOOM_ORDER = ['remember', 'understand', 'apply', 'analyze', 'evaluate', 'create'];
-const LOWER_ORDER = ['remember', 'understand', 'apply'];
-const HIGHER_ORDER = ['analyze', 'evaluate', 'create'];
-const PASS_MARK = 75;
 const BINS = Array.from({ length: 10 }, (_, i) => i * 10);
-
-/** Weighted average correct rate across the given Bloom levels. */
-function bloomGroupRate(blooms, keys) {
-  let correct = 0;
-  let responses = 0;
-  for (const b of blooms) {
-    if (!keys.includes(b.bloom)) continue;
-    correct += Number(b.correct_count || 0);
-    responses += Number(b.responses || 0);
-  }
-  return responses ? (correct / responses) * 100 : null;
-}
-
-/**
- * Turn the raw aggregates into narrative insights — the system reads the
- * numbers so the instructor doesn't have to.
- */
-function buildInsights({ themes, bloomLevels, trend, stats, setComparison, pendingReviews }) {
-  const out = [];
-  const usable = (themes || []).filter((t) => Number(t.responses) >= 3);
-
-  if (usable.length) {
-    const weakest = usable[0]; // API sorts ascending by correct rate
-    const strongest = usable[usable.length - 1];
-    if (weakest.correctRate < 60) {
-      out.push({ tone: 'warn', icon: AlertTriangle, text: `Least-mastered topic: ${weakest.topic} — only ${weakest.correctRate}% correct across ${weakest.responses} responses.` });
-    }
-    if (strongest.correctRate >= PASS_MARK && strongest.topic !== weakest.topic) {
-      out.push({ tone: 'good', icon: CheckCircle, text: `Strongest topic: ${strongest.topic} — ${strongest.correctRate}% correct.` });
-    }
-  }
-
-  const lower = bloomGroupRate(bloomLevels || [], LOWER_ORDER);
-  const higher = bloomGroupRate(bloomLevels || [], HIGHER_ORDER);
-  if (lower !== null && higher !== null) {
-    const gap = lower - higher;
-    if (gap >= 10) {
-      out.push({ tone: 'warn', icon: Layers, text: `Higher-order items (Analyze–Create) run ${Math.round(gap)} pts below lower-order — a reasoning gap, not a recall gap.` });
-    } else if (gap <= -10) {
-      out.push({ tone: 'good', icon: Layers, text: `Higher-order items outscore lower-order by ${Math.round(-gap)} pts — students reason well, not just recall.` });
-    }
-  }
-
-  if (stats && Number(stats.total_scans || 0) > 0) {
-    const passRate = (Number(stats.passing_count || 0) / Number(stats.total_scans)) * 100;
-    if (passRate < 60) {
-      out.push({ tone: 'warn', icon: AlertTriangle, text: `Only ${Math.round(passRate)}% of students reached the ${PASS_MARK}% mark.` });
-    } else if (passRate >= PASS_MARK) {
-      out.push({ tone: 'good', icon: CheckCircle, text: `${Math.round(passRate)}% of students passed (≥${PASS_MARK}%).` });
-    }
-  }
-
-  if ((setComparison || []).length >= 2) {
-    const [a, b] = setComparison;
-    const delta = Number(a.avg_score || 0) - Number(b.avg_score || 0);
-    if (Math.abs(delta) >= 8) {
-      const hi = delta > 0 ? a : b;
-      const lo = delta > 0 ? b : a;
-      out.push({ tone: 'warn', icon: AlertTriangle, text: `Set ${hi.set_label} averages ${Number(hi.avg_score).toFixed(1)}% vs Set ${lo.set_label} at ${Number(lo.avg_score).toFixed(1)}% — the parallel sets may not be equivalent.` });
-    }
-  }
-
-  if ((trend || []).length >= 4) {
-    const mid = Math.floor(trend.length / 2);
-    const older = trend.slice(0, mid);
-    const recent = trend.slice(mid);
-    const avg = (rows) => rows.reduce((sum, r) => sum + Number(r.avg_score || 0), 0) / rows.length;
-    const delta = avg(recent) - avg(older);
-    if (Math.abs(delta) >= 3) {
-      out.push({ tone: delta > 0 ? 'good' : 'warn', icon: delta > 0 ? TrendingUp : TrendingDown, text: `Class scores are trending ${delta > 0 ? 'up' : 'down'} about ${Math.abs(Math.round(delta))} pts over the recent scan days.` });
-    }
-  }
-
-  if (Number(pendingReviews || 0) > 0) {
-    out.push({ tone: 'info', icon: AlertCircle, text: `${pendingReviews} scanned ${Number(pendingReviews) === 1 ? 'sheet is' : 'sheets are'} flagged for review — figures may shift once resolved.` });
-  }
-
-  return out;
-}
+const STUDENTS_PER_PAGE = 25;
 
 /** Narrative insight card — icon-tagged findings derived from the data. */
 function InsightsCard({ insights, tour }) {
@@ -148,12 +71,15 @@ function InsightsCard({ insights, tour }) {
         <span className="card-title"><Lightbulb size={15} className="card-title-icon" /> Key insights</span>
       </div>
       <div className="insight-list">
-        {insights.map((ins, i) => (
-          <div className="insight-row" key={i}>
-            <span className={`insight-icon tone-${ins.tone}`}><ins.icon size={14} /></span>
-            <p className="insight-text">{ins.text}</p>
-          </div>
-        ))}
+        {insights.map((ins, i) => {
+          const Icon = INSIGHT_ICONS[ins.icon] || AlertCircle;
+          return (
+            <div className="insight-row" key={i}>
+              <span className={`insight-icon tone-${ins.tone}`}><Icon size={14} /></span>
+              <p className="insight-text">{ins.text}</p>
+            </div>
+          );
+        })}
       </div>
     </div>
   );
@@ -206,9 +132,8 @@ function TrendCard({ trend, tour }) {
 
 export default function AnalyticsPage() {
   const toast = useToast();
+  const navigate = useNavigate();
   const [overview, setOverview] = useState(() => api.peek('/analytics/overview') ?? null);
-  const [examDetail, setExamDetail] = useState(null);
-  const [selectedExam, setSelectedExam] = useState(null);
 
   const load = useCallback(() => {
     api.get('/analytics/overview')
@@ -218,40 +143,11 @@ export default function AnalyticsPage() {
 
   useEffect(() => { load(); }, [load]);
 
-  async function selectExam(examId) {
-    setSelectedExam(examId);
-    setExamDetail(null);
-    try {
-      const detail = await api.get(`/analytics/exam/${examId}`);
-      setExamDetail(detail);
-    } catch (err) {
-      toast.error(err.message || 'Could not load exam analytics.');
-    }
-  }
-
-  function backToOverview() {
-    setSelectedExam(null);
-    setExamDetail(null);
-  }
-
   // ── Loading ──────────────────────────────────────────
   if (!overview) {
     return (
       <AppShell pageClass="analytics" activeNav="analytics" pageTitle="Analytics" wide>
         <PageLoader label="Loading results…" />
-      </AppShell>
-    );
-  }
-
-  // ── Exam detail view ─────────────────────────────────
-  if (selectedExam) {
-    return (
-      <AppShell pageClass="analytics" activeNav="analytics" pageTitle="Analytics" wide>
-        <ExamDetail
-          examId={selectedExam}
-          detail={examDetail}
-          onBack={backToOverview}
-        />
       </AppShell>
     );
   }
@@ -270,22 +166,184 @@ export default function AnalyticsPage() {
     pendingReviews: o.needs_review,
   });
 
+  // ── Report exports (print / CSV / Excel) ──
+  const bloomRows = blooms.map((b) => ({ ...b, label: BLOOM_LABELS[b.bloom] || b.bloom }));
+  const summaryRows = [
+    ['Exams', parseInt(o.total_exams || 0, 10)],
+    ['Scanned sheets', parseInt(o.total_scans || 0, 10)],
+    ['Students', parseInt(o.total_students || 0, 10)],
+    ['Sheets needing review', parseInt(o.needs_review || 0, 10)],
+  ];
+  const examAvgRows = examAverages.map((ea) => [
+    ea.title, ea.subject || '—', parseInt(ea.scan_count || 0, 10),
+    ea.avg_score !== null ? `${Number(ea.avg_score).toFixed(1)}%` : '—',
+    ea.min_score !== null ? `${Math.round(Number(ea.min_score))}%` : '—',
+    ea.max_score !== null ? `${Math.round(Number(ea.max_score))}%` : '—',
+  ]);
+  const themeExportRows = themes.map((t) => [t.topic, parseInt(t.items || 0, 10), parseInt(t.responses || 0, 10), `${t.correctRate}%`]);
+  const bloomExportRows = bloomRows.map((b) => [b.label, parseInt(b.items || 0, 10), parseInt(b.responses || 0, 10), `${b.correctRate}%`]);
+  const trendExportRows = trend.map((t) => [t.day, parseInt(t.scans || 0, 10), `${Number(t.avg_score || 0).toFixed(1)}%`]);
+  const weakExportRows = weakItems.map((w) => [w.stem, w.exam_title, parseInt(w.responses || 0, 10), `${w.correctRate}%`]);
+  const scanExportRows = recentScans.map((rs) => [rs.student_name || 'Unknown', rs.exam_title, `${Number(rs.score || 0).toFixed(1)}%`, fmtScanned(rs.scanned_at)]);
+
+  function exportCsv() {
+    const lines = [
+      ['nexam — Results & insights report'],
+      ['Generated', new Date().toLocaleString()],
+      [],
+      ['Summary', 'Metric', 'Value'],
+      ...summaryRows.map(([m, v]) => ['', m, v]),
+      [],
+      ['Exam averages', 'Exam', 'Subject', 'Scans', 'Average', 'Lowest', 'Highest'],
+      ...examAvgRows.map((r) => ['', ...r]),
+      [],
+      ['Mastery by topic', 'Topic', 'Items', 'Responses', 'Correct %'],
+      ...themeExportRows.map((r) => ['', ...r]),
+      [],
+      ['By cognitive level', 'Level', 'Items', 'Responses', 'Correct %'],
+      ...bloomExportRows.map((r) => ['', ...r]),
+      [],
+      ['Score trend', 'Date', 'Scans', 'Average %'],
+      ...trendExportRows.map((r) => ['', ...r]),
+      [],
+      ['Items needing attention', 'Question', 'Exam', 'Responses', 'Correct %'],
+      ...weakExportRows.map((r) => ['', ...r]),
+      [],
+      ['Recent scans', 'Student', 'Exam', 'Score', 'Scanned'],
+      ...scanExportRows.map((r) => ['', ...r]),
+    ];
+    const maxCols = Math.max(...lines.map((l) => l.length));
+    downloadCsv('nexam-analytics-report', Array(maxCols).fill(''), lines.map((l) => [...l, ...Array(maxCols - l.length).fill('')]));
+  }
+
+  function exportXlsx() {
+    downloadXlsx('nexam-analytics-report', [
+      { title: 'Summary', headers: ['Metric', 'Value'], rows: summaryRows },
+      { title: 'Exam averages', headers: ['Exam', 'Subject', 'Scans', 'Average', 'Lowest', 'Highest'], rows: examAvgRows },
+      { title: 'Mastery by topic', headers: ['Topic', 'Items', 'Responses', 'Correct %'], rows: themeExportRows },
+      { title: 'Cognitive level', headers: ['Level', 'Items', 'Responses', 'Correct %'], rows: bloomExportRows },
+      { title: 'Score trend', headers: ['Date', 'Scans', 'Average %'], rows: trendExportRows },
+      { title: 'Needs attention', headers: ['Question', 'Exam', 'Responses', 'Correct %'], rows: weakExportRows },
+      { title: 'Recent scans', headers: ['Student', 'Exam', 'Score', 'Scanned'], rows: scanExportRows },
+    ]);
+  }
+
   return (
     <AppShell pageClass="analytics" activeNav="analytics" pageTitle="Results & insights" wide>
-      <div className="page-header">
+      <div className="page-header print-skip">
         <div>
           <span className="eyebrow">Results &amp; insights</span>
           <h1>Analytics</h1>
           <p className="page-sub">Performance insights from scanned OMR answer sheets.</p>
         </div>
         <div className="header-actions">
+          <button type="button" className="btn btn-outline btn-sm" onClick={() => window.print()} title="Print this analytics report">
+            <Printer size={16} /> Print
+          </button>
+          <button type="button" className="btn btn-outline btn-sm" onClick={exportCsv} title="Download all sections as CSV">
+            <FileDown size={16} /> CSV
+          </button>
+          <button type="button" className="btn btn-outline btn-sm" onClick={exportXlsx} title="Download a multi-sheet Excel workbook">
+            <FileSpreadsheet size={16} /> Excel
+          </button>
           <Link to="/analytics/ai-eval" className="btn btn-outline btn-sm" data-tour="analytics-ai" title="View AI accuracy, precision, recall, and Bloom-level classification metrics">
             <Sparkles size={16} /> AI Evaluation Metrics
           </Link>
         </div>
       </div>
 
-      <div className="stats-grid mb-3" data-tour="analytics-stats">
+      {/* ── Print document: a real report, not flattened app cards ── */}
+      <div className="print-doc print-only">
+        <div className="print-doc-head">
+          <div className="pd-org">nexam — Results &amp; insights</div>
+          <div className="pd-title">Class Performance Report</div>
+          <div className="pd-meta">Generated {new Date().toLocaleString()} · {parseInt(o.total_scans || 0, 10)} scanned sheets across {parseInt(o.total_exams || 0, 10)} exams</div>
+        </div>
+
+        <div className="report-section-title">Summary</div>
+        <table className="report-table">
+          <tbody>
+            {summaryRows.map(([m, v]) => <tr key={m}><th>{m}</th><td>{v}</td></tr>)}
+          </tbody>
+        </table>
+
+        {insights.length > 0 && (
+          <>
+            <div className="report-section-title">Key insights</div>
+            <ul className="report-list">
+              {insights.map((ins, i) => <li key={i}>{ins.text}</li>)}
+            </ul>
+          </>
+        )}
+
+        {examAvgRows.length > 0 && (
+          <>
+            <div className="report-section-title">Exam averages</div>
+            <table className="report-table">
+              <thead><tr><th>Exam</th><th>Subject</th><th>Scans</th><th>Average</th><th>Lowest</th><th>Highest</th></tr></thead>
+              <tbody>{examAvgRows.map((r, i) => <tr key={i}>{r.map((c, j) => <td key={j}>{c}</td>)}</tr>)}</tbody>
+            </table>
+          </>
+        )}
+
+        {themeExportRows.length > 0 && (
+          <>
+            <div className="report-section-title">Mastery by topic</div>
+            <table className="report-table">
+              <thead><tr><th>Topic</th><th>Items</th><th>Responses</th><th>Correct %</th></tr></thead>
+              <tbody>{themeExportRows.map((r, i) => <tr key={i}>{r.map((c, j) => <td key={j}>{c}</td>)}</tr>)}</tbody>
+            </table>
+          </>
+        )}
+
+        {bloomExportRows.length > 0 && (
+          <>
+            <div className="report-section-title">Performance by cognitive level</div>
+            <table className="report-table">
+              <thead><tr><th>Level</th><th>Items</th><th>Responses</th><th>Correct %</th></tr></thead>
+              <tbody>{bloomExportRows.map((r, i) => <tr key={i}>{r.map((c, j) => <td key={j}>{c}</td>)}</tr>)}</tbody>
+            </table>
+          </>
+        )}
+
+        {trendExportRows.length > 0 && (
+          <>
+            <div className="report-section-title">Score trend</div>
+            <table className="report-table">
+              <thead><tr><th>Date</th><th>Scans</th><th>Average %</th></tr></thead>
+              <tbody>{trendExportRows.map((r, i) => <tr key={i}>{r.map((c, j) => <td key={j}>{c}</td>)}</tr>)}</tbody>
+            </table>
+          </>
+        )}
+
+        {weakExportRows.length > 0 && (
+          <>
+            <div className="report-section-title">Items needing attention</div>
+            <table className="report-table">
+              <thead><tr><th>Question</th><th>Exam</th><th>Responses</th><th>Correct %</th></tr></thead>
+              <tbody>{weakExportRows.map((r, i) => <tr key={i}>{r.map((c, j) => <td key={j}>{c}</td>)}</tr>)}</tbody>
+            </table>
+          </>
+        )}
+
+        {scanExportRows.length > 0 && (
+          <>
+            <div className="report-section-title">Recent scans</div>
+            <table className="report-table">
+              <thead><tr><th>Student</th><th>Exam</th><th>Score</th><th>Scanned</th></tr></thead>
+              <tbody>{scanExportRows.map((r, i) => <tr key={i}>{r.map((c, j) => <td key={j}>{c}</td>)}</tr>)}</tbody>
+            </table>
+          </>
+        )}
+
+        <div className="print-doc-foot">
+          <span>nexam — Results &amp; insights</span>
+          <span>Class Performance Report</span>
+        </div>
+      </div>
+
+      {/* ── Interactive UI (hidden on paper) ── */}
+      <div className="stats-grid mb-3 print-skip" data-tour="analytics-stats">
         <div className="stat-card">
           <div className="stat-icon blue"><FileText size={18} /></div>
           <div className="stat-info"><div className="stat-value">{parseInt(o.total_exams || 0, 10)}</div><div className="stat-label">Exams</div></div>
@@ -306,10 +364,10 @@ export default function AnalyticsPage() {
         </div>
       </div>
 
-      <InsightsCard insights={insights} tour="analytics-insights" />
+      <div className="print-skip"><InsightsCard insights={insights} tour="analytics-insights" /></div>
 
       {(themeRows.length > 0 || blooms.length > 0) && (
-        <div className="detail-grid-2 mb-3">
+        <div className="detail-grid-2 mb-3 print-skip">
           {themeRows.length > 0 && (
             <MasteryCard title="Mastery by topic" rows={themeRows} tour="analytics-topics" />
           )}
@@ -319,7 +377,7 @@ export default function AnalyticsPage() {
         </div>
       )}
 
-      <div className="detail-grid-2 mb-3">
+      <div className="detail-grid-2 mb-3 print-skip">
         {/* Exam Averages */}
         <div className="card" data-tour="analytics-averages">
           <div className="card-header">
@@ -340,7 +398,7 @@ export default function AnalyticsPage() {
                     return (
                       <tr key={ea.id}>
                         <td>
-                          <button type="button" className="cell-title" onClick={() => selectExam(ea.id)}>
+                          <button type="button" className="cell-title" onClick={() => navigate(`/analytics/exam/${encodeURIComponent(ea.id)}`)}>
                             {ea.title}
                           </button>
                           {ea.subject && <div className="text-muted meta-sm">{ea.subject}</div>}
@@ -405,31 +463,7 @@ export default function AnalyticsPage() {
         </div>
       </div>
 
-      {(trend.length > 0 || weakItems.length > 0) && (
-        <div className="detail-grid-2">
-          {trend.length > 0 && <TrendCard trend={trend} tour="analytics-trend" />}
-          {weakItems.length > 0 && (
-            <div className="card" data-tour="analytics-attention">
-              <div className="card-header">
-                <span className="card-title">Items needing attention</span>
-                <span className="text-muted meta-sm">lowest correct rate</span>
-              </div>
-              <div className="weak-list">
-                {weakItems.map((w, i) => (
-                  <button type="button" className="weak-row" key={i} onClick={() => selectExam(w.exam_id)}
-                    title={`${w.stem} — ${w.correct_count}/${w.responses} correct`}>
-                    <span className="weak-stem">{trimwd(w.stem, 64)}</span>
-                    <span className="weak-meta">
-                      <span className="text-muted">{trimwd(w.exam_title, 26)}</span>
-                      <span className={`badge badge-${Number(w.correctRate) >= 50 ? 'amber' : 'red'}`}>{Number(w.correctRate).toFixed(0)}%</span>
-                    </span>
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
-      )}
+      {trend.length > 0 && <div className="print-skip"><TrendCard trend={trend} tour="analytics-trend" /></div>}
     </AppShell>
   );
 }
@@ -438,7 +472,8 @@ export default function AnalyticsPage() {
  * ExamDetail — the exam-level analytics view (score distribution + student scores).
  * Exam-level result summary.
  */
-function ExamDetail({ examId, detail, onBack }) {
+export function ExamDetail({ examId, detail, onBack }) {
+  const [page, setPage] = useState(0);
   if (!detail) {
     return <PageLoader label="Loading exam analytics…" />;
   }
@@ -447,6 +482,9 @@ function ExamDetail({ examId, detail, onBack }) {
   const s = stats || {};
   const dist = distribution || [];
   const studs = students || [];
+  const pageCount = Math.ceil(studs.length / STUDENTS_PER_PAGE);
+  const safePage = Math.min(page, Math.max(0, pageCount - 1));
+  const pageStuds = studs.slice(safePage * STUDENTS_PER_PAGE, (safePage + 1) * STUDENTS_PER_PAGE);
   const themeRows = (themes || []).map((t) => ({ ...t, name: t.topic }));
   const blooms = bloomLevels || [];
   const insights = buildInsights({
@@ -459,15 +497,84 @@ function ExamDetail({ examId, detail, onBack }) {
   const distMap = {};
   for (const d of dist) distMap[parseInt(d.bin_start, 10)] = parseInt(d.count, 10);
 
+  // ── Report exports (print / CSV / Excel) ──
+  const examTitle = exam?.title || 'Exam';
+  const summaryRows = [
+    ['Students scanned', parseInt(s.total_scans || 0, 10)],
+    ['Class average', `${fmtPct1(s.avg_score ?? 0)}%`],
+    ['Lowest score', `${fmtPct0(s.min_score ?? 0)}%`],
+    ['Highest score', `${fmtPct0(s.max_score ?? 0)}%`],
+    [`Passed (≥${PASS_MARK}%)`, `${parseInt(s.passing_count || 0, 10)} of ${parseInt(s.total_scans || 0, 10)}`],
+    ['Sheets needing review', parseInt(s.needs_review_count || 0, 10)],
+  ];
+  const studentRows = studs.map((st, i) => [
+    i + 1, st.student_name || 'Unknown', st.set_label || '—',
+    `${Number(st.score || 0).toFixed(1)}%`,
+    `${parseInt(st.correct_count || 0, 10)} / ${parseInt(st.total_items || 0, 10)}`,
+    st.needs_review ? 'Needs review' : 'Reviewed',
+    fmtScanned(st.scanned_at),
+  ]);
+  const themeExportRows = (themes || []).map((t) => [t.topic, parseInt(t.items || 0, 10), parseInt(t.responses || 0, 10), `${t.correctRate}%`]);
+  const bloomExportRows = blooms.map((b) => [BLOOM_LABELS[b.bloom] || b.bloom, parseInt(b.items || 0, 10), parseInt(b.responses || 0, 10), `${b.correctRate}%`]);
+  const setRows = (setComparison || []).map((sc) => [sc.set_label, parseInt(sc.scans || 0, 10), `${Number(sc.avg_score || 0).toFixed(1)}%`]);
+  const distRows = BINS.map((b) => [`${b}–${b + 9}%`, parseInt(distMap[b] || 0, 10)]);
+
+  function exportCsv() {
+    const lines = [
+      [`nexam — ${examTitle} — analytics report`],
+      ['Generated', new Date().toLocaleString()],
+      [],
+      ['Summary', 'Metric', 'Value'],
+      ...summaryRows.map(([m, v]) => ['', m, v]),
+      [],
+      ['Student scores', '#', 'Student', 'Set', 'Score', 'Correct', 'Status', 'Scanned'],
+      ...studentRows.map((r) => ['', ...r]),
+      [],
+      ['Mastery by topic', 'Topic', 'Items', 'Responses', 'Correct %'],
+      ...themeExportRows.map((r) => ['', ...r]),
+      [],
+      ['By cognitive level', 'Level', 'Items', 'Responses', 'Correct %'],
+      ...bloomExportRows.map((r) => ['', ...r]),
+      [],
+      ['Set comparison', 'Set', 'Scans', 'Average %'],
+      ...setRows.map((r) => ['', ...r]),
+      [],
+      ['Score distribution', 'Range', 'Students'],
+      ...distRows.map((r) => ['', ...r]),
+    ];
+    const maxCols = Math.max(...lines.map((l) => l.length));
+    downloadCsv(`nexam-${examTitle.replace(/\W+/g, '-').toLowerCase()}-report`, Array(maxCols).fill(''), lines.map((l) => [...l, ...Array(maxCols - l.length).fill('')]));
+  }
+
+  function exportXlsx() {
+    downloadXlsx(`nexam-${examTitle.replace(/\W+/g, '-').toLowerCase()}-report`, [
+      { title: 'Summary', headers: ['Metric', 'Value'], rows: summaryRows },
+      { title: 'Student scores', headers: ['#', 'Student', 'Set', 'Score', 'Correct', 'Status', 'Scanned'], rows: studentRows },
+      { title: 'Mastery by topic', headers: ['Topic', 'Items', 'Responses', 'Correct %'], rows: themeExportRows },
+      { title: 'Cognitive level', headers: ['Level', 'Items', 'Responses', 'Correct %'], rows: bloomExportRows },
+      { title: 'Set comparison', headers: ['Set', 'Scans', 'Average %'], rows: setRows },
+      { title: 'Distribution', headers: ['Range', 'Students'], rows: distRows },
+    ]);
+  }
+
   return (
     <>
-      <div className="page-header">
+      <div className="page-header print-skip">
         <div>
           <span className="eyebrow">Results &amp; insights</span>
           <h1>{exam?.title || 'Exam Analytics'}</h1>
           <p className="page-sub">Class performance and score distribution.</p>
         </div>
         <div className="header-actions">
+          <button type="button" className="btn btn-outline btn-sm" onClick={() => window.print()} title="Print this exam report">
+            <Printer size={16} /> Print
+          </button>
+          <button type="button" className="btn btn-outline btn-sm" onClick={exportCsv} title="Download all sections as CSV">
+            <FileDown size={16} /> CSV
+          </button>
+          <button type="button" className="btn btn-outline btn-sm" onClick={exportXlsx} title="Download a multi-sheet Excel workbook">
+            <FileSpreadsheet size={16} /> Excel
+          </button>
           <Link to={`/analytics/items/${encodeURIComponent(examId)}`} className="btn btn-outline btn-sm">
             <ListChecks size={16} /> Item Analysis
           </Link>
@@ -477,7 +584,84 @@ function ExamDetail({ examId, detail, onBack }) {
         </div>
       </div>
 
-      <div className="stats-grid mb-3">
+      {/* ── Print document: a real report, not flattened app cards ── */}
+      <div className="print-doc print-only">
+        <div className="print-doc-head">
+          <div className="pd-org">nexam — Results &amp; insights</div>
+          <div className="pd-title">{examTitle} — Exam Report</div>
+          <div className="pd-meta">Generated {new Date().toLocaleString()} · {parseInt(s.total_scans || 0, 10)} students · class average {fmtPct1(s.avg_score ?? 0)}%</div>
+        </div>
+
+        <div className="report-section-title">Summary</div>
+        <table className="report-table">
+          <tbody>
+            {summaryRows.map(([m, v]) => <tr key={m}><th>{m}</th><td>{v}</td></tr>)}
+          </tbody>
+        </table>
+
+        {insights.length > 0 && (
+          <>
+            <div className="report-section-title">Key insights</div>
+            <ul className="report-list">
+              {insights.map((ins, i) => <li key={i}>{ins.text}</li>)}
+            </ul>
+          </>
+        )}
+
+        {themeExportRows.length > 0 && (
+          <>
+            <div className="report-section-title">Mastery by topic</div>
+            <table className="report-table">
+              <thead><tr><th>Topic</th><th>Items</th><th>Responses</th><th>Correct %</th></tr></thead>
+              <tbody>{themeExportRows.map((r, i) => <tr key={i}>{r.map((c, j) => <td key={j}>{c}</td>)}</tr>)}</tbody>
+            </table>
+          </>
+        )}
+
+        {bloomExportRows.length > 0 && (
+          <>
+            <div className="report-section-title">Performance by cognitive level</div>
+            <table className="report-table">
+              <thead><tr><th>Level</th><th>Items</th><th>Responses</th><th>Correct %</th></tr></thead>
+              <tbody>{bloomExportRows.map((r, i) => <tr key={i}>{r.map((c, j) => <td key={j}>{c}</td>)}</tr>)}</tbody>
+            </table>
+          </>
+        )}
+
+        {setRows.length > 0 && (
+          <>
+            <div className="report-section-title">Set comparison</div>
+            <table className="report-table">
+              <thead><tr><th>Set</th><th>Scans</th><th>Average %</th></tr></thead>
+              <tbody>{setRows.map((r, i) => <tr key={i}>{r.map((c, j) => <td key={j}>{c}</td>)}</tr>)}</tbody>
+            </table>
+          </>
+        )}
+
+        <div className="report-section-title">Score distribution</div>
+        <table className="report-table">
+          <thead><tr><th>Range</th><th>Students</th></tr></thead>
+          <tbody>{distRows.map((r, i) => <tr key={i}>{r.map((c, j) => <td key={j}>{c}</td>)}</tr>)}</tbody>
+        </table>
+
+        {studentRows.length > 0 && (
+          <>
+            <div className="report-section-title">Student scores</div>
+            <table className="report-table">
+              <thead><tr><th>#</th><th>Student</th><th>Set</th><th>Score</th><th>Correct</th><th>Status</th><th>Scanned</th></tr></thead>
+              <tbody>{studentRows.map((r, i) => <tr key={i}>{r.map((c, j) => <td key={j}>{c}</td>)}</tr>)}</tbody>
+            </table>
+          </>
+        )}
+
+        <div className="print-doc-foot">
+          <span>nexam — Results &amp; insights</span>
+          <span>{examTitle}</span>
+        </div>
+      </div>
+
+      {/* ── Interactive UI (hidden on paper) ── */}
+      <div className="stats-grid mb-3 print-skip">
         <div className="stat-card">
           <div className="stat-icon blue"><Users size={18} /></div>
           <div className="stat-info"><div className="stat-value">{parseInt(s.total_scans || 0, 10)}</div><div className="stat-label">Students</div></div>
@@ -503,16 +687,16 @@ function ExamDetail({ examId, detail, onBack }) {
         </div>
       </div>
 
-      <InsightsCard insights={insights} tour="analytics-insights" />
+      <div className="print-skip"><InsightsCard insights={insights} tour="analytics-insights" /></div>
 
       {(themeRows.length > 0 || blooms.length > 0) && (
-        <div className="detail-grid-2 mb-3">
+        <div className="detail-grid-2 mb-3 print-skip">
           {themeRows.length > 0 && <MasteryCard title="Mastery by topic" rows={themeRows} tour="analytics-topics" />}
           {blooms.length > 0 && <BloomRadarCard blooms={blooms} tour="analytics-bloom" />}
         </div>
       )}
 
-      <div className="detail-grid-2 mb-3">
+      <div className="detail-grid-2 mb-3 print-skip">
         {/* Score Distribution */}
         <div className="card">
           <div className="card-header"><span className="card-title">Score Distribution</span></div>
@@ -534,7 +718,7 @@ function ExamDetail({ examId, detail, onBack }) {
       </div>
 
       {/* Student Scores */}
-      <div className="card">
+      <div className="card print-skip">
         <div className="card-header">
           <span className="card-title">Student Scores</span>
           <span className="text-muted meta-sm">{studs.length} students</span>
@@ -542,17 +726,17 @@ function ExamDetail({ examId, detail, onBack }) {
         {studs.length === 0 ? (
           <div className="empty-state empty-state-md"><ScanLine aria-hidden="true" /><p>No scans for this exam yet.</p></div>
         ) : (
-          <div className="table-wrap">
+          <div className="table-wrap no-print">
             <table className="data-table">
               <thead>
                 <tr><th>#</th><th>Student</th><th>Set</th><th>Score</th><th>Correct</th><th>Status</th><th>Scanned</th></tr>
               </thead>
               <tbody>
-                {studs.map((st, i) => {
+                {pageStuds.map((st, i) => {
                   const score = Number(st.score || 0);
                   return (
                     <tr key={st.scan_id || i}>
-                      <td className="text-muted">{i + 1}</td>
+                      <td className="text-muted">{safePage * STUDENTS_PER_PAGE + i + 1}</td>
                       <td><strong>{st.student_name || 'Unknown'}</strong></td>
                       <td><span className="badge badge-gray">{st.set_label || '—'}</span></td>
                       <td>
@@ -574,6 +758,20 @@ function ExamDetail({ examId, detail, onBack }) {
                 })}
               </tbody>
             </table>
+          </div>
+        )}
+        {pageCount > 1 && (
+          <div className="dataset-foot no-print">
+            <span className="text-muted meta-sm">
+              {safePage * STUDENTS_PER_PAGE + 1}–{Math.min((safePage + 1) * STUDENTS_PER_PAGE, studs.length)} of {studs.length} students
+            </span>
+            <div className="ds-pager">
+              <button type="button" className="ds-page" disabled={safePage === 0} onClick={() => setPage(0)} title="First page">«</button>
+              <button type="button" className="ds-page" disabled={safePage === 0} onClick={() => setPage(safePage - 1)} title="Previous page">‹</button>
+              <span className="ds-page text-muted">{safePage + 1} / {pageCount}</span>
+              <button type="button" className="ds-page" disabled={safePage >= pageCount - 1} onClick={() => setPage(safePage + 1)} title="Next page">›</button>
+              <button type="button" className="ds-page" disabled={safePage >= pageCount - 1} onClick={() => setPage(pageCount - 1)} title="Last page">»</button>
+            </div>
           </div>
         )}
       </div>

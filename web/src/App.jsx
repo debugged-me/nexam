@@ -15,6 +15,7 @@ import { ToastProvider, useToast } from './components/Toast.jsx';
 import { ConfirmProvider } from './components/ConfirmDialog.jsx';
 import AppLayout from './components/AppLayout.jsx';
 import { BootScreen } from './components/Loaders.jsx';
+import ErrorBoundary from './components/ErrorBoundary.jsx';
 import { pinTheme, unpinTheme } from './lib/theme.js';
 import { useEffect, useRef, lazy, Suspense } from 'react';
 
@@ -35,6 +36,8 @@ const ExamDetailPage = lazy(() => import('./pages/ExamDetailPage.jsx'));
 const ExamFormPage = lazy(() => import('./pages/ExamFormPage.jsx'));
 const MaterialsPage = lazy(() => import('./pages/MaterialsPage.jsx'));
 const AnalyticsPage = lazy(() => import('./pages/AnalyticsPage.jsx'));
+const ExamAnalyticsPage = lazy(() => import('./pages/ExamAnalyticsPage.jsx'));
+const AttentionPage = lazy(() => import('./pages/AttentionPage.jsx'));
 const ItemAnalysisPage = lazy(() => import('./pages/ItemAnalysisPage.jsx'));
 const AiEvalPage = lazy(() => import('./pages/AiEvalPage.jsx'));
 const AccountPage = lazy(() => import('./pages/AccountPage.jsx'));
@@ -50,6 +53,7 @@ import './styles/board.css';
 import './styles/toast.css';
 import './styles/modal.css';
 import './styles/loading.css';
+import './styles/print.css';
 
 function RequireAuth({ children }) {
   const { user, loading } = useAuth();
@@ -148,6 +152,8 @@ const PAGE_TITLES = [
   ['/exams/:id', 'Exam'],
   ['/exams', 'Exams'],
   ['/analytics/items/:examId', 'Item analysis'],
+  ['/analytics/exam/:examId', 'Exam analytics'],
+  ['/analytics/attention', 'Needs attention'],
   ['/analytics/ai-eval', 'AI evaluation'],
   ['/analytics', 'Results & insights'],
   ['/account', 'Account'],
@@ -186,6 +192,7 @@ export default function App() {
             <ScrollToTop />
             <ToastOnMount />
             <Suspense fallback={<BootScreen />}>
+              <ErrorBoundary>
               <Routes>
                 {/* Auth — always light; themes are per-account now */}
                 <Route
@@ -280,6 +287,8 @@ export default function App() {
                   <Route path="/exams/:id/edit" element={<ExamFormPage />} />
                   <Route path="/materials" element={<MaterialsPage />} />
                   <Route path="/analytics" element={<AnalyticsPage />} />
+                  <Route path="/analytics/exam/:examId" element={<ExamAnalyticsPage />} />
+                  <Route path="/analytics/attention" element={<AttentionPage />} />
                   <Route path="/analytics/items/:examId" element={<ItemAnalysisPage />} />
                   <Route path="/analytics/ai-eval" element={<AiEvalPage />} />
                 </Route>
@@ -288,6 +297,7 @@ export default function App() {
                 <Route path="/" element={<Navigate to="/dashboard" replace />} />
                 <Route path="*" element={<Navigate to="/dashboard" replace />} />
               </Routes>
+              </ErrorBoundary>
             </Suspense>
           </BrowserRouter>
         </ConfirmProvider>

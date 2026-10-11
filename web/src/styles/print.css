@@ -1,0 +1,250 @@
+/* print.css — document output for every printable surface.
+ *
+ * Screen keeps .print-only blocks hidden; print strips the app chrome and
+ * re-paginates the content as a document: clean margins, table borders,
+ * section rules, and a running doc header the page provides.
+ */
+
+@media screen {
+  .print-only { display: none !important; }
+}
+
+@page { margin: 16mm 14mm; }
+
+@media print {
+  /* ── Hide the application chrome ────────────────────── */
+  .sidebar,
+  .mobile-sidebar-overlay,
+  .topbar,
+  .skip-link,
+  .jobs-indicator,
+  .jobs-panel,
+  .toast-root,
+  .toasts,
+  .modal-overlay,
+  .ctx-menu,
+  .command-menu,
+  .help-fab,
+  .guide-fab,
+  .tour-overlay,
+  .header-actions,
+  .dataset-foot,
+  .ds-pager,
+  .action-icon,
+  .ctx-trigger,
+  .empty-state .btn,
+  .no-print,
+  /* Pages that print a standalone document wrap their app UI in .print-skip
+     so only the .print-only document reaches the paper. */
+  .print-skip,
+  button,
+  a[href^="/"]::after { display: none !important; }
+
+  /* …but keep text that lives inside content-bearing buttons (row titles). */
+  .cell-title,
+  .weak-row,
+  .exam-paper button,
+  .print-doc button { display: contents !important; }
+
+  html, body { background: #fff !important; }
+  body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+
+  .app-shell { display: block; }
+  .main-content {
+    margin: 0 !important;
+    padding: 0 !important;
+    max-width: none !important;
+    width: auto !important;
+  }
+  .page, [class*="page--"] { padding: 0 !important; margin: 0 !important; }
+  .page-header { padding: 0 0 4mm !important; margin-bottom: 4mm !important; border-bottom: 2px solid #222; }
+
+  /* Cards flatten into document sections */
+  .card, .adm-card {
+    border: 1px solid #bbb !important;
+    box-shadow: none !important;
+    border-radius: 0 !important;
+    break-inside: avoid;
+    margin-bottom: 5mm !important;
+  }
+  .card-header, .adm-card-head { border-bottom: 1px solid #bbb !important; }
+  .detail-grid-2, .adm-grid-2 { display: block; }
+  .chart-scroll { max-height: none; overflow: visible; }
+
+  /* Tables print as real tables */
+  .data-table, .adm-table { font-size: 9.5pt; }
+  .data-table th, .data-table td,
+  .adm-table th, .adm-table td { border: 1px solid #999 !important; padding: 4pt 6pt !important; }
+  .data-table thead, .adm-table thead { display: table-header-group; }
+  .data-table tr, .adm-table tr { break-inside: avoid; }
+  .table-wrap, .adm-table-wrap { overflow: visible !important; max-height: none !important; }
+  .badge, .g-state, .stat-icon { border: 1px solid #999 !important; }
+  a { color: #000 !important; text-decoration: none !important; }
+
+  /* Reveal print-only blocks */
+  .print-only { display: block !important; }
+  .print-only.print-row { display: flex !important; }
+  .print-only.print-cell { display: table-cell !important; }
+}
+
+/* ── Document chrome (screen AND print share these so a preview looks right) ── */
+.print-doc {
+  font: 400 11pt/1.5 "Times New Roman", Georgia, serif;
+  color: #000;
+  background: #fff;
+}
+.print-doc-head {
+  text-align: center;
+  border-bottom: 2.5pt double #000;
+  padding-bottom: 3mm;
+  margin-bottom: 5mm;
+}
+.print-doc-head .pd-org {
+  font: 700 10pt/1.3 "Times New Roman", Georgia, serif;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+.print-doc-head .pd-title {
+  font: 700 15pt/1.3 "Times New Roman", Georgia, serif;
+  margin: 1.5mm 0 1mm;
+}
+.print-doc-head .pd-meta {
+  font-size: 9.5pt;
+  color: #222;
+}
+.print-doc-foot {
+  margin-top: 6mm;
+  padding-top: 2.5mm;
+  border-top: 1px solid #888;
+  font-size: 8.5pt;
+  color: #333;
+  display: flex;
+  justify-content: space-between;
+}
+
+/* ── Exam paper ────────────────────────────────────── */
+.exam-paper .pd-exam-meta {
+  display: flex;
+  justify-content: space-between;
+  font-size: 10pt;
+  border: 1px solid #000;
+  padding: 2mm 3mm;
+  margin-bottom: 4mm;
+}
+.exam-paper .pd-student {
+  display: flex;
+  gap: 8mm;
+  font-size: 10.5pt;
+  margin-bottom: 4mm;
+}
+.exam-paper .pd-student .pd-line {
+  flex: 1;
+  border-bottom: 1px solid #000;
+  min-height: 5mm;
+}
+.exam-paper .pd-student label { font-weight: 700; }
+.exam-paper .pd-instructions {
+  border: 1px solid #000;
+  padding: 2.5mm 3mm;
+  margin-bottom: 4mm;
+  font-size: 10pt;
+}
+.exam-paper .pd-instructions strong { letter-spacing: 0.08em; }
+
+.exam-paper .pd-items { counter-reset: item; }
+.exam-paper .pd-item {
+  break-inside: avoid;
+  margin-bottom: 3.2mm;
+  padding-left: 8mm;
+  position: relative;
+}
+.exam-paper .pd-item::before {
+  counter-increment: item;
+  content: counter(item) ".";
+  position: absolute;
+  left: 0;
+  font-weight: 700;
+}
+.exam-paper .pd-stem { margin-bottom: 1.2mm; }
+.exam-paper .pd-opts {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.6mm 8mm;
+  padding-left: 5mm;
+}
+.exam-paper .pd-opts.pd-opts-one { grid-template-columns: 1fr; }
+.exam-paper .pd-opt { display: flex; gap: 2mm; }
+.exam-paper .pd-opt-letter { font-weight: 700; }
+.exam-paper .pd-blank {
+  display: inline-block;
+  border-bottom: 1px solid #000;
+  min-width: 42mm;
+  height: 4mm;
+  margin-left: 2mm;
+}
+.exam-paper .pd-end {
+  text-align: center;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  margin-top: 6mm;
+  padding-top: 2mm;
+  border-top: 1px solid #000;
+}
+.exam-paper .pd-quote {
+  margin-top: 10mm;
+  text-align: center;
+  font-style: italic;
+  font-size: 10pt;
+  color: #111;
+}
+.exam-paper .pd-quote-by {
+  display: block;
+  margin-top: 1.5mm;
+  font-style: normal;
+  font-size: 9pt;
+  letter-spacing: 0.06em;
+}
+
+/* ── Answer key ────────────────────────────────────── */
+.answer-key { break-before: page; }
+.answer-key-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 1mm 6mm;
+  font-size: 10pt;
+  max-width: 140mm;
+}
+.answer-key-grid .ak {
+  display: flex;
+  justify-content: space-between;
+  border-bottom: 1px solid #aaa;
+  padding: 0.8mm 0;
+}
+.answer-key-grid .ak b { font-weight: 700; }
+
+/* ── Report tables (admin/analytics reports) ───────── */
+.report-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 9.5pt;
+  margin-bottom: 5mm;
+}
+.report-table th, .report-table td {
+  border: 1px solid #999;
+  padding: 3.5pt 6pt;
+  text-align: left;
+}
+.report-table th { background: #eee; font-weight: 700; }
+.report-table tr { break-inside: avoid; }
+.report-list {
+  margin: 0 0 5mm;
+  padding-left: 5mm;
+  font-size: 10pt;
+}
+.report-list li { margin-bottom: 1.4mm; break-inside: avoid; }
+.report-section-title {
+  font: 700 11.5pt/1.4 "Times New Roman", Georgia, serif;
+  margin: 6mm 0 2mm;
+  border-bottom: 1px solid #000;
+  padding-bottom: 1mm;
+}

@@ -50,6 +50,28 @@ function bandColor(rate, p) {
 
 const ANIM = { duration: 800, easing: 'easeOutQuart' };
 
+/**
+ * Canvas is invisible to assistive tech — every chart ships a screen-reader
+ * data table and an img-role summary so the numbers are accessible without
+ * the picture.
+ */
+function ChartFigure({ label, columns, rows, height, children }) {
+  return (
+    <figure className="chart-figure" style={{ height, margin: 0 }} role="img" aria-label={label}>
+      {children}
+      <table className="sr-only">
+        <caption>{label}</caption>
+        <thead><tr>{columns.map((c) => <th key={c} scope="col">{c}</th>)}</tr></thead>
+        <tbody>
+          {rows.map((r, i) => (
+            <tr key={i}>{r.map((cell, j) => <td key={j}>{cell}</td>)}</tr>
+          ))}
+        </tbody>
+      </table>
+    </figure>
+  );
+}
+
 const tooltipBase = (p) => ({
   backgroundColor: p.ink2,
   titleFont: { weight: '700' },
@@ -115,9 +137,14 @@ export function MasteryBarChart({ rows, height }) {
     },
   };
   return (
-    <div style={{ height: h }}>
+    <ChartFigure
+      label={`Mastery chart — ${rows.length} groups, percent correct each`}
+      columns={['Topic', '% correct', 'Items', 'Responses']}
+      rows={rows.map((r) => [r.name, `${Number(r.correctRate || 0).toFixed(1)}%`, r.items, r.responses])}
+      height={h}
+    >
       <Bar data={data} options={options} />
-    </div>
+    </ChartFigure>
   );
 }
 
@@ -174,9 +201,17 @@ export function BloomRadarChart({ rows, order, labels }) {
     },
   };
   return (
-    <div style={{ height: 300 }}>
+    <ChartFigure
+      label="Cognitive level radar — percent correct per Bloom level"
+      columns={['Bloom level', '% correct', 'Items', 'Responses']}
+      rows={order.map((l) => {
+        const r = byLevel[l];
+        return [labels[l] || l, r ? `${Number(r.correctRate || 0).toFixed(1)}%` : 'no data', r?.items ?? '—', r?.responses ?? '—'];
+      })}
+      height={300}
+    >
       <Radar data={data} options={options} />
-    </div>
+    </ChartFigure>
   );
 }
 
@@ -231,9 +266,14 @@ export function TrendLineChart({ trend }) {
     },
   };
   return (
-    <div style={{ height: 210 }}>
+    <ChartFigure
+      label="Score trend — class average per scan day"
+      columns={['Day', 'Class average', 'Scans']}
+      rows={trend.map((t, i) => [labels[i], `${avgs[i].toFixed(1)}%`, t.scans])}
+      height={210}
+    >
       <Line data={data} options={options} />
-    </div>
+    </ChartFigure>
   );
 }
 
@@ -279,9 +319,14 @@ export function DistBarChart({ distMap, bins }) {
     },
   };
   return (
-    <div style={{ height: 240 }}>
+    <ChartFigure
+      label="Score distribution — students per 10-point score band"
+      columns={['Score band', 'Students']}
+      rows={bins.map((b, i) => [`${b}–${b + 9}%`, counts[i]])}
+      height={240}
+    >
       <Bar data={data} options={options} />
-    </div>
+    </ChartFigure>
   );
 }
 
@@ -338,8 +383,13 @@ export function PassDoughnut({ passing, failing }) {
     },
   };
   return (
-    <div style={{ height: 240 }}>
+    <ChartFigure
+      label={`Pass rate — ${passRate}% of ${total} scanned students passed`}
+      columns={['Outcome', 'Students']}
+      rows={[['Passed', passing], ['Below pass', failing]]}
+      height={240}
+    >
       <Doughnut data={data} options={options} plugins={[centerTextPlugin]} />
-    </div>
+    </ChartFigure>
   );
 }

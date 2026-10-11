@@ -18,7 +18,7 @@ import { useParams, Navigate, Link } from 'react-router-dom';
 import {
   RefreshCw, Check, X, ShieldCheck, Settings2, UserCheck, Clock,
   LogIn, ShieldAlert, Activity, Copy, ArrowRight, UserPlus, Ellipsis,
-  Pencil, KeyRound,
+  Pencil, KeyRound, Printer, FileSpreadsheet, FileDown, BarChart3,
 } from 'lucide-react';
 import { useToast } from '../components/Toast.jsx';
 import { useContextMenu, useCopyText } from '../components/ContextMenu.jsx';
@@ -26,9 +26,10 @@ import { useConfirm } from '../components/ConfirmDialog.jsx';
 import Modal from '../components/Modal.jsx';
 import { useAuth } from '../features/auth/AuthContext.jsx';
 import api, { ApiError } from '../lib/api.js';
+import { downloadCsv, downloadXlsx } from '../lib/exports.js';
 
 const USER_FILTERS = ['all', 'pending', 'active', 'rejected'];
-const VIEWS = ['dashboard', 'users', 'logins', 'audit', 'settings'];
+const VIEWS = ['dashboard', 'users', 'reports', 'logins', 'audit', 'settings'];
 
 function fmtTime(ts) {
   if (!ts) return '—';
@@ -818,6 +819,208 @@ function SettingsTab({ toast }) {
   );
 }
 
+// ── Reports ──────────────────────────────────────────
+
+/**
+ * ReportsTab — institution-wide usage report (superadmin only).
+ * On screen: summary cards + tables. Export: real .xlsx workbook, CSV, or a
+ * browser-print document that paginates like a memo.
+ */
+function ReportsTab({ toast }) {
+  const { user } = useAuth();
+  const [data, setData] = useState(null);
+
+  const load = useCallback(() => {
+    api.get('/admin/reports/usage')
+      .then(setData)
+      .catch((err) => toast.error(err.message || 'Could not load the usage report.'));
+  }, [toast]);
+
+  useEffect(() => { load(); }, [load]);
+
+  if (!data) return <div className="adm-empty">Loading usage report…</div>;
+
+  const t = data.totals || {};
+  const metricRows = [
+    ['Instructors', `${t.active_instructors || 0} active · ${t.pending_instructors || 0} pending · ${t.instructors || 0} total`],
+    ['Subjects', t.subjects],
+    ['Questions', `${t.approved_questions || 0} approved · ${t.draft_questions || 0} drafts · ${t.rejected_questions || 0} rejected`],
+    ['Blueprints', `${t.finalized_blueprints || 0} finalized · ${t.blueprints || 0} total`],
+    ['Materials', t.materials],
+    ['Exams', `${t.published_exams || 0} published · ${t.exams || 0} total`],
+    ['Scanned sheets', t.scans],
+    ['Students', t.students],
+    ['AI jobs', `${t.ai_jobs || 0} total · ${t.failed_jobs || 0} failed`],
+  ];
+  const instructorRows = (data.instructorActivity || []).map((r) => [
+    r.full_name || '—', r.email, r.status, r.subjects, r.questions, r.exams, r.scans,
+  ]);
+  const bloomRows = (data.bloomMix || []).map((r) => [r.bloom || 'unclassified', r.n]);
+  const typeRows = (data.typeMix || []).map((r) => [r.type, r.n]);
+  const trendRows = (() => {
+    const months = new Set([
+      ...(data.scanTrend || []).map((r) => r.month),
+      ...(data.loginTrend || []).map((r) => r.month),
+    ]);
+    const scans = Object.fromEntries((data.scanTrend || []).map((r) => [r.month, r.n]));
+    const logins = Object.fromEntries((data.loginTrend || []).map((r) => [r.month, r]));
+    return [...months].sort().reverse().map((m) => [m, scans[m] || 0, logins[m]?.n || 0, logins[m]?.succeeded || 0]);
+  })();
+  const jobRows = (data.jobMix || []).map((r) => [r.kind, r.n, r.failed || 0]);
+
+  function exportCsv() {
+    const lines = [
+      ['nexam — Institution usage report'],
+      ['Generated', new Date(data.generatedAt).toLocaleString(), 'Prepared by', user?.email || ''],
+      [],
+      ['Section', 'Metric', 'Value'],
+      ...metricRows.map(([m, v]) => ['Totals', m, v]),
+      [],
+      ['Instructors', 'Name', 'Email', 'Status', 'Subjects', 'Questions', 'Exams', 'Scans'],
+      ...instructorRows.map((r) => ['', ...r]),
+      [],
+      ['Question mix', 'Bloom level', 'Questions'],
+      ...bloomRows.map((r) => ['', ...r]),
+      ['', 'Type', 'Questions'],
+      ...typeRows.map((r) => ['', ...r]),
+      [],
+      ['Activity', 'Month', 'Scans', 'Sign-ins', 'Succeeded'],
+      ...trendRows.map((r) => ['', ...r]),
+      [],
+      ['AI jobs', 'Kind', 'Runs', 'Failed'],
+      ...jobRows.map((r) => ['', ...r]),
+    ];
+    // downloadCsv takes uniform headers/rows — flatten into a single table.
+    const maxCols = Math.max(...lines.map((l) => l.length));
+    downloadCsv('nexam-usage-report', Array(maxCols).fill(''), lines.map((l) => [...l, ...Array(maxCols - l.length).fill('')]));
+  }
+
+  function exportXlsx() {
+    downloadXlsx('nexam-usage-report', [
+      { title: 'Totals', headers: ['Metric', 'Value'], rows: metricRows },
+      { title: 'Instructors', headers: ['Name', 'Email', 'Status', 'Subjects', 'Questions', 'Exams', 'Scans'], rows: instructorRows },
+      { title: 'Question mix', headers: ['Group', 'Value', 'Questions'], rows: [...bloomRows.map(([b, n]) => ['Bloom', b, n]), ...typeRows.map(([ty, n]) => ['Type', ty, n])] },
+      { title: 'Activity', headers: ['Month', 'Scans', 'Sign-ins', 'Succeeded'], rows: trendRows },
+      { title: 'AI jobs', headers: ['Kind', 'Runs', 'Failed'], rows: jobRows },
+    ]);
+  }
+
+  const printMeta = `Generated ${fmtTime(data.generatedAt)} · Prepared by ${user?.full_name || user?.email || 'administrator'}`;
+
+  return (
+    <div className="adm-dash">
+      {/* Document header — appears on the printed report */}
+      <div className="print-only">
+        <div className="print-doc">
+          <div className="print-doc-head">
+            <div className="pd-org">nexam — Administrator Console</div>
+            <div className="pd-title">Institution Usage Report</div>
+            <div className="pd-meta">{printMeta}</div>
+          </div>
+        </div>
+      </div>
+
+      <div className="adm-panel">
+        <div className="adm-toolbar" data-tour="admin-toolbar">
+          <span className="adm-hint">{printMeta}.</span>
+          <div className="adm-toolbar-actions">
+            <button className="adm-btn" onClick={() => window.print()} title="Print the report as a document">
+              <Printer size={13} /> Print
+            </button>
+            <button className="adm-btn" onClick={exportCsv} title="Download all sections as CSV">
+              <FileDown size={13} /> CSV
+            </button>
+            <button className="adm-btn adm-btn-primary" onClick={exportXlsx} title="Download a multi-sheet Excel workbook">
+              <FileSpreadsheet size={13} /> Excel
+            </button>
+            <button className="adm-icon-btn" onClick={load} title="Refresh" aria-label="Refresh">
+              <RefreshCw size={14} />
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div className="adm-grid-2">
+        <div className="adm-card">
+          <div className="adm-card-head"><BarChart3 size={15} /><h3>System totals</h3></div>
+          <div className="adm-table-wrap">
+            <table className="adm-table">
+              <tbody>
+                {metricRows.map(([m, v]) => (
+                  <tr key={m}><td><strong>{m}</strong></td><td>{v ?? 0}</td></tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div className="adm-card">
+          <div className="adm-card-head"><Activity size={15} /><h3>Activity by month</h3></div>
+          <div className="adm-table-wrap">
+            <table className="adm-table">
+              <thead><tr><th>Month</th><th>Scans</th><th>Sign-ins</th><th>Succeeded</th></tr></thead>
+              <tbody>
+                {trendRows.length === 0 && <tr><td colSpan={4} className="adm-muted">No activity recorded yet.</td></tr>}
+                {trendRows.map(([m, s, l, ok]) => (
+                  <tr key={m}><td><strong>{m}</strong></td><td>{s}</td><td>{l}</td><td>{ok}</td></tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <div className="adm-card">
+        <div className="adm-card-head"><UserCheck size={15} /><h3>Instructor activity</h3></div>
+        <div className="adm-table-wrap">
+          <table className="adm-table">
+            <thead><tr><th>Name</th><th>Email</th><th>Status</th><th>Subjects</th><th>Questions</th><th>Exams</th><th>Scans</th></tr></thead>
+            <tbody>
+              {(data.instructorActivity || []).map((r) => (
+                <tr key={r.id}>
+                  <td><strong>{r.full_name || "—"}</strong></td>
+                  <td className="adm-muted">{r.email}</td>
+                  <td><StatusPill status={r.status} /></td>
+                  <td>{r.subjects}</td><td>{r.questions}</td><td>{r.exams}</td><td>{r.scans}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div className="adm-grid-2">
+        <div className="adm-card">
+          <div className="adm-card-head"><BarChart3 size={15} /><h3>Question mix</h3></div>
+          <div className="adm-table-wrap">
+            <table className="adm-table">
+              <thead><tr><th>Group</th><th>Value</th><th>Questions</th></tr></thead>
+              <tbody>
+                {bloomRows.map(([b, n]) => <tr key={`b-${b}`}><td>Bloom</td><td><strong>{b}</strong></td><td>{n}</td></tr>)}
+                {typeRows.map(([ty, n]) => <tr key={`t-${ty}`}><td>Type</td><td><strong>{ty}</strong></td><td>{n}</td></tr>)}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div className="adm-card">
+          <div className="adm-card-head"><ShieldCheck size={15} /><h3>AI jobs</h3></div>
+          <div className="adm-table-wrap">
+            <table className="adm-table">
+              <thead><tr><th>Kind</th><th>Runs</th><th>Failed</th></tr></thead>
+              <tbody>
+                {jobRows.length === 0 && <tr><td colSpan={3} className="adm-muted">No AI jobs yet.</td></tr>}
+                {jobRows.map(([k, n, f]) => <tr key={k}><td><strong>{k}</strong></td><td>{n}</td><td>{f}</td></tr>)}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  );
+}
+
 // ── Page ───────────────────────────────────────────────
 export default function AdminPage() {
   const toast = useToast();
@@ -832,6 +1035,7 @@ export default function AdminPage() {
     <div className="admin-page">
       {view === 'dashboard' && <DashboardTab toast={toast} />}
       {view === 'users' && <UsersTab toast={toast} role={user?.role} />}
+      {view === 'reports' && <ReportsTab toast={toast} />}
       {view === 'logins' && <LoginsTab toast={toast} />}
       {view === 'audit' && <AuditTab toast={toast} />}
       {view === 'settings' && <SettingsTab toast={toast} />}

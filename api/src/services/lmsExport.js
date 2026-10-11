@@ -383,6 +383,245 @@ function unescapeGIFT(text) {
     .trim();
 }
 
+// ── Moodle XML parser ────────────────────────────────
+
+/** CDATA/HTML question text → plain text (tags stripped, entities decoded). */
+function moodleText(xmlFragment) {
+  if (!xmlFragment) return '';
+  return String(xmlFragment)
+    .replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, '$1')
+    .replace(/<br\s*\/?\s*>/gi, '\n')
+    .replace(/<\/(p|div|li|ul|ol|h[1-6]|tr)>/gi, '\n')
+    .replace(/<[^>]+>/g, '')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#0?39;|&apos;/g, "'")
+    .replace(/[ \t]+\n/g, '\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+}
+
+/** Pull the inner <text>…</text> of the first element matching `tag`. */
+function moodleField(block, tag) {
+  const m = block.match(new RegExp(`<${tag}\\b[^>]*>[\\s\\S]*?<text[^>]*>([\\s\\S]*?)<\\/text>[\\s\\S]*?<\\/${tag}>`, 'i'));
+  return m ? moodleText(m[1]) : '';
+}
+
+/** Inner text of the first <text>…</text> in a fragment. */
+function firstText(block) {
+  const m = String(block || '').match(/<text[^>]*>([\s\S]*?)<\/text>/i);
+  return m ? moodleText(m[1]) : '';
+}
+
+/**
+ * Parse Moodle question-bank XML (<quiz><question type="…">).
+ * Category entries are structural and filtered out entirely.
+ * Supported: multichoice, truefalse, shortanswer (→identification), matching.
+ * Other types are emitted with their Moodle type so the normalizer can
+ * report them as skipped instead of silently losing them.
+ */
+export function parseMoodleXML(xmlText) {
+  const questions = [];
+  const qRegex = /<question\b[^>]*\btype="([^"]*)"[^>]*>([\s\S]*?)<\/question>/gi;
+  let qm;
+  while ((qm = qRegex.exec(xmlText)) !== null) {
+    const [, moodleType, body] = qm;
+    if (moodleType === 'category') continue;
+
+    const name = moodleField(body, 'name');
+    const stem = moodleField(body, 'questiontext') || name;
+    const explanation = moodleField(body, 'generalfeedback') || null;
+
+    // All <answer fraction="…"> options (multichoice/truefalse/shortanswer)
+    const answers = [];
+    const aRegex = /<answer\b[^>]*\bfraction="([^"]*)"[^>]*>([\s\S]*?)<\/answer>/gi;
+    let am;
+    while ((am = aRegex.exec(body)) !== null) {
+      answers.push({ fraction: parseFloat(am[1]) || 0, text: firstText(am[2]) });
+    }
+
+    if (moodleType === 'truefalse') {
+      const correct = answers.find((a) => a.fraction > 0);
+      questions.push({
+        type: 'true_false', stem, options: null,
+        answer: correct && /^t/i.test(correct.text) ? 'True' : correct ? 'False' : '',
+        explanation,
+      });
+      continue;
+    }
+
+    if (moodleType === 'multichoice') {
+      const correct = answers.filter((a) => a.fraction > 0);
+      if (correct.length > 1) {
+        // Multiple-correct items don't map to a single-answer MCQ.
+        questions.push({ type: `moodle_multichoice_multi_${correct.length}`, stem, options: answers.map((a) => a.text), answer: '', explanation });
+      } else {
+        questions.push({
+          type: 'mcq', stem,
+          options: answers.map((a) => a.text),
+          answer: correct[0]?.text || '',
+          explanation,
+        });
+      }
+      continue;
+    }
+
+    if (moodleType === 'shortanswer') {
+      const best = answers.filter((a) => a.fraction > 0).sort((a, b) => b.fraction - a.fraction)[0];
+      questions.push({ type: 'identification', stem, options: null, answer: best?.text || '', explanation });
+      continue;
+    }
+
+    if (moodleType === 'matching') {
+      const premises = [];
+      const matches = [];
+      const sRegex = /<subquestion\b[^>]*>([\s\S]*?)<\/subquestion>/gi;
+      let sm;
+      while ((sm = sRegex.exec(body)) !== null) {
+        const premise = firstText(sm[1]);
+        const match = firstText(sm[1].match(/<answer\b[^>]*>([\s\S]*?)<\/answer>/i)?.[1] || '');
+        if (!premise) continue; // blank spacer subquestions
+        premises.push(premise);
+        matches.push(match);
+      }
+      questions.push({
+        type: 'matching', stem,
+        options: premises,
+        answer: matches.map((m, i) => `${i + 1}-${m}`).join(', '),
+        explanation,
+      });
+      continue;
+    }
+
+    // essay / numerical / cloze / ddwtos etc. — unsupported, report it
+    questions.push({ type: `moodle_${moodleType}`, stem, options: null, answer: '', explanation });
+  }
+  return questions;
+}
+
+// ── Bloom-level heuristic ────────────────────────────
+
+/**
+ * Guess the cognitive level from stem verb cues. Ordered highest→lowest so a
+ * stem like "explain why this is the most appropriate response" classifies as
+ * evaluate rather than understand. Transparent and deterministic — the import
+ * preview shows the guess and the question can be re-tagged on edit.
+ */
+const BLOOM_CUES = [
+  ['create', /\b(design|creat|construct|develop|formulat|propos|compos|invent|devise|plan|synthesi[sz]e)\w*/i],
+  ['evaluate', /\b(evaluat|judge|judget|critique|criticiz|justify|appraise|defend|recommend|argue|most appropriate|most effective|worthwhile)/i],
+  ['analyze', /\b(analy[sz]e|compare|contrast|differentiate|distinguish|examine|categoriz|classif|infer|relationship|difference between|why is|why did)/i],
+  ['apply', /\b(appl|solve|solv|calculat|compute|demonstrat|execute|implement|determine|illustrat|use|show how|perform|carry out)\w*/i],
+  ['understand', /\b(explain|describe|summariz|paraphrase|interpret|discuss|purpose|meaning|main idea|example|how does|why\b|reason for)/i],
+  ['remember', /\b(define|list|name|identify|recall|state|what is|who|when|where|which of the following|refers to|term for)/i],
+];
+
+export function guessBloom(stem) {
+  const text = String(stem || '');
+  for (const [level, re] of BLOOM_CUES) {
+    if (re.test(text)) return level;
+  }
+  return 'remember';
+}
+
+// ── Import normalization ─────────────────────────────
+
+const OPTION_LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+const IMPORT_TYPES = ['mcq', 'true_false', 'matching', 'identification'];
+// OMR matching bubbles run A–E, so imported pools cap at 5 choices.
+const MATCH_POOL_MAX = 5;
+
+function shuffleCopy(arr) {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+/**
+ * Normalize one parsed import item into the canonical storage shape.
+ * Returns { data } on success or { skip: reason } — callers surface the
+ * reason so nothing is dropped silently.
+ *
+ * @param {object} q — parser output { type, stem, options, answer }
+ * @param {number} index — 0-based position in the file (for error labels)
+ */
+export function normalizeImportItem(q, index = 0) {
+  const at = `#${index + 1}`;
+  const stem = String(q.stem || '').trim();
+  if (!stem) return { skip: `${at}: empty stem` };
+  if (stem.length > 10000) return { skip: `${at}: stem too long` };
+  if (!IMPORT_TYPES.includes(q.type)) return { skip: `${at}: unsupported type "${q.type}"` };
+
+  const result = normalizeType(q, at, stem);
+  // Imported items get their Bloom level guessed from stem cues — visible in
+  // the preview and editable later, no manual default needed.
+  if (result.data) result.data.bloom = guessBloom(stem);
+  return result;
+}
+
+function normalizeType(q, at, stem) {
+  switch (q.type) {
+    case 'mcq': {
+      const options = (Array.isArray(q.options) ? q.options : [])
+        .map((o) => String(o).trim()).filter(Boolean);
+      if (options.length < 2) return { skip: `${at}: multiple-choice needs at least two options` };
+      const answerText = String(q.answer || '').trim();
+      const resolves = options.some((o) => o === answerText)
+        || (/^[A-Z]$/i.test(answerText) && options[answerText.toUpperCase().charCodeAt(0) - 65] !== undefined)
+        || (/^\d+$/.test(answerText) && options[parseInt(answerText, 10) - 1] !== undefined);
+      if (!resolves) return { skip: `${at}: answer does not resolve to one of the options` };
+      return { data: { type: 'mcq', stem, options, answer: answerText } };
+    }
+    case 'true_false': {
+      const a = String(q.answer || '').trim().toUpperCase();
+      if (!['TRUE', 'FALSE', 'T', 'F'].includes(a)) {
+        return { skip: `${at}: answer is not True or False` };
+      }
+      return { data: { type: 'true_false', stem, options: null, answer: a.startsWith('T') ? 'True' : 'False' } };
+    }
+    case 'identification': {
+      const answer = String(q.answer || '').trim();
+      if (!answer) return { skip: `${at}: fill-in-the-blank answer is empty` };
+      return { data: { type: 'identification', stem, options: null, answer } };
+    }
+    case 'matching': {
+      // Parsers give options = premise texts and answer = "1-matchText, 2-…".
+      // Canonical form: options = the lettered match pool (A–E on the OMR
+      // sheet), answer = "1-B, 2-A" premise→letter pairs, and the premises
+      // themselves live as a numbered list inside the stem.
+      const premises = (Array.isArray(q.options) ? q.options : [])
+        .map((p) => String(p).trim()).filter(Boolean);
+      const matchTexts = [];
+      for (const part of String(q.answer || '').split(/,\s*(?=\d+\s*-)/)) {
+        const m = part.trim().match(/^\d+\s*-\s*(.+)$/);
+        matchTexts.push(m ? m[1].trim() : '');
+      }
+      if (premises.length < 2 || premises.length !== matchTexts.length || matchTexts.some((t) => !t)) {
+        return { skip: `${at}: matching needs at least two complete premise → match pairs` };
+      }
+      const pool = [...new Set(matchTexts)];
+      if (pool.length > MATCH_POOL_MAX) {
+        return { skip: `${at}: matching supports at most ${MATCH_POOL_MAX} answer choices` };
+      }
+      // Shuffle the pool so the mapping isn't a trivial A, B, C diagonal.
+      const shuffledPool = shuffleCopy(pool);
+      const answer = matchTexts
+        .map((text, i) => `${i + 1}-${OPTION_LETTERS[shuffledPool.indexOf(text)]}`)
+        .join(',');
+      const stemWithPremises = `${stem}\n${premises.map((p, i) => `${i + 1}. ${p}`).join('\n')}`;
+      return { data: { type: 'matching', stem: stemWithPremises, options: shuffledPool, answer } };
+    }
+    default:
+      return { skip: `${at}: unsupported type "${q.type}"` };
+  }
+}
+
 // ── Canvas QTI XML parser ────────────────────────────
 
 /**
@@ -435,47 +674,53 @@ function parseQTIItem(itemXml) {
   }
 
   if (/<response_lid/i.test(itemXml)) {
-    // Extract all response_label texts
-    const labelRegex = /<response_label\b[^>]*>[\s\S]*?<mattext[^>]*>([\s\S]*?)<\/mattext>/gi;
+    // Extract response_label idents + texts — <varequal> names the winning ident
+    const labelRegex = /<response_label\b[^>]*\bident="([^"]*)"[^>]*>[\s\S]*?<mattext[^>]*>([\s\S]*?)<\/mattext>/gi;
+    const labelIdents = [];
     const options = [];
     let labelMatch;
     while ((labelMatch = labelRegex.exec(itemXml)) !== null) {
-      options.push(decodeXmlEntities(labelMatch[1].trim()));
+      labelIdents.push(labelMatch[1]);
+      options.push(decodeXmlEntities(labelMatch[2].trim()));
     }
 
-    // Extract correct answer from <varequal respident="...">
-    // Handle both self-closing (<varequal respident="2"/>) and content tags
-    let correctMatch = itemXml.match(/<varequal\s+respident="([^"]*)"\s*\/>/i);
-    if (!correctMatch) {
-      correctMatch = itemXml.match(/<varequal\s+respident="([^"]*)"[^>]*>([\s\S]*?)<\/varequal>/i);
+    // The correct answer is a response_label ident — found either in the
+    // <varequal> content (Canvas native) or in its respident attribute
+    // (self-closing style, e.g. our own exporter). A bare 1-based index or
+    // A–Z letter in either position also resolves.
+    const resolve = (token) => {
+      if (!token) return -1;
+      const t = decodeXmlEntities(String(token).trim());
+      const byIdent = labelIdents.indexOf(t);
+      if (byIdent >= 0) return byIdent;
+      const byNum = parseInt(t, 10) - 1;
+      if (!Number.isNaN(byNum)) return byNum;
+      if (/^[A-Z]$/i.test(t)) return t.toUpperCase().charCodeAt(0) - 65;
+      return -1;
+    };
+    let correctIdx = -1;
+    const tag = itemXml.match(/<varequal\b[^>]*?(?:\/>|>([\s\S]*?)<\/varequal>)/i);
+    if (tag) {
+      correctIdx = resolve(tag[1]);
+      if (correctIdx < 0) {
+        const attr = tag[0].match(/respident="([^"]*)"/i);
+        correctIdx = resolve(attr ? attr[1] : '');
+      }
     }
-    let answer = '';
+    if (correctIdx >= options.length) correctIdx = -1;
 
-    // Check if it's True/False (options are "True" and "False")
+    // True/False: exactly two options reading "True"/"False"
     if (options.length === 2 && /true/i.test(options[0]) && /false/i.test(options[1])) {
-      const isTrue = correctMatch && /T/i.test(correctMatch[1]);
       return {
         type: 'true_false',
         stem,
         options: null,
-        answer: isTrue ? 'True' : 'False',
+        answer: correctIdx === 0 ? 'True' : correctIdx === 1 ? 'False' : '',
         explanation,
       };
     }
 
-    // MCQ: correct answer is the option at the respident index
-    if (correctMatch) {
-      const respId = correctMatch[1];
-      // respId could be a number (1-based) or a letter
-      let idx = parseInt(respId, 10) - 1;
-      if (isNaN(idx)) {
-        idx = respId.charCodeAt(0) - 65; // A=0, B=1, etc.
-      }
-      if (idx >= 0 && idx < options.length) {
-        answer = options[idx];
-      }
-    }
-
+    const answer = correctIdx >= 0 && correctIdx < options.length ? options[correctIdx] : '';
     return {
       type: 'mcq',
       stem,

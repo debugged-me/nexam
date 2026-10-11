@@ -7,19 +7,24 @@ import '../styles/item-analysis.css';
  */
 import { useEffect, useState, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, ListChecks } from 'lucide-react';
+import { ArrowLeft, ListChecks, Printer, FileDown, FileSpreadsheet } from 'lucide-react';
 import { useToast } from '../components/Toast.jsx';
 import api from '../lib/api.js';
+import { downloadCsv, downloadXlsx } from '../lib/exports.js';
 import AppShell from '../components/AppShell.jsx';
 import { PageLoader } from '../components/Loaders.jsx';
+import Modal from '../components/Modal.jsx';
+import { BLOOM_LABELS } from '../lib/insights.js';
 
 const DIFF_CLASS = { easy: 'green', medium: 'amber', hard: 'red' };
+const TYPE_LABELS = { mcq: 'MCQ', true_false: 'T/F', matching: 'Match', identification: 'ID' };
 
 export default function ItemAnalysisPage() {
   const { examId } = useParams();
   const toast = useToast();
   const navigate = useNavigate();
   const [items, setItems] = useState(() => api.peek(`/analytics/exam/${examId}/items`)?.items ?? null);
+  const [selected, setSelected] = useState(null);
 
   const load = useCallback(() => {
     api.get(`/analytics/exam/${examId}/items`)
@@ -32,20 +37,78 @@ export default function ItemAnalysisPage() {
 
   useEffect(() => { load(); }, [load]);
 
+  // Per-set rows: Set A item 2 and Set B item 2 are different questions.
+  const hasSets = (items || []).some((it) => it.set);
+
+  const itemRows = (items || []).map((it) => [
+    it.itemNumber,
+    it.set || '—',
+    it.stem || `Item ${it.itemNumber}`,
+    it.correctAnswer || '—',
+    `${it.correctRate}%`,
+    it.difficulty ? it.difficulty[0].toUpperCase() + it.difficulty.slice(1) : '—',
+    it.totalResponses,
+    it.ambiguousCount,
+    (it.answerDistribution || []).map((ad) => `${ad.marked_answer ?? 'blank'}:${ad.count}`).join('  '),
+  ]);
+  const ITEM_HEADERS = ['#', 'Set', 'Question', 'Correct answer', 'Correct rate', 'Difficulty', 'Responses', 'Ambiguous', 'Distribution'];
+
+  function exportCsv() {
+    downloadCsv('nexam-item-analysis', ITEM_HEADERS, itemRows);
+  }
+
+  function exportXlsx() {
+    downloadXlsx('nexam-item-analysis', [{ title: 'Item analysis', headers: ITEM_HEADERS, rows: itemRows }]);
+  }
+
   return (
     <AppShell pageClass="item-analysis" activeNav="analytics" pageTitle="Item Analysis" wide>
-      <div className="page-header">
+      <div className="page-header print-skip">
         <div>
           <span className="eyebrow">Results &amp; insights</span>
           <h1>Item Analysis</h1>
           <p className="page-sub">Response distributions and difficulty per question.</p>
         </div>
         <div className="header-actions">
+          {items?.length > 0 && (<>
+            <button type="button" className="btn btn-outline btn-sm" onClick={() => window.print()} title="Print the item analysis">
+              <Printer size={14} /> Print
+            </button>
+            <button type="button" className="btn btn-outline btn-sm" onClick={exportCsv} title="Download as CSV">
+              <FileDown size={14} /> CSV
+            </button>
+            <button type="button" className="btn btn-outline btn-sm" onClick={exportXlsx} title="Download as Excel">
+              <FileSpreadsheet size={14} /> Excel
+            </button>
+          </>)}
           <button type="button" className="btn btn-outline btn-sm" onClick={() => navigate('/analytics')}>
             <ArrowLeft size={14} /> Back to Analytics
           </button>
         </div>
       </div>
+
+      {items?.length > 0 && (
+        <div className="print-doc print-only">
+          <div className="print-doc-head">
+            <div className="pd-org">nexam — Results &amp; insights</div>
+            <div className="pd-title">Item Analysis Report</div>
+            <div className="pd-meta">Generated {new Date().toLocaleString()} · {items.length} items</div>
+          </div>
+          <div className="report-section-title">Question performance</div>
+          <table className="report-table">
+            <thead>
+              <tr>{ITEM_HEADERS.map((h) => <th key={h}>{h}</th>)}</tr>
+            </thead>
+            <tbody>
+              {itemRows.map((r, i) => <tr key={i}>{r.map((c, j) => <td key={j}>{c}</td>)}</tr>)}
+            </tbody>
+          </table>
+          <div className="print-doc-foot">
+            <span>nexam — Results &amp; insights</span>
+            <span>Item Analysis Report</span>
+          </div>
+        </div>
+      )}
 
       {items === null ? (
         <PageLoader label="Loading item analysis…" />
@@ -56,57 +119,101 @@ export default function ItemAnalysisPage() {
           <p>Item-level analysis appears once OMR answer sheets have been scanned for this exam.</p>
         </div>
       ) : (
-        <div className="card" data-tour="ia-table">
+        <div className="card print-skip" data-tour="ia-table">
           <div className="card-header">
             <span className="card-title">Question Performance</span>
             <span className="text-muted meta-sm">{items.length} items</span>
           </div>
           <div className="table-wrap">
-            <table className="data-table">
+            <table className="data-table ia-table">
               <thead>
                 <tr>
-                  <th className="col-num">#</th>
-                  <th>Correct Answer</th>
-                  <th>Correct Rate</th>
-                  <th>Difficulty</th>
-                  <th>Responses</th>
-                  <th>Ambiguous</th>
-                  <th>Distribution</th>
+                  <th className="col-num ia-col-num">#</th>
+                  <th>Question</th>
+                  <th className="ia-col-rate">Performance</th>
+                  <th className="ia-col-stat" title="Responses">Resp.</th>
                 </tr>
               </thead>
               <tbody>
                 {items.map((item) => (
-                  <tr key={item.itemNumber}>
-                    <td className="text-muted">{item.itemNumber}</td>
-                    <td><span className="badge badge-gray">{item.correctAnswer || '—'}</span></td>
-                    <td>
-                      <div className="correct-rate-bar">
-                        <div className="correct-rate-fill" style={{ width: `${item.correctRate}%` }} />
-                        <span className="correct-rate-text">{item.correctRate}%</span>
-                      </div>
+                  <tr key={`${item.set || ''}-${item.itemNumber}`} className="ia-row" onClick={() => setSelected(item)}
+                    title="Open full item detail">
+                    <td className="ia-numcell">
+                      <span className="ia-itemnum">{item.itemNumber}</span>
+                      {hasSets && <span className={`badge badge-${item.set === 'B' ? 'purple' : 'blue'}`}>{item.set || '—'}</span>}
                     </td>
                     <td>
-                      <span className={`badge badge-${DIFF_CLASS[item.difficulty] || 'gray'}`}>
-                        {item.difficulty ? item.difficulty[0].toUpperCase() + item.difficulty.slice(1) : '—'}
+                      <span className="ia-stem">{item.stem || `Item ${item.itemNumber}`}</span>
+                      <span className="ia-tags">
+                        {item.type && <span className="badge badge-gray">{TYPE_LABELS[item.type] || item.type}</span>}
+                        {item.bloom && <span className="text-muted meta-sm">{BLOOM_LABELS[item.bloom] || item.bloom}</span>}
                       </span>
                     </td>
-                    <td className="text-muted">{item.totalResponses}</td>
-                    <td className="text-muted">{item.ambiguousCount}</td>
                     <td>
-                      <div className="answer-dist">
-                        {(item.answerDistribution || []).map((ad, i) => (
-                          <span className="answer-dist-item" key={i} title={`${ad.marked_answer ?? 'blank'}: ${ad.count}`}>
-                            <span className="answer-dist-letter">{ad.marked_answer ?? '—'}</span>
-                            <span className="answer-dist-count">{ad.count}</span>
-                          </span>
-                        ))}
+                      <div className="ia-perf">
+                        <div className="correct-rate-bar">
+                          <div className="correct-rate-fill" style={{ width: `${item.correctRate}%` }} />
+                          <span className="correct-rate-text">{item.correctRate}%</span>
+                        </div>
+                        <span className={`badge badge-${DIFF_CLASS[item.difficulty] || 'gray'}`}>
+                          {item.difficulty ? item.difficulty[0].toUpperCase() + item.difficulty.slice(1) : '—'}
+                        </span>
                       </div>
+                    </td>
+                    <td className="ia-respcell">
+                      <span className="ia-resp">{item.totalResponses}</span>
+                      {item.ambiguousCount > 0 && <span className="ia-amb text-muted" title={`${item.ambiguousCount} ambiguous — needs review`}>{item.ambiguousCount} amb</span>}
                     </td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
+
+          {/* Full item detail — correct answer + complete answer distribution */}
+          <Modal
+            open={!!selected}
+            title={selected ? `Item ${selected.itemNumber}${selected.set ? ` · Set ${selected.set}` : ''}` : ''}
+            subtitle={selected ? `${selected.correctCount}/${selected.totalResponses} correct · ${TYPE_LABELS[selected.type] || selected.type || ''}${selected.bloom ? ` · ${BLOOM_LABELS[selected.bloom] || selected.bloom}` : ''}` : ''}
+            onClose={() => setSelected(null)}
+          >
+            {selected && (
+              <div className="ia-detail">
+                <p className="ia-detail-stem">{selected.stem || `Item ${selected.itemNumber}`}</p>
+                <div className="ia-detail-answer">
+                  <span className="ia-detail-label">Correct answer</span>
+                  <span className="badge badge-green">{selected.correctAnswer || '—'}</span>
+                </div>
+                <div className="ia-detail-block">
+                  <span className="ia-detail-label">How students answered</span>
+                  {(selected.answerDistribution || []).length === 0 ? (
+                    <p className="text-muted meta-sm">No responses recorded.</p>
+                  ) : (
+                    <div className="ia-dist-list">
+                      {selected.answerDistribution.map((ad, i) => {
+                        const share = selected.totalResponses ? Math.round((ad.count / selected.totalResponses) * 100) : 0;
+                        return (
+                          <div className="ia-dist-row" key={i}>
+                            <span className={`ia-dist-answer ${ad.marked_answer === selected.correctAnswer ? 'is-correct' : ''}`}>
+                              {ad.marked_answer ?? '(blank)'}
+                            </span>
+                            <span className="ia-dist-bar">
+                              <span className="ia-dist-fill" style={{ width: `${share}%` }} />
+                            </span>
+                            <span className="ia-dist-count">{ad.count} <span className="text-muted">({share}%)</span></span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+                <div className="ia-detail-stats">
+                  <span>Ambiguous marks: <strong>{selected.ambiguousCount}</strong></span>
+                  <span>Wrong answers: <strong>{selected.wrongCount}</strong></span>
+                </div>
+              </div>
+            )}
+          </Modal>
         </div>
       )}
     </AppShell>

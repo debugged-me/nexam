@@ -11,13 +11,36 @@
  * Performance is shaped so the thematic insights fire: two topics are made
  * weak, one strong, and higher-order items trail lower-order by ~12pts.
  *
- * Usage:  node scripts/seed-analytics-demo.js [--clean]
- *   --clean removes the demo exam + its scans (students are kept, they're
- *   harmless roster rows; delete them from the Students UI if unwanted)
+ * Usage:  node scripts/seed-analytics-demo.js --yes [--clean]
+ *   --yes    required acknowledgment — this writes fake data to the database
+ *   --clean  removes the demo exam + its scans (students are kept, they're
+ *            harmless roster rows; delete them from the Students UI if unwanted)
+ *   Refuses to run when NODE_ENV=production.
  */
 import crypto from 'node:crypto';
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import pool from '../src/config/db.js';
+import env from '../src/config/env.js';
 import { protectText, blindIndex } from '../src/services/storageCrypto.js';
+import { generateExamPDF, generateAnswerKeyPDF, generateTOSReportPDF } from '../src/services/pdfService.js';
+import { generateOMRSheet } from '../src/services/omrService.js';
+
+// Safety: this script writes fake exams/scans. Never run against a production
+// database — refuse outright in prod, and require an explicit --yes elsewhere.
+if (env.isProd) {
+  console.error('Refusing to seed demo data: NODE_ENV=production. This script is for local development only.');
+  process.exit(1);
+}
+if (!process.argv.includes('--yes')) {
+  console.error('This inserts a fake exam + scans into your database.');
+  console.error('Run with --yes to proceed (or --clean to remove demo data).');
+  process.exit(1);
+}
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const STORAGE_DIR = path.join(__dirname, '..', 'storage', 'exams');
 
 const uuid = () => crypto.randomUUID();
 const rand = (a, b) => a + Math.random() * (b - a);
@@ -49,6 +72,16 @@ async function main() {
   if (clean) {
     const [exams] = await pool.query(`SELECT id FROM exams WHERE title = ?`, [EXAM_TITLE]);
     for (const e of exams) {
+      // Remove generated artefacts from disk alongside the rows.
+      const [files] = await pool.query(
+        `SELECT pdf_path, answer_key_path, omr_sheet_path FROM exam_sets WHERE exam_id = ?`, [e.id]
+      );
+      for (const f of files) {
+        for (const name of [f.pdf_path, f.answer_key_path, f.omr_sheet_path]) {
+          if (!name) continue;
+          try { fs.unlinkSync(path.join(STORAGE_DIR, path.basename(name))); } catch { /* already gone */ }
+        }
+      }
       await pool.query(`DELETE sa FROM scan_answers sa JOIN scan_results sr ON sr.id = sa.scan_result_id WHERE sr.exam_id = ?`, [e.id]);
       await pool.query(`DELETE FROM scan_results WHERE exam_id = ?`, [e.id]);
       await pool.query(`DELETE esq FROM exam_set_questions esq JOIN exam_sets es ON es.id = esq.exam_set_id WHERE es.exam_id = ?`, [e.id]);
@@ -56,26 +89,26 @@ async function main() {
       await pool.query(`DELETE FROM exam_questions WHERE exam_id = ?`, [e.id]);
       await pool.query(`DELETE FROM exams WHERE id = ?`, [e.id]);
     }
-    console.log(`Removed ${exams.length} demo exam(s) and their scans.`);
+    console.log(`Removed ${exams.length} demo exam(s), their scans, and generated files.`);
     process.exit(0);
   }
 
   // Find the subject with the most active questions
   const [owners] = await pool.query(
-    `SELECT s.id AS subject_id, s.instructor_id, s.name, COUNT(q.id) AS n
+    `SELECT s.id AS subject_id, s.instructor_id, s.name, s.code, COUNT(q.id) AS n
      FROM subjects s
      JOIN questions q ON q.subject_id = s.id AND q.status = 'active'
-     GROUP BY s.id, s.instructor_id, s.name
+     GROUP BY s.id, s.instructor_id, s.name, s.code
      ORDER BY n DESC LIMIT 1`
   );
   if (!owners.length) {
     console.error('No subject with active questions found — generate and approve questions first.');
     process.exit(1);
   }
-  const { subject_id: subjectId, instructor_id: instructorId, name: subjectName } = owners[0];
+  const { subject_id: subjectId, instructor_id: instructorId, name: subjectName, code: subjectCode } = owners[0];
 
   const [allQuestions] = await pool.query(
-    `SELECT id, topic, bloom, type, answer FROM questions
+    `SELECT id, topic, bloom, type, stem, options, answer FROM questions
      WHERE subject_id = ? AND status = 'active'`,
     [subjectId]
   );
@@ -105,17 +138,63 @@ async function main() {
   const bloomAdj = (b) => (['analyze', 'evaluate', 'create'].includes(b) ? -0.12 : 0);
 
   const examId = uuid();
+
+  // Generate the real PDF artefacts first — same filenames and contents the
+  // generate-sets endpoint produces, so every download link works.
+  const setIds = { A: uuid(), B: uuid() };
+  const orders = { A: items, B: shuffle(items) };
+  const setFiles = {};
+  console.log('Generating exam PDFs (Set A + Set B)…');
+  for (const label of ['A', 'B']) {
+    const [examFilename, answerKeyFilename, omrFilename] = [
+      `exam_${examId}_set${label}.pdf`,
+      `answerkey_${examId}_set${label}.pdf`,
+      `omr_${examId}_set${label}.pdf`,
+    ];
+    await generateExamPDF({
+      examTitle: EXAM_TITLE, subjectName, subjectCode,
+      setLabel: label, durationMinutes: 60,
+      instructions: 'Demo exam generated by the analytics seed script.',
+      questions: orders[label], filename: examFilename,
+    });
+    await generateAnswerKeyPDF({
+      examTitle: EXAM_TITLE, setLabel: label,
+      questions: orders[label], filename: answerKeyFilename,
+    });
+    await generateOMRSheet({
+      examId, examSetId: setIds[label], examTitle: EXAM_TITLE,
+      setLabel: label, questions: orders[label], filename: omrFilename,
+    });
+    setFiles[label] = { examFilename, answerKeyFilename, omrFilename };
+  }
+
+  // TOS coverage report — matches what the exam page's report link downloads.
+  const [tosRows] = await pool.query(
+    `SELECT * FROM tos WHERE subject_id = ? AND status = 'finalized' LIMIT 1`, [subjectId]
+  );
+  const tosRow = tosRows[0];
+  if (tosRow) {
+    const [tosTopics] = await pool.query(
+      `SELECT * FROM tos_topics WHERE tos_id = ? ORDER BY sort_order ASC`, [tosRow.id]
+    );
+    const bloomCounts = {};
+    for (const q of items) bloomCounts[q.bloom] = (bloomCounts[q.bloom] || 0) + 1;
+    try { tosRow.bloom_weights = typeof tosRow.bloom_weights === 'string' ? JSON.parse(tosRow.bloom_weights || '{}') : tosRow.bloom_weights; } catch { tosRow.bloom_weights = {}; }
+    await generateTOSReportPDF({
+      examTitle: EXAM_TITLE, tos: tosRow, topics: tosTopics,
+      actualDistribution: Object.entries(bloomCounts).map(([bloom, actual]) => ({ bloom, actual })),
+      filename: `tos_report_${examId}.pdf`,
+    });
+  }
+
   const conn = await pool.getConnection();
   try {
     await conn.beginTransaction();
 
-    const [tos] = await conn.query(
-      `SELECT id FROM tos WHERE subject_id = ? AND status = 'finalized' LIMIT 1`, [subjectId]
-    );
     await conn.query(
       `INSERT INTO exams (id, subject_id, tos_id, title, format, set_count, duration_minutes, instructions, status, created_by)
        VALUES (?, ?, ?, ?, 'print', 2, 60, 'Demo exam generated by the analytics seed script.', 'published', ?)`,
-      [examId, subjectId, tos[0]?.id || null, EXAM_TITLE, instructorId]
+      [examId, subjectId, tosRow?.id || null, EXAM_TITLE, instructorId]
     );
 
     for (let n = 0; n < items.length; n++) {
@@ -125,14 +204,12 @@ async function main() {
       );
     }
 
-    const setIds = {};
-    const orders = { A: items, B: shuffle(items) };
     for (const label of ['A', 'B']) {
-      const setId = uuid();
-      setIds[label] = setId;
+      const setId = setIds[label];
       await conn.query(
-        `INSERT INTO exam_sets (id, exam_id, set_label) VALUES (?, ?, ?)`,
-        [setId, examId, label]
+        `INSERT INTO exam_sets (id, exam_id, set_label, pdf_path, answer_key_path, omr_sheet_path)
+         VALUES (?, ?, ?, ?, ?, ?)`,
+        [setId, examId, label, setFiles[label].examFilename, setFiles[label].answerKeyFilename, setFiles[label].omrFilename]
       );
       for (let n = 0; n < orders[label].length; n++) {
         await conn.query(

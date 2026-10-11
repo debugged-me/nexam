@@ -56,8 +56,6 @@ const STATUS_META = {
   rejected: { label: 'Rejected', cls: 'is-rejected', order: 0 },
 };
 
-const IMPORT_FORMATS = { gift: 'GIFT (Moodle)', xml: 'Canvas / QTI XML' };
-
 /** Read a picked file as text (File.text() where available, FileReader else). */
 function readFileText(file) {
   if (typeof file.text === 'function') return file.text();
@@ -67,14 +65,6 @@ function readFileText(file) {
     reader.onerror = () => reject(reader.error || new Error('Could not read that file.'));
     reader.readAsText(file);
   });
-}
-
-/** Guess the import format from a filename; null when the extension says nothing. */
-function formatFromName(name) {
-  const ext = String(name || '').split('.').pop().toLowerCase();
-  if (ext === 'xml') return 'xml';
-  if (ext === 'gift' || ext === 'txt') return 'gift';
-  return null;
 }
 
 const DEFAULT_FILTERS = { subject_id: '', bloom: '', type: '', status: '', tos_id: '', topic: '' };
@@ -89,6 +79,101 @@ function questionsPath(filters) {
   if (filters.status) params.set('status', filters.status);
   if (filters.tos_id) params.set('tos_id', filters.tos_id);
   return `/questions?${params}`;
+}
+
+/** Valid, non-removed items in an import preview — the count the commit button uses. */
+function importReadyCount(state) {
+  const items = state?.preview || [];
+  const excluded = new Set(state?.excluded || []);
+  return items.reduce((n, it, i) => (it.ok && !excluded.has(i) ? n + 1 : n), 0);
+}
+
+/** Resolve an MCQ answer (option text, A–E letter, or 1-based index) to an option index. */
+function resolveOptionIndex(options, answer) {
+  const t = String(answer || '').trim();
+  const byText = options.findIndex((o) => o === t);
+  if (byText >= 0) return byText;
+  if (/^[A-Z]$/i.test(t)) {
+    const i = t.toUpperCase().charCodeAt(0) - 65;
+    if (i < options.length) return i;
+  }
+  if (/^\d+$/.test(t)) {
+    const i = parseInt(t, 10) - 1;
+    if (i < options.length) return i;
+  }
+  return -1;
+}
+
+/** One parsed item in the import preview — rendered like the real question. */
+function ImportPreviewItem({ index, item, excluded, onToggleExclude }) {
+  if (!item.ok) {
+    return (
+      <li className="q-import-item is-skipped">
+        <div className="q-import-item-head">
+          <span className="q-import-item-title">Q{index + 1} · Skipped</span>
+        </div>
+        <p className="q-import-skip-reason">{item.reason}</p>
+      </li>
+    );
+  }
+  const q = item.data;
+  const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+  const correctIdx = q.type === 'mcq' ? resolveOptionIndex(q.options, q.answer) : -1;
+  const matchingPairs = q.type === 'matching'
+    ? String(q.answer || '').split(',').map((p) => p.trim().match(/^(\d+)-([A-Z])$/i)).filter(Boolean)
+    : [];
+
+  return (
+    <li className={`q-import-item${excluded ? ' is-excluded' : ''}`}>
+      <div className="q-import-item-head">
+        <span className="q-import-item-title">
+          Q{index + 1} · {TYPE_LABELS[q.type] || q.type}
+          {q.bloom && <span className="q-import-bloom">{BLOOM_LABELS[q.bloom] || q.bloom}</span>}
+          <span className="q-import-preview-tag">Imported preview</span>
+        </span>
+        <button type="button" className={`btn btn-outline btn-xs${excluded ? '' : ' q-import-remove'}`} onClick={onToggleExclude}>
+          {excluded ? 'Restore' : 'Remove'}
+        </button>
+      </div>
+      <p className="q-import-stem">{q.stem}</p>
+      {q.type === 'mcq' && (
+        <ul className="q-import-options">
+          {q.options.map((opt, oi) => (
+            <li key={oi} className={oi === correctIdx ? 'is-correct' : ''}>
+              <span className="q-import-opt-letter">{letters[oi]}</span>
+              <span>{opt}</span>
+              {oi === correctIdx && <Check size={14} className="q-import-correct-mark" />}
+            </li>
+          ))}
+        </ul>
+      )}
+      {q.type === 'true_false' && (
+        <div className="q-import-tf">
+          {['True', 'False'].map((v) => (
+            <span key={v} className={`q-import-tf-chip${q.answer === v ? ' is-correct' : ''}`}>
+              {v}{q.answer === v && <Check size={13} />}
+            </span>
+          ))}
+        </div>
+      )}
+      {q.type === 'matching' && (
+        <div className="q-import-matching">
+          {matchingPairs.map(([, n, letter]) => {
+            const poolIdx = letter.toUpperCase().charCodeAt(0) - 65;
+            return (
+              <span key={n} className="q-import-match-chip">
+                {n} → {letter}. {q.options[poolIdx]}
+              </span>
+            );
+          })}
+        </div>
+      )}
+      {q.type === 'identification' && (
+        <p className="q-import-answer"><strong>Answer:</strong> {q.answer}</p>
+      )}
+      {item.explanation && <p className="q-import-expl"><em>Feedback:</em> {item.explanation}</p>}
+    </li>
+  );
 }
 
 export default function QuestionsPage() {
@@ -145,7 +230,7 @@ export default function QuestionsPage() {
       setFilters((current) => current.status === requestedStatus ? current : { ...current, status: requestedStatus });
     }
     if (searchParams.get('new') === '1') {
-      setEditing({ type: 'mcq', status: 'draft', subject_id: subjects[0]?.id || '' });
+      setEditing({ picker: true, subject_id: subjects[0]?.id || '' });
       const next = new URLSearchParams(searchParams);
       next.delete('new');
       setSearchParams(next, { replace: true });
@@ -461,28 +546,62 @@ export default function QuestionsPage() {
 
   function openImport() {
     setImportState({
-      format: 'gift',
       content: '',
       fileName: '',
+      detectedFormat: '',
       subjectId: filters.subject_id || subjects[0]?.id || '',
-      bloom: '',
       topic: '',
+      preview: null,
+      previewing: false,
+      previewError: '',
+      excluded: [],
+      dragging: false,
     });
+  }
+
+  async function importFile(file) {
+    if (!file) return;
+    try {
+      const text = await readFileText(file);
+      setImportState((prev) => (prev ? { ...prev, content: text, fileName: file.name, detectedFormat: '', preview: null, previewError: '', excluded: [] } : prev));
+      runPreview(text);
+    } catch (err) {
+      toast.error(err?.message || 'Could not read that file.');
+    }
   }
 
   async function handleImportFile(e) {
     const input = e.target;
-    const file = input.files?.[0];
-    if (!file) return;
-    const guessed = formatFromName(file.name);
+    await importFile(input.files?.[0]);
+    input.value = ''; // let the same file be picked again after an edit
+  }
+
+  function handleImportDrop(e) {
+    e.preventDefault();
+    setImportState((prev) => (prev ? { ...prev, dragging: false } : prev));
+    importFile(e.dataTransfer?.files?.[0]);
+  }
+
+  async function runPreview(content) {
+    const text = (content || '').trim();
+    if (text.length < 10) { toast.error('Choose a question file first.'); return; }
+    setImportState((prev) => (prev ? { ...prev, previewing: true, previewError: '' } : prev));
     try {
-      const text = await readFileText(file);
-      setImportState((prev) => (prev ? { ...prev, content: text, fileName: file.name, format: guessed || prev.format } : prev));
+      const data = await api.post('/questions/import/preview', { content: text });
+      setImportState((prev) => (prev ? { ...prev, preview: data?.items || [], detectedFormat: data?.format || '', previewing: false, excluded: [] } : prev));
     } catch (err) {
-      toast.error(err?.message || 'Could not read that file.');
-    } finally {
-      input.value = ''; // let the same file be picked again after an edit
+      const msg = err instanceof ApiError ? err.message : 'Could not parse that file.';
+      setImportState((prev) => (prev ? { ...prev, preview: null, previewing: false, previewError: msg } : prev));
     }
+  }
+
+  function toggleExclude(i) {
+    setImportState((prev) => {
+      if (!prev) return prev;
+      const ex = new Set(prev.excluded || []);
+      if (ex.has(i)) ex.delete(i); else ex.add(i);
+      return { ...prev, excluded: [...ex] };
+    });
   }
 
   async function handleImport(e) {
@@ -494,14 +613,17 @@ export default function QuestionsPage() {
     setImporting(true);
     try {
       const data = await api.post('/questions/import', {
-        format: importState.format,
         content,
         subjectId: importState.subjectId,
-        bloom: importState.bloom || undefined,
         topic: importState.topic?.trim() || undefined,
+        exclude: importState.excluded?.length ? importState.excluded : undefined,
       });
       const n = data?.imported || 0;
+      const skipped = Array.isArray(data?.skipped) ? data.skipped : [];
       toast.success(`${n} question${n === 1 ? '' : 's'} imported as draft${n === 1 ? '' : 's'}.`);
+      if (skipped.length) {
+        toast.warning(`${skipped.length} item${skipped.length === 1 ? '' : 's'} skipped: ${skipped.slice(0, 3).join('; ')}${skipped.length > 3 ? '…' : ''}`);
+      }
       setImportState(null);
       load();
     } catch (err) {
@@ -662,7 +784,7 @@ export default function QuestionsPage() {
             <BoardAddRow
               colSpan={8}
               label="New question"
-              onClick={() => setEditing({ type: 'mcq', status: 'draft', subject_id: g.subjectId })}
+              onClick={() => setEditing({ picker: true, subject_id: g.subjectId })}
             />
           )}
         </tbody>
@@ -706,7 +828,7 @@ export default function QuestionsPage() {
             title="Building your question bank"
             onRefresh={refreshJobs}
           >
-            <button type="button" className="btn btn-primary btn-sm" onClick={() => setEditing({ type: 'mcq', status: 'draft', subject_id: subjects[0]?.id || '' })}>
+            <button type="button" className="btn btn-primary btn-sm" onClick={() => setEditing({ picker: true, subject_id: subjects[0]?.id || '' })}>
               <Plus size={15} /> New Question
             </button>
             <button type="button" className="btn btn-outline btn-sm" onClick={openImport}>
@@ -718,7 +840,7 @@ export default function QuestionsPage() {
             <h4>Your question bank is empty</h4>
             <p>Add a question manually, import from GIFT/XML, or auto-generate from a blueprint (TOS) using your uploaded materials.</p>
             <div className="empty-state-actions">
-              <button type="button" className="btn btn-primary" data-tour="questions-new" onClick={() => setEditing({ type: 'mcq', status: 'draft', subject_id: subjects[0]?.id || '' })}>
+              <button type="button" className="btn btn-primary" data-tour="questions-new" onClick={() => setEditing({ picker: true, subject_id: subjects[0]?.id || '' })}>
                 <Plus size={16} /> New Question
               </button>
               <button type="button" className="btn btn-outline" data-tour="questions-import" onClick={openImport}>
@@ -740,7 +862,7 @@ export default function QuestionsPage() {
           {/* Toolbar */}
           <div className="dataset-bar">
             <div className="dataset-bar-lead">
-              <button type="button" className="btn btn-primary btn-sm" data-tour="questions-new" onClick={() => setEditing({ type: 'mcq', status: 'draft', subject_id: filters.subject_id || (subjects[0]?.id || '') })}>
+              <button type="button" className="btn btn-primary btn-sm" data-tour="questions-new" onClick={() => setEditing({ picker: true, subject_id: filters.subject_id || (subjects[0]?.id || '') })}>
                 <Plus size={14} /> New Question
               </button>
               <label className="ds-search" htmlFor="questions-search">
@@ -952,10 +1074,43 @@ export default function QuestionsPage() {
       </Modal>
 
       {/* Create/edit question modal */}
+      {/* Create chooser — pick a type, or import a whole bank from a file. */}
       <Modal
-        open={!!editing}
+        open={!!editing?.picker}
+        title="New Question"
+        subtitle="Pick a question type — or import a whole bank from a file."
+        onClose={() => setEditing(null)}
+      >
+        <div className="q-type-grid">
+          {[
+            ['mcq', ListChecks], ['true_false', Check], ['matching', Layers], ['identification', FileText],
+          ].map(([t, Icon]) => (
+            <button
+              key={t}
+              type="button"
+              className="q-type-card"
+              onClick={() => setEditing({ type: t, status: 'draft', subject_id: editing.subject_id || filters.subject_id || subjects[0]?.id || '' })}
+            >
+              <Icon size={20} />
+              <span>{TYPE_LABELS[t]}</span>
+            </button>
+          ))}
+        </div>
+        <div className="q-type-divider"><span>or</span></div>
+        <button
+          type="button"
+          className="q-type-import"
+          onClick={() => { setEditing(null); openImport(); }}
+        >
+          <Upload size={18} />
+          <span><strong>Import a file</strong> — bring in a GIFT, Moodle XML, or Canvas QTI bank, many questions at once.</span>
+        </button>
+      </Modal>
+
+      <Modal
+        open={!!editing && !editing.picker}
         title={editing?.id ? 'Edit Question' : 'New Question'}
-        subtitle={editing?.id ? 'Update this item.' : 'Write the stem, options and answer, then tag it so you can find it later.'}
+        subtitle={editing?.id ? 'Update this item.' : 'Write the stem, options, and answer.'}
         onClose={() => setEditing(null)}
         size="lg"
         footer={
@@ -1005,32 +1160,36 @@ export default function QuestionsPage() {
                   </select>
                 </div>
 
-                <div className="form-group">
-                  <label className="form-label" htmlFor="bloom">Bloom Level</label>
-                  <select
-                    id="bloom"
-                    className="form-control form-select"
-                    value={editing.bloom || ''}
-                    onChange={(e) => setEditing({ ...editing, bloom: e.target.value })}
-                  >
-                    <option value="">— Select —</option>
-                    {BLOOM_ORDER.map((b) => <option key={b} value={b}>{BLOOM_LABELS[b]}</option>)}
-                  </select>
-                </div>
+                {editing.id && (
+                  <div className="form-group">
+                    <label className="form-label" htmlFor="bloom">Bloom Level</label>
+                    <select
+                      id="bloom"
+                      className="form-control form-select"
+                      value={editing.bloom || ''}
+                      onChange={(e) => setEditing({ ...editing, bloom: e.target.value })}
+                    >
+                      <option value="">— Select —</option>
+                      {BLOOM_ORDER.map((b) => <option key={b} value={b}>{BLOOM_LABELS[b]}</option>)}
+                    </select>
+                  </div>
+                )}
               </div>
 
-              <div className="form-group">
-                <label className="form-label" htmlFor="topic">Topic</label>
-                <input
-                  id="topic"
-                  type="text"
-                  className="form-control"
-                  maxLength={255}
-                  value={editing.topic || ''}
-                  placeholder="e.g. Quadratic Equations"
-                  onChange={(e) => setEditing({ ...editing, topic: e.target.value })}
-                />
-              </div>
+              {editing.id && (
+                <div className="form-group">
+                  <label className="form-label" htmlFor="topic">Topic</label>
+                  <input
+                    id="topic"
+                    type="text"
+                    className="form-control"
+                    maxLength={255}
+                    value={editing.topic || ''}
+                    placeholder="e.g. Quadratic Equations"
+                    onChange={(e) => setEditing({ ...editing, topic: e.target.value })}
+                  />
+                </div>
+              )}
             </div>
 
             {/* Content section */}
@@ -1091,32 +1250,36 @@ export default function QuestionsPage() {
                 )}
               </div>
 
-              <div className="form-group">
-                <label className="form-label" htmlFor="explanation">Explanation</label>
-                <textarea
-                  id="explanation"
-                  className="form-control"
-                  rows={3}
-                  maxLength={10000}
-                  placeholder="Optional explanation shown after answering"
-                  value={editing.explanation || ''}
-                  onChange={(e) => setEditing({ ...editing, explanation: e.target.value })}
-                />
-              </div>
+              {editing.id && (
+                <>
+                  <div className="form-group">
+                    <label className="form-label" htmlFor="explanation">Explanation</label>
+                    <textarea
+                      id="explanation"
+                      className="form-control"
+                      rows={3}
+                      maxLength={10000}
+                      placeholder="Optional explanation shown after answering"
+                      value={editing.explanation || ''}
+                      onChange={(e) => setEditing({ ...editing, explanation: e.target.value })}
+                    />
+                  </div>
 
-              <div className="form-group">
-                <label className="form-label" htmlFor="status">Status</label>
-                <select
-                  id="status"
-                  className="form-control form-select"
-                  value={editing.status || 'draft'}
-                  onChange={(e) => setEditing({ ...editing, status: e.target.value })}
-                >
-                  <option value="draft">Draft</option>
-                  <option value="active">Active</option>
-                  <option value="rejected">Rejected</option>
-                </select>
-              </div>
+                  <div className="form-group">
+                    <label className="form-label" htmlFor="status">Status</label>
+                    <select
+                      id="status"
+                      className="form-control form-select"
+                      value={editing.status || 'draft'}
+                      onChange={(e) => setEditing({ ...editing, status: e.target.value })}
+                    >
+                      <option value="draft">Draft</option>
+                      <option value="active">Active</option>
+                      <option value="rejected">Rejected</option>
+                    </select>
+                  </div>
+                </>
+              )}
             </div>
           </form>
         )}
@@ -1131,12 +1294,17 @@ export default function QuestionsPage() {
         size="lg"
         footer={
           <>
+            {importState?.preview && (
+              <span className="q-import-ready">
+                {importReadyCount(importState)} question{importReadyCount(importState) === 1 ? '' : 's'} ready
+              </span>
+            )}
             <button className="btn btn-outline" onClick={() => setImportState(null)}>Cancel</button>
             <button
               className="btn btn-primary"
               form="question-import-form"
               type="submit"
-              disabled={importing || !importState?.subjectId || (importState?.content || '').trim().length < 10}
+              disabled={importing || importState?.previewing || !importState?.subjectId || (importState?.content || '').trim().length < 10 || (importState?.preview && importReadyCount(importState) === 0)}
             >
               {importing && <span className="btn-spinner" />}
               Import Questions
@@ -1169,80 +1337,73 @@ export default function QuestionsPage() {
                 )}
               </div>
 
-              <div className="question-form-grid">
-                <div className="form-group">
-                  <label className="form-label" htmlFor="import-bloom">Default Bloom Level</label>
-                  <select
-                    id="import-bloom"
-                    className="form-control form-select"
-                    value={importState.bloom}
-                    onChange={(e) => setImportState({ ...importState, bloom: e.target.value })}
-                  >
-                    <option value="">Remember (default)</option>
-                    {BLOOM_ORDER.map((b) => <option key={b} value={b}>{BLOOM_LABELS[b]}</option>)}
-                  </select>
-                </div>
-                <div className="form-group">
-                  <label className="form-label" htmlFor="import-topic">Default Topic</label>
-                  <input
-                    id="import-topic"
-                    type="text"
-                    className="form-control"
-                    maxLength={255}
-                    placeholder="Applied when the file has none"
-                    value={importState.topic}
-                    onChange={(e) => setImportState({ ...importState, topic: e.target.value })}
-                  />
-                </div>
+              <div className="form-group">
+                <label className="form-label" htmlFor="import-topic">Default Topic</label>
+                <input
+                  id="import-topic"
+                  type="text"
+                  className="form-control"
+                  maxLength={255}
+                  placeholder="Optional — applied to every imported question"
+                  value={importState.topic}
+                  onChange={(e) => setImportState({ ...importState, topic: e.target.value })}
+                />
+                <p className="form-hint">Bloom level is detected per question from the stem — you'll see it in the preview.</p>
               </div>
             </div>
 
             <div className="form-section">
               <div className="form-section-title">Source</div>
 
-              <div className="q-import-source">
-                <label className="btn btn-outline q-import-pick" htmlFor="import-file">
-                  <Upload size={16} /> Choose file
-                  <input
-                    id="import-file"
-                    type="file"
-                    accept=".txt,.gift,.xml,text/plain,text/xml,application/xml"
-                    onChange={handleImportFile}
-                  />
-                </label>
-                <span className="q-import-filename">
-                  {importState.fileName || 'No file chosen — you can paste below instead.'}
-                </span>
-              </div>
-
-              <div className="form-group">
-                <label className="form-label" htmlFor="import-format">Format <span className="req">*</span></label>
-                <select
-                  id="import-format"
-                  className="form-control form-select"
-                  value={importState.format}
-                  onChange={(e) => setImportState({ ...importState, format: e.target.value })}
-                  required
-                >
-                  {Object.entries(IMPORT_FORMATS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
-                </select>
-                <p className="form-hint">Guessed from the file extension — override it if the guess is wrong.</p>
-              </div>
-
-              <div className="form-group">
-                <label className="form-label" htmlFor="import-content">
-                  Content <span className="form-hint-inline">(paste or loaded from the file)</span>
-                </label>
-                <textarea
-                  id="import-content"
-                  className="form-control q-import-textarea"
-                  rows={9}
-                  spellCheck="false"
-                  placeholder={'::Q1:: What is the capital of France? {=Paris ~Lyon ~Nice ~Brest}'}
-                  value={importState.content}
-                  onChange={(e) => setImportState({ ...importState, content: e.target.value, fileName: '' })}
+              <label
+                className={`q-import-drop${importState.dragging ? ' is-dragging' : ''}${importState.fileName ? ' has-file' : ''}`}
+                htmlFor="import-file"
+                onDragOver={(e) => { e.preventDefault(); if (!importState.dragging) setImportState((p) => (p ? { ...p, dragging: true } : p)); }}
+                onDragLeave={() => setImportState((p) => (p ? { ...p, dragging: false } : p))}
+                onDrop={handleImportDrop}
+              >
+                <input
+                  id="import-file"
+                  type="file"
+                  accept=".txt,.gift,.xml,text/plain,text/xml,application/xml"
+                  onChange={handleImportFile}
                 />
+                <span className="q-import-drop-icon"><Upload size={22} /></span>
+                <span className="q-import-drop-main">
+                  {importState.fileName
+                    ? <strong>{importState.fileName}</strong>
+                    : <><strong>Drop a question file here</strong> or click to browse</>}
+                </span>
+                <span className="q-import-drop-hint">GIFT · Moodle XML · Canvas QTI — format detected automatically</span>
+              </label>
+
+              <div className="q-import-previewbar">
+                {importState.previewing && (
+                  <span className="q-import-previewmeta"><span className="btn-spinner" /> Parsing file…</span>
+                )}
+                {importState.preview && (
+                  <span className="q-import-previewmeta">
+                    {importState.detectedFormat === 'xml' ? 'XML' : 'GIFT'} detected
+                    · {importState.preview.filter((it) => it.ok).length} parsed
+                    {importState.preview.some((it) => !it.ok) && ` · ${importState.preview.filter((it) => !it.ok).length} skipped`}
+                  </span>
+                )}
               </div>
+              {importState.previewError && <p className="q-import-skip-reason" role="alert">{importState.previewError}</p>}
+
+              {importState.preview && (
+                <ol className="q-import-list">
+                  {importState.preview.map((item, i) => (
+                    <ImportPreviewItem
+                      key={i}
+                      index={i}
+                      item={item}
+                      excluded={importState.excluded?.includes(i)}
+                      onToggleExclude={() => toggleExclude(i)}
+                    />
+                  ))}
+                </ol>
+              )}
             </div>
           </form>
         )}

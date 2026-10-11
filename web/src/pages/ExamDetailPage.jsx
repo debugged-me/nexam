@@ -15,6 +15,7 @@ import {
 import { useToast } from '../components/Toast.jsx';
 import { useConfirm } from '../components/ConfirmDialog.jsx';
 import Modal from '../components/Modal.jsx';
+import ExamPaper from '../components/ExamPaper.jsx';
 import api, { ApiError, getToken } from '../lib/api.js';
 import AppShell from '../components/AppShell.jsx';
 import { PageLoader } from '../components/Loaders.jsx';
@@ -35,6 +36,8 @@ export default function ExamDetailPage() {
   const [attaching, setAttaching] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [downloadsVisible, setDownloadsVisible] = useState(false);
+  const [printCfg, setPrintCfg] = useState({ open: false, set: 'A', includeKey: false });
+  const [printReady, setPrintReady] = useState(false);
 
   const load = useCallback(() => {
     api.get(`/exams/${id}`)
@@ -43,6 +46,21 @@ export default function ExamDetailPage() {
   }, [id, toast, navigate]);
 
   useEffect(() => { load(); }, [load]);
+
+  // Print once the document block has rendered with the chosen config.
+  useEffect(() => {
+    if (!printReady) return;
+    const t = setTimeout(() => {
+      window.print();
+      setPrintReady(false);
+    }, 60);
+    return () => clearTimeout(t);
+  }, [printReady]);
+
+  function startPrint() {
+    setPrintCfg((c) => ({ ...c, open: false }));
+    setPrintReady(true);
+  }
 
   async function openPicker() {
     if (!data) return;
@@ -134,8 +152,18 @@ export default function ExamDetailPage() {
     ? sets.map((s) => s.set_label)
     : Array.from({ length: exam.set_count }, (_, i) => String.fromCharCode(65 + i));
 
+  // Print-ready questions in the chosen set's order (Set B follows the
+  // generated shuffle; fall back to canonical order when no set exists).
+  const printSet = printCfg.set;
+  const setDef = hasSets ? sets.find((s) => s.set_label === printSet) : null;
+  const printQuestions = setDef?.question_ids?.length
+    ? setDef.question_ids.map((qid) => questions.find((q) => q.id === qid)).filter(Boolean)
+    : questions;
+
   return (
     <AppShell pageClass="exam-detail" activeNav="exams" pageTitle={exam.title}>
+      {/* Screen UI — skipped when printing the exam document below */}
+      <div className="print-skip">
       <div className="page-header">
         <div>
           <span className="eyebrow">Exam</span>
@@ -155,11 +183,10 @@ export default function ExamDetailPage() {
             {generating ? <span className="btn-spinner" /> : <Sparkles size={14} />}
             {hasSets ? 'Regenerate sets' : 'Generate sets'}
           </button>
-          {print && (
-            <button className="btn btn-outline btn-sm" onClick={() => window.print()}>
-              <Printer size={14} /> Print
-            </button>
-          )}
+          <button className="btn btn-outline btn-sm" onClick={() => setPrintCfg((c) => ({ ...c, open: true }))}
+            title="Print the exam as a formatted document">
+            <Printer size={14} /> Print
+          </button>
           <Link to={`/exams/${id}/edit`} className="btn btn-outline btn-sm">
             <Pencil size={14} /> Edit
           </Link>
@@ -303,6 +330,7 @@ export default function ExamDetailPage() {
           </div>
         </aside>
       </div>
+      </div>{/* /print-skip */}
 
       <Modal open={pickerOpen} title="Add questions" subtitle={`From ${exam.subject_code || exam.subject_name}`} onClose={() => setPickerOpen(false)} size="lg"
         footer={<>
@@ -316,6 +344,21 @@ export default function ExamDetailPage() {
           <p className="placeholder">No more approved questions available for this subject.</p>
         ) : (
           <div className="q-picker">
+            <label className="q-pick-item q-pick-all">
+              <input
+                type="checkbox"
+                className="q-pick-checkbox"
+                checked={selected.size === availableQs.length}
+                ref={(el) => { if (el) el.indeterminate = selected.size > 0 && selected.size < availableQs.length; }}
+                onChange={(e) => setSelected(e.target.checked ? new Set(availableQs.map((q) => q.id)) : new Set())}
+              />
+              <div style={{ flex: 1 }}>
+                <div className="q-pick-stem">
+                  {selected.size === availableQs.length ? 'Clear all' : 'Select all'}
+                </div>
+                <div className="q-pick-meta">{selected.size} of {availableQs.length} selected</div>
+              </div>
+            </label>
             {availableQs.map((q) => (
               <label key={q.id} className={`q-pick-item ${selected.has(q.id) ? 'selected' : ''}`}>
                 <input type="checkbox" className="q-pick-checkbox" checked={selected.has(q.id)}
@@ -335,6 +378,48 @@ export default function ExamDetailPage() {
           </div>
         )}
       </Modal>
+
+      {/* Print options — pick the set, optionally append the answer key */}
+      <Modal open={printCfg.open} title="Print exam" subtitle="Renders as a formatted exam document" onClose={() => setPrintCfg((c) => ({ ...c, open: false }))}
+        footer={<>
+          <button className="btn" onClick={() => setPrintCfg((c) => ({ ...c, open: false }))}>Cancel</button>
+          <button className="btn btn-primary" onClick={startPrint}><Printer size={14} /> Print</button>
+        </>}>
+        <div className="form-group">
+          <span className="form-label">Set to print</span>
+          <div className="src-options" role="radiogroup" aria-label="Set to print">
+            {setLabels.map((label) => {
+              const shuffled = sets?.find((s) => s.set_label === label)?.question_ids?.length > 0;
+              return (
+                <label key={label} className={`src-option ${printCfg.set === label ? 'is-selected' : ''}`}>
+                  <input type="radio" name="print-set" checked={printCfg.set === label}
+                    onChange={() => setPrintCfg((c) => ({ ...c, set: label }))} />
+                  <span className="src-option-copy">
+                    <strong>Set {label}</strong>
+                    <small>{shuffled ? 'Generated shuffled order' : 'Canonical order'}</small>
+                  </span>
+                </label>
+              );
+            })}
+          </div>
+        </div>
+        <label className="form-check">
+          <input type="checkbox" checked={printCfg.includeKey}
+            onChange={(e) => setPrintCfg((c) => ({ ...c, includeKey: e.target.checked }))} />
+          <span>Append answer key on a separate page (instructor copy)</span>
+        </label>
+      </Modal>
+
+      {/* The printable document — hidden on screen, revealed by @media print */}
+      {questions.length > 0 && (
+        <ExamPaper
+          exam={exam}
+          questions={printQuestions}
+          tos={tos}
+          setLabel={printSet}
+          includeKey={printCfg.includeKey}
+        />
+      )}
     </AppShell>
   );
 }

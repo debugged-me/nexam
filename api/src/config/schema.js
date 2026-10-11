@@ -438,6 +438,12 @@ const DDL = [
   `ALTER TABLE scan_results ADD INDEX IF NOT EXISTS idx_scan_exam (exam_id)`,
   `ALTER TABLE scan_results ADD INDEX IF NOT EXISTS idx_scan_student (student_id)`,
   `ALTER TABLE scan_results ADD INDEX IF NOT EXISTS idx_scan_review (needs_review)`,
+  // Clean legacy orphans before enforcing referential integrity — a scan with
+  // no exam (or no set) can never be displayed correctly.
+  `DELETE sa FROM scan_answers sa LEFT JOIN scan_results sr ON sr.id = sa.scan_result_id WHERE sr.id IS NULL`,
+  `DELETE sr FROM scan_results sr LEFT JOIN exams e ON e.id = sr.exam_id WHERE e.id IS NULL`,
+  `ALTER TABLE scan_results ADD FOREIGN KEY IF NOT EXISTS scan_results_ibfk_exam (exam_id) REFERENCES exams (id) ON DELETE CASCADE`,
+  `ALTER TABLE scan_results ADD FOREIGN KEY IF NOT EXISTS scan_results_ibfk_set (exam_set_id) REFERENCES exam_sets (id) ON DELETE SET NULL`,
 
   // scan_answers
   `CREATE TABLE IF NOT EXISTS scan_answers (

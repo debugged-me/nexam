@@ -17,6 +17,7 @@ import { Router } from 'express';
 import { v4 as uuid } from 'uuid';
 import pool from '../config/db.js';
 import { requireAuth } from '../middleware/auth.js';
+import { rateLimit } from '../middleware/rateLimit.js';
 import { scoreItem } from '../services/scoring.js';
 import { blindIndex, protectText, unprotectText } from '../services/storageCrypto.js';
 
@@ -130,7 +131,7 @@ function revealScanIdentity(row) {
  * Body: { examId, examSetId?, set?, studentName?, studentNumber?,
  *         answers: [{ itemNumber, markedAnswer, ambiguous }] }
  */
-router.post('/', async (req, res, next) => {
+router.post('/', rateLimit({ name: 'scan-submit', max: 90, windowSec: 300 }), async (req, res, next) => {
   const conn = await pool.getConnection();
   try {
     const { examId, examSetId, set, studentName, studentNumber, answers } = req.body || {};

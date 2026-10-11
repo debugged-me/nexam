@@ -17,6 +17,7 @@ import path from 'path';
 import { v4 as uuid } from 'uuid';
 import pool from '../config/db.js';
 import { requireAuth } from '../middleware/auth.js';
+import { rateLimit } from '../middleware/rateLimit.js';
 import jobsService, { enqueue } from '../services/jobs.js';
 import { assertSafePublicUrl } from '../services/safeUrl.js';
 import { encryptFileAtRest } from '../services/storageCrypto.js';
@@ -65,7 +66,7 @@ function mimeToSourceType(mimetype, filename) {
 }
 
 /** POST /api/materials — upload a file or submit a URL/YouTube/text. */
-router.post('/', requireAuth, upload.single('file'), async (req, res, next) => {
+router.post('/', requireAuth, rateLimit({ name: 'material-upload', max: 15, windowSec: 300 }), upload.single('file'), async (req, res, next) => {
   try {
     const { subject_id, title, source_type: explicitType, url, content, is_syllabus } = req.body;
 
@@ -213,7 +214,7 @@ router.delete('/:id', requireAuth, async (req, res, next) => {
 });
 
 /** POST /api/materials/:id/reprocess — re-queue a failed material. */
-router.post('/:id/reprocess', requireAuth, async (req, res, next) => {
+router.post('/:id/reprocess', requireAuth, rateLimit({ name: 'material-reprocess', max: 10, windowSec: 300 }), async (req, res, next) => {
   try {
     const [rows] = await pool.query(
       `SELECT * FROM materials WHERE id = :id AND created_by = :userId`,

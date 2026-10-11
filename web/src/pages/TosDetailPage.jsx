@@ -182,7 +182,11 @@ export default function TosDetailPage() {
   const [removingSel, setRemovingSel] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [finalizing, setFinalizing] = useState(false);
+  const [suggestions, setSuggestions] = useState(null);
+  const [suggestOpen, setSuggestOpen] = useState(false);
+  const [fillingSyllabus, setFillingSyllabus] = useState(false);
   const titleRef = useRef(null);
+  const jobStatusesRef = useRef(new Map());
 
   const load = useCallback(() => (
     api.get(`/tos/${id}`)
@@ -194,6 +198,18 @@ export default function TosDetailPage() {
   ), [id, toast, navigate]);
 
   useEffect(() => { load(); }, [load]);
+
+  // One-click topic sources for this blueprint (question bank + sibling
+  // blueprints + whether a processed syllabus exists). Cheap — fetch always,
+  // render only while the blueprint is a draft. Keyed by id so a stale
+  // response can't leak into another blueprint's view.
+  useEffect(() => {
+    let cancelled = false;
+    api.get(`/tos/${id}/topic-suggestions`)
+      .then((d) => { if (!cancelled) setSuggestions({ id, ...d }); })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [id]);
 
   async function handleAddTopic(e) {
     e.preventDefault();
@@ -270,6 +286,91 @@ export default function TosDetailPage() {
     () => jobs.some((j) => j.type === 'generate' && isActiveJob(j) && jobPayload(j).tosId === id),
     [jobs, id]
   );
+  const syllabusActive = useMemo(
+    () => jobs.some((j) => j.type === 'syllabus_tos' && isActiveJob(j) && jobPayload(j).tosId === id),
+    [jobs, id]
+  );
+
+  // Watch job transitions: when a syllabus→blueprint fill for THIS TOS goes
+  // from active to done, pull the new topic rows in without a page refresh.
+  useEffect(() => {
+    const prev = jobStatusesRef.current;
+    const next = new Map();
+    for (const j of jobs) {
+      next.set(j.id, j.status);
+      if (j.type !== 'syllabus_tos' || jobPayload(j).tosId !== id) continue;
+      const was = prev.get(j.id);
+      if (was === 'queued' || was === 'running') {
+        if (j.status === 'done') {
+          toast.success('Syllabus topics added to this blueprint.');
+          load();
+        } else if (j.status === 'failed') {
+          toast.error('Syllabus topic extraction failed — try again.');
+        }
+      }
+    }
+    jobStatusesRef.current = next;
+  }, [jobs, id, toast, load]);
+
+  /** Enqueue AI extraction of topics from the subject's processed syllabus. */
+  async function handleSyllabusFill() {
+    setFillingSyllabus(true);
+    try {
+      await api.post('/ai/syllabus-tos', { tosId: id });
+      toast.success('Syllabus scan queued — extracted topics drop into this blueprint when it finishes.');
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : 'Could not start the syllabus scan.');
+    } finally {
+      setFillingSyllabus(false);
+    }
+  }
+
+  // Merge bank + sibling-blueprint suggestions into one deduped list —
+  // the same topic in both sources renders once, carrying the blueprint's
+  // hours/outcomes AND the bank's question count. Sorted by evidence.
+  const suggestionItems = useMemo(() => {
+    if (!suggestions || suggestions.id !== id) return [];
+    const map = new Map();
+    for (const b of suggestions.blueprints || []) {
+      map.set(b.title.trim().toLowerCase(), {
+        title: b.title,
+        instructional_hours: b.instructional_hours,
+        learning_outcomes: b.learning_outcomes,
+        blueprint: b.blueprint_title,
+        count: 0,
+      });
+    }
+    for (const q of suggestions.bank || []) {
+      const k = q.title.trim().toLowerCase();
+      const ex = map.get(k);
+      if (ex) ex.count = q.question_count;
+      else map.set(k, { title: q.title, instructional_hours: 3, learning_outcomes: [], blueprint: null, count: q.question_count });
+    }
+    return [...map.values()].sort((a, b) => (b.count - a.count) || a.title.localeCompare(b.title));
+  }, [suggestions, id]);
+
+  /** Add one suggested topic through the normal topic endpoint. */
+  async function addSuggested(topic) {
+    let outcomes = topic.learning_outcomes;
+    if (typeof outcomes === 'string') { try { outcomes = JSON.parse(outcomes); } catch { outcomes = []; } }
+    try {
+      await api.post(`/tos/${id}/topics`, {
+        title: topic.title,
+        instructional_hours: Number(topic.instructional_hours) || 3,
+        learning_outcomes: Array.isArray(outcomes) ? outcomes : [],
+      });
+      // Drop the suggestion optimistically so the same topic can't be added twice.
+      const t = topic.title.trim().toLowerCase();
+      setSuggestions((s) => (s ? {
+        ...s,
+        bank: s.bank.filter((b) => b.title.trim().toLowerCase() !== t),
+        blueprints: s.blueprints.filter((b) => b.title.trim().toLowerCase() !== t),
+      } : s));
+      load();
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : 'Could not add topic.');
+    }
+  }
 
   async function handleGenerate() {
     setGenerating(true);
@@ -609,7 +710,15 @@ export default function TosDetailPage() {
               <button type="button" className="btn btn-ghost btn-xs" onClick={() => setSelTopics(new Set())}>Clear</button>
             </div>
           ) : (
-            <span className="text-muted meta-sm">{topics.length} topic{topics.length === 1 ? '' : 's'}</span>
+            <div className="tos-head-right">
+              <span className="text-muted meta-sm">{topics.length} topic{topics.length === 1 ? '' : 's'}</span>
+              {!finalized && suggestions?.id === id && (suggestionItems.length > 0 || suggestions.hasSyllabus) && (
+                <button type="button" className="btn btn-outline btn-xs" onClick={() => setSuggestOpen(true)}>
+                  <Sparkles size={13} /> Suggest topics
+                  {suggestionItems.length > 0 && <span className="tos-sugg-badge">{suggestionItems.length}</span>}
+                </button>
+              )}
+            </div>
           )}
         </div>
         {topics.length === 0 ? (
@@ -816,6 +925,51 @@ export default function TosDetailPage() {
           </form>
         </div>}
       </div>
+
+      {/* Suggested topics — one-click adds from the question bank, sibling
+          blueprints, or an AI syllabus scan. Draft blueprints only. */}
+      <Modal
+        open={suggestOpen}
+        title="Suggested topics"
+        subtitle="Pulled from your question bank and other blueprints in this subject — add only what belongs in this blueprint."
+        onClose={() => setSuggestOpen(false)}
+      >
+        {suggestions?.hasSyllabus && (
+          <button
+            type="button"
+            className="tos-sugg-syllabus"
+            onClick={handleSyllabusFill}
+            disabled={fillingSyllabus || syllabusActive}
+          >
+            {fillingSyllabus || syllabusActive ? <span className="btn-spinner" /> : <FileText size={18} />}
+            <span className="tos-sugg-syllabus-text">
+              <strong>{syllabusActive ? 'Scanning syllabus…' : 'Auto-fill from syllabus'}</strong>
+              <small>AI reads the subject's uploaded syllabus and adds its topics — hours and outcomes included.</small>
+            </span>
+          </button>
+        )}
+        {suggestionItems.length === 0 ? (
+          <p className="text-muted meta-sm">Nothing left to suggest — every topic found is already in this blueprint.</p>
+        ) : (
+          <div className="tos-sugg-list">
+            {suggestionItems.map((s) => (
+              <div key={s.title} className="tos-sugg-row">
+                <div className="tos-sugg-main">
+                  <span className="tos-sugg-title">{s.title}</span>
+                  <span className="tos-sugg-meta">
+                    {s.count > 0 && <span className="badge badge-blue">{s.count} question{s.count === 1 ? '' : 's'}</span>}
+                    {s.blueprint && <span className="badge badge-gray" title={`Also in blueprint "${s.blueprint}"`}>{s.blueprint}</span>}
+                    {Number(s.instructional_hours) > 0 && <span className="tos-sugg-hours">{s.instructional_hours}h</span>}
+                  </span>
+                </div>
+                <button type="button" className="btn btn-primary btn-xs" onClick={() => addSuggested(s)}>
+                  <Plus size={13} /> Add
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+      </Modal>
 
       {/* Derive modal — selected topics become a new draft blueprint */}
       <Modal

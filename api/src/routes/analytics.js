@@ -79,6 +79,60 @@ async function bloomBreakdown(userId, examId = null) {
 }
 
 /** GET /api/analytics/exam/:examId — exam-level analytics. */
+/**
+ * GET /api/analytics/attention — the full weak-item list for the dedicated
+ * "Items needing attention" screen. The overview only surfaces the top 5;
+ * this returns up to 100 with Bloom/topic context, optionally scoped to one
+ * exam (?examId=). Ownership rides on subjects.instructor_id like the
+ * overview query.
+ */
+router.get('/attention', requireAuth, async (req, res, next) => {
+  try {
+    const examId = req.query.examId || null;
+    const [items] = await pool.query(
+      `SELECT
+         MIN(sa.item_number) AS item_number,
+         e.id AS exam_id,
+         e.title AS exam_title,
+         s.name AS subject_name,
+         q.stem, q.bloom, q.topic, q.type,
+         COUNT(*) AS responses,
+         SUM(sa.is_correct) AS correct_count
+       FROM scan_answers sa
+       JOIN scan_results sr ON sr.id = sa.scan_result_id
+       JOIN exams e ON e.id = sr.exam_id
+       JOIN subjects s ON s.id = e.subject_id
+       ${QUESTION_JOINS}
+       WHERE s.instructor_id = :userId ${examId ? 'AND e.id = :examId' : ''}
+       GROUP BY e.id, e.title, s.name, q.id, q.stem, q.bloom, q.topic, q.type
+       HAVING responses >= 3
+       ORDER BY (SUM(sa.is_correct) / COUNT(*)) ASC, responses DESC
+       LIMIT 100`,
+      { userId: req.user.id, examId }
+    );
+
+    const [exams] = await pool.query(
+      `SELECT DISTINCT e.id, e.title
+       FROM scan_results sr
+       JOIN exams e ON e.id = sr.exam_id
+       JOIN subjects s ON s.id = e.subject_id
+       WHERE s.instructor_id = :userId
+       ORDER BY e.title`,
+      { userId: req.user.id }
+    );
+
+    res.json({
+      items: items.map((w) => ({
+        ...w,
+        correctRate: w.responses ? Number(((w.correct_count / w.responses) * 100).toFixed(1)) : 0,
+      })),
+      exams,
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
 router.get('/exam/:examId', requireAuth, async (req, res, next) => {
   try {
     const examId = req.params.examId;
@@ -189,42 +243,64 @@ router.get('/exam/:examId/items', requireAuth, async (req, res, next) => {
     );
     if (!examRows.length) return res.status(404).json({ error: 'Exam not found.' });
 
-    // Item-level analysis — for each item, count how many got it right/wrong
-    // and what answers were chosen (for MCQ distribution)
+    // Item-level analysis — per set AND item number, because Set A item 2 and
+    // Set B item 2 are different questions sharing a printed number. Grouping
+    // by item_number alone silently merged their stats. Legacy scans with no
+    // exam_set_id group under a null set like before.
     const [items] = await pool.query(
       `SELECT
          sa.item_number,
          sa.correct_answer,
+         COALESCE(sr.exam_set_id, '') AS set_id,
+         MAX(es.set_label) AS set_label,
+         MIN(q.stem) AS stem,
+         MIN(q.type) AS qtype,
+         MIN(q.bloom) AS bloom,
          COUNT(*) AS total_responses,
          SUM(sa.is_correct) AS correct_count,
          SUM(sa.ambiguous) AS ambiguous_count,
          SUM(CASE WHEN sa.is_correct = 0 AND sa.ambiguous = 0 THEN 1 ELSE 0 END) AS wrong_count
        FROM scan_answers sa
        JOIN scan_results sr ON sr.id = sa.scan_result_id
+       LEFT JOIN exam_sets es ON es.id = sr.exam_set_id
+       ${QUESTION_JOINS}
        WHERE sr.exam_id = :examId
-       GROUP BY sa.item_number, sa.correct_answer
-       ORDER BY sa.item_number ASC`,
+       GROUP BY sr.exam_set_id, sa.item_number, sa.correct_answer
+       ORDER BY es.set_label IS NULL, es.set_label ASC, sa.item_number ASC`,
       { examId }
     );
 
-    // For each item, get the distribution of marked answers
+    // Marked-answer distribution for every item in one grouped query — keyed
+    // by set + item number for the same reason.
+    const [distRows] = await pool.query(
+      `SELECT
+         COALESCE(sr.exam_set_id, '') AS set_id,
+         sa.item_number,
+         sa.marked_answer,
+         COUNT(*) AS count
+       FROM scan_answers sa
+       JOIN scan_results sr ON sr.id = sa.scan_result_id
+       WHERE sr.exam_id = :examId
+       GROUP BY sr.exam_set_id, sa.item_number, sa.marked_answer
+       ORDER BY sa.item_number ASC, count DESC`,
+      { examId }
+    );
+    const distByItem = {};
+    for (const row of distRows) {
+      (distByItem[`${row.set_id}:${row.item_number}`] ||= []).push({ marked_answer: row.marked_answer, count: row.count });
+    }
+
     const itemAnalysis = [];
     for (const item of items) {
-      const [answerDist] = await pool.query(
-        `SELECT
-           sa.marked_answer,
-           COUNT(*) AS count
-         FROM scan_answers sa
-         JOIN scan_results sr ON sr.id = sa.scan_result_id
-         WHERE sr.exam_id = :examId AND sa.item_number = :itemNumber
-         GROUP BY sa.marked_answer
-         ORDER BY count DESC`,
-        { examId, itemNumber: item.item_number }
-      );
+      const answerDist = distByItem[`${item.set_id}:${item.item_number}`] || [];
 
       const total = item.total_responses || 1;
       itemAnalysis.push({
         itemNumber: item.item_number,
+        set: item.set_label || null,
+        stem: item.stem || null,
+        type: item.qtype || null,
+        bloom: item.bloom || null,
         correctAnswer: item.correct_answer,
         totalResponses: item.total_responses,
         correctCount: item.correct_count,

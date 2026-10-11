@@ -157,7 +157,7 @@ export default function ExamsPage() {
   }
 
   async function handleDelete(exam) {
-    if (!(await confirm(`Delete exam "${exam.title}"? This cannot be undone.`, { title: 'Delete exam' }))) return;
+    if (!(await confirm(`Delete exam "${exam.title}"? Its sets, question links, and any scanned results are removed too — this cannot be undone.`, { title: 'Delete exam' }))) return;
     try { await api.del(`/exams/${exam.id}`); toast.success('Exam deleted.'); load(); }
     catch (err) { toast.error(err instanceof ApiError ? err.message : 'Delete failed.'); }
   }

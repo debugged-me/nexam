@@ -101,6 +101,9 @@
   .dash-focus-body > p { color: var(--ink-3); font-size: .74rem; line-height: 1.7; margin: 8px 0 14px; }
   .dash-focus-drafts { margin: -4px -8px 14px; }
   .dash-focus-drafts .dash-row { padding: 10px 8px; border-radius: 8px; }
+  .dash-next-more { border-top: 1px solid var(--line); padding: 4px 10px; }
+  .dash-next-more .dash-row strong { font-weight: 500; font-size: .8rem; }
+  .dash-next-more .dash-row small { color: var(--ink-faint); font-size: .68rem; }
   .dash-focus-body .btn { font-size: .75rem; min-height: 35px; padding-inline: 12px; gap: 10px; }
 
   /* ---- Exam list -------------------------------------------------------------------- */

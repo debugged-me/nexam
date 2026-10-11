@@ -109,23 +109,16 @@ export default function TosPage() {
     const total = BLOOM_ORDER.reduce((s, k) => s + (Number(editing.bloom_weights?.[k]) || 0), 0);
     if (total !== 100) { toast.error(`Bloom weights must total 100% (currently ${total}%).`); return; }
 
-    // Warn — don't block — when this looks like a duplicate of an existing
-    // blueprint (same subject + same normalized title, or the subject
-    // already has a blueprint at all).
+    // Multiple blueprints per subject are the normal workflow (PRELIM,
+    // MIDTERM, FINAL…) — only warn on a true duplicate: same title.
     if (!editing.id && tosList) {
       const norm = (s) => String(s || '').trim().toLowerCase().replace(/\s+/g, ' ');
-      const sameSubject = tosList.filter((t) => String(t.subject_id) === String(editing.subject_id));
-      const exact = sameSubject.find((t) => norm(t.title) === norm(editing.title));
+      const exact = tosList.find((t) =>
+        String(t.subject_id) === String(editing.subject_id) && norm(t.title) === norm(editing.title));
       if (exact) {
         const proceed = await confirm(
           `A blueprint titled "${exact.title}" already exists for this subject. Create a duplicate anyway?`,
           { title: 'Duplicate blueprint', confirmText: 'Create anyway', danger: false }
-        );
-        if (!proceed) return;
-      } else if (sameSubject.length) {
-        const proceed = await confirm(
-          `This subject already has ${sameSubject.length} blueprint${sameSubject.length === 1 ? '' : 's'} (${sameSubject[0].title}). Create another?`,
-          { title: 'Subject already has a blueprint', confirmText: 'Create anyway', danger: false }
         );
         if (!proceed) return;
       }

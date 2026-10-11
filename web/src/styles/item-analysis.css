@@ -86,31 +86,96 @@
   text-shadow: 0 0 2px rgba(255, 255, 255, 0.8);
 }
 
-/* ── Answer distribution chips ────────────────────── */
-.answer-dist {
-  display: flex;
-  gap: 0.25rem;
-  flex-wrap: wrap;
-}
+/* ── Question performance table ───────────────────── */
+.ia-table { table-layout: fixed; }
+.ia-table .ia-col-num    { width: 64px; }
+.ia-table .ia-col-rate   { width: 160px; }
+.ia-table .ia-col-stat   { width: 110px; }
+.ia-table th { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
-.answer-dist-item {
-  display: inline-flex;
-  flex-direction: column;
-  align-items: center;
-  padding: 0.2rem 0.4rem;
-  background: var(--surface-2, #F1F0F5);
-  border-radius: var(--radius-xs);
-  min-width: 32px;
-}
+/* Rows open the detail modal — pointer + hover affordance. */
+.ia-row { cursor: pointer; }
+.ia-row:hover { background: var(--surface-2, #F1F0F5); }
+.ia-row td { vertical-align: middle; }
 
-.answer-dist-letter {
-  font: 600 0.7rem var(--font-display, sans-serif);
+/* Item number + set badge stacked in one slim cell. */
+.ia-itemnum { display: block; font-weight: 600; color: var(--ink-3, #6F6E69); margin-bottom: 3px; }
+
+.ia-stem {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  font: 500 .84rem/1.45 var(--font-body, "Inter", sans-serif);
   color: var(--ink);
+  overflow-wrap: break-word;
+}
+.ia-tags { display: flex; align-items: center; gap: 6px; margin-top: 4px; }
+.ia-tags .badge { font-size: .66rem; }
+
+/* Rate bar + difficulty share one cell. */
+.ia-perf { display: flex; flex-direction: column; gap: 5px; align-items: flex-start; }
+
+.ia-respcell { text-align: right; }
+.ia-resp { display: block; font-weight: 600; color: var(--ink); }
+.ia-amb { display: block; font-size: .7rem; }
+
+/* ── Item detail modal ─────────────────────────────── */
+.ia-detail { display: flex; flex-direction: column; gap: 14px; }
+.ia-detail-stem {
+  font: 500 .95rem/1.55 var(--font-body, "Inter", sans-serif);
+  color: var(--ink);
+  margin: 0;
+}
+.ia-detail-label {
+  display: block;
+  font: 600 .72rem/1.3 var(--font-body, "Inter", sans-serif);
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  color: var(--ink-3, var(--muted));
+  margin-bottom: 6px;
+}
+.ia-detail-answer .badge { font-size: .82rem; }
+
+.ia-dist-list { display: flex; flex-direction: column; gap: 6px; }
+.ia-dist-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 110px 64px;
+  align-items: center;
+  gap: 10px;
+}
+.ia-dist-answer {
+  font: 500 .82rem/1.35 var(--font-body, "Inter", sans-serif);
+  color: var(--ink);
+  overflow-wrap: break-word;
+}
+.ia-dist-answer.is-correct { color: var(--green-700, #1c7c46); font-weight: 700; }
+.ia-dist-answer.is-correct::after { content: " ✓"; }
+.ia-dist-bar {
+  height: 8px;
+  background: var(--surface-2, #F1F0F5);
+  border-radius: 999px;
+  overflow: hidden;
+}
+.ia-dist-fill {
+  display: block;
+  height: 100%;
+  background: var(--ink-3, #6F6E69);
+  border-radius: 999px;
+}
+.ia-dist-count { font-size: .78rem; text-align: right; font-variant-numeric: tabular-nums; }
+
+.ia-detail-stats {
+  display: flex;
+  gap: 16px;
+  padding-top: 10px;
+  border-top: 1px solid var(--line, #e2e7ee);
+  font-size: .8rem;
+  color: var(--ink-3, var(--muted));
 }
 
-.answer-dist-count {
-  font: 400 0.65rem var(--font-body, sans-serif);
-  color: var(--ink-3, #6F6E69);
+@media (max-width: 600px) {
+  .ia-dist-row { grid-template-columns: minmax(0, 1fr) 70px 56px; }
 }
 
 /* ── Badge colors for difficulty ───────────────────── */

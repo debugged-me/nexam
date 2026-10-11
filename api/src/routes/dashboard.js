@@ -198,6 +198,69 @@ router.get('/', requireAuth, async (req, res, next) => {
       { uid: userId }
     );
 
+    // ── Signals for the "Next up" queue ─────────────
+    // Scanned sheets flagged for review — graded results stay provisional
+    // until someone confirms them, so these lead the queue.
+    const [pendingScans] = await pool.query(
+      `SELECT e.id AS exam_id, e.title AS exam_title, COUNT(*) AS n
+       FROM scan_results sr
+       JOIN exams e ON e.id = sr.exam_id
+       WHERE e.created_by = :uid AND sr.needs_review = 1
+       GROUP BY e.id, e.title
+       ORDER BY n DESC, e.title ASC`,
+      { uid: userId }
+    );
+
+    // Named blueprint gaps — finalized TOS whose banked (linked, live)
+    // question count is short of its item target. Same linkage rules the
+    // generation worker uses to compute coverage.
+    const [gapTos] = await pool.query(
+      `SELECT t.id, t.title, t.total_items,
+         COALESCE(banked.n, 0) AS banked
+       FROM tos t
+       JOIN subjects s ON s.id = t.subject_id
+       LEFT JOIN (
+         SELECT links.tos_id, COUNT(DISTINCT links.question_id) AS n
+         FROM (
+           SELECT q.id AS question_id, q.tos_id AS tos_id FROM questions q
+           WHERE q.created_by = :uid AND q.tos_id IS NOT NULL
+             AND q.status <> 'rejected'
+             AND (q.similarity_flag IS NULL OR q.similarity_flag <> 'rejected')
+           UNION
+           SELECT qt.question_id, qt.tos_id FROM question_tos qt
+           JOIN questions q ON q.id = qt.question_id
+           WHERE q.created_by = :uid
+             AND q.status <> 'rejected'
+             AND (q.similarity_flag IS NULL OR q.similarity_flag <> 'rejected')
+         ) links
+         GROUP BY links.tos_id
+       ) banked ON banked.tos_id = t.id
+       WHERE s.instructor_id = :uid AND t.status = 'finalized'
+       HAVING banked < t.total_items
+       ORDER BY (t.total_items - banked) DESC, t.title ASC
+       LIMIT 3`,
+      { uid: userId }
+    );
+
+    // Draft exams that already have questions — assembled and ready to publish.
+    const [readyExams] = await pool.query(
+      `SELECT e.id, e.title, COUNT(eq.question_id) AS items
+       FROM exams e
+       JOIN exam_questions eq ON eq.exam_id = e.id
+       WHERE e.created_by = :uid AND e.status = 'draft'
+       GROUP BY e.id, e.title
+       ORDER BY e.created_at DESC
+       LIMIT 2`,
+      { uid: userId }
+    );
+
+    // Background work still in flight (informational — the jobs badge carries it).
+    const [[jobRow]] = await pool.query(
+      `SELECT COUNT(*) AS n FROM ai_jobs
+       WHERE user_id = :uid AND status IN ('queued', 'running')`,
+      { uid: userId }
+    );
+
     // ── Daily activity series ────────────────────────
     const from = new Date(now.getTime() - (HISTORY_DAYS - 1) * 86400000);
     const [qDaily] = await pool.query(
@@ -231,6 +294,12 @@ router.get('/', requireAuth, async (req, res, next) => {
       bloomCovered: Object.values(bloom).filter(Boolean).length,
       bank, examStatus, blueprint,
       recentSubjects, recentExams, recentDrafts, series,
+      signals: {
+        pendingScans,
+        gapTos,
+        readyExams,
+        runningJobs: jobRow?.n || 0,
+      },
     });
   } catch (err) {
     next(err);

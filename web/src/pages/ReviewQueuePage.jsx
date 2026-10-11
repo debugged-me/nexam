@@ -448,8 +448,11 @@ export default function ReviewQueuePage() {
     setBusy(true);
     try {
       const res = await api.post('/questions/bulk-approve', { ids: approvableIds });
-      const approvedIds = Array.isArray(res?.approvedIds) ? res.approvedIds : approvableIds;
-      const count = typeof res?.approved === 'number' ? res.approved : approvedIds.length;
+      const count = typeof res?.approved === 'number' ? res.approved : approvableIds.length;
+      // Only mark ids the server actually approved — when it returns none
+      // (all were already active), blindly marking the whole set is what made
+      // the banner claim "14 approved" on a no-op click.
+      const approvedIds = Array.isArray(res?.approvedIds) ? res.approvedIds : (count > 0 ? approvableIds : []);
       setDecisions((d) => {
         const next = { ...d };
         for (const id of approvedIds) next[id] = 'approved';
@@ -459,7 +462,14 @@ export default function ReviewQueuePage() {
       // rather than left pointing at a decision that is no longer the last one.
       setLastAction(null);
       setEditing(null);
-      toastRef.current.success(`${count} question${count === 1 ? '' : 's'} approved.`);
+      if (count === 0) {
+        // The ids went out already-approved (e.g. a second click after the
+        // queue cleared) — say so, then resync the queue to server truth.
+        toastRef.current.info('Already approved — nothing left to do.');
+        reload();
+      } else {
+        toastRef.current.success(`${count} question${count === 1 ? '' : 's'} approved.`);
+      }
     } catch (err) {
       toastRef.current.error(err instanceof ApiError ? err.message : 'Could not approve the remaining drafts.');
     } finally {

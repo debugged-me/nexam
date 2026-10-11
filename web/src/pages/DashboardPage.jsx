@@ -182,45 +182,120 @@ export default function DashboardPage() {
   ];
   const completed = guideSteps.filter((step) => step.done).length;
   const nextStep = guideSteps.find((step) => !step.done);
-  const focus = drafts
-    ? {
-        label: 'Ready for your review',
-        headline: `${drafts.toLocaleString()} draft${drafts === 1 ? '' : 's'} waiting on you.`,
-        copy: 'Check their evidence, then approve the ones that belong.',
-        cta: 'Review drafts',
-        to: '/questions/review',
-      }
-    : examDrafts
-      ? {
-          label: 'Exams in progress',
-          headline: `${examDrafts} exam${examDrafts === 1 ? '' : 's'} still in draft.`,
-          copy: 'Pick one back up and finish assembling your sets.',
-          cta: 'Open exams',
-          to: '/exams',
-        }
-      : shortfall
-        ? {
-            label: 'Blueprint capacity',
-            headline: `${shortfall} item${shortfall === 1 ? '' : 's'} short of your plans.`,
-            copy: 'Your blueprints ask for more questions than the bank holds.',
-            cta: 'Generate questions',
-            to: '/wizard',
-          }
-        : nextStep
-          ? {
-              label: 'Getting started',
-              headline: `Next up: ${nextStep.label.toLowerCase()}.`,
-              copy: `${nextStep.hint}.`,
-              cta: nextStep.label,
-              to: nextStep.to,
-            }
-          : {
-              label: 'All caught up',
-              headline: 'Nothing needs you right now.',
-              copy: 'Every question is reviewed and every exam is published.',
-              cta: 'Browse the bank',
-              to: '/questions',
-            };
+
+  // ── "Next up" queue — prioritized signals from /dashboard.signals ──
+  // Ordered by what blocks the most: unconfirmed scans → unreviewed drafts →
+  // named blueprint gaps → publish-ready exams → generic pipeline → onboarding.
+  const sig = data.signals || {};
+  const pendingScans = sig.pendingScans || [];
+  const scanReviewCount = pendingScans.reduce((a, r) => a + count(r.n), 0);
+  const gapTos = sig.gapTos || [];
+  const readyExams = sig.readyExams || [];
+  const runningJobs = count(sig.runningJobs);
+
+  const queue = [];
+  if (scanReviewCount) {
+    queue.push({
+      key: 'scans',
+      label: 'Scans to verify',
+      tone: 'has-drafts',
+      headline: `${scanReviewCount} scanned sheet${scanReviewCount === 1 ? '' : 's'} need${scanReviewCount === 1 ? 's' : ''} your review.`,
+      copy: `${pendingScans[0]?.exam_title ? `Starting with ${pendingScans[0].exam_title} — ` : ''}results stay provisional until each flagged item is confirmed.`,
+      cta: 'Review scans',
+      to: '/analytics',
+      draftsPreview: false,
+    });
+  }
+  if (drafts) {
+    queue.push({
+      key: 'drafts',
+      label: 'Ready for your review',
+      tone: 'has-drafts',
+      headline: `${drafts.toLocaleString()} draft${drafts === 1 ? '' : 's'} waiting on you.`,
+      copy: 'Check their evidence, then approve the ones that belong.',
+      cta: 'Review drafts',
+      to: '/questions/review',
+      draftsPreview: true,
+    });
+  }
+  for (const g of gapTos) {
+    const deficit = Math.max(0, count(g.total_items) - count(g.banked));
+    if (!deficit) continue;
+    queue.push({
+      key: `gap-${g.id}`,
+      label: 'Blueprint gap',
+      tone: '',
+      headline: `“${g.title}” is ${deficit} item${deficit === 1 ? '' : 's'} short.`,
+      copy: `${count(g.banked)} of ${count(g.total_items)} banked — generate the deficit or reuse from your bank.`,
+      cta: 'Open blueprint',
+      to: `/tos/${g.id}`,
+      draftsPreview: false,
+    });
+  }
+  for (const e of readyExams) {
+    queue.push({
+      key: `ready-${e.id}`,
+      label: 'Ready to publish',
+      tone: '',
+      headline: `“${e.title}” is assembled.`,
+      copy: `${count(e.items)} items attached — publish it, then print your sets.`,
+      cta: 'Open exam',
+      to: `/exams/${e.id}`,
+      draftsPreview: false,
+    });
+  }
+  if (examDrafts) {
+    queue.push({
+      key: 'exam-drafts',
+      label: 'Exams in progress',
+      tone: '',
+      headline: `${examDrafts} exam${examDrafts === 1 ? '' : 's'} still in draft.`,
+      copy: 'Pick one back up and finish assembling your sets.',
+      cta: 'Open exams',
+      to: '/exams',
+      draftsPreview: false,
+    });
+  }
+  if (shortfall) {
+    queue.push({
+      key: 'shortfall',
+      label: 'Blueprint capacity',
+      tone: '',
+      headline: `${shortfall} item${shortfall === 1 ? '' : 's'} short of your plans.`,
+      copy: 'Your blueprints ask for more questions than the bank holds.',
+      cta: 'Generate questions',
+      to: '/wizard',
+      draftsPreview: false,
+    });
+  }
+  if (nextStep) {
+    queue.push({
+      key: 'next-step',
+      label: 'Getting started',
+      tone: '',
+      headline: `Next up: ${nextStep.label.toLowerCase()}.`,
+      copy: `${nextStep.hint}.`,
+      cta: nextStep.label,
+      to: nextStep.to,
+      draftsPreview: false,
+    });
+  }
+  if (!queue.length) {
+    queue.push({
+      key: 'clear',
+      label: 'All caught up',
+      tone: '',
+      headline: 'Nothing needs you right now.',
+      copy: runningJobs
+        ? `Every question is reviewed — ${runningJobs} AI job${runningJobs === 1 ? ' is' : 's are'} still running in the background.`
+        : 'Every question is reviewed and every exam is published.',
+      cta: 'Browse the bank',
+      to: '/questions',
+      draftsPreview: false,
+    });
+  }
+  const focus = queue[0];
+  const alsoQueued = queue.slice(1, 4);
   const actions = [
     { label: 'Build an exam', hint: 'Guided, start to finish', to: '/wizard', icon: Sparkles, tint: 2 },
     { label: 'Add materials', hint: 'Upload course notes', to: '/materials?upload=1', icon: FolderOpen, tint: 3 },
@@ -454,14 +529,17 @@ export default function DashboardPage() {
             <section className="dash-card" aria-labelledby="dash-focus-title" data-tour="dash-focus">
               <header className="dash-card-head">
                 <h2 id="dash-focus-title">Next up</h2>
+                {queue.length > 1 && (
+                  <span className="dash-text-link">{queue.length} things</span>
+                )}
               </header>
               <div className="dash-focus-body">
-                <span className={`dash-focus-label ${drafts ? 'has-drafts' : ''}`}>
+                <span className={`dash-focus-label ${focus.tone}`}>
                   {focus.label}
                 </span>
                 <h3>{focus.headline}</h3>
                 <p>{focus.copy}</p>
-                {drafts > 0 && recentDrafts.length > 0 && (
+                {focus.draftsPreview && recentDrafts.length > 0 && (
                   <div className="dash-focus-drafts">
                     {recentDrafts.map((q) => (
                       <Link key={q.id} to="/questions/review" className="dash-row">
@@ -488,6 +566,23 @@ export default function DashboardPage() {
                   <ArrowRight size={15} />
                 </Link>
               </div>
+              {alsoQueued.length > 0 && (
+                <div className="dash-next-more">
+                  {alsoQueued.map((item) => (
+                    <Link key={item.key} to={item.to} className="dash-row">
+                      <span className="dash-row-label">
+                        <span>
+                          <strong>{item.headline}</strong>
+                          <small>{item.label}</small>
+                        </span>
+                      </span>
+                      <span className="dash-row-value">
+                        <ChevronRight size={14} />
+                      </span>
+                    </Link>
+                  ))}
+                </div>
+              )}
             </section>
 
             <section className="dash-card" aria-labelledby="dash-actions-title" data-tour="dash-actions">

@@ -15,6 +15,7 @@ import aiProvider from '../services/aiProvider.js';
 import jobs from '../services/jobs.js';
 import pool from '../config/db.js';
 import { requireAuth } from '../middleware/auth.js';
+import { rateLimit } from '../middleware/rateLimit.js';
 
 const router = Router();
 
@@ -90,9 +91,37 @@ router.post('/jobs/:id/cancel', requireAuth, async (req, res, next) => {
 });
 
 /** POST /api/ai/syllabus-tos — enqueue syllabus→TOS auto-generation. */
-router.post('/syllabus-tos', requireAuth, async (req, res, next) => {
+router.post('/syllabus-tos', requireAuth, rateLimit({ name: 'ai-syllabus', max: 6, windowSec: 300 }), async (req, res, next) => {
   try {
-    const { materialId } = req.body;
+    let { materialId, tosId } = req.body;
+
+    // When tosId is given, extracted topics fill that draft blueprint instead
+    // of creating a new one. Verify ownership + draft state + same subject.
+    let tos = null;
+    if (tosId) {
+      const [tosRows] = await pool.query(
+        `SELECT t.id, t.subject_id, t.status FROM tos t
+         JOIN subjects s ON s.id = t.subject_id
+         WHERE t.id = :id AND s.instructor_id = :uid`,
+        { id: tosId, uid: req.user.id }
+      );
+      if (!tosRows.length) return res.status(404).json({ error: 'TOS not found.' });
+      tos = tosRows[0];
+      if (tos.status === 'finalized') {
+        return res.status(409).json({ error: 'This TOS is finalized and locked.' });
+      }
+    }
+
+    // No materialId? Default to the subject's most recent processed syllabus.
+    if (!materialId && tos) {
+      const [mrows] = await pool.query(
+        `SELECT id FROM materials
+         WHERE subject_id = :sid AND created_by = :uid AND is_syllabus = 1 AND status = 'processed'
+         ORDER BY created_at DESC LIMIT 1`,
+        { sid: tos.subject_id, uid: req.user.id }
+      );
+      materialId = mrows[0]?.id || null;
+    }
     if (!materialId) return res.status(400).json({ error: 'materialId is required.' });
 
     // Ownership check — the material must belong to the user.
@@ -104,10 +133,13 @@ router.post('/syllabus-tos', requireAuth, async (req, res, next) => {
     const m = rows[0];
     if (!m.is_syllabus) return res.status(400).json({ error: 'This material is not marked as a syllabus.' });
     if (m.status !== 'processed') return res.status(400).json({ error: `Syllabus must be processed first (current: ${m.status}).` });
+    if (tos && m.subject_id !== tos.subject_id) {
+      return res.status(422).json({ error: 'The syllabus belongs to a different subject than this blueprint.' });
+    }
 
     const jobId = await jobs.enqueue({
       type: 'syllabus_tos',
-      payload: { materialId, userId: req.user.id },
+      payload: { materialId, userId: req.user.id, tosId: tos?.id || null },
       userId: req.user.id,
       subjectId: m.subject_id,
     });
@@ -119,7 +151,7 @@ router.post('/syllabus-tos', requireAuth, async (req, res, next) => {
 });
 
 /** POST /api/ai/generate-questions — enqueue RAG question generation (Phase 4). */
-router.post('/generate-questions', requireAuth, async (req, res, next) => {
+router.post('/generate-questions', requireAuth, rateLimit({ name: 'ai-generate', max: 10, windowSec: 300 }), async (req, res, next) => {
   try {
     const { tosId } = req.body;
     if (!tosId) return res.status(400).json({ error: 'tosId is required.' });

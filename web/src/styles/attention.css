@@ -1,0 +1,81 @@
+/* AttentionPage: independent content layout and styles. */
+@scope (.page--attention) {
+
+.attn-header { gap: 10px; }
+.attn-header-right {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-left: auto;
+}
+.attn-filter {
+    width: auto;
+    min-width: 180px;
+    max-width: 260px;
+    min-height: 36px;
+    padding: 5px 10px;
+    font-size: .8rem;
+}
+
+/* Fixed layout keeps long stems from stretching rows into towers. */
+.attn-table { table-layout: fixed; }
+.attn-table .attn-w-type  { width: 62px; }
+.attn-table .attn-w-exam  { width: 15%; }
+.attn-table .attn-w-topic { width: 16%; }
+.attn-table .attn-w-bloom { width: 9%; }
+.attn-table .attn-w-num   { width: 80px; }
+.attn-table .attn-w-act   { width: 48px; }
+
+/* Rows navigate on click — pointer + hover affordance. */
+.attn-row { cursor: pointer; }
+.attn-row:hover { background: var(--surface-2, #f6f8fa); }
+.attn-row td { vertical-align: middle; }
+
+.attn-stem {
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    font: 500 .84rem/1.4 var(--font-body, "Inter", sans-serif);
+    color: var(--ink);
+    overflow-wrap: break-word;
+}
+.attn-sub {
+    display: block;
+    font-size: .72rem;
+    color: var(--ink-3, var(--muted));
+}
+.attn-exam {
+    display: block;
+    font-size: .82rem;
+    color: var(--ink);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.attn-col-num { text-align: right; white-space: nowrap; }
+.attn-col-act { text-align: right; }
+.attn-col-type,
+.attn-col-topic,
+.attn-col-bloom { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+.attn-pager {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 10px 14px;
+    border-top: 1px solid var(--line, #e2e7ee);
+}
+.attn-pager-btns { display: flex; align-items: center; gap: 4px; }
+
+@media (max-width: 768px) {
+    .attn-col-topic,
+    .attn-col-bloom,
+    .attn-col-type { display: none; }
+    .attn-filter { min-width: 120px; flex: 1; }
+    .attn-header-right { flex: 1; justify-content: flex-end; }
+}
+
+}

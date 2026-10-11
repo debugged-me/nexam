@@ -36,6 +36,7 @@ import AvatarPickerModal from './AvatarPickerModal.jsx';
 import SidebarLink from './SidebarLink.jsx';
 
 function activeFor(pathname) {
+  if (pathname.startsWith('/analytics/attention')) return 'attention';
   if (pathname.startsWith('/questions/institution')) return 'institution';
   if (pathname.startsWith('/questions/review')) return 'review';
   if (pathname.startsWith('/questions')) return 'questions';

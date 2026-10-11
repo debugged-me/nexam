@@ -58,11 +58,40 @@ function ContextMenuPanel({ x, y, items, onClose }) {
   const ref = useRef(null);
 
   useEffect(() => {
+    const previouslyFocused = document.activeElement;
+
+    function itemButtons() {
+      return [...(ref.current?.querySelectorAll('.ctx-menu__item:not([disabled])') || [])];
+    }
+    function focusItem(index) {
+      const btns = itemButtons();
+      if (btns.length) btns[Math.max(0, Math.min(index, btns.length - 1))].focus();
+    }
+
+    // Keyboard users land on the first item; arrows cycle, Escape closes.
+    focusItem(0);
+
     function onDown(e) {
       if (ref.current && !ref.current.contains(e.target)) onClose();
     }
     function onKey(e) {
-      if (e.key === 'Escape') onClose();
+      if (e.key === 'Escape') { onClose(); return; }
+      const btns = itemButtons();
+      if (!btns.length) return;
+      const cur = btns.indexOf(document.activeElement);
+      if (e.key === 'ArrowDown' || (e.key === 'Tab' && !e.shiftKey)) {
+        e.preventDefault();
+        btns[(cur + 1) % btns.length].focus();
+      } else if (e.key === 'ArrowUp' || (e.key === 'Tab' && e.shiftKey)) {
+        e.preventDefault();
+        btns[(cur - 1 + btns.length) % btns.length].focus();
+      } else if (e.key === 'Home') {
+        e.preventDefault();
+        btns[0].focus();
+      } else if (e.key === 'End') {
+        e.preventDefault();
+        btns[btns.length - 1].focus();
+      }
     }
     function onScrollOrResize() { onClose(); }
     document.addEventListener('mousedown', onDown);
@@ -74,6 +103,7 @@ function ContextMenuPanel({ x, y, items, onClose }) {
       document.removeEventListener('keydown', onKey);
       window.removeEventListener('scroll', onScrollOrResize, true);
       window.removeEventListener('resize', onScrollOrResize);
+      previouslyFocused?.focus?.();
     };
   }, [onClose]);
 

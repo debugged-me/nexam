@@ -483,4 +483,85 @@ router.put('/settings', requireSuperadmin, async (req, res, next) => {
   }
 });
 
+// ── Reports ──────────────────────────────────────────
+
+/**
+ * GET /reports/usage — institution-wide usage report for the superadmin.
+ * Feeds the printable/exportable Reports view: account and content totals,
+ * per-instructor activity, question mix, and six months of activity.
+ */
+router.get('/reports/usage', requireSuperadmin, async (req, res, next) => {
+  try {
+    const [[totals]] = await pool.query(
+      `SELECT
+         (SELECT COUNT(*) FROM users WHERE role = 'instructor') AS instructors,
+         (SELECT COUNT(*) FROM users WHERE role = 'instructor' AND status = 'active') AS active_instructors,
+         (SELECT COUNT(*) FROM users WHERE role = 'instructor' AND status = 'pending') AS pending_instructors,
+         (SELECT COUNT(*) FROM subjects) AS subjects,
+         (SELECT COUNT(*) FROM questions) AS questions,
+         (SELECT COUNT(*) FROM questions WHERE status = 'active') AS approved_questions,
+         (SELECT COUNT(*) FROM questions WHERE status = 'draft') AS draft_questions,
+         (SELECT COUNT(*) FROM questions WHERE status = 'rejected') AS rejected_questions,
+         (SELECT COUNT(*) FROM tos) AS blueprints,
+         (SELECT COUNT(*) FROM tos WHERE status = 'finalized') AS finalized_blueprints,
+         (SELECT COUNT(*) FROM materials) AS materials,
+         (SELECT COUNT(*) FROM exams) AS exams,
+         (SELECT COUNT(*) FROM exams WHERE status = 'published') AS published_exams,
+         (SELECT COUNT(*) FROM scan_results) AS scans,
+         (SELECT COUNT(*) FROM students) AS students,
+         (SELECT COUNT(*) FROM ai_jobs) AS ai_jobs,
+         (SELECT COUNT(*) FROM ai_jobs WHERE status = 'failed') AS failed_jobs`
+    );
+
+    const [instructorActivity] = await pool.query(
+      `SELECT
+         u.id, u.full_name, u.email, u.status, u.created_at,
+         (SELECT COUNT(*) FROM subjects s WHERE s.instructor_id = u.id) AS subjects,
+         (SELECT COUNT(*) FROM questions q JOIN subjects s ON s.id = q.subject_id WHERE s.instructor_id = u.id) AS questions,
+         (SELECT COUNT(*) FROM exams e JOIN subjects s ON s.id = e.subject_id WHERE s.instructor_id = u.id) AS exams,
+         (SELECT COUNT(*) FROM scan_results sr
+            JOIN exams e ON e.id = sr.exam_id
+            JOIN subjects s ON s.id = e.subject_id
+            WHERE s.instructor_id = u.id) AS scans
+       FROM users u
+       WHERE u.role = 'instructor'
+       ORDER BY questions DESC, u.created_at ASC`
+    );
+
+    const [bloomMix] = await pool.query(
+      `SELECT bloom, COUNT(*) AS n FROM questions GROUP BY bloom ORDER BY n DESC`
+    );
+    const [typeMix] = await pool.query(
+      `SELECT type, COUNT(*) AS n FROM questions GROUP BY type ORDER BY n DESC`
+    );
+
+    const [scanTrend] = await pool.query(
+      `SELECT DATE_FORMAT(scanned_at, '%Y-%m') AS month, COUNT(*) AS n
+       FROM scan_results GROUP BY month ORDER BY month DESC LIMIT 6`
+    );
+    const [loginTrend] = await pool.query(
+      `SELECT DATE_FORMAT(created_at, '%Y-%m') AS month, COUNT(*) AS n,
+              SUM(success = 1) AS succeeded
+       FROM login_logs GROUP BY month ORDER BY month DESC LIMIT 6`
+    );
+    const [jobMix] = await pool.query(
+      `SELECT type AS kind, COUNT(*) AS n, SUM(status = 'failed') AS failed
+       FROM ai_jobs GROUP BY type ORDER BY n DESC`
+    );
+
+    res.json({
+      generatedAt: new Date().toISOString(),
+      totals,
+      instructorActivity,
+      bloomMix,
+      typeMix,
+      scanTrend,
+      loginTrend,
+      jobMix,
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
 export default router;

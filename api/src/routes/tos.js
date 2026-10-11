@@ -17,6 +17,7 @@ import { Router } from 'express';
 import { v4 as uuid } from 'uuid';
 import { requireAuth } from '../middleware/auth.js';
 import pool from '../config/db.js';
+import { recalcTopicItemCounts } from '../services/tosTopics.js';
 
 const router = Router();
 router.use(requireAuth);
@@ -42,55 +43,8 @@ async function getOwned(id, userId) {
   return rows[0] || null;
 }
 
-/**
- * Recalculate tos_topics.item_count from instructional_hours —
- * item allocation is proportional to hours (largest remainder so the
- * counts sum exactly to tos.total_items). Runs after any topic
- * add/update/delete or total_items change.
- */
-async function recalcTopicItemCounts(tosId) {
-  const [tosRows] = await pool.query(
-    `SELECT total_items FROM tos WHERE id = :id`, { id: tosId }
-  );
-  if (!tosRows.length) return;
-  const totalItems = Number(tosRows[0].total_items) || 0;
-
-  const [topics] = await pool.query(
-    `SELECT id, instructional_hours FROM tos_topics WHERE tos_id = :id ORDER BY sort_order ASC`,
-    { id: tosId }
-  );
-  if (!topics.length) return;
-
-  // Clamp at 0 so a stray negative hour can never produce a negative item_count.
-  const hoursOf = (t) => Math.max(0, Number(t.instructional_hours) || 0);
-  const totalHours = topics.reduce((s, t) => s + hoursOf(t), 0);
-  const counts = {};
-  const remainders = [];
-  let allocated = 0;
-
-  for (const t of topics) {
-    // No hours recorded yet (every topic defaults to 0) — an even split beats a divide-by-zero NaN.
-    const share = totalHours > 0 ? hoursOf(t) / totalHours : 1 / topics.length;
-    const exact = share * totalItems;
-    const whole = Math.floor(exact);
-    counts[t.id] = whole;
-    remainders.push({ id: t.id, remainder: exact - whole });
-    allocated += whole;
-  }
-  remainders.sort((a, b) => b.remainder - a.remainder);
-  for (const { id } of remainders) {
-    if (allocated >= totalItems) break;
-    counts[id]++;
-    allocated++;
-  }
-
-  for (const t of topics) {
-    await pool.query(
-      `UPDATE tos_topics SET item_count = :n WHERE id = :id`,
-      { n: counts[t.id], id: t.id }
-    );
-  }
-}
+// recalcTopicItemCounts moved to services/tosTopics.js (imported above) so
+// worker handlers can share it without a routes↔worker circular import.
 
 /**
  * Parse instructional hours strictly. `Number(x) || 0` silently coerced 'abc'
@@ -272,6 +226,69 @@ router.get('/:id', async (req, res, next) => {
     }
 
     res.json({ tos, topics, coverage });
+  } catch (err) { next(err); }
+});
+
+// ── Topic suggestions ────────────────────────────────
+// Topics the instructor already has — from the subject's question bank and
+// from sibling blueprints (the PRELIM blueprint's topics reuse well for
+// MIDTERM). One-click fills the topics table; hours default to 3.
+router.get('/:id/topic-suggestions', async (req, res, next) => {
+  try {
+    const tos = await getOwned(req.params.id, req.user.id);
+    if (!tos) return res.status(404).json({ error: 'TOS not found.' });
+
+    const [existing] = await pool.query(
+      `SELECT LOWER(TRIM(title)) AS t FROM tos_topics WHERE tos_id = :id`, { id: tos.id }
+    );
+    const taken = new Set(existing.map((r) => r.t));
+
+    // Bank-derived: topics this subject's questions already use, with counts.
+    const [bankRows] = await pool.query(
+      `SELECT q.topic AS title, COUNT(*) AS question_count
+       FROM questions q
+       WHERE q.subject_id = :sid AND q.created_by = :uid
+         AND q.topic IS NOT NULL AND q.topic != ''
+       GROUP BY q.topic ORDER BY question_count DESC LIMIT 30`,
+      { sid: tos.subject_id, uid: req.user.id }
+    );
+    const bank = bankRows
+      .filter((r) => !taken.has(String(r.title).trim().toLowerCase()))
+      .map((r) => ({ title: r.title, question_count: Number(r.question_count) }));
+
+    // Blueprint-derived: topics from other TOS in the same subject, copied
+    // with their hours + outcomes intact.
+    const [sibRows] = await pool.query(
+      `SELECT tt.title, tt.instructional_hours, tt.learning_outcomes, t.title AS blueprint_title
+       FROM tos_topics tt JOIN tos t ON t.id = tt.tos_id
+       WHERE t.subject_id = :sid AND t.id != :tid
+       ORDER BY t.created_at DESC, tt.sort_order ASC`,
+      { sid: tos.subject_id, tid: tos.id }
+    );
+    const seen = new Set(taken);
+    const blueprints = [];
+    for (const r of sibRows) {
+      const key = String(r.title).trim().toLowerCase();
+      if (seen.has(key)) continue;
+      seen.add(key);
+      blueprints.push({
+        title: r.title,
+        instructional_hours: Number(r.instructional_hours) || 0,
+        learning_outcomes: r.learning_outcomes,
+        blueprint_title: r.blueprint_title,
+      });
+    }
+
+    // Whether a processed syllabus exists for auto-fill (hides the button
+    // up front instead of failing on click).
+    const [sylRows] = await pool.query(
+      `SELECT id FROM materials
+       WHERE subject_id = :sid AND created_by = :uid AND is_syllabus = 1 AND status = 'processed'
+       ORDER BY created_at DESC LIMIT 1`,
+      { sid: tos.subject_id, uid: req.user.id }
+    );
+
+    res.json({ bank, blueprints, hasSyllabus: sylRows.length > 0 });
   } catch (err) { next(err); }
 });
 

@@ -74,7 +74,16 @@ function circulationError(question) {
 }
 
 async function validateExamAlignment(exam, questions) {
-  if (!exam.tos_id) return { error: 'A finalized TOS blueprint is required.' };
+  // Blank exams (no TOS) have no matrix to satisfy — but every attached item
+  // still must be approved and similarity-cleared before it can circulate.
+  if (!exam.tos_id) {
+    const invalid = questions.flatMap((question) => {
+      const reason = circulationError(question);
+      return reason ? [{ id: question.id, reason }] : [];
+    });
+    if (invalid.length) return { error: 'The exam contains questions that cannot circulate.', invalid };
+    return { tos: null, topics: [], weights: {} };
+  }
   const [tosRows] = await pool.query(`SELECT * FROM tos WHERE id = :id`, { id: exam.tos_id });
   const tos = tosRows[0];
   if (!tos || tos.status !== 'finalized') return { error: 'The linked TOS must be finalized.' };
@@ -110,6 +119,16 @@ async function validateExamAlignment(exam, questions) {
     return { error: error.message };
   }
   return { tos, topics, weights };
+}
+
+/** Download filename slug — 'Demo Midterm — Analytics Seed' → 'Demo_Midterm_Analytics_Seed'. */
+function slugifyTitle(title) {
+  const slug = String(title || '')
+    .normalize('NFKD').replace(/[̀-ͯ]/g, '')
+    .replace(/[^a-zA-Z0-9]+/g, '_')
+    .replace(/^_+|_+$/g, '')
+    .slice(0, 60);
+  return slug || 'exam';
 }
 
 async function loadExamQuestions(examId, tosId) {
@@ -153,7 +172,6 @@ router.post('/', requireAuth, async (req, res, next) => {
     const { title, subject_id, tos_id, format, duration_minutes, instructions, status } = req.body || {};
     if (!title || !String(title).trim()) return res.status(422).json({ error: 'Title is required.' });
     if (!subject_id) return res.status(422).json({ error: 'Subject is required.' });
-    if (!tos_id) return res.status(422).json({ error: 'A finalized TOS blueprint is required to build an exam.' });
     if (format !== undefined && !EXAM_FORMATS.includes(format)) {
       return res.status(422).json({ error: `Format must be one of: ${EXAM_FORMATS.join(', ')}.` });
     }
@@ -190,7 +208,9 @@ router.post('/', requireAuth, async (req, res, next) => {
       }
     }
 
-    const plan = await planQuestionsForTos(tos, req.user.id);
+    // Blueprint exams auto-fill from the plan; blank exams start empty and
+    // the instructor attaches bank questions on the exam page.
+    const plan = tos ? await planQuestionsForTos(tos, req.user.id) : { questions: [], shortages: [] };
     if (plan.shortages.length) {
       return res.status(409).json({
         error: 'Not enough approved, similarity-cleared questions to satisfy every TOS topic and Bloom cell.',
@@ -206,7 +226,7 @@ router.post('/', requireAuth, async (req, res, next) => {
         `INSERT INTO exams (id, subject_id, tos_id, title, format, set_count, duration_minutes, instructions, status, created_by, created_at, updated_at)
          VALUES (:id, :subject_id, :tos_id, :title, :format, 2, :duration_minutes, :instructions, :status, :uid, NOW(), NOW())`,
         {
-          id, subject_id, tos_id, title: String(title).trim(), format: format || 'print',
+          id, subject_id, tos_id: tos_id || null, title: String(title).trim(), format: format || 'print',
           duration_minutes: duration_minutes || null, instructions: instructions || null,
           status: status || 'draft', uid: req.user.id,
         }
@@ -266,13 +286,27 @@ router.get('/:id', requireAuth, async (req, res, next) => {
 
     // Generated sets — the frontend uses this to decide whether to show
     // the Downloads section on load (not only right after generation).
+    // question_ids preserve each set's ordering (Set B is shuffled).
     const [sets] = await pool.query(
-      `SELECT id, set_label, pdf_path, answer_key_path, omr_sheet_path
-       FROM exam_sets WHERE exam_id = :id ORDER BY set_label ASC`,
+      `SELECT es.id, es.set_label, es.pdf_path, es.answer_key_path, es.omr_sheet_path,
+              esq.question_id, esq.sort_order
+       FROM exam_sets es
+       LEFT JOIN exam_set_questions esq ON esq.exam_set_id = es.id
+       WHERE es.exam_id = :id
+       ORDER BY es.set_label ASC, esq.sort_order ASC`,
       { id: exam.id }
     );
+    const setMap = new Map();
+    for (const row of sets) {
+      let s = setMap.get(row.id);
+      if (!s) {
+        s = { id: row.id, set_label: row.set_label, pdf_path: row.pdf_path, answer_key_path: row.answer_key_path, omr_sheet_path: row.omr_sheet_path, question_ids: [] };
+        setMap.set(row.id, s);
+      }
+      if (row.question_id) s.question_ids.push(row.question_id);
+    }
 
-    res.json({ exam, questions, tos, sets });
+    res.json({ exam, questions, tos, sets: [...setMap.values()] });
   } catch (err) { next(err); }
 });
 
@@ -366,15 +400,20 @@ router.post('/:id/questions', requireAuth, async (req, res, next) => {
     );
     if (!validIds.length) return res.status(400).json({ error: 'No valid question IDs.' });
 
+    // Blueprint exams only accept questions linked to that TOS; blank exams
+    // accept any approved item from the subject's bank.
+    const tosClause = exam.tos_id
+      ? `AND (q.tos_id = :tosId OR EXISTS (
+           SELECT 1 FROM question_tos qt WHERE qt.question_id = q.id AND qt.tos_id = :tosId
+         ))`
+      : '';
     const [ownedRows] = await pool.query(
       `SELECT q.id FROM questions q
        WHERE q.id IN (:ids) AND q.created_by = :uid AND q.subject_id = :subjectId
          AND q.status = 'active' AND q.type IN ('mcq','true_false','matching','identification')
          AND q.similarity_checked_at IS NOT NULL AND q.similarity_error IS NULL
          AND q.similarity_flag = 'none'
-         AND (q.tos_id = :tosId OR EXISTS (
-           SELECT 1 FROM question_tos qt WHERE qt.question_id = q.id AND qt.tos_id = :tosId
-         ))`,
+         ${tosClause}`,
       { ids: validIds, uid: req.user.id, subjectId: exam.subject_id, tosId: exam.tos_id }
     );
     const ownedIds = ownedRows.map((r) => r.id);
@@ -621,22 +660,24 @@ router.get('/:id/download/:type', requireAuth, async (req, res, next) => {
     const type = req.params.type; // 'exam', 'answerkey', 'tos-report'
     const setLabel = req.query.set; // 'A', 'B' — required for exam/answerkey
 
-    // Ownership check
+    // Ownership check (title fetched for the friendly download name)
     const [examRows] = await pool.query(
-      `SELECT e.id FROM exams e
+      `SELECT e.id, e.title FROM exams e
        JOIN subjects s ON s.id = e.subject_id
        WHERE e.id = :examId AND s.instructor_id = :userId`,
       { examId, userId: req.user.id }
     );
     if (!examRows.length) return res.status(404).json({ error: 'Exam not found.' });
+    const slug = slugifyTitle(examRows[0].title);
 
-    let filename;
+    let filename, downloadName;
     if (type === 'tos-report') {
       const [sets] = await pool.query(`SELECT COUNT(*) AS cnt FROM exam_sets WHERE exam_id = :examId`, { examId });
       if (Number(sets[0].cnt) !== 2) {
         return res.status(404).json({ error: 'Generate the current Set A and Set B before downloading this report.' });
       }
       filename = `tos_report_${examId}.pdf`;
+      downloadName = `${slug}_TOS_Report.pdf`;
     } else if (type === 'exam' || type === 'answerkey' || type === 'omr') {
       if (!setLabel || !['A', 'B'].includes(setLabel)) {
         return res.status(400).json({ error: 'Set label A or B is required.' });
@@ -650,6 +691,8 @@ router.get('/:id/download/:type', requireAuth, async (req, res, next) => {
         return res.status(404).json({ error: 'File not found. Generate the current exam sets first.' });
       }
       filename = path.basename(sets[0].filename);
+      const docLabel = { exam: 'Exam_Paper', answerkey: 'Answer_Key', omr: 'OMR_Sheet' }[type];
+      downloadName = `${slug}_${docLabel}_Set_${setLabel}.pdf`;
     } else {
       return res.status(400).json({ error: 'Invalid download type.' });
     }
@@ -659,7 +702,7 @@ router.get('/:id/download/:type', requireAuth, async (req, res, next) => {
       return res.status(404).json({ error: 'File not found. Generate the exam sets first.' });
     }
 
-    res.download(filePath, filename);
+    res.download(filePath, downloadName);
   } catch (err) {
     next(err);
   }
@@ -704,11 +747,11 @@ router.get('/:id/export/:format', requireAuth, async (req, res, next) => {
     if (format === 'gift') {
       content = toGIFT(questions);
       contentType = 'text/plain; charset=utf-8';
-      filename = `${examRows[0].title.replace(/[^a-z0-9]/gi, '_')}.gift`;
+      filename = `${slugifyTitle(examRows[0].title)}_GIFT.gift`;
     } else if (format === 'xml') {
       content = toCanvasXML(questions);
       contentType = 'application/xml; charset=utf-8';
-      filename = `${examRows[0].title.replace(/[^a-z0-9]/gi, '_')}.xml`;
+      filename = `${slugifyTitle(examRows[0].title)}_QTI.xml`;
     } else {
       return res.status(400).json({ error: 'Invalid format. Use "gift" or "xml".' });
     }

@@ -164,19 +164,6 @@ export default function AppLayout() {
             <X size={18} />
           </button>
         </div>
-        <button
-          type="button"
-          className="sidebar-search"
-          aria-haspopup="dialog"
-          onClick={() => {
-            setMobileOpen(false);
-            setCommandOpen(true);
-          }}
-        >
-          <Search size={15} />
-          <span>Quick navigation</span>
-          <kbd>⌘ K</kbd>
-        </button>
         <nav className="sidebar-nav" aria-label="Primary navigation">
           {['home', 'Workspace', 'Assessment', 'Institution'].map((group) => (
             <div className="nav-group" key={group}>
@@ -263,7 +250,9 @@ export default function AppLayout() {
               aria-haspopup="dialog"
               onClick={() => setCommandOpen(true)}
             >
-              <Search size={17} />
+              <Search size={15} />
+              <span>Quick navigation</span>
+              <kbd>⌘ K</kbd>
             </button>
             <div className="user-menu" ref={userMenuRef}>
               <button

@@ -14,30 +14,9 @@
 
 .list-head {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  flex-wrap: wrap;
-  margin-bottom: 24px;
+  align-items: baseline;
+  margin-bottom: 22px;
   padding-top: 10px;
-}
-
-.list-head-main {
-  position: relative;
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 4px 6px;
-  min-width: 0;
-}
-
-.list-head-main > .eyebrow {
-  flex: 1 1 100%;
-  margin-bottom: 9px;
-  color: var(--action-600);
-  font-size: .64rem;
-  font-weight: 600;
-  letter-spacing: .05em;
 }
 
 .list-head-title {
@@ -64,52 +43,6 @@
   font-variant-numeric: tabular-nums;
 }
 
-/* "What is this?" popover pinned to the title row. */
-.list-head-info { position: relative; display: inline-flex; }
-.list-head-info > summary {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 30px;
-  height: 30px;
-  margin: -6px;
-  border-radius: 7px;
-  color: var(--ink-faint);
-  cursor: pointer;
-  list-style: none;
-  transition: background-color .12s ease, color .12s ease;
-}
-.list-head-info > summary::-webkit-details-marker { display: none; }
-.list-head-info > summary svg { width: 16px !important; height: 16px !important; }
-.list-head-info > summary:hover,
-.list-head-info[open] > summary { background: var(--surface-3); color: var(--ink-2); }
-.list-head-info > summary:focus { outline: none; }
-.list-head-info > summary:focus-visible { box-shadow: 0 0 0 3px var(--ring-soft); }
-.list-head-info p {
-  position: absolute;
-  top: calc(100% + 8px);
-  left: -6px;
-  z-index: 50;
-  width: 250px;
-  margin: 0;
-  padding: 10px 12px;
-  border: 1px solid var(--line);
-  border-radius: 10px;
-  background: var(--surface);
-  color: var(--ink-2);
-  font-size: .75rem;
-  line-height: 1.5;
-  box-shadow: var(--shadow-lg);
-}
-
-.page-description {
-  flex: 1 1 100%;
-  margin-top: 7px;
-  color: var(--ink-3);
-  font-size: .79rem;
-  line-height: 1.6;
-}
-
 /* ==========================================================================
    Dataset shell — the card the table lives in
    ========================================================================== */
@@ -122,9 +55,12 @@
   --sort-gutter: 17px;
 
   position: relative;
+  display: flex;
+  flex-direction: column;
+  min-height: calc(100dvh - 250px);
   background: var(--surface);
   border: 1px solid var(--line);
-  border-radius: 12px;
+  border-radius: 18px;
   box-shadow:
     0 1px 2px rgba(28, 30, 37, .05),
     0 12px 32px -18px rgba(28, 30, 37, .16);
@@ -142,7 +78,7 @@
   min-height: 54px;
   padding: 8px var(--grid-x);
   border-bottom: 1px solid var(--line);
-  border-radius: 11px 11px 0 0;
+  border-radius: 17px 17px 0 0;
   background: var(--surface);
 }
 
@@ -256,7 +192,7 @@
   min-height: 54px;
   padding: 8px var(--grid-x);
   border-bottom: 1px solid color-mix(in srgb, var(--action-600) 30%, var(--line));
-  border-radius: 11px 11px 0 0;
+  border-radius: 17px 17px 0 0;
   background: color-mix(in srgb, var(--action-600) 4%, var(--surface));
 }
 .dataset[data-selecting="true"] .dataset-bar { display: none; }
@@ -272,8 +208,10 @@
    The grid
    ========================================================================== */
 
-/* Positioned so .sr-only labels inside the table resolve against this box. */
-.dataset-scroll { position: relative; overflow: visible; }
+/* Positioned so .sr-only labels inside the table resolve against this box.
+   flex: 1 makes the table area absorb spare height so the card never stubs
+   out when there are only a few rows. */
+.dataset-scroll { position: relative; overflow: visible; flex: 1; }
 
 table.grid {
   width: 100%;
@@ -375,6 +313,10 @@ table.grid tbody tr {
   to   { opacity: 1; transform: translateY(0); }
 }
 
+/* Faint ledger rows absorb the card's spare height. */
+table.grid tbody tr.g-ghost { animation: none; pointer-events: none; }
+table.grid tbody tr.g-ghost > td { box-shadow: none; }
+
 /* Centered counts; the gutter cancels on both sides so they stay centered. */
 table.grid tbody td.is-num {
   padding-left: calc(var(--grid-x) + var(--sort-gutter));
@@ -444,30 +386,8 @@ table.grid td.col-select {
    Cell components
    ========================================================================== */
 
-/* Entity mark — the record's colour and initial as a small tile. This is the
-   page's one saturated moment; everything else stays quiet so it reads. */
-.g-entity { display: flex; align-items: center; gap: 12px; min-width: 0; }
-.g-entity-mark {
-  display: grid;
-  place-items: center;
-  width: 34px;
-  height: 34px;
-  flex: 0 0 auto;
-  border-radius: 10px;
-  background: color-mix(in srgb, var(--gc, var(--surface-3)) 16%, var(--surface));
-  border: 1px solid color-mix(in srgb, var(--gc, var(--line-strong)) 28%, transparent);
-  color: var(--gc, var(--ink-3));
-  font: 600 .88rem/1 var(--font-display, "Google Sans", sans-serif);
-  letter-spacing: -.01em;
-  box-shadow: 0 1px 2px color-mix(in srgb, var(--gc, #000) 14%, transparent);
-  transition: background-color .12s ease, box-shadow .12s ease;
-}
-tr:hover .g-entity-mark {
-  background: color-mix(in srgb, var(--gc, var(--surface-3)) 24%, var(--surface));
-  box-shadow: 0 2px 5px color-mix(in srgb, var(--gc, #000) 20%, transparent);
-}
-
 /* Primary cell: title over meta, with real weight contrast. */
+.g-entity { display: flex; align-items: center; min-width: 0; }
 .g-primary { display: block; min-width: 0; }
 .g-title {
   display: block;
@@ -514,6 +434,7 @@ a.g-title:focus-visible { outline: 2px solid var(--action-600); outline-offset: 
 /* Counts — a number reads better than a badge. */
 .g-count { color: var(--ink); font-weight: 550; font-variant-numeric: tabular-nums; }
 .g-count.is-zero { color: var(--ink-faint); font-weight: 400; }
+a.g-count:hover { color: var(--action-600); text-decoration: underline; text-underline-offset: 3px; }
 
 /* ==========================================================================
    Row actions — revealed on hover, reachable by keyboard, always on touch
@@ -521,73 +442,50 @@ a.g-title:focus-visible { outline: 2px solid var(--action-600); outline-offset: 
 
 table.grid th.col-actions,
 table.grid td.col-actions {
+  width: 118px;
   padding-right: 10px;
   text-align: right;
   overflow: visible;
 }
 
-.g-menu { position: relative; display: inline-block; }
-.g-menu > summary { list-style: none; }
-.g-menu > summary::-webkit-details-marker { display: none; }
-
-.g-menu-trigger {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 32px;
-  height: 32px;
-  border-radius: var(--radius-xs);
+/* Inline row actions — always-visible ghost icon buttons with tooltips. */
+.g-actions { display: inline-flex; gap: 2px; }
+.g-act {
+  position: relative;
+  display: inline-grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border: 0;
+  border-radius: 8px;
   background: transparent;
   color: var(--ink-faint);
   cursor: pointer;
-  opacity: .4;
-  transition: opacity .12s ease, background-color .12s ease, color .12s ease;
+  transition: background-color .12s ease, color .12s ease;
 }
-.g-menu-trigger svg { width: 16px !important; height: 16px !important; display: block; }
-.g-menu-trigger:hover { background: var(--surface-3); color: var(--ink-2); }
-tr:hover .g-menu-trigger,
-tr:focus-within .g-menu-trigger,
-.g-menu[open] .g-menu-trigger { opacity: 1; }
-.g-menu[open] .g-menu-trigger { background: var(--surface-3); color: var(--ink); }
-.g-menu-trigger:focus-visible { opacity: 1; outline: 2px solid var(--action-600); outline-offset: 1px; }
-
-.g-menu-panel {
+.g-act svg { width: 15px !important; height: 15px !important; display: block; }
+.g-act:hover { background: var(--surface-3); color: var(--ink-2); }
+.g-act:focus-visible { outline: 2px solid var(--action-600); outline-offset: 1px; }
+.g-act.is-danger:hover { background: var(--red-50); color: var(--red-700); }
+.g-act:disabled { opacity: .4; }
+.g-act[data-tip]::after {
+  content: attr(data-tip);
   position: absolute;
-  top: calc(100% + 4px);
-  right: 0;
-  z-index: 70;
-  min-width: 168px;
-  padding: 4px;
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  background: var(--surface);
-  box-shadow: var(--shadow-lg);
-  text-align: left;
-}
-.g-menu-item {
-  display: flex;
-  align-items: center;
-  gap: 9px;
-  width: 100%;
-  min-height: 34px;
-  padding: 7px 9px;
-  border: 0;
-  border-radius: var(--radius-xs);
-  background: transparent;
-  color: var(--ink-2);
-  font: 400 .8125rem/1.3 var(--font-body, "Inter", sans-serif);
-  text-align: left;
+  top: calc(100% + 6px);
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 4px 8px;
+  border-radius: 6px;
+  background: var(--ink);
+  color: #fff;
+  font: 500 .65rem/1.2 var(--font-body, "Inter", sans-serif);
   white-space: nowrap;
-  cursor: pointer;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .1s ease;
+  z-index: 60;
 }
-.g-menu-item:hover,
-.g-menu-item:focus-visible { background: var(--surface-2); color: var(--ink); outline: none; }
-.g-menu-item svg { width: 15px !important; height: 15px !important; color: var(--ink-faint); }
-.g-menu-item.is-danger { color: var(--red-600); }
-.g-menu-item.is-danger svg { color: var(--red-600); }
-.g-menu-item.is-danger:hover,
-.g-menu-item.is-danger:focus-visible { background: var(--red-50); color: var(--red-700); }
-.g-menu-sep { height: 1px; margin: 4px 2px; background: var(--line); }
+.g-act:hover[data-tip]::after, .g-act:focus-visible[data-tip]::after { opacity: 1; }
 
 /* ==========================================================================
    Footer — range + pagination
@@ -695,6 +593,17 @@ tr:focus-within .g-menu-trigger,
   background: color-mix(in srgb, var(--surface-2) 60%, var(--surface));
   text-align: center;
 }
+.empty-icon {
+  display: grid;
+  place-items: center;
+  width: 46px;
+  height: 46px;
+  margin-bottom: 10px;
+  border-radius: 13px;
+  background: var(--action-50);
+  color: var(--action-600);
+}
+
 .empty-state h4 {
   margin: 0 0 2px;
   color: var(--ink);
@@ -728,10 +637,8 @@ tr:focus-within .g-menu-trigger,
   backdrop-filter: blur(8px);
 }
 
-/* The modal body has no card chrome, so the form-container sits flush. */
+/* The modal body hosts the bare form — no inner card chrome. */
 .modal-body .form-container { max-width: none; margin: 0; }
-.modal-body .card { border: 0; border-radius: 0; box-shadow: none; }
-.modal-body .card-body { padding: 0; }
 
 /* ==========================================================================
    Responsive
@@ -746,8 +653,8 @@ tr:focus-within .g-menu-trigger,
 }
 
 @media (max-width: 991px) {
-  .ds-search input, .ds-btn, .ds-page, .g-menu-trigger, .g-menu-item { min-height: 44px; }
-  .ds-page, .g-menu-trigger { min-width: 44px; }
+  .ds-search input, .ds-btn, .ds-page, .g-act { min-height: 44px; }
+  .ds-page, .g-act { min-width: 44px; }
   .dataset-bar-lead, .dataset-bar-trail { flex-wrap: wrap; }
 }
 
@@ -761,7 +668,6 @@ tr:focus-within .g-menu-trigger,
   .ds-range { justify-content: space-between; }
   .ds-pager { justify-content: center; }
   .ds-check { width: 40px; height: 40px; }
-  .g-menu-panel { min-width: 184px; }
 }
 
 @media (max-width: 599px) {
@@ -773,12 +679,13 @@ tr:focus-within .g-menu-trigger,
 }
 
 @media (hover: none) {
-  .g-menu-trigger { opacity: 1; width: 40px; height: 40px; }
+  .g-act { width: 40px; height: 40px; }
+  .g-act[data-tip]::after { display: none; }
 }
 
 @media (prefers-reduced-motion: reduce) {
   table.grid tbody tr { animation: none; }
-  .ds-btn, .ds-page, .g-menu-trigger, .ds-sort, .ds-check span, .ds-search input {
+  .ds-btn, .ds-page, .g-act, .ds-sort, .ds-check span, .ds-search input {
     transition: none;
   }
 }

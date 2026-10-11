@@ -7,8 +7,8 @@ import '../styles/subjects.css';
 import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import {
-  Plus, Pencil, Trash2, Info, Search, CheckSquare,
-  Ellipsis, Eye, CircleHelp, Check,
+  Plus, Pencil, Trash2, Search, CheckSquare, BookOpen,
+  Eye, Check,
   ChevronUp, ChevronDown, ChevronFirst, ChevronLeft, ChevronRight, ChevronLast,
 } from 'lucide-react';
 import { useToast } from '../components/Toast.jsx';
@@ -235,26 +235,19 @@ export default function SubjectsPage() {
   return (
     <AppShell pageClass="subjects" activeNav="subjects" pageTitle="Subjects" wide>
       <header className="list-head">
-        <div className="list-head-main">
-          <span className="eyebrow">Manage</span>
-          <h1 className="list-head-title">
-            Subjects
-            {subjects && subjects.length > 0 && (
-              <span className="list-head-count">{subjects.length}</span>
-            )}
-          </h1>
-          <details className="list-head-info">
-            <summary aria-label="What are subjects?"><Info size={16} /></summary>
-            <p>Courses you teach. Each subject owns its own question bank, blueprints and exams.</p>
-          </details>
-          <p className="page-description">A home for every course you teach.</p>
-        </div>
+        <h1 className="list-head-title">
+          Subjects
+          {subjects && subjects.length > 0 && (
+            <span className="list-head-count">{subjects.length}</span>
+          )}
+        </h1>
       </header>
 
       {subjects === null ? (
         <PageLoader label="Loading subjects…" />
       ) : subjects.length === 0 ? (
         <div className="empty-state">
+          <span className="empty-icon"><BookOpen size={20} /></span>
           <h4>No subjects yet</h4>
           <p>A subject is the container for everything else — create one and the question bank, blueprints and exams follow.</p>
           <button type="button" className="btn btn-primary" onClick={openNew}>
@@ -327,7 +320,7 @@ export default function SubjectsPage() {
                   <th className={`is-num wp-12 ${sortClass('blueprints')}`} onClick={() => toggleSort('blueprints')} data-name="Blueprints">Blueprints{renderSortArrow('blueprints')}</th>
                   <th className={`is-num wp-10 ${sortClass('exams')}`} onClick={() => toggleSort('exams')} data-name="Exams">Exams{renderSortArrow('exams')}</th>
                   <th className={`wp-12 ${sortClass('created')}`} onClick={() => toggleSort('created')} data-name="Created">Created{renderSortArrow('created')}</th>
-                  <th className="col-actions wp-5"><span className="sr-only">Actions</span></th>
+                  <th className="col-actions"><span className="sr-only">Actions</span></th>
                 </tr>
               </thead>
               <tbody>
@@ -359,9 +352,6 @@ export default function SubjectsPage() {
                       </td>
                       <td>
                         <span className="g-entity">
-                          <span className="g-entity-mark" aria-hidden="true">
-                            {(s.name || 'S').trim().split(/\s+/).slice(0, 2).map((w) => w[0]).join('').toUpperCase()}
-                          </span>
                           <span className="g-primary">
                             <Link to={`/subjects/${encodeURIComponent(s.id)}`} className="g-title">{s.name}</Link>
                             <span className="g-meta" title={descTitle}>{desc}</span>
@@ -374,7 +364,11 @@ export default function SubjectsPage() {
                           : <span className="g-mute">—</span>}
                       </td>
                       <td className="is-num" data-order={q}>
-                        <span className={`g-count${q ? '' : ' is-zero'}`}>{q || '—'}</span>
+                        {q ? (
+                          <Link className="g-count" to={`/questions?subject_id=${encodeURIComponent(s.id)}`} title="Open this subject's questions">{q}</Link>
+                        ) : (
+                          <span className="g-count is-zero">—</span>
+                        )}
                       </td>
                       <td className="is-num" data-order={t}>
                         <span className={`g-count${t ? '' : ' is-zero'}`}>{t || '—'}</span>
@@ -384,22 +378,20 @@ export default function SubjectsPage() {
                       </td>
                       <td className="g-mute" data-order={s.created_at}>{fmtDate(s.created_at)}</td>
                       <td className="col-actions">
-                        <details className="g-menu">
-                          <summary className="g-menu-trigger" aria-label={`Actions for ${s.name}`}><Ellipsis size={16} /></summary>
-                          <div className="g-menu-panel">
-                            <Link to={`/subjects/${encodeURIComponent(s.id)}`} className="g-menu-item"><Eye size={15} /> Open</Link>
-                            <button type="button" className="g-menu-item" onClick={() => setEditing(s)}><Pencil size={15} /> Edit</button>
-                            <Link to={`/questions?subject_id=${encodeURIComponent(s.id)}`} className="g-menu-item"><CircleHelp size={15} /> Questions</Link>
-                            <div className="g-menu-sep" />
-                            <button type="button" className="g-menu-item is-danger" onClick={() => handleDelete(s)} disabled={deleting?.id === s.id}>
-                              <Trash2 size={15} /> Delete
-                            </button>
-                          </div>
-                        </details>
+                        <span className="g-actions">
+                          <Link className="g-act" to={`/subjects/${encodeURIComponent(s.id)}`} data-tip="Open" aria-label={`Open ${s.name}`}><Eye size={15} /></Link>
+                          <button type="button" className="g-act" onClick={() => setEditing(s)} data-tip="Edit" aria-label={`Edit ${s.name}`}><Pencil size={15} /></button>
+                          <button type="button" className="g-act is-danger" onClick={() => handleDelete(s)} disabled={deleting?.id === s.id} data-tip="Delete" aria-label={`Delete ${s.name}`}><Trash2 size={15} /></button>
+                        </span>
                       </td>
                     </tr>
                   );
                 })}
+                {pageRows.length > 0 && Array.from({ length: Math.max(0, 12 - pageRows.length) }).map((_, gi) => (
+                  <tr key={`ghost-${gi}`} className="g-ghost" aria-hidden="true">
+                    <td colSpan={8} />
+                  </tr>
+                ))}
               </tbody>
             </table>
           </div>
@@ -439,14 +431,11 @@ export default function SubjectsPage() {
         size="md"
       >
         {editing && (
-          <div className="form-container">
-            <div className="card">
-              <div className="card-body">
-                <form id="subject-form" onSubmit={handleSave} noValidate>
+          <form id="subject-form" onSubmit={handleSave} noValidate>
                   <div className="form-group">
                     <label className="form-label" htmlFor="name">Subject Name <span className="req">*</span></label>
                     <input id="name" name="name" className="form-control" required maxLength={255}
-                      value={editing.name || ''} autoComplete="off" autoFocus
+                      value={editing.name || ''} autoComplete="off"
                       onChange={(e) => setEditing({ ...editing, name: e.target.value })} />
                   </div>
                   <div className="form-group">
@@ -470,9 +459,6 @@ export default function SubjectsPage() {
                     <button type="button" className="btn btn-outline" onClick={() => setEditing(null)}>Cancel</button>
                   </div>
                 </form>
-              </div>
-            </div>
-          </div>
         )}
       </Modal>
     </AppShell>

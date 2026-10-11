@@ -86,16 +86,16 @@
   --brand:        #141413;
   --brand-deep:   #0C0C0B;
   --brand-soft:   #3D3D3A;
-  --brand-accent: #0073EA;  /* monday blue for actions and focus */
+  --brand-accent: #2D93E8;  /* favicon blue for actions and focus */
   --brand-blue:   #579BFC;   /* light blue — reserved for *states*, never actions */
 
   /* Primary actions — monday blue */
-  --action-50:   #EEF4FE;
-  --action-100:  #DCE9FD;
-  --action-300:  #8FBDF9;   /* accent highlights */
-  --action-400:  #5B9CF5;
-  --action-600:  #0073EA;
-  --action-700:  #005FBE;
+  --action-50:   #EDF6FE;
+  --action-100:  #DBEDFC;
+  --action-300:  #7FC2F7;   /* accent highlights */
+  --action-400:  #4EA8F2;
+  --action-600:  #2D93E8;
+  --action-700:  #1F79C4;
 
   /* ---- Blue scale ---- */
   --blue-50:  #EEF4FE;
@@ -135,10 +135,10 @@
   --teal-600: #2199B8;
 
   /* ---- Focus and wash ---- */
-  --ring:        rgba(0, 115, 234, .24);
-  --ring-soft:   rgba(0, 115, 234, .10);
-  --accent-wash: rgba(0, 115, 234, .12);
-  --accent-line: rgba(0, 115, 234, .32);
+  --ring:        rgba(45, 147, 232, .24);
+  --ring-soft:   rgba(45, 147, 232, .10);
+  --accent-wash: rgba(45, 147, 232, .12);
+  --accent-line: rgba(45, 147, 232, .32);
 
   /* ---- Ink: cool-tinted near-neutrals ---- */
   --ink:       #212329;
@@ -147,7 +147,7 @@
   --ink-faint: #767A85;   /* meta text */
 
   /* ---- Surfaces: tinted canvas, white cards read off it ---- */
-  --canvas:    #ECEDF2;
+  --canvas:    #F3F5F9;
   --surface:   #FFFFFF;
   --surface-2: #F6F7F9;   /* dirty-white fill — subtle hover/inset tint */
   --surface-3: #ECEEF2;
@@ -191,20 +191,20 @@
   /* ---- Motion ---- */
   --ease: cubic-bezier(.16, 1, .3, 1);
 
-  /* ---- Nav rail: deep-ink workspace panel ---- */
-  --sb-bg: #16171C;
-  --sb-bg-deep: #0F1013;
-  --sb-text: rgba(255, 255, 255, .58);
-  --sb-text-hover: #FFFFFF;
-  --sb-text-active: #FFFFFF;
-  --sb-title: rgba(255, 255, 255, .38);
-  --sb-divider: rgba(255, 255, 255, .10);
-  --sb-hover: rgba(255, 255, 255, .065);
-  --sb-active: rgba(0, 115, 234, .30);       /* blue wash on ink */
-  --sb-active-ink: #FFFFFF;
-  --sb-active-line: #579BFC;
-  --sb-field: rgba(255, 255, 255, .06);
-  --sb-field-line: rgba(255, 255, 255, .11);
+  /* ---- Nav rail: pale sky panel ---- */
+  --sb-bg: #F0F5FB;
+  --sb-bg-deep: #F0F5FB;
+  --sb-text: #555B66;
+  --sb-text-hover: #16181D;
+  --sb-text-active: #1F79C4;
+  --sb-title: #8A8F9B;
+  --sb-divider: #E2E9F2;
+  --sb-hover: #E7F0F8;
+  --sb-active: #E1F0FD;                     /* blue wash on pale sky */
+  --sb-active-ink: #1F79C4;
+  --sb-active-line: #2D93E8;
+  --sb-field: #EAF1F8;
+  --sb-field-line: #DCE5F0;
 
   /* ---- Layout ---- */
   --sidebar-width: 240px;

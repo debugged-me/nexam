@@ -188,6 +188,16 @@ router.get('/', requireAuth, async (req, res, next) => {
       { uid: userId }
     );
 
+    // ── Drafts waiting on review ─────────────────────
+    const [recentDrafts] = await pool.query(
+      `SELECT q.id, LEFT(q.stem, 180) AS stem, q.type, s.name AS subject_name, q.created_at
+       FROM questions q
+       LEFT JOIN subjects s ON s.id = q.subject_id
+       WHERE q.created_by = :uid AND q.status = 'draft'
+       ORDER BY q.created_at DESC LIMIT 3`,
+      { uid: userId }
+    );
+
     // ── Daily activity series ────────────────────────
     const from = new Date(now.getTime() - (HISTORY_DAYS - 1) * 86400000);
     const [qDaily] = await pool.query(
@@ -220,7 +230,7 @@ router.get('/', requireAuth, async (req, res, next) => {
       stats, deltas, bloom, bloomUnclassified: unclassified,
       bloomCovered: Object.values(bloom).filter(Boolean).length,
       bank, examStatus, blueprint,
-      recentSubjects, recentExams, series,
+      recentSubjects, recentExams, recentDrafts, series,
     });
   } catch (err) {
     next(err);

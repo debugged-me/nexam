@@ -149,7 +149,13 @@ export function BloomRadarChart({ rows, order, labels }) {
         angleLines: { color: p.grid },
         backgroundColor: 'transparent',
         pointLabels: { color: p.ink2, font: { size: 11, weight: '600' } },
-        ticks: { display: false, stepSize: 25 },
+        ticks: {
+          stepSize: 25,
+          font: { size: 9 },
+          color: p.ink,
+          backdropColor: 'transparent',
+          callback: (v) => `${v}%`,
+        },
       },
     },
     plugins: {

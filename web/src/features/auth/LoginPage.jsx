@@ -56,7 +56,7 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="auth-page auth-page-login">
+    <div className="auth-page auth-page-login page--auth-login">
       <a href="#login-form" className="skip-link">
         Skip to login form
       </a>

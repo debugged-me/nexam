@@ -66,6 +66,107 @@ class AuthApi {
     );
   }
 
+  /// POST /api/auth/register — create a pending instructor account.
+  /// Returns { message, verifyToken, email } — feed verifyToken to the
+  /// OTP screen. (Web CAPTCHA is skipped for non-web clients.)
+  Future<Map<String, dynamic>> register({
+    required String baseUrl,
+    required String firstName,
+    required String lastName,
+    required String email,
+    required String password,
+    String middleName = '',
+    String nameExt = '',
+  }) async {
+    final response = await _safeRequest(
+      () => _client.post(
+        _uri(baseUrl, '/api/auth/register'),
+        headers: _jsonHeaders,
+        body: jsonEncode({
+          'first_name': firstName.trim(),
+          'middle_name': middleName.trim(),
+          'last_name': lastName.trim(),
+          'name_ext': nameExt.trim(),
+          'email': email.trim(),
+          'password': password,
+        }),
+      ),
+    );
+    return _decode(response);
+  }
+
+  /// POST /api/auth/verify — confirm the 6-char email code.
+  Future<void> verifyEmail({
+    required String baseUrl,
+    required String verifyToken,
+    required String code,
+  }) async {
+    final response = await _safeRequest(
+      () => _client.post(
+        _uri(baseUrl, '/api/auth/verify'),
+        headers: _jsonHeaders,
+        body: jsonEncode({
+          'verifyToken': verifyToken,
+          'code': code.trim(),
+        }),
+      ),
+    );
+    _decode(response);
+  }
+
+  /// POST /api/auth/resend — request a fresh verification code.
+  Future<void> resendVerification({
+    required String baseUrl,
+    required String verifyToken,
+  }) async {
+    final response = await _safeRequest(
+      () => _client.post(
+        _uri(baseUrl, '/api/auth/resend'),
+        headers: _jsonHeaders,
+        body: jsonEncode({'verifyToken': verifyToken}),
+      ),
+    );
+    _decode(response);
+  }
+
+  /// POST /api/auth/forgot — request a password-reset code.
+  /// Returns the response body; `resetToken` is present only when the
+  /// account exists (the API keeps responses generic otherwise).
+  Future<Map<String, dynamic>> forgotPassword({
+    required String baseUrl,
+    required String email,
+  }) async {
+    final response = await _safeRequest(
+      () => _client.post(
+        _uri(baseUrl, '/api/auth/forgot'),
+        headers: _jsonHeaders,
+        body: jsonEncode({'email': email.trim()}),
+      ),
+    );
+    return _decode(response);
+  }
+
+  /// POST /api/auth/reset — complete a password reset with the code.
+  Future<void> resetPassword({
+    required String baseUrl,
+    required String resetToken,
+    required String code,
+    required String password,
+  }) async {
+    final response = await _safeRequest(
+      () => _client.post(
+        _uri(baseUrl, '/api/auth/reset'),
+        headers: _jsonHeaders,
+        body: jsonEncode({
+          'resetToken': resetToken,
+          'code': code.trim(),
+          'password': password,
+        }),
+      ),
+    );
+    _decode(response);
+  }
+
   /// PUT /api/auth/me — update the instructor's name fields. Returns the
   /// refreshed session (same token, new profile fields).
   Future<InstructorSession> updateProfile({

@@ -63,7 +63,7 @@ export default function ResetPage() {
   }
 
   return (
-    <div className="auth-page auth-page-reset">
+    <div className="auth-page auth-page-reset page--auth-reset">
       <div className="auth-wrap">
         <div className="auth-panel">
           <span className="panel-badge">New Password</span>

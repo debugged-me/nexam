@@ -78,7 +78,7 @@ export default function RegisterPage() {
   }
 
   return (
-    <div className="auth-page auth-page-register">
+    <div className="auth-page auth-page-register page--auth-register">
       <a href="#register-form" className="skip-link">Skip to registration form</a>
       <div className="auth-wrap">
         {/* Brand panel */}

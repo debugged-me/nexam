@@ -38,7 +38,7 @@ export default function ForgotPage() {
   }
 
   return (
-    <div className="auth-page auth-page-forgot">
+    <div className="auth-page auth-page-forgot page--auth-forgot">
       <div className="auth-wrap">
         <div className="auth-panel">
           <span className="panel-badge">Reset Password</span>

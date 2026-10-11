@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_theme.dart';
 import 'auth_controller.dart';
+import 'forgot_password_screen.dart';
+import 'register_screen.dart';
 
 /// Login — a single clean screen: brand mark, headline, and the form.
 /// The instructor's Nexam web credentials work here unchanged; the API
@@ -36,8 +38,8 @@ class _LoginScreenState extends State<LoginScreen> {
   /// first. Whatever the user last used still wins via [SessionStore].
   static String get _platformDefaultUrl =>
       !kIsWeb && defaultTargetPlatform == TargetPlatform.android
-          ? 'http://10.0.2.2:3000'
-          : 'http://localhost:3000';
+      ? 'http://10.0.2.2:3000'
+      : 'http://localhost:3000';
 
   @override
   void initState() {
@@ -80,9 +82,9 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   void _showError(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message)),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 
   /// The API address is a "settings" concern, not a credential — collect it
@@ -156,110 +158,154 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
+  /// White pill field from the reference — a small label sits above a
+  /// rounded white input with a leading icon.
+  Widget _labeledField({
+    required String label,
+    required TextEditingController controller,
+    required IconData icon,
+    required String hint,
+    bool obscure = false,
+    Widget? suffix,
+    TextInputType? keyboardType,
+    TextInputAction? textInputAction,
+    Iterable<String>? autofillHints,
+    String? Function(String?)? validator,
+    ValueChanged<String>? onSubmitted,
+  }) {
+    final shape = OutlineInputBorder(
+      borderRadius: BorderRadius.circular(16),
+      borderSide: const BorderSide(color: AppTheme.cardBorder),
+    );
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(left: 4, bottom: 7),
+          child: Text(
+            label,
+            style: const TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+              color: AppTheme.textDark,
+            ),
+          ),
+        ),
+        TextFormField(
+          controller: controller,
+          obscureText: obscure,
+          keyboardType: keyboardType,
+          textInputAction: textInputAction,
+          autofillHints: autofillHints,
+          validator: validator,
+          onFieldSubmitted: onSubmitted,
+          decoration: InputDecoration(
+            hintText: hint,
+            filled: true,
+            fillColor: Colors.white,
+            prefixIcon: Icon(icon, size: 19),
+            suffixIcon: suffix,
+            border: shape,
+            enabledBorder: shape,
+            focusedBorder: shape.copyWith(
+              borderSide:
+                  const BorderSide(color: AppTheme.primary, width: 1.5),
+            ),
+            errorBorder: shape.copyWith(
+              borderSide: const BorderSide(color: AppTheme.error),
+            ),
+            contentPadding: const EdgeInsets.symmetric(
+                horizontal: 16, vertical: 16),
+          ),
+        ),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppTheme.surface,
       body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 20),
-          child: ConstrainedBox(
-            constraints: BoxConstraints(
-              minHeight: MediaQuery.of(context).size.height -
-                  MediaQuery.of(context).padding.top -
-                  MediaQuery.of(context).padding.bottom,
-            ),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                // Brand mark
-                Row(
-                  children: [
-                    Container(
-                      width: 46,
-                      height: 46,
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(14),
-                        border: Border.all(color: AppTheme.cardBorder),
-                        boxShadow: AppTheme.cardShadow,
-                      ),
-                      child: Image.asset('assets/icons/nexam_logo.png'),
-                    ),
-                    const SizedBox(width: 12),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'nexam',
-                          style: AppTheme.display(22,
-                              weight: FontWeight.w700),
-                        ),
-                        const Text(
-                          'OMR scanning companion',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: AppTheme.textMuted,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
+        child: Stack(
+          children: [
+            SingleChildScrollView(
+              padding: const EdgeInsets.symmetric(horizontal: 24),
+              child: ConstrainedBox(
+                constraints: BoxConstraints(
+                  minHeight: MediaQuery.of(context).size.height -
+                      MediaQuery.of(context).padding.top -
+                      MediaQuery.of(context).padding.bottom -
+                      60,
                 ),
-                const SizedBox(height: 36),
-
-                // Elevated sign-in card — substance without a color band.
-                Container(
-                  padding: const EdgeInsets.fromLTRB(22, 24, 22, 22),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(AppTheme.radiusLg),
-                    border: Border.all(color: AppTheme.cardBorder),
-                    boxShadow: AppTheme.cardShadow,
-                  ),
-                  child: Form(
-                    key: _formKey,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        Text(
-                          'Welcome back',
-                          style: AppTheme.display(24,
-                              weight: FontWeight.w700),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Center(
+                      child: Container(
+                        width: 56,
+                        height: 56,
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius:
+                              BorderRadius.circular(17),
+                          border:
+                              Border.all(color: AppTheme.cardBorder),
+                          boxShadow: AppTheme.cardShadow,
                         ),
-                        const SizedBox(height: 6),
-                        const Text(
-                          'Sign in with your instructor account',
-                          style: TextStyle(
-                              fontSize: 13.5, color: AppTheme.textMuted),
-                        ),
-                        const SizedBox(height: 20),
-                        TextFormField(
-                          controller: _emailController,
-                          decoration: const InputDecoration(
-                            hintText: 'Email',
-                            prefixIcon: Icon(
-                                Icons.mail_outline_rounded,
-                                size: 20),
+                        child: Image.asset(
+                            'assets/icons/nexam_logo.png'),
+                      ),
+                    ),
+                    const SizedBox(height: 18),
+                    Text(
+                      'Welcome back!',
+                      textAlign: TextAlign.center,
+                      style: AppTheme.display(27,
+                          weight: FontWeight.w800),
+                    ),
+                    const SizedBox(height: 5),
+                    const Text(
+                      'Best way to manage your scans.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 13.5,
+                        color: AppTheme.textMuted,
+                      ),
+                    ),
+                    const SizedBox(height: 28),
+                    Form(
+                      key: _formKey,
+                      child: Column(
+                        crossAxisAlignment:
+                            CrossAxisAlignment.stretch,
+                        children: [
+                          _labeledField(
+                            label: 'Email Address',
+                            controller: _emailController,
+                            icon: Icons.mail_outline_rounded,
+                            hint: 'Enter your email',
+                            keyboardType:
+                                TextInputType.emailAddress,
+                            textInputAction: TextInputAction.next,
+                            autofillHints: const [
+                              AutofillHints.email
+                            ],
+                            validator: (v) =>
+                                (v == null || v.trim().isEmpty)
+                                    ? 'Email is required.'
+                                    : null,
                           ),
-                          keyboardType: TextInputType.emailAddress,
-                          textInputAction: TextInputAction.next,
-                          autofillHints: const [AutofillHints.email],
-                          validator: (v) => (v == null || v.trim().isEmpty)
-                              ? 'Email is required.'
-                              : null,
-                        ),
-                        const SizedBox(height: 12),
-                        TextFormField(
-                          controller: _passwordController,
-                          decoration: InputDecoration(
-                            hintText: 'Password',
-                            prefixIcon: const Icon(
-                                Icons.lock_outline_rounded,
-                                size: 20),
-                            suffixIcon: IconButton(
+                          const SizedBox(height: 14),
+                          _labeledField(
+                            label: 'Password',
+                            controller: _passwordController,
+                            icon: Icons.lock_outline_rounded,
+                            hint: 'Enter your password',
+                            obscure: _obscurePassword,
+                            suffix: IconButton(
                               icon: Icon(
                                 _obscurePassword
                                     ? Icons.visibility_off_outlined
@@ -267,50 +313,121 @@ class _LoginScreenState extends State<LoginScreen> {
                                 size: 19,
                               ),
                               onPressed: () => setState(() =>
-                                  _obscurePassword = !_obscurePassword),
+                                  _obscurePassword =
+                                      !_obscurePassword),
+                            ),
+                            textInputAction: TextInputAction.done,
+                            autofillHints: const [
+                              AutofillHints.password
+                            ],
+                            validator: (v) => (v == null || v.isEmpty)
+                                ? 'Password is required.'
+                                : null,
+                            onSubmitted: (_) => _submit(),
+                          ),
+                          const SizedBox(height: 8),
+                          Align(
+                            alignment: Alignment.centerRight,
+                            child: TextButton(
+                              onPressed: () =>
+                                  Navigator.of(context).push(
+                                MaterialPageRoute(
+                                  builder: (_) =>
+                                      ForgotPasswordScreen(
+                                          baseUrl: _baseUrl),
+                                ),
+                              ),
+                              style: TextButton.styleFrom(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 4),
+                                minimumSize: const Size(0, 32),
+                                tapTargetSize:
+                                    MaterialTapTargetSize
+                                        .shrinkWrap,
+                              ),
+                              child: const Text(
+                                'Forgot password?',
+                                style: TextStyle(
+                                  fontSize: 12.5,
+                                  color: AppTheme.primary,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
                             ),
                           ),
-                          obscureText: _obscurePassword,
-                          textInputAction: TextInputAction.done,
-                          autofillHints: const [AutofillHints.password],
-                          validator: (v) => (v == null || v.isEmpty)
-                              ? 'Password is required.'
-                              : null,
-                          onFieldSubmitted: (_) => _submit(),
-                        ),
-                        const SizedBox(height: 18),
-                        ElevatedButton(
-                          onPressed: _submitting ? null : _submit,
-                          child: _submitting
-                              ? const SizedBox(
-                                  height: 20,
-                                  width: 20,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2.2,
-                                    color: Colors.white,
+                          const SizedBox(height: 14),
+                          ElevatedButton(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppTheme.primary,
+                              foregroundColor: Colors.white,
+                              minimumSize:
+                                  const Size(double.infinity, 54),
+                              shape: RoundedRectangleBorder(
+                                borderRadius:
+                                    BorderRadius.circular(16),
+                              ),
+                            ),
+                            onPressed:
+                                _submitting ? null : _submit,
+                            child: _submitting
+                                ? const SizedBox(
+                                    height: 20,
+                                    width: 20,
+                                    child:
+                                        CircularProgressIndicator(
+                                      strokeWidth: 2.2,
+                                      color: Colors.white,
+                                    ),
+                                  )
+                                : const Text('Log In'),
+                          ),
+                          const SizedBox(height: 22),
+                          Row(
+                            children: [
+                              const Expanded(
+                                  child: Divider(height: 1)),
+                              Padding(
+                                padding:
+                                    const EdgeInsets.symmetric(
+                                        horizontal: 12),
+                                child: Text(
+                                  'Connection',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: AppTheme.textMuted
+                                        .withValues(alpha: 0.8),
                                   ),
-                                )
-                              : const Text('Sign in'),
-                        ),
-                        const SizedBox(height: 14),
-                        const Divider(),
-                        const SizedBox(height: 6),
-
-                        // Server row — quiet, inside the card footer.
-                        InkWell(
-                          onTap: _editServer,
-                          borderRadius: BorderRadius.circular(999),
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 4, vertical: 8),
+                                ),
+                              ),
+                              const Expanded(
+                                  child: Divider(height: 1)),
+                            ],
+                          ),
+                          const SizedBox(height: 16),
+                          // Server pill — same shape as the
+                          // reference's secondary pill buttons.
+                          OutlinedButton(
+                            style: OutlinedButton.styleFrom(
+                              minimumSize:
+                                  const Size(double.infinity, 50),
+                              side: const BorderSide(
+                                  color: AppTheme.cardBorder),
+                              backgroundColor: Colors.white,
+                              shape: RoundedRectangleBorder(
+                                borderRadius:
+                                    BorderRadius.circular(999),
+                              ),
+                            ),
+                            onPressed: _editServer,
                             child: Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              mainAxisSize: MainAxisSize.min,
+                              mainAxisAlignment:
+                                  MainAxisAlignment.center,
                               children: [
                                 Container(
                                   width: 7,
                                   height: 7,
-                                  decoration: const BoxDecoration(
+                                  decoration:
+                                      const BoxDecoration(
                                     color: AppTheme.success,
                                     shape: BoxShape.circle,
                                   ),
@@ -319,11 +436,13 @@ class _LoginScreenState extends State<LoginScreen> {
                                 Flexible(
                                   child: Text(
                                     _serverHost,
-                                    overflow: TextOverflow.ellipsis,
+                                    overflow:
+                                        TextOverflow.ellipsis,
                                     style: const TextStyle(
                                       fontSize: 12.5,
                                       color: AppTheme.textMuted,
-                                      fontWeight: FontWeight.w500,
+                                      fontWeight:
+                                          FontWeight.w500,
                                     ),
                                   ),
                                 ),
@@ -339,15 +458,54 @@ class _LoginScreenState extends State<LoginScreen> {
                               ],
                             ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
+                  ],
+                ),
+              ),
+            ),
+
+            // Bottom link — the reference's "Don't have an account? Sign up".
+            Positioned(
+              left: 0,
+              right: 0,
+              bottom: 0,
+              child: SafeArea(
+                child: Padding(
+                  padding: const EdgeInsets.only(bottom: 14),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Text(
+                        "Don't have an account? ",
+                        style: TextStyle(
+                          fontSize: 12.5,
+                          color: AppTheme.textMuted,
+                        ),
+                      ),
+                      GestureDetector(
+                        onTap: () => Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) =>
+                                RegisterScreen(baseUrl: _baseUrl),
+                          ),
+                        ),
+                        child: const Text(
+                          'Sign up',
+                          style: TextStyle(
+                            fontSize: 12.5,
+                            color: AppTheme.primary,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-                const SizedBox(height: 32),
-              ],
+              ),
             ),
-          ),
+          ],
         ),
       ),
     );

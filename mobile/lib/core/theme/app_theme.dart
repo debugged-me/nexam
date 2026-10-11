@@ -151,8 +151,8 @@ class AppTheme {
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
         fillColor: surfaceAlt,
-        labelStyle: const TextStyle(color: textMuted, fontSize: 14),
-        hintStyle: const TextStyle(color: textFaint, fontSize: 14),
+        labelStyle: const TextStyle(color: textMuted, fontSize: 14.5),
+        hintStyle: const TextStyle(color: textFaint, fontSize: 14.5),
         floatingLabelStyle: const TextStyle(color: primary, fontSize: 13),
         prefixIconColor: textFaint,
         border: OutlineInputBorder(
@@ -172,7 +172,7 @@ class AppTheme {
           borderSide: const BorderSide(color: error),
         ),
         contentPadding:
-            const EdgeInsets.symmetric(horizontal: 18, vertical: 17),
+            const EdgeInsets.symmetric(horizontal: 18, vertical: 18),
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(

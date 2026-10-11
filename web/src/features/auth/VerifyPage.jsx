@@ -139,7 +139,7 @@ export default function VerifyPage() {
   }
 
   return (
-    <div className="auth-page auth-page-verify">
+    <div className="auth-page auth-page-verify page--auth-verify">
       <div className="auth-wrap">
         <div className="auth-panel">
           <span className="panel-badge">Verify Email</span>

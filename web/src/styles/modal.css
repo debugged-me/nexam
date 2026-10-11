@@ -94,6 +94,7 @@
 
 .modal-footer {
   display: flex;
+  flex-wrap: wrap;
   justify-content: flex-end;
   gap: 10px;
   padding: 14px 20px;
@@ -101,6 +102,73 @@
 }
 
 /* Buttons come from the shared system in app.css — do not redeclare them here. */
+
+/* Avatar picker — drop zone, circular preview, quiet meta line */
+.avatar-picker-drop {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: 100%;
+  padding: 34px 18px;
+  border: 1.5px dashed var(--line-strong);
+  border-radius: var(--radius-md);
+  background: var(--surface-2);
+  color: var(--ink-3);
+  cursor: pointer;
+  text-align: center;
+  transition: border-color .15s ease, background-color .15s ease, color .15s ease;
+}
+.avatar-picker-drop:hover,
+.avatar-picker-drop.is-over {
+  border-color: var(--action-600);
+  background: var(--blue-50, var(--surface-2));
+  color: var(--action-600);
+}
+.avatar-picker-drop strong { font-size: var(--text-sm); color: var(--ink-2); }
+.avatar-picker-drop small { font-size: var(--text-xs); color: var(--ink-faint); }
+.avatar-picker-drop.is-over strong,
+.avatar-picker-drop.is-over small { color: inherit; }
+.avatar-picker-body {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  text-align: center;
+}
+.avatar-picker-preview {
+  width: 160px;
+  height: 160px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 1px solid var(--line);
+  box-shadow: var(--shadow-sm);
+  display: block;
+}
+.avatar-picker-meta strong {
+  display: block;
+  font-size: var(--text-sm);
+  color: var(--ink);
+  word-break: break-all;
+}
+.avatar-picker-meta small {
+  display: block;
+  margin-top: 4px;
+  font-size: var(--text-xs);
+  color: var(--ink-3);
+  line-height: 1.5;
+}
+.avatar-picker-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 28px 0;
+  color: var(--ink-3);
+  font-size: var(--text-sm);
+}
+.avatar-picker-loading .btn-spinner { color: var(--ink-3); }
 
 /* Confirm dialog — icon beside the message, Linear-style */
 .confirm-body {

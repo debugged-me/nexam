@@ -15,7 +15,7 @@ import { ToastProvider, useToast } from './components/Toast.jsx';
 import { ConfirmProvider } from './components/ConfirmDialog.jsx';
 import AppLayout from './components/AppLayout.jsx';
 import { BootScreen } from './components/Loaders.jsx';
-import { useEffect, lazy, Suspense } from 'react';
+import { useEffect, useRef, lazy, Suspense } from 'react';
 
 const LoginPage = lazy(() => import('./features/auth/LoginPage.jsx'));
 const RegisterPage = lazy(() => import('./features/auth/RegisterPage.jsx'));
@@ -40,6 +40,7 @@ const AccountPage = lazy(() => import('./pages/AccountPage.jsx'));
 const WizardPage = lazy(() => import('./pages/WizardPage.jsx'));
 const InstitutionBankPage = lazy(() => import('./pages/InstitutionBankPage.jsx'));
 const LegalPage = lazy(() => import('./pages/LegalPage.jsx'));
+const AdminPage = lazy(() => import('./pages/AdminPage.jsx'));
 
 import './styles/tokens.css';
 import './styles/app.css';
@@ -62,7 +63,26 @@ function RequireAuth({ children }) {
 function RedirectIfAuthed({ children }) {
   const { user, loading } = useAuth();
   if (loading) return <BootScreen />;
-  if (user) return <Navigate to="/dashboard" replace />;
+  if (user) return <Navigate to={user.role === 'superadmin' ? '/admin' : '/dashboard'} replace />;
+  return children;
+}
+
+/** Superadmin console — the overseer role only; instructors go to the app. */
+function RequireSuperadmin({ children }) {
+  const { user, loading } = useAuth();
+  if (loading) return <BootScreen />;
+  if (!user) return <Navigate to="/login" replace />;
+  if (user.role !== 'superadmin') return <Navigate to="/dashboard" replace />;
+  return children;
+}
+
+/** Instructor workspace — superadmins are bounced to /admin instead. */
+function RequireInstructor({ children }) {
+  const { user, loading } = useAuth();
+  if (loading) return <BootScreen />;
+  if (!user) return <Navigate to="/login" replace />;
+  if (user.role === 'superadmin') return <Navigate to="/admin" replace />;
+  if (user.role !== 'instructor') return <Navigate to="/login" replace />;
   return children;
 }
 
@@ -70,12 +90,15 @@ function RedirectIfAuthed({ children }) {
 function ToastOnMount() {
   const location = useLocation();
   const toast = useToast();
+  const consumed = useRef(null);
   useEffect(() => {
-    if (location.state?.toast) {
-      toast.success(location.state.toast);
-      // Clear it so a refresh doesn't re-trigger.
-      window.history.replaceState({}, '');
-    }
+    const msg = location.state?.toast;
+    if (!msg || consumed.current === msg) return;
+    consumed.current = msg;
+    toast.success(msg);
+    // Clear it so a refresh doesn't re-trigger. Native replaceState isn't
+    // observed by the router, so `consumed` also guards the stale read.
+    window.history.replaceState({ ...location.state, toast: undefined }, '');
   }, [location.state, toast]);
   return null;
 }
@@ -86,6 +109,7 @@ function ToastOnMount() {
 const PAGE_TITLES = [
   ['/privacy', 'Data Privacy'],
   ['/terms', 'Terms of Use'],
+  ['/admin', 'Admin console'],
   ['/dashboard', 'Home'],
   ['/wizard', 'Build an exam'],
   ['/subjects', 'Subjects'],
@@ -158,6 +182,18 @@ export default function App() {
                 />
                 <Route path="/privacy" element={<LegalPage doc="privacy" />} />
                 <Route path="/terms" element={<LegalPage doc="terms" />} />
+
+                {/* Superadmin console — same shell, console nav */}
+                <Route
+                  element={
+                    <RequireSuperadmin>
+                      <AppLayout />
+                    </RequireSuperadmin>
+                  }
+                >
+                  <Route path="/admin" element={<AdminPage />} />
+                  <Route path="/admin/:view" element={<AdminPage />} />
+                </Route>
                 <Route path="/verify" element={<VerifyPage />} />
                 <Route
                   path="/forgot"
@@ -179,9 +215,9 @@ export default function App() {
                 {/* App (protected) */}
                 <Route
                   element={
-                    <RequireAuth>
+                    <RequireInstructor>
                       <AppLayout />
-                    </RequireAuth>
+                    </RequireInstructor>
                   }
                 >
                   <Route path="/wizard" element={<WizardPage />} />

@@ -46,7 +46,7 @@ export default function ForgotPage() {
             Forgot your password?<em>we'll send a reset code.</em>
           </div>
           <p className="panel-tagline">
-            Enter the email on your account. If it exists, we'll send a 6-digit
+            Enter the email on your account. If it exists, we'll send a 6-character
             code valid for 15 minutes.
           </p>
           <div className="panel-footer">

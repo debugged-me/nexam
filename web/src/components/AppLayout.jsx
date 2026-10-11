@@ -3,6 +3,7 @@ import { useState, useEffect, useRef, useCallback, Suspense } from 'react';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import {
   Menu,
+  Camera,
   ChevronDown,
   ChevronRight,
   LogOut,
@@ -18,8 +19,10 @@ import api from '../lib/api.js';
 import useNetworkBusy from '../lib/useNetworkBusy.js';
 import { ShellMetaContext } from './shellMeta.js';
 import { Spinner, PageLoader } from './Loaders.jsx';
-import { NAV_ITEMS, BUILD_ACTION } from './navigation.js';
+import { NAV_ITEMS, ADMIN_NAV_ITEMS, BUILD_ACTION } from './navigation.js';
 import CommandMenu from './CommandMenu.jsx';
+import UserAvatar from './UserAvatar.jsx';
+import AvatarPickerModal from './AvatarPickerModal.jsx';
 
 function activeFor(pathname) {
   if (pathname.startsWith('/questions/institution')) return 'institution';
@@ -33,7 +36,7 @@ function prefetchAll(paths) {
 }
 
 export default function AppLayout() {
-  const { user, logout } = useAuth();
+  const { user, logout, refreshUser } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
   const busy = useNetworkBusy();
@@ -54,17 +57,16 @@ export default function AppLayout() {
     );
   }, []);
   const closeCommand = useCallback(() => setCommandOpen(false), []);
-  const activeKey = activeFor(location.pathname) || meta.activeNav;
+  const isAdmin = user?.role === 'superadmin';
+  const navItems = isAdmin ? ADMIN_NAV_ITEMS : NAV_ITEMS;
+  const navGroups = isAdmin ? ['home', 'Security'] : ['home', 'Workspace', 'Assessment', 'Institution'];
+  const activeKey = isAdmin
+    ? location.pathname.split('/')[2] || 'users'
+    : activeFor(location.pathname) || meta.activeNav;
   const section =
-    [...NAV_ITEMS, BUILD_ACTION].find((item) => item.key === activeKey)?.label || 'Account';
+    [...navItems, ...(isAdmin ? [] : [BUILD_ACTION])].find((item) => item.key === activeKey)?.label || 'Account';
   const title = activeKey === 'dashboard' ? 'Overview' : meta.pageTitle || section;
-  const initials = (user?.full_name || 'Instructor')
-    .split(' ')
-    .filter(Boolean)
-    .map((part) => part[0])
-    .slice(0, 2)
-    .join('')
-    .toUpperCase();
+  const [pickerOpen, setPickerOpen] = useState(false);
 
   useEffect(() => {
     function handleClick(event) {
@@ -75,7 +77,7 @@ export default function AppLayout() {
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') {
         event.preventDefault();
         setMobileOpen(false);
-        setCommandOpen((value) => !value);
+        if (!isAdmin) setCommandOpen((value) => !value);
       }
       if (event.key === 'Escape') {
         setUserMenuOpen(false);
@@ -149,10 +151,10 @@ export default function AppLayout() {
         aria-label="Workspace navigation"
       >
         <div className="sidebar-brand">
-          <Link to="/dashboard" className="sidebar-brand-link" aria-label="Nexam overview">
+          <Link to={isAdmin ? '/admin' : '/dashboard'} className="sidebar-brand-link" aria-label="Nexam overview">
             <img className="sidebar-mark" src="/favicon.png" alt="" />
             <span className="sidebar-wordmark">
-              nexam<span className="sidebar-edition">workspace</span>
+              nexam<span className="sidebar-edition">{isAdmin ? 'console' : 'workspace'}</span>
             </span>
           </Link>
           <button
@@ -165,10 +167,10 @@ export default function AppLayout() {
           </button>
         </div>
         <nav className="sidebar-nav" aria-label="Primary navigation">
-          {['home', 'Workspace', 'Assessment', 'Institution'].map((group) => (
+          {navGroups.map((group) => (
             <div className="nav-group" key={group}>
               {group !== 'home' && <div className="nav-group-label">{group}</div>}
-              {NAV_ITEMS.filter((item) => item.group === group).map((item) => {
+              {navItems.filter((item) => item.group === group).map((item) => {
                 const Icon = item.icon;
                 return (
                   <Link
@@ -187,28 +189,30 @@ export default function AppLayout() {
             </div>
           ))}
         </nav>
-        <div className="sidebar-create">
-          <Link
-            to="/wizard"
-            className={`nav-item nav-item--featured ${activeKey === 'wizard' ? 'active' : ''}`}
-            aria-current={activeKey === 'wizard' ? 'page' : undefined}
-            onPointerEnter={() => prefetchAll(BUILD_ACTION.prefetch)}
-          >
-            <Sparkles size={17} />
-            <span>Build an exam</span>
-            <ChevronRight size={14} />
-          </Link>
-        </div>
+        {!isAdmin && (
+          <div className="sidebar-create">
+            <Link
+              to="/wizard"
+              className={`nav-item nav-item--featured ${activeKey === 'wizard' ? 'active' : ''}`}
+              aria-current={activeKey === 'wizard' ? 'page' : undefined}
+              onPointerEnter={() => prefetchAll(BUILD_ACTION.prefetch)}
+            >
+              <Sparkles size={17} />
+              <span>Build an exam</span>
+              <ChevronRight size={14} />
+            </Link>
+          </div>
+        )}
         <Link
-          to="/account"
+          to={isAdmin ? '/admin/settings' : '/account'}
           className="sidebar-foot"
-          onPointerEnter={() => prefetchAll(['/auth/me'])}
-          onFocus={() => prefetchAll(['/auth/me'])}
+          onPointerEnter={() => prefetchAll(isAdmin ? undefined : ['/auth/me'])}
+          onFocus={() => prefetchAll(isAdmin ? undefined : ['/auth/me'])}
         >
-          <span className="avatar avatar-sm">{initials}</span>
+          <UserAvatar user={user} className="avatar avatar-sm" />
           <span className="sidebar-foot-meta">
-            <strong>{user?.full_name || 'Instructor'}</strong>
-            <small>Personal workspace</small>
+            <strong>{user?.full_name || (isAdmin ? 'Superadmin' : 'Instructor')}</strong>
+            <small>{isAdmin ? 'Superadmin console' : 'Personal workspace'}</small>
           </span>
           <Settings2 size={16} aria-hidden="true" />
         </Link>
@@ -236,24 +240,26 @@ export default function AppLayout() {
             </button>
             <PanelLeft size={16} className="topbar-workspace-icon" aria-hidden="true" />
             <div className="topbar-heading">
-              <span className="topbar-workspace">Faculty workspace</span>
+              <span className="topbar-workspace">{isAdmin ? 'Admin console' : 'Faculty workspace'}</span>
               <ChevronRight size={13} className="topbar-divider" aria-hidden="true" />
               <span className="topbar-title">{title}</span>
               <Spinner size="sm" className={`topbar-spinner ${busy ? 'is-active' : ''}`} />
             </div>
           </div>
           <div className="topbar-right">
-            <button
-              className="topbar-search"
-              type="button"
-              aria-label="Open quick navigation"
-              aria-haspopup="dialog"
-              onClick={() => setCommandOpen(true)}
-            >
-              <Search size={15} />
-              <span>Quick navigation</span>
-              <kbd>⌘ K</kbd>
-            </button>
+            {!isAdmin && (
+              <button
+                className="topbar-search"
+                type="button"
+                aria-label="Open quick navigation"
+                aria-haspopup="dialog"
+                onClick={() => setCommandOpen(true)}
+              >
+                <Search size={15} />
+                <span>Quick navigation</span>
+                <kbd>⌘ K</kbd>
+              </button>
+            )}
             <div className="user-menu" ref={userMenuRef}>
               <button
                 className="user-trigger"
@@ -262,13 +268,13 @@ export default function AppLayout() {
                 aria-expanded={userMenuOpen}
                 onClick={() => setUserMenuOpen((value) => !value)}
               >
-                <span className="avatar avatar-sm">{initials}</span>
+                <UserAvatar user={user} className="avatar avatar-sm" />
                 <ChevronDown size={14} />
               </button>
               {userMenuOpen && (
                 <div className="user-dropdown">
                   <div className="user-dropdown-head">
-                    <span className="avatar">{initials}</span>
+                    <UserAvatar user={user} className="avatar" />
                     <div className="ud-meta">
                       <div className="ud-name">{user?.full_name || 'Instructor'}</div>
                       <div className="ud-email">{user?.email || ''}</div>
@@ -278,10 +284,19 @@ export default function AppLayout() {
                     className="user-dropdown-item"
                     onClick={() => {
                       setUserMenuOpen(false);
-                      navigate('/account');
+                      navigate(isAdmin ? '/admin/settings' : '/account');
                     }}
                   >
-                    <User size={16} /> Account settings
+                    <User size={16} /> {isAdmin ? 'Console settings' : 'Account settings'}
+                  </button>
+                  <button
+                    className="user-dropdown-item"
+                    onClick={() => {
+                      setUserMenuOpen(false);
+                      setPickerOpen(true);
+                    }}
+                  >
+                    <Camera size={16} /> Change photo
                   </button>
                   <div className="user-dropdown-sep" />
                   <button
@@ -315,7 +330,13 @@ export default function AppLayout() {
           </ShellMetaContext.Provider>
         </div>
       </main>
-      {commandOpen && <CommandMenu open onClose={closeCommand} />}
+      {commandOpen && !isAdmin && <CommandMenu open onClose={closeCommand} />}
+      {pickerOpen && (
+        <AvatarPickerModal
+          onClose={() => setPickerOpen(false)}
+          onUploaded={() => refreshUser?.()}
+        />
+      )}
     </div>
   );
 }

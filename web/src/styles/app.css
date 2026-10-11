@@ -315,6 +315,7 @@ svg.lucide { stroke-width: 1.5; }
 }
 .avatar-sm { width: 30px; height: 30px; font-size: var(--text-xs); }
 .avatar-lg { width: 40px; height: 40px; font-size: .85rem; }
+img.avatar { object-fit: cover; display: block; }
 
 /* ---- User menu ---- */
 .user-menu { position: relative; }

@@ -19,12 +19,17 @@
 import { Router } from 'express';
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
+import multer from 'multer';
+import fs from 'fs/promises';
+import path from 'path';
 import { v4 as uuid } from 'uuid';
 import env from '../config/env.js';
 import pool from '../config/db.js';
-import { requireAuth } from '../middleware/auth.js';
+import { requireAuth, requireAnyAuth } from '../middleware/auth.js';
 import { sendOtpEmail } from '../services/emailService.js';
 import { getCaptchaSiteKey, verifyCaptcha } from '../services/captcha.js';
+import { logLogin } from '../services/audit.js';
+import { encryptFileAtRest, readProtectedFile } from '../services/storageCrypto.js';
 
 const router = Router();
 
@@ -105,13 +110,25 @@ function composeFullName(first, middle, last, ext) {
   return parts.filter(Boolean).join(' ');
 }
 
-/** Generate a 6-digit OTP, invalidate previous unused codes, store it. */
+/**
+ * 6-character OTP — 5 digits plus 1 unambiguous letter (no I/O) placed at a
+ * random position, e.g. "90182Z", "K40291", "82F301".
+ */
+const OTP_LETTERS = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
+function generateOtpCode() {
+  const chars = Array.from({ length: 6 }, () => String(Math.floor(Math.random() * 10)));
+  const pos = Math.floor(Math.random() * 6);
+  chars[pos] = OTP_LETTERS[Math.floor(Math.random() * OTP_LETTERS.length)];
+  return chars.join('');
+}
+
+/** Generate an OTP, invalidate previous unused codes, store it. */
 async function generateOtp(userId) {
   await pool.query(
     `UPDATE otp_codes SET used = 1 WHERE user_id = :userId AND used = 0`,
     { userId }
   );
-  const code = String(Math.floor(Math.random() * 1000000)).padStart(6, '0');
+  const code = generateOtpCode();
   const id = uuid();
   await pool.query(
     `INSERT INTO otp_codes (id, user_id, code, used, expires_at)
@@ -128,7 +145,7 @@ async function verifyOtp(userId, code) {
      WHERE user_id = :userId AND code = :code AND used = 0
        AND expires_at > NOW()
      ORDER BY created_at DESC LIMIT 1`,
-    { userId, code }
+    { userId, code: String(code).toUpperCase() }
   );
   if (!rows.length) return false;
   await pool.query(`UPDATE otp_codes SET used = 1 WHERE id = :id`, { id: rows[0].id });
@@ -188,10 +205,11 @@ router.post('/login', async (req, res, next) => {
     }
 
     const [rows] = await pool.query(
-      `SELECT id, full_name, email, password_hash, role, email_verified FROM users WHERE email = :email LIMIT 1`,
+      `SELECT id, full_name, email, password_hash, role, email_verified, status, avatar_path, avatar_v FROM users WHERE email = :email LIMIT 1`,
       { email }
     );
     const user = rows[0];
+    const ua = req.get('user-agent');
 
     // Use a constant-time-ish compare even when the user doesn't exist to
     // avoid timing-based user enumeration.
@@ -202,10 +220,12 @@ router.post('/login', async (req, res, next) => {
 
     if (!user || !ok) {
       loginRecord(key);
+      logLogin({ userId: user?.id || null, email, success: false, reason: 'bad_credentials', ip, userAgent: ua });
       return res.status(401).json({ error: 'Invalid email or password.' });
     }
 
-    if (!user.email_verified) {
+    if (!user.email_verified && user.role !== 'superadmin') {
+      logLogin({ userId: user.id, email, success: false, reason: 'email_unverified', ip, userAgent: ua });
       return res.status(403).json({
         error: 'Please verify your email before logging in.',
         needsVerification: true,
@@ -213,11 +233,26 @@ router.post('/login', async (req, res, next) => {
       });
     }
 
-    if (user.role !== 'instructor') {
+    if (user.status === 'pending') {
+      logLogin({ userId: user.id, email, success: false, reason: 'pending_approval', ip, userAgent: ua });
+      return res.status(403).json({
+        error: 'Your account is awaiting approval by the administrator.',
+        pendingApproval: true,
+      });
+    }
+
+    if (user.status === 'rejected') {
+      logLogin({ userId: user.id, email, success: false, reason: 'rejected', ip, userAgent: ua });
+      return res.status(403).json({ error: 'This account was not approved. Contact your administrator.' });
+    }
+
+    if (user.role !== 'instructor' && user.role !== 'superadmin') {
+      logLogin({ userId: user.id, email, success: false, reason: 'role_denied', ip, userAgent: ua });
       return res.status(403).json({ error: 'Nexam is restricted to faculty/instructor accounts.' });
     }
 
     loginClear(key);
+    logLogin({ userId: user.id, email, success: true, ip, userAgent: ua });
 
     const token = jwt.sign(
       { id: user.id, email: user.email, role: user.role },
@@ -227,7 +262,14 @@ router.post('/login', async (req, res, next) => {
 
     res.json({
       token,
-      user: { id: user.id, full_name: user.full_name, email: user.email, role: user.role },
+      user: {
+        id: user.id,
+        full_name: user.full_name,
+        email: user.email,
+        role: user.role,
+        has_avatar: !!user.avatar_path,
+        avatar_v: user.avatar_v,
+      },
     });
   } catch (err) {
     next(err);
@@ -286,9 +328,9 @@ router.post('/register', async (req, res, next) => {
 
     await pool.query(
       `INSERT INTO users
-         (id, email, password_hash, first_name, middle_name, last_name, name_ext, full_name, role, email_verified)
+         (id, email, password_hash, first_name, middle_name, last_name, name_ext, full_name, role, email_verified, status)
        VALUES
-         (:id, :email, :password_hash, :first_name, :middle_name, :last_name, :name_ext, :full_name, 'instructor', 0)`,
+         (:id, :email, :password_hash, :first_name, :middle_name, :last_name, :name_ext, :full_name, 'instructor', 0, 'pending')`,
       {
         id, email, password_hash,
         first_name: String(first_name).trim(),
@@ -335,8 +377,8 @@ router.post('/verify', async (req, res, next) => {
     if (!verifyToken || !code) {
       return res.status(400).json({ error: 'Verification token and code are required.' });
     }
-    if (!/^\d{6}$/.test(String(code))) {
-      return res.status(400).json({ error: 'The code must be 6 digits.' });
+    if (!/^[0-9A-Z]{6}$/i.test(String(code))) {
+      return res.status(400).json({ error: 'The code must be 6 characters.' });
     }
 
     let payload;
@@ -367,7 +409,7 @@ router.post('/verify', async (req, res, next) => {
       { id: payload.uid }
     );
 
-    res.json({ message: 'Email verified! You can now log in.' });
+    res.json({ message: 'Email verified! You can sign in once your account is approved.' });
   } catch (err) {
     next(err);
   }
@@ -418,6 +460,62 @@ router.post('/resend', async (req, res, next) => {
         ? 'A new verification code has been sent.'
         : 'We could not send the email right now. Please try again shortly.',
       emailSent: sent,
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+/**
+ * POST /api/auth/send-verification
+ * Body: { email }
+ * For accounts that registered but never verified (login → needsVerification).
+ * Sends a fresh verification code — not a reset code — and returns a
+ * verifyToken so the client can complete /verify. Generic response otherwise.
+ * Shares the 2-minute per-email+IP cooldown used by /forgot.
+ */
+router.post('/send-verification', async (req, res, next) => {
+  try {
+    const { email } = req.body || {};
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(email)) || String(email).length > 255) {
+      return res.status(400).json({ error: 'Please enter a valid email address.' });
+    }
+
+    const ip = req.ip;
+    const cdKey = rateKey('send_verify_cd', email, ip);
+    if (rateExceeded(cdKey, 1, 120)) {
+      const retryAfter = rateRetryAfter(cdKey, 120);
+      res.set('Retry-After', String(retryAfter));
+      return res.status(429).json({
+        error: `Please wait ${retryAfter} seconds before requesting another code.`,
+        retryAfter,
+      });
+    }
+    rateRecord(cdKey, 120);
+
+    const generic = 'If that account exists and is unverified, a verification code has been sent.';
+    const [rows] = await pool.query(
+      `SELECT id, full_name, email, email_verified FROM users WHERE email = :email LIMIT 1`,
+      { email }
+    );
+    const user = rows[0];
+    if (!user || user.email_verified) {
+      return res.json({ message: generic });
+    }
+
+    const otp = await generateOtp(user.id);
+    const sent = await sendOtpEmail(user.email, user.full_name, otp, false);
+
+    const verifyToken = jwt.sign(
+      { sub: 'verify', uid: user.id, email: user.email },
+      env.jwt.secret,
+      { expiresIn: '30m' }
+    );
+
+    res.json({
+      message: sent ? 'A verification code has been sent to your email.' : generic,
+      verifyToken,
+      email: user.email,
     });
   } catch (err) {
     next(err);
@@ -501,8 +599,8 @@ router.post('/reset', async (req, res, next) => {
     if (!resetToken || !code || !password) {
       return res.status(400).json({ error: 'Reset token, code, and new password are required.' });
     }
-    if (!/^\d{6}$/.test(String(code))) {
-      return res.status(400).json({ error: 'The code must be 6 digits.' });
+    if (!/^[0-9A-Z]{6}$/i.test(String(code))) {
+      return res.status(400).json({ error: 'The code must be 6 characters.' });
     }
     if (String(password).length < 8 || String(password).length > 128) {
       return res.status(400).json({ error: 'Password must be between 8 and 128 characters.' });
@@ -547,10 +645,11 @@ router.post('/reset', async (req, res, next) => {
  * GET /api/auth/me
  * Returns the authenticated user's profile (token required).
  */
-router.get('/me', requireAuth, async (req, res, next) => {
+router.get('/me', requireAnyAuth, async (req, res, next) => {
   try {
     const [rows] = await pool.query(
-      `SELECT id, first_name, middle_name, last_name, name_ext, full_name, email, role, email_verified, created_at FROM users WHERE id = :id LIMIT 1`,
+      `SELECT id, first_name, middle_name, last_name, name_ext, full_name, email, role, email_verified, status, avatar_path, avatar_v, created_at,
+        (avatar_path IS NOT NULL) AS has_avatar FROM users WHERE id = :id LIMIT 1`,
       { id: req.user.id }
     );
     if (!rows[0]) return res.status(404).json({ error: 'User not found.' });
@@ -561,7 +660,7 @@ router.get('/me', requireAuth, async (req, res, next) => {
 });
 
 /** PUT /api/auth/me — update profile (name fields). */
-router.put('/me', requireAuth, async (req, res, next) => {
+router.put('/me', requireAnyAuth, async (req, res, next) => {
   try {
     const { first_name, middle_name, last_name, name_ext } = req.body || {};
     const fn = String(first_name || '').trim();
@@ -577,7 +676,8 @@ router.put('/me', requireAuth, async (req, res, next) => {
     );
 
     const [rows] = await pool.query(
-      `SELECT id, first_name, middle_name, last_name, name_ext, full_name, email, role, email_verified, created_at FROM users WHERE id = :id`,
+      `SELECT id, first_name, middle_name, last_name, name_ext, full_name, email, role, email_verified, avatar_v,
+        (avatar_path IS NOT NULL) AS has_avatar, created_at FROM users WHERE id = :id`,
       { id: req.user.id }
     );
     res.json({ user: rows[0] });
@@ -587,7 +687,7 @@ router.put('/me', requireAuth, async (req, res, next) => {
 });
 
 /** POST /api/auth/change-password — change password (requires current password). */
-router.post('/change-password', requireAuth, async (req, res, next) => {
+router.post('/change-password', requireAnyAuth, async (req, res, next) => {
   try {
     const { current_password, new_password } = req.body || {};
     if (!current_password || !new_password) {
@@ -608,6 +708,115 @@ router.post('/change-password', requireAuth, async (req, res, next) => {
     const hash = await bcrypt.hash(String(new_password), 10);
     await pool.query(`UPDATE users SET password_hash = :hash WHERE id = :id`, { hash, id: req.user.id });
     res.json({ message: 'Password changed.' });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// ── Profile photo ──────────────────────────────────────
+// Stored in upload/avatars (outside static routes) and encrypted at rest via
+// storageCrypto, same contract as uploaded course materials.
+const AVATAR_DIR = path.resolve(process.cwd(), 'upload/avatars');
+const AVATAR_MIME_EXT = {
+  'image/png': '.png',
+  'image/jpeg': '.jpg',
+  'image/webp': '.webp',
+  'image/gif': '.gif',
+};
+const AVATAR_TYPES = { '.png': 'image/png', '.jpg': 'image/jpeg', '.webp': 'image/webp', '.gif': 'image/gif' };
+
+const avatarUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 5 * 1024 * 1024 },
+  fileFilter: (_req, file, cb) => {
+    if (AVATAR_MIME_EXT[file.mimetype]) return cb(null, true);
+    const err = new Error('Unsupported image type. Use PNG, JPG, WebP, or GIF.');
+    err.status = 415;
+    cb(err);
+  },
+});
+
+/** Normalizes multer/fileFilter errors into clean 4xx responses. */
+function avatarMiddleware(req, res, next) {
+  avatarUpload.single('file')(req, res, (err) => {
+    if (!err) return next();
+    if (err.name === 'MulterError') {
+      err.status = err.code === 'LIMIT_FILE_SIZE' ? 413 : 400;
+      err.message = err.code === 'LIMIT_FILE_SIZE' ? 'Image must be 5 MB or smaller.' : 'Invalid upload.';
+    }
+    next(err);
+  });
+}
+
+async function removeAvatarFile(avatarPath) {
+  if (!avatarPath) return;
+  try { await fs.unlink(avatarPath); } catch { /* already gone */ }
+}
+
+/** Sniff the actual file signature — `file.mimetype` comes from the request
+ *  and is trivially forged, so the stored extension must come from the bytes. */
+const SIG_PNG = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+function sniffImageExt(buf) {
+  if (!buf || buf.length < 12) return null;
+  if (buf.subarray(0, 8).equals(SIG_PNG)) return '.png';
+  if (buf[0] === 0xff && buf[1] === 0xd8 && buf[2] === 0xff) return '.jpg';
+  const head6 = buf.subarray(0, 6).toString('latin1');
+  if (head6 === 'GIF87a' || head6 === 'GIF89a') return '.gif';
+  if (buf.subarray(0, 4).toString('latin1') === 'RIFF' && buf.subarray(8, 12).toString('latin1') === 'WEBP') return '.webp';
+  return null;
+}
+
+/** POST /api/auth/avatar — upload/replace the caller's profile photo. */
+router.post('/avatar', requireAnyAuth, avatarMiddleware, async (req, res, next) => {
+  try {
+    if (!req.file) return res.status(400).json({ error: 'No image uploaded.' });
+    const ext = sniffImageExt(req.file.buffer);
+    if (!ext) return res.status(415).json({ error: 'File is not a valid PNG, JPG, WebP, or GIF image.' });
+    await fs.mkdir(AVATAR_DIR, { recursive: true });
+    const filePath = path.join(AVATAR_DIR, `${req.user.id}${ext}`);
+    await fs.writeFile(filePath, req.file.buffer, { mode: 0o600 });
+    await encryptFileAtRest(filePath);
+
+    const [rows] = await pool.query(`SELECT avatar_path FROM users WHERE id = :id`, { id: req.user.id });
+    if (rows[0]?.avatar_path && rows[0].avatar_path !== filePath) await removeAvatarFile(rows[0].avatar_path);
+
+    const avatarV = Math.floor(Date.now() / 1000);
+    await pool.query(`UPDATE users SET avatar_path = :p, avatar_v = :v WHERE id = :id`,
+      { p: filePath, v: avatarV, id: req.user.id });
+    res.json({ message: 'Profile photo updated.', has_avatar: true, avatar_v: avatarV });
+  } catch (err) {
+    next(err);
+  }
+});
+
+/** GET /api/auth/avatar — stream the caller's own profile photo. */
+router.get('/avatar', requireAnyAuth, async (req, res, next) => {
+  try {
+    const [rows] = await pool.query(`SELECT avatar_path FROM users WHERE id = :id`, { id: req.user.id });
+    const avatarPath = rows[0]?.avatar_path;
+    if (!avatarPath) return res.status(404).json({ error: 'No profile photo.' });
+    const buf = await readProtectedFile(avatarPath);
+    res.set('Cache-Control', 'private, max-age=300');
+    // Defense in depth: served with an explicit image type only — nosniff
+    // blocks MIME-sniffing to HTML, and the CSP makes the response inert even
+    // if it were ever navigated to as a document.
+    res.set('X-Content-Type-Options', 'nosniff');
+    res.set('Content-Security-Policy', "default-src 'none'");
+    res.type(AVATAR_TYPES[path.extname(avatarPath).toLowerCase()] || 'application/octet-stream');
+    res.send(buf);
+  } catch (err) {
+    if (err?.code === 'ENOENT') return res.status(404).json({ error: 'No profile photo.' });
+    next(err);
+  }
+});
+
+/** DELETE /api/auth/avatar — remove the caller's profile photo. */
+router.delete('/avatar', requireAnyAuth, async (req, res, next) => {
+  try {
+    const [rows] = await pool.query(`SELECT avatar_path FROM users WHERE id = :id`, { id: req.user.id });
+    await removeAvatarFile(rows[0]?.avatar_path);
+    await pool.query(`UPDATE users SET avatar_path = NULL, avatar_v = 0 WHERE id = :id`, { id: req.user.id });
+    res.json({ message: 'Profile photo removed.', has_avatar: false, avatar_v: 0 });
   } catch (err) {
     next(err);
   }

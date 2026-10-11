@@ -18,41 +18,54 @@ import { GoogleGenerativeAIEmbeddings } from '@langchain/google-genai';
 import { SystemMessage, HumanMessage } from '@langchain/core/messages';
 import Groq from 'groq-sdk';
 import env from '../config/env.js';
+import { getAiConfig } from './aiConfig.js';
 
-let geminiChatModel = null;
-let geminiEmbeddings = null;
-let groqClient = null;
+// Clients are cached by the config signature that built them — when the
+// superadmin changes a key/model in settings, the next call builds a fresh
+// client automatically.
+let geminiChat = null;
+let geminiEmb = null;
+let groqCli = null;
 
 /** Lazily initialize the LangChain Gemini chat model — only if a key is configured. */
-function getGeminiChat() {
-  if (geminiChatModel) return geminiChatModel;
-  if (!env.ai.gemini.apiKey) return null;
-  geminiChatModel = new ChatGoogleGenerativeAI({
-    apiKey: env.ai.gemini.apiKey,
-    model: env.ai.gemini.model,
-    temperature: env.ai.generation.temperature,
-    maxOutputTokens: env.ai.generation.maxTokens,
-  });
-  return geminiChatModel;
+function getGeminiChat(cfg) {
+  const sig = `${cfg.gemini.apiKey}|${cfg.gemini.model}`;
+  if (geminiChat?.sig === sig) return geminiChat.client;
+  if (!cfg.gemini.apiKey) { geminiChat = null; return null; }
+  geminiChat = {
+    sig,
+    client: new ChatGoogleGenerativeAI({
+      apiKey: cfg.gemini.apiKey,
+      model: cfg.gemini.model,
+      temperature: env.ai.generation.temperature,
+      maxOutputTokens: env.ai.generation.maxTokens,
+    }),
+  };
+  return geminiChat.client;
 }
 
 /** Lazily initialize the LangChain Gemini embeddings model. */
-export function getGeminiEmbeddings() {
-  if (geminiEmbeddings) return geminiEmbeddings;
-  if (!env.ai.gemini.apiKey) return null;
-  geminiEmbeddings = new GoogleGenerativeAIEmbeddings({
-    apiKey: env.ai.gemini.apiKey,
-    model: env.ai.gemini.embeddingModel,
-  });
-  return geminiEmbeddings;
+export function getGeminiEmbeddings(cfg) {
+  const sig = `${cfg.gemini.apiKey}|${cfg.gemini.embeddingModel}`;
+  if (geminiEmb?.sig === sig) return geminiEmb.client;
+  if (!cfg.gemini.apiKey) { geminiEmb = null; return null; }
+  geminiEmb = {
+    sig,
+    client: new GoogleGenerativeAIEmbeddings({
+      apiKey: cfg.gemini.apiKey,
+      model: cfg.gemini.embeddingModel,
+    }),
+  };
+  return geminiEmb.client;
 }
 
 /** Lazily initialize Groq — only if a key is configured. */
-function getGroq() {
-  if (groqClient) return groqClient;
-  if (!env.ai.groq.apiKey) return null;
-  groqClient = new Groq({ apiKey: env.ai.groq.apiKey });
-  return groqClient;
+function getGroq(cfg) {
+  const sig = cfg.groq.apiKey;
+  if (groqCli?.sig === sig) return groqCli.client;
+  if (!cfg.groq.apiKey) { groqCli = null; return null; }
+  groqCli = { sig, client: new Groq({ apiKey: cfg.groq.apiKey }) };
+  return groqCli.client;
 }
 
 /** True if a retryable error (quota, rate limit, 5xx). */
@@ -73,6 +86,7 @@ function isRetryable(err) {
  * @returns {Promise<{text:string, provider:string, model:string, usage:object|null}>}
  */
 export async function generate(systemPrompt, userPrompt, opts = {}) {
+  const cfg = await getAiConfig();
   const {
     jsonSchema = null,
     temperature = env.ai.generation.temperature,
@@ -80,15 +94,15 @@ export async function generate(systemPrompt, userPrompt, opts = {}) {
   } = opts;
 
   // ── Try Gemini first (via LangChain) ───────────────
-  const gemini = getGeminiChat();
+  const gemini = getGeminiChat(cfg);
   if (gemini) {
     try {
       // Build the model with per-call overrides if needed
       let model = gemini;
       if (temperature !== env.ai.generation.temperature || maxTokens !== env.ai.generation.maxTokens) {
         model = new ChatGoogleGenerativeAI({
-          apiKey: env.ai.gemini.apiKey,
-          model: env.ai.gemini.model,
+          apiKey: cfg.gemini.apiKey,
+          model: cfg.gemini.model,
           temperature,
           maxOutputTokens: maxTokens,
         });
@@ -124,7 +138,7 @@ export async function generate(systemPrompt, userPrompt, opts = {}) {
       return {
         text,
         provider: 'gemini',
-        model: env.ai.gemini.model,
+        model: cfg.gemini.model,
         usage: response.usage_metadata || response.additional_kwargs?.usage || null,
       };
     } catch (err) {
@@ -134,11 +148,11 @@ export async function generate(systemPrompt, userPrompt, opts = {}) {
   }
 
   // ── Fallback: Groq (direct SDK) ─────────────────────
-  const groq = getGroq();
+  const groq = getGroq(cfg);
   if (!groq) throw new Error('All AI providers failed and no fallback is configured.');
 
   const completion = await groq.chat.completions.create({
-    model: env.ai.groq.model,
+    model: cfg.groq.model,
     messages: [
       { role: 'system', content: systemPrompt },
       { role: 'user', content: userPrompt },
@@ -152,7 +166,7 @@ export async function generate(systemPrompt, userPrompt, opts = {}) {
   return {
     text,
     provider: 'groq',
-    model: env.ai.groq.model,
+    model: cfg.groq.model,
     usage: completion.usage ? {
       promptTokens: completion.usage.prompt_tokens,
       completionTokens: completion.usage.completion_tokens,
@@ -169,12 +183,13 @@ export async function generate(systemPrompt, userPrompt, opts = {}) {
  * @returns {Promise<{embedding:number[], provider:string, model:string}>}
  */
 export async function embed(text) {
-  const embeddings = getGeminiEmbeddings();
-  if (!embeddings) throw new Error('Embedding requires GEMINI_API_KEY (no fallback available).');
+  const cfg = await getAiConfig();
+  const embeddings = getGeminiEmbeddings(cfg);
+  if (!embeddings) throw new Error('Embedding requires a Gemini API key (no fallback available).');
 
   const embedding = await embeddings.embedQuery(text);
   if (!embedding || !embedding.length) throw new Error('Embedding returned empty vector.');
-  return { embedding, provider: 'gemini', model: env.ai.gemini.embeddingModel };
+  return { embedding, provider: 'gemini', model: cfg.gemini.embeddingModel };
 }
 
 /**
@@ -185,25 +200,27 @@ export async function embed(text) {
  * @returns {Promise<{embeddings:number[][], provider:string, model:string}>}
  */
 export async function embedBatch(texts) {
-  const embeddings = getGeminiEmbeddings();
-  if (!embeddings) throw new Error('Embedding requires GEMINI_API_KEY (no fallback available).');
+  const cfg = await getAiConfig();
+  const embeddings = getGeminiEmbeddings(cfg);
+  if (!embeddings) throw new Error('Embedding requires a Gemini API key (no fallback available).');
 
   const results = await embeddings.embedDocuments(texts);
   return {
     embeddings: results,
     provider: 'gemini',
-    model: env.ai.gemini.embeddingModel,
+    model: cfg.gemini.embeddingModel,
   };
 }
 
 /** Quick health check — which providers are configured? */
-export function status() {
+export async function status() {
+  const cfg = await getAiConfig();
   return {
-    gemini: Boolean(env.ai.gemini.apiKey),
-    groq: Boolean(env.ai.groq.apiKey),
-    geminiModel: env.ai.gemini.model,
-    groqModel: env.ai.groq.model,
-    embeddingModel: env.ai.gemini.embeddingModel,
+    gemini: Boolean(cfg.gemini.apiKey),
+    groq: Boolean(cfg.groq.apiKey),
+    geminiModel: cfg.gemini.model,
+    groqModel: cfg.groq.model,
+    embeddingModel: cfg.gemini.embeddingModel,
     vectorStore: env.vectorStore.dir,
   };
 }

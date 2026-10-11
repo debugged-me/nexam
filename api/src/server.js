@@ -6,6 +6,7 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import env from './config/env.js';
+import { ensureSchema } from './config/schema.js';
 import { errorHandler, notFound } from './middleware/errorHandler.js';
 import routes from './routes/index.js';
 import { start as startWorker } from './worker/worker.js';
@@ -70,6 +71,10 @@ if (env.deployment.serveWeb && fs.existsSync(path.join(webDist, 'index.html'))) 
 // ── Fallback handlers (order matters) ───────────────────
 app.use(notFound);
 app.use(errorHandler);
+
+// Idempotent schema ensure — creates missing tables/columns only, safe to
+// run on every boot and on production databases.
+await ensureSchema();
 
 app.listen(env.port, () => {
   // eslint-disable-next-line no-console

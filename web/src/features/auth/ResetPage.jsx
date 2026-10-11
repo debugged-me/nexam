@@ -96,9 +96,9 @@ export default function ResetPage() {
             <div className="form-group">
               <label className="form-label" htmlFor="code">Reset Code <span className="req">*</span></label>
               <div className="input-wrap">
-                <input id="code" ref={codeRef} type="text" inputMode="numeric" pattern="\d{6}"
+                <input id="code" ref={codeRef} type="text" inputMode="text" pattern="[0-9A-Za-z]{6}"
                   className="form-input code-input" placeholder="••••••" maxLength={6}
-                  value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))} required />
+                  value={code} onChange={(e) => setCode(e.target.value.replace(/[^0-9a-z]/gi, '').toUpperCase().slice(0, 6))} required />
               </div>
             </div>
 

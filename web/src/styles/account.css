@@ -66,5 +66,45 @@
 
 @media (max-width: 768px) { .account-layout { grid-template-columns: 1fr; } }
 
+/* Profile photo row */
+.account-photo-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 4px 0 16px;
+  margin-bottom: 16px;
+  border-bottom: 1px solid var(--line);
+}
+.account-photo { width: 56px; height: 56px; font-size: var(--text-md); flex-shrink: 0; }
+.account-photo-meta { flex: 1; min-width: 0; }
+.account-photo-meta strong { display: block; font-size: var(--text-sm); color: var(--ink); }
+.account-photo-actions { display: flex; gap: 8px; flex-shrink: 0; }
+@media (max-width: 560px) {
+  .account-photo-row { flex-wrap: wrap; }
+  .account-photo-actions { width: 100%; }
+}
+
+/* Password visibility toggle (same metrics as the auth screens) */
+.password-wrap { position: relative; }
+.password-wrap .form-control { padding-right: 46px; }
+.password-toggle {
+  position: absolute;
+  right: 7px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--ink-faint);
+  cursor: pointer;
+  transition: background-color .14s ease, color .14s ease;
+}
+.password-toggle:hover { color: var(--ink-2); }
+.password-toggle:focus-visible { outline: 2px solid var(--action-600); outline-offset: 1px; }
 
 }

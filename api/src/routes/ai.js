@@ -19,14 +19,18 @@ import { requireAuth } from '../middleware/auth.js';
 const router = Router();
 
 /** GET /api/ai/status — provider configuration + worker handler list. */
-router.get('/status', requireAuth, (_req, res) => {
-  res.json({
-    providers: aiProvider.status(),
-    worker: {
-      pollInterval: true,
-      concurrency: true,
-    },
-  });
+router.get('/status', requireAuth, async (_req, res, next) => {
+  try {
+    res.json({
+      providers: await aiProvider.status(),
+      worker: {
+        pollInterval: true,
+        concurrency: true,
+      },
+    });
+  } catch (err) {
+    next(err);
+  }
 });
 
 /** GET /api/ai/jobs — recent jobs for the authenticated user. */

@@ -155,11 +155,50 @@ async function write(method, path, body) {
   return data;
 }
 
+/** Upload a single file as multipart. No JSON content-type so the browser
+ *  sets the multipart boundary. Field name is `file`, matching the API. */
+async function uploadFile(path, file) {
+  const token = getToken();
+  const headers = {};
+  if (token) headers.Authorization = `Bearer ${token}`;
+  const fd = new FormData();
+  fd.append('file', file);
+  setActive(1);
+  try {
+    const res = await fetch(`${API_BASE}${path}`, { method: 'POST', headers, body: fd });
+    let data = null;
+    try { data = await res.json(); } catch { data = null; }
+    if (!res.ok) throw new ApiError(data?.error || `Upload failed (${res.status}).`, res.status, data);
+    invalidate(path);
+    return data;
+  } catch (err) {
+    if (err instanceof ApiError) throw err;
+    throw new ApiError('Network error — could not reach the server.', 0, null);
+  } finally {
+    setActive(-1);
+  }
+}
+
+/** GET a binary resource (e.g. profile photo) with the auth header and
+ *  return an object URL. Returns null on 404; throws on other failures. */
+async function getBlob(path) {
+  const token = getToken();
+  const headers = {};
+  if (token) headers.Authorization = `Bearer ${token}`;
+  const res = await fetch(`${API_BASE}${path}`, { headers });
+  if (res.status === 404) return null;
+  if (!res.ok) throw new ApiError(`Request failed (${res.status}).`, res.status, null);
+  const blob = await res.blob();
+  return URL.createObjectURL(blob);
+}
+
 export const api = {
   get: (path) => get(path),
   post: (path, body) => write('POST', path, body),
   put: (path, body) => write('PUT', path, body),
   del: (path) => write('DELETE', path),
+  uploadFile,
+  getBlob,
   /** Last cached GET payload for `path`, or undefined. Use it to seed state. */
   peek: (path) => cache.get(path),
   /** Warm the cache for a screen that's about to open, without the busy indicator. */

@@ -11,6 +11,7 @@ import questionsRouter from './questions.js';
 import dashboardRouter from './dashboard.js';
 import subjectsRouter from './subjects.js';
 import tosRouter from './tos.js';
+import adminRouter from './admin.js';
 
 const router = Router();
 
@@ -30,5 +31,6 @@ router.use('/questions', questionsRouter);
 router.use('/dashboard', dashboardRouter);
 router.use('/subjects', subjectsRouter);
 router.use('/tos', tosRouter);
+router.use('/admin', adminRouter);
 
 export default router;

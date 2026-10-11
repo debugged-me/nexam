@@ -10,6 +10,9 @@ import {
   Library,
   ListChecks,
   User,
+  Users,
+  ScrollText,
+  Settings2,
 } from 'lucide-react';
 
 export const NAV_ITEMS = [
@@ -92,6 +95,42 @@ export const NAV_ITEMS = [
     group: 'Institution',
     description: 'Discover approved questions to reuse',
     prefetch: ['/questions/institution', '/subjects'],
+  },
+];
+
+/** Superadmin console — replaces the instructor nav inside the same shell. */
+export const ADMIN_NAV_ITEMS = [
+  {
+    label: 'Users',
+    key: 'users',
+    icon: Users,
+    to: '/admin',
+    group: 'home',
+    description: 'Approve and manage instructor accounts',
+  },
+  {
+    label: 'Login logs',
+    key: 'logins',
+    icon: ScrollText,
+    to: '/admin/logins',
+    group: 'Security',
+    description: 'Sign-in attempts with IP and user agent',
+  },
+  {
+    label: 'Audit trail',
+    key: 'audit',
+    icon: ListChecks,
+    to: '/admin/audit',
+    group: 'Security',
+    description: 'Recorded superadmin actions',
+  },
+  {
+    label: 'Settings',
+    key: 'settings',
+    icon: Settings2,
+    to: '/admin/settings',
+    group: 'Security',
+    description: 'reCAPTCHA and AI credentials',
   },
 ];
 

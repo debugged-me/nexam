@@ -22,6 +22,7 @@ import { Document } from '@langchain/core/documents';
 import path from 'path';
 import fs from 'fs/promises';
 import env from '../config/env.js';
+import { getAiConfig } from './aiConfig.js';
 
 const VECTORS_DIR = path.resolve(process.cwd(), env.vectorStore.dir);
 
@@ -66,17 +67,23 @@ async function withIndexLock(dir, action, timeoutMs = 30000) {
   }
 }
 
-/** Lazily initialize the LangChain Gemini embeddings model. */
-function getEmbeddings() {
-  if (_embeddings) return _embeddings;
-  if (!env.ai.gemini.apiKey) {
-    throw new Error('GEMINI_API_KEY is required for the vector store embeddings.');
+/** Lazily initialize the LangChain Gemini embeddings model. Rebuilt
+ *  automatically when the superadmin changes the key/model in settings. */
+async function getEmbeddings() {
+  const cfg = await getAiConfig();
+  const sig = `${cfg.gemini.apiKey}|${cfg.gemini.embeddingModel}`;
+  if (_embeddings?.sig === sig) return _embeddings.client;
+  if (!cfg.gemini.apiKey) {
+    throw new Error('A Gemini API key is required for the vector store embeddings.');
   }
-  _embeddings = new GoogleGenerativeAIEmbeddings({
-    apiKey: env.ai.gemini.apiKey,
-    model: env.ai.gemini.embeddingModel,
-  });
-  return _embeddings;
+  _embeddings = {
+    sig,
+    client: new GoogleGenerativeAIEmbeddings({
+      apiKey: cfg.gemini.apiKey,
+      model: cfg.gemini.embeddingModel,
+    }),
+  };
+  return _embeddings.client;
 }
 
 function chunksDir(subjectId) {
@@ -113,7 +120,7 @@ export async function addChunks(subjectId, chunks) {
   }));
 
   await withIndexLock(dir, async () => {
-    const embeddings = getEmbeddings();
+    const embeddings = await getEmbeddings();
     const exists = await dirExists(dir);
     if (exists) {
       const store = await HNSWLib.load(dir, embeddings, { space: 'cosine' });
@@ -138,7 +145,7 @@ export async function searchChunks(subjectId, query, topK = 5) {
   const dir = chunksDir(subjectId);
   if (!(await dirExists(dir))) return [];
   return withIndexLock(dir, async () => {
-    const store = await HNSWLib.load(dir, getEmbeddings(), { space: 'cosine' });
+    const store = await HNSWLib.load(dir, await getEmbeddings(), { space: 'cosine' });
     const results = await store.similaritySearchWithScore(query, topK);
     return results.map(([doc, distance]) => ({
       id: doc.metadata.id,
@@ -174,7 +181,7 @@ export async function addQuestion(subjectId, questionId, text) {
   });
 
   await withIndexLock(dir, async () => {
-    const embeddings = getEmbeddings();
+    const embeddings = await getEmbeddings();
     const exists = await dirExists(dir);
     if (exists) {
       const store = await HNSWLib.load(dir, embeddings, { space: 'cosine' });
@@ -203,7 +210,7 @@ export async function searchQuestions(subjectId, query, topK = 10, excludeId = n
   const dir = questionsDir(subjectId);
   if (!(await dirExists(dir))) return [];
   return withIndexLock(dir, async () => {
-    const store = await HNSWLib.load(dir, getEmbeddings(), { space: 'cosine' });
+    const store = await HNSWLib.load(dir, await getEmbeddings(), { space: 'cosine' });
     const fetchCount = excludeId ? topK + 5 : topK;
     const results = await store.similaritySearchWithScore(query, fetchCount);
     return results
@@ -219,7 +226,8 @@ export async function searchQuestions(subjectId, query, topK = 10, excludeId = n
  * ACTIVE questions, but the draft itself only enters the index on approval.
  */
 export async function embedQuery(text) {
-  return getEmbeddings().embedQuery(text);
+  const embeddings = await getEmbeddings();
+  return embeddings.embedQuery(text);
 }
 
 /**
@@ -231,7 +239,7 @@ export async function searchQuestionsByVector(subjectId, vector, topK = 10, excl
   const dir = questionsDir(subjectId);
   if (!(await dirExists(dir))) return [];
   return withIndexLock(dir, async () => {
-    const store = await HNSWLib.load(dir, getEmbeddings(), { space: 'cosine' });
+    const store = await HNSWLib.load(dir, await getEmbeddings(), { space: 'cosine' });
     const fetchCount = excludeId ? topK + 5 : topK;
     const results = await store.similaritySearchVectorWithScore(vector, fetchCount);
     return results
@@ -254,7 +262,7 @@ export async function rebuildQuestionsIndex(subjectId, questions) {
     }));
     if (docs.length) {
       await fs.mkdir(tempDir, { recursive: true });
-      const store = await HNSWLib.fromDocuments(docs, getEmbeddings(), {
+      const store = await HNSWLib.fromDocuments(docs, await getEmbeddings(), {
         space: 'cosine', directory: tempDir,
       });
       await store.save(tempDir);
@@ -283,7 +291,7 @@ export async function removeQuestion(subjectId, questionId) {
 
   try {
     return await withIndexLock(dir, async () => {
-      const store = await HNSWLib.load(dir, getEmbeddings(), { space: 'cosine' });
+      const store = await HNSWLib.load(dir, await getEmbeddings(), { space: 'cosine' });
       const docs = store.docstore?._docs;
       if (!docs || typeof docs.entries !== 'function') return false;
 

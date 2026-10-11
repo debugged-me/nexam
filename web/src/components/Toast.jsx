@@ -3,7 +3,7 @@
  * Types: success, error, warning, info.
  * Top-center stack with status fills and a countdown progress bar.
  */
-import { createContext, useContext, useState, useCallback } from 'react';
+import { createContext, useContext, useState, useCallback, useMemo } from 'react';
 import { CheckCircle2, XCircle, AlertTriangle, Info } from 'lucide-react';
 
 const ToastContext = createContext(null);
@@ -31,14 +31,17 @@ export function ToastProvider({ children }) {
     return id;
   }, [dismiss]);
 
-  const api = {
+  // Memoized so consumers receive a stable context value — an unmemoized
+  // object would give every useToast() caller a new `toast` each render and
+  // re-fire effects that depend on it (e.g. router-state toasts looping).
+  const api = useMemo(() => ({
     show,
     success: (m, d) => show(m, 'success', d),
     error: (m, d) => show(m, 'error', d),
     warning: (m, d) => show(m, 'warning', d),
     info: (m, d) => show(m, 'info', d),
     dismiss,
-  };
+  }), [show, dismiss]);
 
   return (
     <ToastContext.Provider value={api}>

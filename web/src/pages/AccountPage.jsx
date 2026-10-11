@@ -9,7 +9,9 @@ import api, { ApiError } from '../lib/api.js';
 import AppShell from '../components/AppShell.jsx';
 import { PageLoader } from '../components/Loaders.jsx';
 import { useAuth } from '../features/auth/AuthContext.jsx';
-import { User, Lock, Mail, Calendar, Check, Save } from 'lucide-react';
+import UserAvatar from '../components/UserAvatar.jsx';
+import AvatarPickerModal from '../components/AvatarPickerModal.jsx';
+import { User, Lock, Mail, Calendar, Check, Save, Eye, EyeOff, Camera, Trash2 } from 'lucide-react';
 
 function nameFormFrom(user) {
   return {
@@ -28,7 +30,29 @@ export default function AccountPage() {
   const [nameForm, setNameForm] = useState(() => nameFormFrom(api.peek('/auth/me')?.user));
   const [savingName, setSavingName] = useState(false);
   const [pwForm, setPwForm] = useState({ current_password: '', new_password: '', confirm: '' });
+  const [pwShow, setPwShow] = useState({ current_password: false, new_password: false, confirm: false });
   const [savingPw, setSavingPw] = useState(false);
+  const [photoBusy, setPhotoBusy] = useState(false);
+  const [pickerOpen, setPickerOpen] = useState(false);
+
+  function handlePhotoUploaded(result) {
+    setProfile((p) => (p ? { ...p, has_avatar: 1, avatar_v: result.avatar_v } : p));
+    refreshUser?.();
+  }
+
+  async function handlePhotoRemove() {
+    setPhotoBusy(true);
+    try {
+      await api.del('/auth/avatar');
+      setProfile((p) => (p ? { ...p, has_avatar: 0, avatar_v: 0 } : p));
+      refreshUser?.();
+      toast.success('Profile photo removed.');
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : 'Could not remove photo.');
+    } finally {
+      setPhotoBusy(false);
+    }
+  }
 
   useEffect(() => {
     api.get('/auth/me')
@@ -129,6 +153,38 @@ export default function AccountPage() {
             )}
           </div>
           <div className="card-body">
+            <div className="account-photo-row">
+              <UserAvatar user={profile} className="avatar account-photo" />
+              <div className="account-photo-meta">
+                <strong>Profile photo</strong>
+              </div>
+              <div className="account-photo-actions">
+                <button
+                  type="button"
+                  className="btn btn-outline btn-sm"
+                  disabled={photoBusy}
+                  onClick={() => setPickerOpen(true)}
+                >
+                  <Camera size={15} /> {profile.has_avatar ? 'Change' : 'Upload'}
+                </button>
+                {!!profile.has_avatar && (
+                  <button
+                    type="button"
+                    className="btn btn-outline btn-sm"
+                    disabled={photoBusy}
+                    onClick={handlePhotoRemove}
+                  >
+                    <Trash2 size={15} /> Remove
+                  </button>
+                )}
+              </div>
+              {pickerOpen && (
+                <AvatarPickerModal
+                  onClose={() => setPickerOpen(false)}
+                  onUploaded={handlePhotoUploaded}
+                />
+              )}
+            </div>
             {editingName ? (
               <form onSubmit={handleSaveName} noValidate>
                 <div className="form-row">
@@ -190,22 +246,35 @@ export default function AccountPage() {
           </div>
           <div className="card-body">
             <form onSubmit={handleChangePw} noValidate>
-              <div className="form-group">
-                <label className="form-label">Current Password <span className="req">*</span></label>
-                <input type="password" className="form-control" value={pwForm.current_password} required
-                  onChange={(e) => setPwForm({ ...pwForm, current_password: e.target.value })} />
-              </div>
-              <div className="form-group">
-                <label className="form-label">New Password <span className="req">*</span></label>
-                <input type="password" className="form-control" value={pwForm.new_password} minLength={8} required
-                  placeholder="At least 8 characters"
-                  onChange={(e) => setPwForm({ ...pwForm, new_password: e.target.value })} />
-              </div>
-              <div className="form-group">
-                <label className="form-label">Confirm New Password <span className="req">*</span></label>
-                <input type="password" className="form-control" value={pwForm.confirm} required
-                  onChange={(e) => setPwForm({ ...pwForm, confirm: e.target.value })} />
-              </div>
+              {[
+                { key: 'current_password', label: 'Current Password', auto: 'current-password' },
+                { key: 'new_password', label: 'New Password', auto: 'new-password', hint: 'At least 8 characters' },
+                { key: 'confirm', label: 'Confirm New Password', auto: 'new-password' },
+              ].map((f) => (
+                <div className="form-group" key={f.key}>
+                  <label className="form-label">{f.label} <span className="req">*</span></label>
+                  <div className="password-wrap">
+                    <input
+                      type={pwShow[f.key] ? 'text' : 'password'}
+                      className="form-control"
+                      value={pwForm[f.key]}
+                      required
+                      minLength={f.key === 'current_password' ? undefined : 8}
+                      placeholder={f.hint}
+                      autoComplete={f.auto}
+                      onChange={(e) => setPwForm({ ...pwForm, [f.key]: e.target.value })}
+                    />
+                    <button
+                      type="button"
+                      className="password-toggle"
+                      onClick={() => setPwShow({ ...pwShow, [f.key]: !pwShow[f.key] })}
+                      aria-label={pwShow[f.key] ? `Hide ${f.label}` : `Show ${f.label}`}
+                    >
+                      {pwShow[f.key] ? <EyeOff size={16} /> : <Eye size={16} />}
+                    </button>
+                  </div>
+                </div>
+              ))}
               <div className="form-actions form-actions--sticky">
                 <button type="submit" className="btn btn-primary" disabled={savingPw}>
                   <Check size={16} /> {savingPw ? 'Changing…' : 'Change Password'}

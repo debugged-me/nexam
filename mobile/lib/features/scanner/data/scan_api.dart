@@ -1,9 +1,9 @@
 import 'dart:convert';
-import 'dart:io';
 
 import 'package:http/http.dart' as http;
 
 import '../../../core/network/api_exception.dart';
+import '../../../core/network/net_error.dart';
 
 /// A single detected answer from the OMR scanner.
 class ScannedAnswer {
@@ -48,18 +48,18 @@ class ScanResult {
 
   factory ScanResult.fromJson(Map<String, dynamic> json) {
     return ScanResult(
-      id: json['id'] as String? ?? '',
-      examId: json['examId'] as String? ?? json['exam_id'] as String? ?? '',
-      studentName: json['studentName'] as String? ?? json['student_name'] as String?,
-      totalItems: json['totalItems'] as int? ?? json['total_items'] as int? ?? 0,
-      correctCount: json['correctCount'] as int? ?? json['correct_count'] as int? ?? 0,
+      id: json['id']?.toString() ?? '',
+      examId: json['examId']?.toString() ?? json['exam_id']?.toString() ?? '',
+      studentName: json['studentName']?.toString() ?? json['student_name']?.toString(),
+      totalItems: int.tryParse((json['totalItems'] ?? json['total_items'])?.toString() ?? '') ?? 0,
+      correctCount: int.tryParse((json['correctCount'] ?? json['correct_count'])?.toString() ?? '') ?? 0,
       score: (json['score'] as num?)?.toDouble() ?? 0,
       needsReview: json['needsReview'] == true ||
           json['needsReview'] == 1 ||
           json['needs_review'] == true ||
           json['needs_review'] == 1,
       ambiguousCount:
-          json['ambiguousCount'] as int? ?? json['ambiguous_count'] as int? ?? 0,
+          int.tryParse((json['ambiguousCount'] ?? json['ambiguous_count'])?.toString() ?? '') ?? 0,
     );
   }
 }
@@ -86,15 +86,15 @@ class ScanAnswerItem {
 
   factory ScanAnswerItem.fromJson(Map<String, dynamic> json) {
     return ScanAnswerItem(
-      itemNumber: json['item_number'] as int? ?? 0,
-      markedAnswer: json['marked_answer'] as String? ?? '',
-      correctAnswer: json['correct_answer'] as String?,
+      itemNumber: int.tryParse(json['item_number']?.toString() ?? '') ?? 0,
+      markedAnswer: json['marked_answer']?.toString() ?? '',
+      correctAnswer: json['correct_answer']?.toString(),
       isCorrect: json['is_correct'] == null
           ? null
           : (json['is_correct'] == true || json['is_correct'] == 1),
       ambiguous: json['ambiguous'] == true || json['ambiguous'] == 1,
-      questionType: json['question_type'] as String?,
-      stem: json['stem'] as String?,
+      questionType: json['question_type']?.toString(),
+      stem: json['stem']?.toString(),
     );
   }
 }
@@ -229,9 +229,9 @@ class ScanApi {
   }
 
   Map<String, String> _headers(String token) => {
-        HttpHeaders.acceptHeader: 'application/json',
-        HttpHeaders.contentTypeHeader: 'application/json',
-        HttpHeaders.authorizationHeader: 'Bearer $token',
+        'accept': 'application/json',
+        'content-type': 'application/json',
+        'authorization': 'Bearer $token',
       };
 
   Future<http.Response> _safeRequest(
@@ -239,11 +239,14 @@ class ScanApi {
   ) async {
     try {
       return await request();
-    } on SocketException {
-      throw const ApiException(
-        'Cannot reach the server. Check your network connection.',
-        isNetworkError: true,
-      );
+    } catch (e) {
+      if (isNetworkError(e)) {
+        throw const ApiException(
+          'Cannot reach the server. Check your network connection.',
+          isNetworkError: true,
+        );
+      }
+      rethrow;
     }
   }
 

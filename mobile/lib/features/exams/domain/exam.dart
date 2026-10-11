@@ -20,13 +20,13 @@ class ExamSummary {
 
   factory ExamSummary.fromJson(Map<String, dynamic> json) {
     return ExamSummary(
-      id: json['id'] as String? ?? '',
-      title: json['title'] as String? ?? '',
-      subjectId: json['subject_id'] as String? ?? '',
-      subjectName: json['subject_name'] as String? ?? '',
-      status: json['status'] as String? ?? 'draft',
-      setItemCount: json['set_item_count'] as int? ?? 0,
-      questionCount: json['question_count'] as int? ?? 0,
+      id: json['id']?.toString() ?? '',
+      title: json['title']?.toString() ?? '',
+      subjectId: json['subject_id']?.toString() ?? '',
+      subjectName: json['subject_name']?.toString() ?? '',
+      status: json['status']?.toString() ?? 'draft',
+      setItemCount: int.tryParse(json['set_item_count']?.toString() ?? '') ?? 0,
+      questionCount: int.tryParse(json['question_count']?.toString() ?? '') ?? 0,
     );
   }
 }
@@ -50,11 +50,11 @@ class ExamSet {
 
   factory ExamSet.fromJson(Map<String, dynamic> json) {
     return ExamSet(
-      id: json['id'] as String? ?? '',
-      examId: json['exam_id'] as String? ?? '',
+      id: json['id']?.toString() ?? '',
+      examId: json['exam_id']?.toString() ?? '',
       // API returns set_label; accept label as a fallback for compatibility.
-      label: (json['set_label'] ?? json['label']) as String? ?? '',
-      questionCount: json['question_count'] as int? ?? 0,
+      label: (json['set_label'] ?? json['label'])?.toString() ?? '',
+      questionCount: int.tryParse(json['question_count']?.toString() ?? '') ?? 0,
     );
   }
 }
@@ -146,7 +146,7 @@ class OmrQrPayload {
 
   factory OmrQrPayload.fromJson(Map<String, dynamic> json) {
     final codes = (json['types'] as List?)?.cast<String>() ?? const <String>[];
-    final count = json['count'] as int? ?? codes.length;
+    final count = int.tryParse(json['count']?.toString() ?? '') ?? codes.length;
     final items = List.generate(
       count,
       (i) => i < codes.length
@@ -154,10 +154,10 @@ class OmrQrPayload {
           : OmrItemLayout.fromCode('m4'),
     );
     return OmrQrPayload(
-      version: json['v'] as int? ?? 1,
-      examId: json['examId'] as String? ?? '',
-      setId: json['setId'] as String?,
-      set: json['set'] as String? ?? '',
+      version: int.tryParse(json['v']?.toString() ?? '') ?? 1,
+      examId: json['examId']?.toString() ?? '',
+      setId: json['setId']?.toString(),
+      set: json['set']?.toString() ?? '',
       count: count,
       items: items,
     );

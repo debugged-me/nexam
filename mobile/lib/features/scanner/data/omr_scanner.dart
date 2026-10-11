@@ -76,10 +76,13 @@ class OmrScanner {
     required Uint8List imageBytes,
     required OmrQrPayload payload,
   }) {
-    final image = img.decodeImage(imageBytes);
-    if (image == null) {
+    final decoded = img.decodeImage(imageBytes);
+    if (decoded == null) {
       throw const OmrException('Could not decode the captured image.');
     }
+    // Camera JPEGs carry rotation in EXIF, not in the pixels — without
+    // baking it the sheet decodes sideways and every coordinate is wrong.
+    final image = img.bakeOrientation(decoded);
     final gray = img.grayscale(image);
 
     // ── Anchor detection → homography ─────────────────
@@ -101,10 +104,15 @@ class OmrScanner {
     }
 
     // Approximate pixel size of a bubble in the photo (for patch sampling).
+    // Euclidean distance — survives skew, where a pure Δx read would not.
     final center1 = toImage(kColX[0] + kNumW, kGridY);
     final center2 = toImage(kColX[0] + kNumW + kBubblePitch, kGridY);
+    final pitchPx = math.sqrt(
+      math.pow(center2.x - center1.x, 2) +
+          math.pow(center2.y - center1.y, 2),
+    );
     final pxPerBubble =
-        ((center2.x - center1.x).abs() / kBubblePitch * kBubble).clamp(6.0, 60.0);
+        (pitchPx / kBubblePitch * kBubble).clamp(6.0, 60.0);
 
     // ── Read every sheet row ──────────────────────────
     final sheetRows = computeSheetRows(payload.items);
@@ -297,51 +305,76 @@ class OmrScanner {
       nextLabel++;
     }
 
-    // Candidate anchors: roughly square, solid, plausible size.
+    // Candidate anchors: roughly square, solid, plausible size. The
+    // solidity bar also rejects the QR block (a QR fills ~half its bbox).
     final pageArea = w * h;
     bool isAnchorLike(_Component c) {
       final bw = c.maxX - c.minX + 1;
       final bh = c.maxY - c.minY + 1;
-      if (bw < 8 || bh < 8) return false;
+      if (bw < 7 || bh < 7) return false;
       final aspect = bw / bh;
-      if (aspect < 0.6 || aspect > 1.7) return false;
+      if (aspect < 0.7 || aspect > 1.45) return false;
       final area = bw * bh;
-      if (area < pageArea * 0.0004 || area > pageArea * 0.03) return false;
-      // Solid fill — a real anchor is mostly dark inside its bbox.
-      return c.count / area > 0.6;
+      if (area < pageArea * 0.0001 || area > pageArea * 0.04) return false;
+      return c.count / area > 0.7;
     }
 
-    // Pick the best anchor candidate nearest each expected corner.
-    // Expected anchor centers (fractions of the design space).
-    const fracs = [
-      [0.052, 0.037], // TL ≈ 41/794, 41/1123
-      [0.948, 0.037], // TR
-      [0.052, 0.963], // BL
-      [0.948, 0.963], // BR
-    ];
+    final candidates = components.where(isAnchorLike).toList();
+    if (candidates.length < 4) return null;
 
-    final centers = <List<double>>[];
-    for (final f in fracs) {
-      final ex = f[0] * w;
-      final ey = f[1] * h;
-      _Component? best;
-      var bestDist = double.infinity;
-      for (final c in components) {
-        if (!isAnchorLike(c)) continue;
-        final d = (c.cx - ex) * (c.cx - ex) + (c.cy - ey) * (c.cy - ey);
-        if (d < bestDist) {
-          bestDist = d;
+    // The four corner anchors are always the extreme square blobs: the
+    // sheet's top-left is min(x+y), bottom-right max(x+y), top-right
+    // max(x−y), bottom-left min(x−y). This works with ANY margin around
+    // the sheet — the old expected-corner guess broke whenever the sheet
+    // didn't fill the frame.
+    _Component extreme(bool Function(double a, double b) pick,
+        double Function(_Component c) key) {
+      var best = candidates.first;
+      var bestKey = key(best);
+      for (final c in candidates) {
+        final k = key(c);
+        if (pick(k, bestKey)) {
           best = c;
+          bestKey = k;
         }
       }
-      // Anchor must land in the expected quadrant-ish region (within 30%
-      // of the small image dimension of its nominal position).
-      final limit = (w * 0.30) * (w * 0.30);
-      if (best == null || bestDist > limit) return null;
-      centers.add([best.cx / scale, best.cy / scale]);
+      return best;
     }
 
-    return centers;
+    final tl = extreme((a, b) => a < b, (c) => c.cx + c.cy);
+    final br = extreme((a, b) => a > b, (c) => c.cx + c.cy);
+    final tr = extreme((a, b) => a > b, (c) => c.cx - c.cy);
+    final bl = extreme((a, b) => a < b, (c) => c.cx - c.cy);
+
+    // Degenerate picks — fewer than four distinct blobs.
+    if ({tl, tr, bl, br}.length < 4) return null;
+
+    // The quad must look like a photographed A4 sheet: a portrait-ish
+    // aspect (perspective-tolerant), sides spanning a meaningful share of
+    // the frame, and each picked blob small relative to the quad.
+    double dist(_Component a, _Component b) {
+      final dx = a.cx - b.cx;
+      final dy = a.cy - b.cy;
+      return math.sqrt(dx * dx + dy * dy);
+    }
+
+    final quadW = (dist(tl, tr) + dist(bl, br)) / 2;
+    final quadH = (dist(tl, bl) + dist(tr, br)) / 2;
+    final minSide = math.min(quadW, quadH);
+    final maxSide = math.max(quadW, quadH);
+    if (minSide < math.min(w, h) * 0.12) return null;
+    final aspect = quadW / quadH;
+    if (aspect < 0.45 || aspect > 1.15) return null;
+    for (final c in {tl, tr, bl, br}) {
+      if (c.maxX - c.minX > maxSide * 0.3) return null;
+    }
+
+    return [
+      [tl.cx / scale, tl.cy / scale],
+      [tr.cx / scale, tr.cy / scale],
+      [bl.cx / scale, bl.cy / scale],
+      [br.cx / scale, br.cy / scale],
+    ];
   }
 
   // ── Homography (DLT, 4 points, Gaussian elimination) ──

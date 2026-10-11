@@ -181,4 +181,60 @@ void main() {
 
     expect(out.detections[24].subAnswers, ['E', 'C', 'A']);
   });
+
+  test('finds anchors when the sheet sits inside a larger photo', () {
+    // A real capture: the sheet is downscaled and offset inside a frame
+    // with visible background — the old expected-corner search failed
+    // here because the anchors were nowhere near the image corners.
+    final sheetBytes = renderSheet(
+      types: {'types': ['m4', 'm4']},
+      marks: {
+        1: [1], // B
+        2: [2], // C
+      },
+    );
+    final sheet = img.decodePng(sheetBytes)!;
+    final small = img.copyResize(sheet, width: 520);
+    final frame = img.Image(width: 720, height: 920);
+    img.fill(frame, color: img.ColorRgb8(196, 196, 196)); // desk
+    img.compositeImage(frame, small, dstX: 130, dstY: 90);
+    final bytes = Uint8List.fromList(img.encodePng(frame));
+
+    final out = OmrScanner().detect(
+      imageBytes: bytes,
+      payload: payloadFor(['m4', 'm4']),
+    );
+
+    expect(out.aligned, isTrue,
+        reason: 'extreme-corner anchors should be found with margin');
+    expect(out.detections[0].detectedAnswer, 'B');
+    expect(out.detections[1].detectedAnswer, 'C');
+  });
+
+  test('still detects on a slightly rotated capture', () {
+    final sheetBytes = renderSheet(
+      types: {'types': ['m4', 'm4']},
+      marks: {
+        1: [0], // A
+        2: [3], // D
+      },
+    );
+    final sheet = img.decodePng(sheetBytes)!;
+    final small = img.copyResize(sheet, width: 500);
+    final rotated = img.copyRotate(small, angle: 6);
+    final frame = img.Image(width: 720, height: 960);
+    img.fill(frame, color: img.ColorRgb8(196, 196, 196));
+    img.compositeImage(frame, rotated, dstX: 110, dstY: 80);
+    final bytes = Uint8List.fromList(img.encodePng(frame));
+
+    final out = OmrScanner().detect(
+      imageBytes: bytes,
+      payload: payloadFor(['m4', 'm4']),
+    );
+
+    expect(out.aligned, isTrue,
+        reason: 'homography should correct a modest rotation');
+    expect(out.detections[0].detectedAnswer, 'A');
+    expect(out.detections[1].detectedAnswer, 'D');
+  });
 }

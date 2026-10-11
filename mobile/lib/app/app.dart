@@ -6,7 +6,7 @@ import '../features/auth/data/auth_api.dart';
 import '../features/auth/data/session_store.dart';
 import '../features/auth/presentation/auth_controller.dart';
 import '../features/auth/presentation/login_screen.dart';
-import '../features/scanner/presentation/dashboard_screen.dart';
+import 'main_shell.dart';
 
 /// Root widget — manages the auth state and routes between the login
 /// screen and the dashboard.
@@ -70,8 +70,44 @@ class _NexamOmrAppState extends State<NexamOmrApp> {
 
   Widget _buildHome() {
     if (_bootstrapping) {
-      return const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
+      // Branded splash while the saved session is verified.
+      return Scaffold(
+        backgroundColor: AppTheme.ink,
+        body: Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 68,
+                height: 68,
+                padding: const EdgeInsets.all(13),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.10),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(
+                    color: Colors.white.withValues(alpha: 0.16),
+                  ),
+                ),
+                child: Image.asset('assets/icons/nexam_logo.png'),
+              ),
+              const SizedBox(height: 18),
+              Text(
+                'nexam',
+                style: AppTheme.display(26,
+                    weight: FontWeight.w700, color: Colors.white),
+              ),
+              const SizedBox(height: 26),
+              const SizedBox(
+                width: 22,
+                height: 22,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2.2,
+                  color: Colors.white70,
+                ),
+              ),
+            ],
+          ),
+        ),
       );
     }
 
@@ -97,10 +133,14 @@ class _NexamOmrAppState extends State<NexamOmrApp> {
       );
     }
 
-    return DashboardScreen(
+    return MainShell(
       session: controller.session!,
       onLogout: _onLogout,
       onSessionExpired: _onSessionExpired,
+      onSessionChanged: (updated) async {
+        await controller.applySession(updated);
+        if (mounted) setState(() {});
+      },
     );
   }
 }

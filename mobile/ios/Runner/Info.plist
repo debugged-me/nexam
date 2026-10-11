@@ -70,5 +70,10 @@
 	<string>Nexam OMR needs camera access to scan OMR answer sheets and decode QR codes.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>Nexam OMR needs photo library access to process captured answer sheet images.</string>
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSAllowsArbitraryLoadsInLocalNetworking</key>
+		<true/>
+	</dict>
 </dict>
 </plist>

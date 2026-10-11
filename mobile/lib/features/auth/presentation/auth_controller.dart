@@ -89,6 +89,12 @@ class AuthController {
     }
   }
 
+  /// Replace the active session (after a profile edit) and persist it.
+  Future<void> applySession(InstructorSession updated) async {
+    session = updated;
+    await _store.saveSession(updated);
+  }
+
   /// Log out and clear the stored session.
   Future<void> logout() async {
     session = null;

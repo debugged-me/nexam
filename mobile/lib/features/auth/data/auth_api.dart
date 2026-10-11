@@ -1,9 +1,10 @@
 import 'dart:convert';
-import 'dart:io';
 
 import 'package:http/http.dart' as http;
+import 'package:http_parser/http_parser.dart';
 
 import '../../../core/network/api_exception.dart';
+import '../../../core/network/net_error.dart';
 import '../domain/instructor_session.dart';
 
 /// Talks to the Nexam Node.js API for authentication.
@@ -53,7 +54,7 @@ class AuthApi {
         _uri(baseUrl, '/api/auth/me'),
         headers: {
           ..._jsonHeaders,
-          HttpHeaders.authorizationHeader: 'Bearer $token',
+          'authorization': 'Bearer $token',
         },
       ),
     );
@@ -63,6 +64,128 @@ class AuthApi {
       baseUrl: normalizeBaseUrl(baseUrl),
       fallbackToken: token,
     );
+  }
+
+  /// PUT /api/auth/me — update the instructor's name fields. Returns the
+  /// refreshed session (same token, new profile fields).
+  Future<InstructorSession> updateProfile({
+    required String baseUrl,
+    required String token,
+    required String firstName,
+    required String lastName,
+    String middleName = '',
+    String nameExt = '',
+  }) async {
+    final response = await _safeRequest(
+      () => _client.put(
+        _uri(baseUrl, '/api/auth/me'),
+        headers: {
+          ..._jsonHeaders,
+          'authorization': 'Bearer $token',
+        },
+        body: jsonEncode({
+          'first_name': firstName.trim(),
+          'middle_name': middleName.trim(),
+          'last_name': lastName.trim(),
+          'name_ext': nameExt.trim(),
+        }),
+      ),
+    );
+    final data = _decode(response);
+    return InstructorSession.fromApi(
+      data,
+      baseUrl: normalizeBaseUrl(baseUrl),
+      fallbackToken: token,
+    );
+  }
+
+  /// POST /api/auth/change-password — requires the current password.
+  Future<void> changePassword({
+    required String baseUrl,
+    required String token,
+    required String currentPassword,
+    required String newPassword,
+  }) async {
+    final response = await _safeRequest(
+      () => _client.post(
+        _uri(baseUrl, '/api/auth/change-password'),
+        headers: {
+          ..._jsonHeaders,
+          'authorization': 'Bearer $token',
+        },
+        body: jsonEncode({
+          'current_password': currentPassword,
+          'new_password': newPassword,
+        }),
+      ),
+    );
+    _decode(response);
+  }
+
+  /// POST /api/auth/avatar — multipart upload; server sniffs the real
+  /// image type. Returns (hasAvatar, avatarV) for session refresh.
+  Future<(bool, int)> uploadAvatar({
+    required String baseUrl,
+    required String token,
+    required List<int> bytes,
+    required String fileName,
+  }) async {
+    final ext = fileName.split('.').last.toLowerCase();
+    final subtype = switch (ext) {
+      'png' => 'png',
+      'jpg' || 'jpeg' => 'jpeg',
+      'webp' => 'webp',
+      'gif' => 'gif',
+      _ => 'jpeg',
+    };
+    final request = http.MultipartRequest(
+      'POST',
+      _uri(baseUrl, '/api/auth/avatar'),
+    )
+      ..headers['authorization'] = 'Bearer $token'
+      ..headers['accept'] = 'application/json'
+      ..files.add(http.MultipartFile.fromBytes(
+        'file',
+        bytes,
+        filename: fileName,
+        contentType: MediaType('image', subtype),
+      ));
+
+    http.StreamedResponse streamed;
+    try {
+      streamed = await _client.send(request);
+    } catch (e) {
+      if (isNetworkError(e)) {
+        throw const ApiException(
+          'Cannot reach the server. Check the address and your network.',
+          isNetworkError: true,
+        );
+      }
+      rethrow;
+    }
+    final response = await http.Response.fromStream(streamed);
+    final data = _decode(response);
+    return (
+      data['has_avatar'] == true || data['has_avatar'] == 1,
+      int.tryParse(data['avatar_v']?.toString() ?? '') ?? 0,
+    );
+  }
+
+  /// DELETE /api/auth/avatar — remove the stored photo.
+  Future<void> deleteAvatar({
+    required String baseUrl,
+    required String token,
+  }) async {
+    final response = await _safeRequest(
+      () => _client.delete(
+        _uri(baseUrl, '/api/auth/avatar'),
+        headers: {
+          ..._jsonHeaders,
+          'authorization': 'Bearer $token',
+        },
+      ),
+    );
+    _decode(response);
   }
 
   Uri _uri(String baseUrl, String path) {
@@ -78,18 +201,16 @@ class AuthApi {
   ) async {
     try {
       return await request();
-    } on SocketException {
-      throw const ApiException(
-        'Cannot reach the server. Check the address and your network.',
-        isNetworkError: true,
-      );
-    } on HttpException {
-      throw const ApiException(
-        'Unexpected HTTP error while contacting the server.',
-        isNetworkError: true,
-      );
     } on FormatException {
       throw const ApiException('Invalid server response format.');
+    } catch (e) {
+      if (isNetworkError(e)) {
+        throw const ApiException(
+          'Cannot reach the server. Check the address and your network.',
+          isNetworkError: true,
+        );
+      }
+      rethrow;
     }
   }
 
@@ -118,7 +239,7 @@ class AuthApi {
   }
 
   static const Map<String, String> _jsonHeaders = {
-    HttpHeaders.acceptHeader: 'application/json',
-    HttpHeaders.contentTypeHeader: 'application/json',
+    'accept': 'application/json',
+    'content-type': 'application/json',
   };
 }

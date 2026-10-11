@@ -1,9 +1,9 @@
 import 'dart:convert';
-import 'dart:io';
 
 import 'package:http/http.dart' as http;
 
 import '../../../core/network/api_exception.dart';
+import '../../../core/network/net_error.dart';
 import '../domain/exam.dart';
 
 /// API client for exam-related endpoints.
@@ -52,8 +52,8 @@ class ExamApi {
   }
 
   Map<String, String> _headers(String token) => {
-        HttpHeaders.acceptHeader: 'application/json',
-        HttpHeaders.authorizationHeader: 'Bearer $token',
+        'accept': 'application/json',
+        'authorization': 'Bearer $token',
       };
 
   Future<http.Response> _safeRequest(
@@ -61,11 +61,14 @@ class ExamApi {
   ) async {
     try {
       return await request();
-    } on SocketException {
-      throw const ApiException(
-        'Cannot reach the server. Check your network connection.',
-        isNetworkError: true,
-      );
+    } catch (e) {
+      if (isNetworkError(e)) {
+        throw const ApiException(
+          'Cannot reach the server. Check your network connection.',
+          isNetworkError: true,
+        );
+      }
+      rethrow;
     }
   }
 

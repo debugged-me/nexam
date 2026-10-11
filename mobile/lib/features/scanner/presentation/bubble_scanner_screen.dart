@@ -1,19 +1,17 @@
-import 'dart:io';
-
 import 'package:camera/camera.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../../../core/network/api_exception.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/widgets/nexam_app_bar.dart';
 import '../../exams/domain/exam.dart';
 import '../data/omr_scanner.dart';
 import '../data/scan_api.dart';
 
-/// Bubble scanner screen — after the QR code identifies the exam, the
-/// instructor captures a photo of the answer sheet. The OMR algorithm
-/// detects filled bubbles (in a background isolate) and shows a review
-/// screen before submitting.
+/// Capture screen — dark camera UI with an A4 framing guide, student
+/// fields in a glass card, torch toggle, and a shutter button. The photo
+/// goes to the OMR engine in a background isolate, then to review.
 class BubbleScannerScreen extends StatefulWidget {
   const BubbleScannerScreen({
     super.key,
@@ -37,10 +35,10 @@ class _BubbleScannerScreenState extends State<BubbleScannerScreen>
   CameraController? _cameraController;
   bool _cameraReady = false;
   bool _processing = false;
+  bool _torchOn = false;
   String? _cameraError;
   final _scanApi = ScanApi();
 
-  // Student info
   final _nameController = TextEditingController();
   final _numberController = TextEditingController();
 
@@ -56,6 +54,10 @@ class _BubbleScannerScreenState extends State<BubbleScannerScreen>
     final controller = _cameraController;
     if (controller == null || !controller.value.isInitialized) return;
     if (state == AppLifecycleState.inactive) {
+      setState(() {
+        _cameraReady = false;
+        _cameraController = null;
+      });
       controller.dispose();
     } else if (state == AppLifecycleState.resumed) {
       _initCamera();
@@ -66,7 +68,10 @@ class _BubbleScannerScreenState extends State<BubbleScannerScreen>
     try {
       final cameras = await availableCameras();
       if (cameras.isEmpty) {
-        if (mounted) setState(() => _cameraError = 'No camera available on this device.');
+        if (mounted) {
+          setState(() =>
+              _cameraError = 'No camera available on this device.');
+        }
         return;
       }
 
@@ -101,6 +106,18 @@ class _BubbleScannerScreenState extends State<BubbleScannerScreen>
     }
   }
 
+  Future<void> _toggleTorch() async {
+    final controller = _cameraController;
+    if (controller == null || !controller.value.isInitialized) return;
+    try {
+      await controller
+          .setFlashMode(_torchOn ? FlashMode.off : FlashMode.torch);
+      if (mounted) setState(() => _torchOn = !_torchOn);
+    } catch (_) {
+      // Some devices lack a torch — fail quietly.
+    }
+  }
+
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
@@ -117,7 +134,12 @@ class _BubbleScannerScreenState extends State<BubbleScannerScreen>
 
     try {
       final xFile = await _cameraController!.takePicture();
-      final imageBytes = await File(xFile.path).readAsBytes();
+      if (_torchOn) {
+        // Leave the torch off for the next capture.
+        await _cameraController!.setFlashMode(FlashMode.off);
+        _torchOn = false;
+      }
+      final imageBytes = await xFile.readAsBytes();
 
       // OMR detection is CPU-heavy (decode + homography + per-bubble
       // sampling) — run it in a background isolate so the UI stays fluid.
@@ -132,7 +154,6 @@ class _BubbleScannerScreenState extends State<BubbleScannerScreen>
       if (!mounted) return;
 
       if (!output.aligned) {
-        // Anchors weren't found — offer a retake before reviewing.
         final retake = await _showAlignmentWarning();
         if (retake) {
           setState(() => _processing = false);
@@ -169,11 +190,13 @@ class _BubbleScannerScreenState extends State<BubbleScannerScreen>
     }
   }
 
-  /// Returns true when the user wants to retake the photo.
   Future<bool> _showAlignmentWarning() async {
     final choice = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+        ),
         title: const Text('Alignment uncertain'),
         content: const Text(
           'The corner markers on the sheet could not be found, so answers '
@@ -198,117 +221,246 @@ class _BubbleScannerScreenState extends State<BubbleScannerScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.black,
+      extendBodyBehindAppBar: true,
       appBar: AppBar(
-        title: Text('Set ${widget.qrPayload.set} — ${widget.qrPayload.count} items'),
+        backgroundColor: Colors.transparent,
+        foregroundColor: Colors.white,
+        title: Text(
+          'Set ${widget.qrPayload.set} — ${widget.qrPayload.count} items',
+          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+        ),
       ),
-      body: Column(
+      body: Stack(
+        fit: StackFit.expand,
         children: [
-          // Student info fields
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    controller: _nameController,
-                    decoration: const InputDecoration(
-                      labelText: 'Student Name',
-                      isDense: true,
-                      prefixIcon: Icon(Icons.person),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: TextField(
-                    controller: _numberController,
-                    decoration: const InputDecoration(
-                      labelText: 'Student ID',
-                      isDense: true,
-                      prefixIcon: Icon(Icons.badge),
-                    ),
-                  ),
-                ),
-              ],
+          // Camera preview (or error / loading states).
+          if (_cameraError != null)
+            _buildCameraError()
+          else if (_cameraReady && _cameraController != null)
+            CameraPreview(_cameraController!)
+          else
+            const Center(
+              child: CircularProgressIndicator(color: Colors.white),
             ),
-          ),
 
-          // Camera preview + alignment guide
-          Expanded(
-            child: _cameraError != null
-                ? Center(
-                    child: Padding(
-                      padding: const EdgeInsets.all(24),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Icon(Icons.videocam_off, size: 48, color: AppTheme.error),
-                          const SizedBox(height: 12),
-                          Text(_cameraError!, textAlign: TextAlign.center),
-                          const SizedBox(height: 16),
-                          OutlinedButton(
-                            onPressed: _initCamera,
-                            child: const Text('Retry'),
-                          ),
-                        ],
+          // Sheet framing guide.
+          if (_cameraReady) const _SheetGuide(),
+
+          // Bottom stack: student card + shutter row.
+          if (_cameraReady)
+            Positioned(
+              left: 0,
+              right: 0,
+              bottom: 0,
+              child: SafeArea(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 0, 20, 18),
+                  child: Column(
+                    children: [
+                      _buildStudentCard(),
+                      const SizedBox(height: 18),
+                      _buildShutterRow(),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+
+          // Processing scrim.
+          if (_processing)
+            Container(
+              color: Colors.black.withValues(alpha: 0.65),
+              child: const Center(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    CircularProgressIndicator(color: Colors.white),
+                    SizedBox(height: 16),
+                    Text(
+                      'Reading bubbles…',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
-                  )
-                : _cameraReady && _cameraController != null
-                    ? Stack(
-                        fit: StackFit.expand,
-                        children: [
-                          CameraPreview(_cameraController!),
-                          // Sheet alignment guide — the four corner marks
-                          // should sit inside these boxes.
-                          const _SheetGuide(),
-                          Positioned(
-                            bottom: 12,
-                            left: 0,
-                            right: 0,
-                            child: Center(
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 16, vertical: 8),
-                                decoration: BoxDecoration(
-                                  color: Colors.black.withValues(alpha: 0.6),
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                                child: const Text(
-                                  'Fit the whole sheet inside the frame —\nall four corner marks must be visible',
-                                  textAlign: TextAlign.center,
-                                  style: TextStyle(color: Colors.white, fontSize: 12),
-                                ),
-                              ),
-                            ),
-                          ),
-                        ],
-                      )
-                    : const Center(child: CircularProgressIndicator()),
-          ),
+                  ],
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
 
-          // Capture button
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: ElevatedButton.icon(
-              onPressed: _processing || !_cameraReady ? null : _captureAndScan,
-              icon: _processing
-                  ? const SizedBox(
-                      height: 20,
-                      width: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                    )
-                  : const Icon(Icons.camera_alt),
-              label: Text(_processing ? 'Detecting…' : 'Capture & Detect'),
+  Widget _buildCameraError() {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(28),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 56,
+              height: 56,
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.10),
+                borderRadius: BorderRadius.circular(18),
+              ),
+              child: const Icon(
+                Icons.videocam_off_outlined,
+                color: Colors.white70,
+                size: 26,
+              ),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              _cameraError!,
+              textAlign: TextAlign.center,
+              style: const TextStyle(color: Colors.white70, fontSize: 14),
+            ),
+            const SizedBox(height: 18),
+            OutlinedButton(
+              style: OutlinedButton.styleFrom(
+                foregroundColor: Colors.white,
+                side: BorderSide(
+                  color: Colors.white.withValues(alpha: 0.4),
+                ),
+                minimumSize: const Size(140, 46),
+              ),
+              onPressed: _initCamera,
+              child: const Text('Retry'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Frosted card holding the student fields — floats over the preview so
+  /// the camera keeps the maximum vertical space.
+  Widget _buildStudentCard() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: Colors.black.withValues(alpha: 0.55),
+        borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.14)),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: _darkField(
+              controller: _nameController,
+              hint: 'Student name',
+              icon: Icons.person_outline_rounded,
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: _darkField(
+              controller: _numberController,
+              hint: 'Student ID',
+              icon: Icons.badge_outlined,
             ),
           ),
         ],
       ),
     );
   }
+
+  Widget _darkField({
+    required TextEditingController controller,
+    required String hint,
+    required IconData icon,
+  }) {
+    return TextField(
+      controller: controller,
+      style: const TextStyle(color: Colors.white, fontSize: 13.5),
+      decoration: InputDecoration(
+        isDense: true,
+        filled: true,
+        fillColor: Colors.white.withValues(alpha: 0.10),
+        hintText: hint,
+        hintStyle:
+            TextStyle(color: Colors.white.withValues(alpha: 0.45), fontSize: 13),
+        prefixIcon: Icon(icon,
+            size: 17, color: Colors.white.withValues(alpha: 0.55)),
+        prefixIconConstraints:
+            const BoxConstraints(minWidth: 36, minHeight: 20),
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(10),
+          borderSide: BorderSide.none,
+        ),
+      ),
+    );
+  }
+
+  /// Torch toggle + camera-app shutter button.
+  Widget _buildShutterRow() {
+    return Row(
+      children: [
+        const SizedBox(width: 52),
+        const Spacer(),
+        GestureDetector(
+          onTap: _processing ? null : _captureAndScan,
+          child: Container(
+            width: 74,
+            height: 74,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              border: Border.all(color: Colors.white, width: 4),
+              color: Colors.transparent,
+            ),
+            child: Center(
+              child: Container(
+                width: 56,
+                height: 56,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: _processing ? Colors.white54 : Colors.white,
+                ),
+                child: const Icon(
+                  Icons.document_scanner_outlined,
+                  color: AppTheme.ink,
+                  size: 24,
+                ),
+              ),
+            ),
+          ),
+        ),
+        const Spacer(),
+        Material(
+          color: _torchOn
+              ? AppTheme.primary
+              : Colors.white.withValues(alpha: 0.14),
+          shape: const CircleBorder(),
+          child: InkWell(
+            customBorder: const CircleBorder(),
+            onTap: _toggleTorch,
+            child: SizedBox(
+              width: 52,
+              height: 52,
+              child: Icon(
+                _torchOn
+                    ? Icons.flashlight_on_rounded
+                    : Icons.flashlight_off_rounded,
+                color: Colors.white,
+                size: 21,
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
 }
 
-/// Overlay that frames where the A4 sheet should sit — portrait aspect.
+/// A4 sheet framing guide — the four corner marks should sit inside the
+/// accent boxes.
 class _SheetGuide extends StatelessWidget {
   const _SheetGuide();
 
@@ -316,20 +468,18 @@ class _SheetGuide extends StatelessWidget {
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        // A4 portrait aspect ratio (width/height).
         const aspect = 794 / 1123;
-        var w = constraints.maxWidth * 0.9;
+        var w = constraints.maxWidth * 0.86;
         var h = w / aspect;
-        if (h > constraints.maxHeight * 0.9) {
-          h = constraints.maxHeight * 0.9;
+        if (h > constraints.maxHeight * 0.78) {
+          h = constraints.maxHeight * 0.78;
           w = h * aspect;
         }
         final left = (constraints.maxWidth - w) / 2;
-        final top = (constraints.maxHeight - h) / 2;
+        final top = (constraints.maxHeight - h) / 2 - 24;
 
-        // Corner boxes matching the sheet's anchor positions.
-        const corner = 26.0;
-        const inset = 0.03; // ~3% margin like the sheet's 30px offset
+        const corner = 24.0;
+        const inset = 0.03;
         return Stack(
           children: [
             Positioned(
@@ -339,8 +489,11 @@ class _SheetGuide extends StatelessWidget {
                 width: w,
                 height: h,
                 decoration: BoxDecoration(
-                  border: Border.all(color: Colors.white.withValues(alpha: 0.7), width: 2),
-                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                    color: Colors.white.withValues(alpha: 0.55),
+                    width: 1.5,
+                  ),
+                  borderRadius: BorderRadius.circular(10),
                 ),
               ),
             ),
@@ -357,11 +510,31 @@ class _SheetGuide extends StatelessWidget {
                   width: corner,
                   height: corner,
                   decoration: BoxDecoration(
-                    border: Border.all(color: AppTheme.primary, width: 2.5),
+                    border: Border.all(
+                      color: AppTheme.primaryLight,
+                      width: 2.5,
+                    ),
                     borderRadius: BorderRadius.circular(4),
                   ),
                 ),
               ),
+            Positioned(
+              left: left,
+              right: constraints.maxWidth - left - w,
+              top: top - 30,
+              child: Text(
+                'Fit all four corner marks in the boxes',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: Colors.white.withValues(alpha: 0.75),
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500,
+                  shadows: const [
+                    Shadow(color: Colors.black87, blurRadius: 6),
+                  ],
+                ),
+              ),
+            ),
           ],
         );
       },
@@ -369,10 +542,9 @@ class _SheetGuide extends StatelessWidget {
   }
 }
 
-/// Review screen — shows the detected answers and lets the instructor
-/// correct any ambiguous or incorrect detections before submitting.
-/// Supports all question types: MCQ/true-false chips, matching sub-rows,
-/// and identification correct/incorrect verdicts.
+/// Review screen — grouped card of detected answers with per-type chip
+/// editors and a sticky submit bar. Correct anything the scanner was
+/// unsure about before the score is committed.
 class ScanReviewScreen extends StatefulWidget {
   const ScanReviewScreen({
     super.key,
@@ -400,13 +572,13 @@ class ScanReviewScreen extends StatefulWidget {
 }
 
 class _ScanReviewScreenState extends State<ScanReviewScreen> {
-  /// Canonical marked answer per item (letter, 'B,A,D', 'CORRECT', or '').
   late List<String> _answers;
-
-  /// Matching items: per-sub-row letters (parallel to _answers).
   late List<List<String>> _subAnswers;
   late List<bool> _ambiguous;
   bool _submitting = false;
+
+  int get _answeredCount => _answers.where((a) => a.isNotEmpty).length;
+  int get _ambiguousCount => _ambiguous.where((a) => a).length;
 
   @override
   void initState() {
@@ -437,7 +609,8 @@ class _ScanReviewScreenState extends State<ScanReviewScreen> {
         examId: widget.qrPayload.examId,
         examSetId: widget.examSetId,
         studentName: widget.studentName.isEmpty ? null : widget.studentName,
-        studentNumber: widget.studentNumber.isEmpty ? null : widget.studentNumber,
+        studentNumber:
+            widget.studentNumber.isEmpty ? null : widget.studentNumber,
         answers: scannedAnswers,
       );
 
@@ -454,7 +627,8 @@ class _ScanReviewScreenState extends State<ScanReviewScreen> {
             'Score: ${result.score}% (${result.correctCount}/${result.totalItems})'
             '${result.needsReview ? ' — needs review' : ''}',
           ),
-          backgroundColor: result.needsReview ? AppTheme.warning : AppTheme.success,
+          backgroundColor:
+              result.needsReview ? AppTheme.warning : AppTheme.success,
           duration: const Duration(seconds: 4),
         ),
       );
@@ -483,173 +657,389 @@ class _ScanReviewScreenState extends State<ScanReviewScreen> {
     }
   }
 
-  Widget _buildItemEditor(int index) {
-    final detection = widget.detections[index];
-    final isAmbiguous = _ambiguous[index];
-
-    Widget editor;
-    switch (detection.type) {
-      case 'matching':
-        // One chip row per premise sub-row.
-        editor = Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            for (var s = 0; s < _subAnswers[index].length; s++)
-              Padding(
-                padding: const EdgeInsets.only(top: 4),
-                child: Wrap(
-                  spacing: 6,
-                  crossAxisAlignment: WrapCrossAlignment.center,
-                  children: [
-                    Text('${String.fromCharCode(97 + s)})',
-                        style: const TextStyle(fontWeight: FontWeight.w600)),
-                    ...detection.choices.map((choice) {
-                      final isSelected = _subAnswers[index][s] == choice;
-                      return ChoiceChip(
-                        label: Text(choice),
-                        selected: isSelected,
-                        onSelected: (selected) {
-                          setState(() {
-                            _subAnswers[index][s] = selected ? choice : '';
-                            _answers[index] = _subAnswers[index].join(',');
-                            _ambiguous[index] = false;
-                          });
-                        },
-                      );
-                    }),
-                  ],
-                ),
-              ),
-          ],
-        );
-        break;
-      case 'identification':
-        // Instructor verdict: Correct / Incorrect.
-        editor = Wrap(
-          spacing: 8,
-          children: [
-            for (final opt in ['CORRECT', 'INCORRECT'])
-              ChoiceChip(
-                label: Text(opt == 'CORRECT' ? '✓ Correct' : '✗ Incorrect'),
-                selected: _answers[index] == opt,
-                onSelected: (selected) {
-                  setState(() {
-                    _answers[index] = selected ? opt : '';
-                    _ambiguous[index] = false;
-                  });
-                },
-              ),
-          ],
-        );
-        break;
-      default:
-        editor = Wrap(
-          spacing: 8,
-          children: detection.choices.map((choice) {
-            final isSelected = _answers[index] == choice;
-            return ChoiceChip(
-              label: Text(choice),
-              selected: isSelected,
-              onSelected: (selected) {
-                setState(() {
-                  _answers[index] = selected ? choice : '';
-                  _ambiguous[index] = false;
-                });
-              },
-            );
-          }).toList(),
-        );
-    }
-
-    return ListTile(
-      leading: CircleAvatar(
-        backgroundColor: isAmbiguous
-            ? AppTheme.warning.withValues(alpha: 0.2)
-            : AppTheme.surface,
-        child: Text('${index + 1}'),
-      ),
-      title: editor,
-      subtitle: detection.type == 'matching' || detection.type == 'identification'
-          ? Text(detection.type == 'matching' ? 'Matching' : 'Identification — instructor grades',
-              style: const TextStyle(fontSize: 11, color: AppTheme.textMuted))
-          : null,
-      trailing: isAmbiguous
-          ? const Icon(Icons.warning, color: AppTheme.warning, size: 20)
-          : _answers[index].isEmpty
-              ? const Text('—', style: TextStyle(color: AppTheme.textMuted))
-              : const Icon(Icons.check, color: AppTheme.success, size: 20),
-    );
+  void _pick(int index, String value, {int? sub}) {
+    setState(() {
+      if (sub != null) {
+        _subAnswers[index][sub] =
+            _subAnswers[index][sub] == value ? '' : value;
+        _answers[index] = _subAnswers[index].join(',');
+      } else {
+        _answers[index] = _answers[index] == value ? '' : value;
+      }
+      _ambiguous[index] = false;
+    });
   }
 
   @override
   Widget build(BuildContext context) {
-    final ambiguousCount = _ambiguous.where((a) => a).length;
-
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Review Answers'),
-        actions: [
-          TextButton(
-            onPressed: _submitting ? null : _submit,
-            child: _submitting
-                ? const SizedBox(
-                    height: 20,
-                    width: 20,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                : const Text('Submit'),
-          ),
-        ],
+      appBar: const NexamAppBar(
+        title: 'Review answers',
+        subtitle: 'Correct anything the scanner flagged',
       ),
       body: Column(
         children: [
-          if (ambiguousCount > 0)
+          _buildSummary(),
+          Expanded(
+            child: ListView.separated(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 120),
+              itemCount: _answers.length,
+              separatorBuilder: (_, __) => const SizedBox(height: 8),
+              itemBuilder: (context, index) => _buildItemCard(index),
+            ),
+          ),
+        ],
+      ),
+      bottomSheet: _buildSubmitBar(),
+    );
+  }
+
+  /// Dark summary strip — who, how many answered, what needs attention.
+  Widget _buildSummary() {
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        gradient: AppTheme.heroGradient,
+        borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  widget.studentName.isNotEmpty
+                      ? widget.studentName
+                      : 'Unnamed student',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  '${widget.qrPayload.set} • $_answeredCount/${_answers.length} answered'
+                  '${widget.studentNumber.isNotEmpty ? ' • #${widget.studentNumber}' : ''}',
+                  style: TextStyle(
+                    color: Colors.white.withValues(alpha: 0.62),
+                    fontSize: 12,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          if (_ambiguousCount > 0)
             Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(12),
-              color: AppTheme.warning.withValues(alpha: 0.1),
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              decoration: BoxDecoration(
+                color: AppTheme.warning.withValues(alpha: 0.18),
+                borderRadius: BorderRadius.circular(999),
+                border: Border.all(
+                  color: AppTheme.warning.withValues(alpha: 0.45),
+                ),
+              ),
               child: Row(
+                mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Icon(Icons.warning, color: AppTheme.warning, size: 20),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      '$ambiguousCount ambiguous answer(s) need review.',
-                      style: const TextStyle(color: AppTheme.warning, fontSize: 14),
+                  const Icon(Icons.flag_outlined,
+                      size: 13, color: AppTheme.warning),
+                  const SizedBox(width: 4),
+                  Text(
+                    '$_ambiguousCount',
+                    style: const TextStyle(
+                      color: AppTheme.warning,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w800,
                     ),
                   ),
                 ],
               ),
             ),
+        ],
+      ),
+    );
+  }
 
-          // Student info summary
-          if (widget.studentName.isNotEmpty || widget.studentNumber.isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.all(16),
-              child: Row(
-                children: [
-                  Text(widget.studentName,
-                      style: const TextStyle(fontWeight: FontWeight.w600)),
-                  if (widget.studentNumber.isNotEmpty)
-                    Padding(
-                      padding: const EdgeInsets.only(left: 12),
+  Widget _buildItemCard(int index) {
+    final detection = widget.detections[index];
+    final isAmbiguous = _ambiguous[index];
+
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+        border: Border.all(
+          color: isAmbiguous
+              ? AppTheme.warning.withValues(alpha: 0.55)
+              : AppTheme.cardBorder,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 30,
+                height: 30,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: isAmbiguous
+                      ? AppTheme.tintAmber
+                      : AppTheme.surfaceAlt,
+                  borderRadius: BorderRadius.circular(9),
+                ),
+                child: Text(
+                  '${index + 1}',
+                  style: TextStyle(
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w800,
+                    color: isAmbiguous
+                        ? AppTheme.warning
+                        : AppTheme.textMuted,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  _typeLabel(detection.type),
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: AppTheme.textMuted,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ),
+              if (isAmbiguous)
+                const Icon(Icons.warning_amber_rounded,
+                    color: AppTheme.warning, size: 18)
+              else if (_answers[index].isEmpty)
+                const Text('blank',
+                    style: TextStyle(
+                        fontSize: 11.5, color: AppTheme.textFaint))
+              else
+                const Icon(Icons.check_circle_rounded,
+                    color: AppTheme.success, size: 17),
+            ],
+          ),
+          const SizedBox(height: 10),
+          _buildEditor(index, detection),
+        ],
+      ),
+    );
+  }
+
+  String _typeLabel(String type) {
+    switch (type) {
+      case 'matching':
+        return 'Matching — one letter per premise';
+      case 'identification':
+        return 'Identification — your verdict';
+      case 'true_false':
+        return 'True or false';
+      default:
+        return 'Multiple choice';
+    }
+  }
+
+  Widget _buildEditor(int index, OmrDetection detection) {
+    switch (detection.type) {
+      case 'matching':
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            for (var s = 0; s < _subAnswers[index].length; s++)
+              Padding(
+                padding: EdgeInsets.only(top: s == 0 ? 0 : 8),
+                child: Row(
+                  children: [
+                    SizedBox(
+                      width: 18,
                       child: Text(
-                        widget.studentNumber,
-                        style: const TextStyle(color: AppTheme.textMuted),
+                        '${String.fromCharCode(97 + s)})',
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                          color: AppTheme.textMuted,
+                        ),
                       ),
                     ),
-                ],
+                    Expanded(
+                      child: Wrap(
+                        spacing: 6,
+                        runSpacing: 6,
+                        children: detection.choices.map((choice) {
+                          final selected =
+                              _subAnswers[index][s] == choice;
+                          return _answerChip(
+                            label: choice,
+                            selected: selected,
+                            onTap: () => _pick(index, choice, sub: s),
+                          );
+                        }).toList(),
+                      ),
+                    ),
+                  ],
+                ),
               ),
-            ),
+          ],
+        );
+      case 'identification':
+        return Row(
+          children: [
+            for (final (label, value) in [
+              ('Correct', 'CORRECT'),
+              ('Incorrect', 'INCORRECT'),
+            ])
+              Expanded(
+                child: Padding(
+                  padding: EdgeInsets.only(
+                      right: value == 'CORRECT' ? 8 : 0),
+                  child: _verdictButton(
+                    label: label,
+                    positive: value == 'CORRECT',
+                    selected: _answers[index] == value,
+                    onTap: () => _pick(index, value),
+                  ),
+                ),
+              ),
+          ],
+        );
+      default:
+        return Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: detection.choices.map((choice) {
+            return _answerChip(
+              label: choice,
+              selected: _answers[index] == choice,
+              onTap: () => _pick(index, choice),
+            );
+          }).toList(),
+        );
+    }
+  }
 
-          // Answer list
-          Expanded(
-            child: ListView.builder(
-              itemCount: _answers.length,
-              itemBuilder: (context, index) => _buildItemEditor(index),
+  Widget _answerChip({
+    required String label,
+    required bool selected,
+    required VoidCallback onTap,
+  }) {
+    return Material(
+      color: selected ? AppTheme.primary : AppTheme.surfaceAlt,
+      borderRadius: BorderRadius.circular(10),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(10),
+        child: Container(
+          width: 44,
+          height: 40,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(
+              color: selected ? AppTheme.primary : Colors.transparent,
             ),
           ),
-        ],
+          child: Text(
+            label,
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w700,
+              color: selected ? Colors.white : AppTheme.textMuted,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _verdictButton({
+    required String label,
+    required bool positive,
+    required bool selected,
+    required VoidCallback onTap,
+  }) {
+    final accent = positive ? AppTheme.success : AppTheme.error;
+    return Material(
+      color: selected
+          ? accent.withValues(alpha: 0.14)
+          : AppTheme.surfaceAlt,
+      borderRadius: BorderRadius.circular(10),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(10),
+        child: Container(
+          height: 40,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(
+              color:
+                  selected ? accent.withValues(alpha: 0.7) : Colors.transparent,
+            ),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                positive
+                    ? Icons.check_rounded
+                    : Icons.close_rounded,
+                size: 15,
+                color: selected ? accent : AppTheme.textFaint,
+              ),
+              const SizedBox(width: 5),
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                  color: selected ? accent : AppTheme.textMuted,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSubmitBar() {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        border: Border(top: BorderSide(color: AppTheme.cardBorder)),
+      ),
+      child: SafeArea(
+        top: false,
+        child: Padding(
+          padding: const EdgeInsets.only(bottom: 14),
+          child: ElevatedButton(
+            onPressed: _submitting ? null : _submit,
+            child: _submitting
+                ? const SizedBox(
+                    height: 20,
+                    width: 20,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2.2,
+                      color: Colors.white,
+                    ),
+                  )
+                : Text(
+                    _ambiguousCount > 0
+                        ? 'Submit with $_ambiguousCount flagged'
+                        : 'Submit scan',
+                  ),
+          ),
+        ),
       ),
     );
   }

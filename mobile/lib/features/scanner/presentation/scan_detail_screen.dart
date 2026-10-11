@@ -1,12 +1,17 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 
 import '../../../core/network/api_exception.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/widgets/nexam_app_bar.dart';
+import '../../../core/widgets/skeleton.dart';
+import '../../../core/widgets/states.dart';
 import '../data/scan_api.dart';
 
-/// Scan detail screen — shows one scan's per-item breakdown and lets the
-/// instructor correct marked answers. Corrections are posted to the
-/// review endpoint, which recounts the whole scan server-side.
+/// Scan detail screen — score hero on top, per-item ledger below. The
+/// instructor taps an item to correct it; corrections batch into one
+/// review POST that recounts the whole scan server-side.
 class ScanDetailScreen extends StatefulWidget {
   const ScanDetailScreen({
     super.key,
@@ -132,6 +137,9 @@ class _ScanDetailScreenState extends State<ScanDetailScreen> {
     final result = await showDialog<String>(
       context: context,
       builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+        ),
         title: Text('Item ${item.itemNumber} — matching'),
         content: TextField(
           controller: controller,
@@ -160,114 +168,387 @@ class _ScanDetailScreenState extends State<ScanDetailScreen> {
   @override
   Widget build(BuildContext context) {
     final scan = _detail?.scan;
-    final student = scan?['student_name']?.toString() ?? 'Unknown';
+    final student = scan?['student_name']?.toString() ?? 'Scan';
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text('Scan — $student'),
-        actions: [
-          if (_corrections.isNotEmpty)
-            TextButton(
-              onPressed: _submitting ? null : _submitReview,
-              child: _submitting
-                  ? const SizedBox(
-                      height: 20, width: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2))
-                  : Text('Save ${_corrections.length} fix(es)'),
-            ),
-        ],
+      appBar: NexamAppBar(
+        title: student,
+        subtitle: 'Scan review',
       ),
       body: _loading
-          ? const Center(child: CircularProgressIndicator())
+          ? _buildSkeleton()
           : _error != null
-              ? Center(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(_error!),
-                      const SizedBox(height: 12),
-                      OutlinedButton(onPressed: _load, child: const Text('Retry')),
-                    ],
+              ? ErrorState(message: _error!, onRetry: _load)
+              : _buildBody(),
+      bottomSheet:
+          _corrections.isNotEmpty ? _buildSaveBar() : null,
+    );
+  }
+
+  /// Loading placeholders shaped like the real layout — hero + item rows.
+  Widget _buildSkeleton() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+      child: Shimmer(
+        child: Column(
+          children: [
+            const SkeletonBox.expand(height: 130, radius: 22),
+            const SizedBox(height: 20),
+            const Align(
+              alignment: Alignment.centerLeft,
+              child: SkeletonBox(width: 100, height: 12),
+            ),
+            const SizedBox(height: 10),
+            for (var i = 0; i < 6; i++) ...[
+              const SkeletonBox.expand(height: 58, radius: 16),
+              const SizedBox(height: 8),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildBody() {
+    final bottomPad = _corrections.isNotEmpty ? 110.0 : 24.0;
+    return ListView(
+      padding: EdgeInsets.fromLTRB(16, 8, 16, bottomPad),
+      children: [
+        if (_detail!.scan.isNotEmpty) _buildScoreHero(),
+        const SizedBox(height: 16),
+        Row(
+          children: [
+            const Text(
+              'ITEM LEDGER',
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w800,
+                letterSpacing: 1.4,
+                color: AppTheme.textFaint,
+              ),
+            ),
+            const Spacer(),
+            Text(
+              'tap a row to correct',
+              style: TextStyle(
+                fontSize: 11.5,
+                color: AppTheme.textFaint.withValues(alpha: 0.8),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        for (final item in _detail!.answers) ...[
+          _buildItemCard(item),
+          const SizedBox(height: 8),
+        ],
+      ],
+    );
+  }
+
+  /// Dark hero — big score number, circular ring, student/exam meta.
+  Widget _buildScoreHero() {
+    final scan = _detail!.scan;
+    final score = double.tryParse(scan['score']?.toString() ?? '') ?? 0;
+    final correct = int.tryParse(scan['correct_count']?.toString() ?? '') ?? 0;
+    final total = int.tryParse(scan['total_items']?.toString() ?? '') ?? 0;
+    final needsReview =
+        scan['needs_review'] == true || scan['needs_review'] == 1;
+    final setLabel = scan['set_label']?.toString() ??
+        scan['exam_set']?.toString() ??
+        '';
+    final studentNo = scan['student_number']?.toString() ?? '';
+
+    final ringColor = needsReview
+        ? AppTheme.warning
+        : score >= 75
+            ? AppTheme.success
+            : AppTheme.error;
+
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        gradient: AppTheme.heroGradient,
+        borderRadius: BorderRadius.circular(AppTheme.radiusLg),
+        boxShadow: AppTheme.cardShadow,
+      ),
+      child: Row(
+        children: [
+          SizedBox(
+            width: 92,
+            height: 92,
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                CustomPaint(
+                  size: const Size(92, 92),
+                  painter: _ScoreRingPainter(
+                    progress: (score / 100).clamp(0, 1).toDouble(),
+                    color: ringColor,
                   ),
-                )
-              : Column(
+                ),
+                Column(
+                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    // Scan summary header
-                    if (scan != null)
-                      Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.all(16),
-                        color: AppTheme.surface,
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              scan['exam_title']?.toString() ?? '',
-                              style: const TextStyle(fontWeight: FontWeight.w600),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              'Score: ${scan['score']}%  •  '
-                              '${scan['correct_count']}/${scan['total_items']} correct'
-                              '${(scan['needs_review'] == 1 || scan['needs_review'] == true) ? '  •  needs review' : ''}',
-                              style: const TextStyle(color: AppTheme.textMuted),
-                            ),
-                          ],
-                        ),
-                      ),
-                    Expanded(
-                      child: ListView.builder(
-                        itemCount: _detail!.answers.length,
-                        itemBuilder: (context, index) {
-                          final item = _detail!.answers[index];
-                          final corrected = _corrections.containsKey(item.itemNumber);
-                          final marked = corrected
-                              ? _corrections[item.itemNumber]!
-                              : item.markedAnswer;
-                          return ListTile(
-                            leading: CircleAvatar(
-                              backgroundColor: item.isCorrect == true
-                                  ? AppTheme.success.withValues(alpha: 0.15)
-                                  : item.isCorrect == false
-                                      ? AppTheme.error.withValues(alpha: 0.15)
-                                      : AppTheme.surface,
-                              child: Text('${item.itemNumber}'),
-                            ),
-                            title: Text(
-                              marked.isEmpty ? '(blank)' : marked,
-                              style: TextStyle(
-                                fontWeight: FontWeight.w600,
-                                color: corrected ? AppTheme.primary : null,
-                              ),
-                            ),
-                            subtitle: Text(
-                              '${item.questionType ?? ''}'
-                              '${item.correctAnswer != null && item.correctAnswer!.isNotEmpty ? ' • key: ${item.correctAnswer}' : ''}',
-                              style: const TextStyle(fontSize: 12),
-                            ),
-                            trailing: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                if (item.isCorrect == true)
-                                  const Icon(Icons.check, color: AppTheme.success, size: 18)
-                                else if (item.isCorrect == false)
-                                  const Icon(Icons.close, color: AppTheme.error, size: 18)
-                                else
-                                  const Icon(Icons.edit_note, color: AppTheme.warning, size: 18),
-                                if (item.ambiguous)
-                                  const Padding(
-                                    padding: EdgeInsets.only(left: 4),
-                                    child: Icon(Icons.warning, color: AppTheme.warning, size: 16),
-                                  ),
-                              ],
-                            ),
-                            onTap: () => _correctItem(item),
-                          );
-                        },
+                    Text(
+                      '${score.round()}',
+                      style: AppTheme.display(30,
+                          weight: FontWeight.w700,
+                          color: Colors.white,
+                          letterSpacing: -1),
+                    ),
+                    Text(
+                      'SCORE',
+                      style: TextStyle(
+                        fontSize: 9,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 1.6,
+                        color: Colors.white.withValues(alpha: 0.55),
                       ),
                     ),
                   ],
                 ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 18),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  scan['student_name']?.toString() ?? 'Unknown student',
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.white,
+                  ),
+                ),
+                if (studentNo.isNotEmpty) ...[
+                  const SizedBox(height: 2),
+                  Text(
+                    '#$studentNo',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Colors.white.withValues(alpha: 0.6),
+                    ),
+                  ),
+                ],
+                const SizedBox(height: 6),
+                Text(
+                  scan['exam_title']?.toString() ?? '',
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 12.5,
+                    color: Colors.white.withValues(alpha: 0.72),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 6,
+                  children: [
+                    _heroPill(
+                      '$correct/$total correct',
+                      Colors.white.withValues(alpha: 0.14),
+                      Colors.white,
+                    ),
+                    if (setLabel.isNotEmpty)
+                      _heroPill(
+                        setLabel,
+                        Colors.white.withValues(alpha: 0.14),
+                        Colors.white,
+                      ),
+                    if (needsReview)
+                      _heroPill(
+                        'Needs review',
+                        AppTheme.warning.withValues(alpha: 0.2),
+                        AppTheme.warning,
+                        icon: Icons.flag_outlined,
+                      ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _heroPill(String label, Color bg, Color fg, {IconData? icon}) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (icon != null) ...[
+            Icon(icon, size: 12, color: fg),
+            const SizedBox(width: 4),
+          ],
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 11.5,
+              fontWeight: FontWeight.w700,
+              color: fg,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildItemCard(ScanAnswerItem item) {
+    final corrected = _corrections.containsKey(item.itemNumber);
+    final marked =
+        corrected ? _corrections[item.itemNumber]! : item.markedAnswer;
+    final correct = item.isCorrect;
+
+    final accent = corrected
+        ? AppTheme.primary
+        : correct == true
+            ? AppTheme.success
+            : correct == false
+                ? AppTheme.error
+                : AppTheme.warning;
+
+    final icon = corrected
+        ? Icons.edit_rounded
+        : correct == true
+            ? Icons.check_rounded
+            : correct == false
+                ? Icons.close_rounded
+                : Icons.edit_note_rounded;
+
+    return Material(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+      child: InkWell(
+        onTap: () => _correctItem(item),
+        borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+            border: Border.all(
+              color: corrected
+                  ? AppTheme.primary.withValues(alpha: 0.55)
+                  : item.ambiguous
+                      ? AppTheme.warning.withValues(alpha: 0.5)
+                      : AppTheme.cardBorder,
+            ),
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 32,
+                height: 32,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: accent.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(9),
+                ),
+                child: Text(
+                  '${item.itemNumber}',
+                  style: TextStyle(
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w800,
+                    color: accent,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      marked.isEmpty ? '(blank)' : marked,
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                        color:
+                            corrected ? AppTheme.primary : AppTheme.ink,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      [
+                        _shortType(item.questionType),
+                        if (item.correctAnswer != null &&
+                            item.correctAnswer!.isNotEmpty)
+                          'key: ${item.correctAnswer}',
+                      ].join('  •  '),
+                      style: const TextStyle(
+                        fontSize: 11.5,
+                        color: AppTheme.textMuted,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              if (item.ambiguous)
+                const Padding(
+                  padding: EdgeInsets.only(right: 6),
+                  child: Icon(Icons.warning_amber_rounded,
+                      color: AppTheme.warning, size: 17),
+                ),
+              Icon(icon, color: accent, size: 19),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  String _shortType(String? type) {
+    switch (type) {
+      case 'true_false':
+        return 'T/F';
+      case 'matching':
+        return 'matching';
+      case 'identification':
+        return 'fill-in';
+      default:
+        return 'MCQ';
+    }
+  }
+
+  Widget _buildSaveBar() {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        border: Border(top: BorderSide(color: AppTheme.cardBorder)),
+      ),
+      child: SafeArea(
+        top: false,
+        child: Padding(
+          padding: const EdgeInsets.only(bottom: 14),
+          child: ElevatedButton(
+            onPressed: _submitting ? null : _submitReview,
+            child: _submitting
+                ? const SizedBox(
+                    height: 20,
+                    width: 20,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2.2,
+                      color: Colors.white,
+                    ),
+                  )
+                : Text(
+                    'Save ${_corrections.length} correction'
+                    '${_corrections.length == 1 ? '' : 's'}',
+                  ),
+          ),
+        ),
+      ),
     );
   }
 
@@ -283,30 +564,29 @@ class _ScanDetailScreenState extends State<ScanDetailScreen> {
     final current = _corrections[item.itemNumber] ?? item.markedAnswer;
     final picked = await showModalBottomSheet<String>(
       context: context,
+      showDragHandle: true,
       builder: (ctx) => SafeArea(
         child: Padding(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Text('Item ${item.itemNumber}',
-                  style: const TextStyle(fontWeight: FontWeight.w600)),
-              const SizedBox(height: 12),
+              Text(
+                'Item ${item.itemNumber}',
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 14),
               Wrap(
                 spacing: 8,
+                runSpacing: 8,
                 children: [
                   for (final c in choices)
-                    ChoiceChip(
-                      label: Text(c),
-                      selected: current == c,
-                      onSelected: (_) => Navigator.of(ctx).pop(c),
-                    ),
-                  ChoiceChip(
-                    label: const Text('Blank'),
-                    selected: current.isEmpty,
-                    onSelected: (_) => Navigator.of(ctx).pop(''),
-                  ),
+                    _correctionChip(ctx, c, current == c),
+                  _correctionChip(ctx, 'Blank', current.isEmpty, value: ''),
                 ],
               ),
             ],
@@ -318,4 +598,69 @@ class _ScanDetailScreenState extends State<ScanDetailScreen> {
       setState(() => _corrections[item.itemNumber] = picked);
     }
   }
+
+  Widget _correctionChip(BuildContext ctx, String label, bool selected,
+      {String? value}) {
+    return Material(
+      color: selected ? AppTheme.primary : AppTheme.surfaceAlt,
+      borderRadius: BorderRadius.circular(10),
+      child: InkWell(
+        onTap: () => Navigator.of(ctx).pop(value ?? label),
+        borderRadius: BorderRadius.circular(10),
+        child: Container(
+          constraints: const BoxConstraints(minWidth: 48, minHeight: 42),
+          alignment: Alignment.center,
+          padding: const EdgeInsets.symmetric(horizontal: 14),
+          child: Text(
+            label,
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w700,
+              color: selected ? Colors.white : AppTheme.textMuted,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Circular score ring for the hero card.
+class _ScoreRingPainter extends CustomPainter {
+  const _ScoreRingPainter({required this.progress, required this.color});
+
+  final double progress;
+  final Color color;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final center = size.center(Offset.zero);
+    final radius = (size.shortestSide / 2) - 4;
+    const start = -math.pi / 2;
+
+    canvas.drawCircle(
+      center,
+      radius,
+      Paint()
+        ..color = Colors.white.withValues(alpha: 0.15)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 7,
+    );
+
+    canvas.drawArc(
+      Rect.fromCircle(center: center, radius: radius),
+      start,
+      2 * math.pi * progress,
+      false,
+      Paint()
+        ..color = color
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 7
+        ..strokeCap = StrokeCap.round,
+    );
+  }
+
+  @override
+  bool shouldRepaint(_ScoreRingPainter old) =>
+      old.progress != progress || old.color != color;
 }

@@ -58,7 +58,7 @@ export default function AppearancePage() {
         </div>
       </div>
 
-      <div className="card">
+      <div className="card" data-tour="appearance-themes">
         <div className="card-header">
           <span className="card-title">Theme</span>
         </div>
@@ -101,7 +101,7 @@ export default function AppearancePage() {
         </div>
       </div>
 
-      <div className="card">
+      <div className="card" data-tour="appearance-palette">
         <div className="card-header">
           <span className="card-title">Palette</span>
         </div>

@@ -120,7 +120,7 @@ export default function AccountPage() {
       </div>
 
       {/* Profile summary stats */}
-      <div className="stats-grid mb-3">
+      <div className="stats-grid mb-3" data-tour="account-stats">
         <div className="stat-card">
           <div className="stat-icon blue"><User size={20} /></div>
           <div className="stat-info">
@@ -147,7 +147,7 @@ export default function AccountPage() {
       <div className="detail-grid-2">
 
         {/* Profile card */}
-        <div className="card">
+        <div className="card" data-tour="account-profile">
           <div className="card-header">
             <span className="card-title">Profile</span>
             {!editingName && (
@@ -157,7 +157,7 @@ export default function AccountPage() {
             )}
           </div>
           <div className="card-body">
-            <div className="account-photo-row">
+            <div className="account-photo-row" data-tour="account-photo">
               <UserAvatar user={profile} className="avatar account-photo" />
               <div className="account-photo-meta">
                 <strong>Profile photo</strong>
@@ -244,7 +244,7 @@ export default function AccountPage() {
         </div>
 
         {/* Password card */}
-        <div className="card">
+        <div className="card" data-tour="account-password">
           <div className="card-header">
             <span className="card-title">Change Password</span>
           </div>

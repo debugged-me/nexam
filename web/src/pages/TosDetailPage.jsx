@@ -328,7 +328,7 @@ export default function TosDetailPage() {
             {finalized ? 'Finalized' : 'Draft — review required'}
           </span>
         </div>
-        <div className="header-actions">
+        <div className="header-actions" data-tour="tos-detail-actions">
           {!finalized && (
             <button type="button" className="btn btn-outline btn-sm" onClick={handleFinalize} disabled={finalizing}>
               {finalizing ? <span className="btn-spinner" /> : <Lock size={14} />} Finalize TOS
@@ -345,7 +345,7 @@ export default function TosDetailPage() {
         </div>
       </div>
 
-      <div className="tos-workflow-callout">
+      <div className="tos-workflow-callout" data-tour="tos-workflow">
         <div className="tos-workflow-step">
           <span className="tos-workflow-num">1</span>
           <span className="tos-workflow-text"><strong>Review & Finalize TOS</strong> — Confirm topics, hours, item counts, and Bloom weights before locking the blueprint.</span>
@@ -362,7 +362,7 @@ export default function TosDetailPage() {
         </div>
       </div>
 
-      <div className="stats-grid mb-2">
+      <div className="stats-grid mb-2" data-tour="tos-stats">
         <div className="stat-card">
           <div className="stat-icon blue"><ListOrdered size={18} /></div>
           <div className="stat-info"><div className="stat-value">{Number(tos.total_items)}</div><div className="stat-label">Total Items</div></div>
@@ -405,7 +405,7 @@ export default function TosDetailPage() {
       </div>
 
       {matrix && matrix.rows.length > 0 && (
-        <div className="card mb-2">
+        <div className="card mb-2" data-tour="tos-matrix">
           <div className="card-header">
             <div>
               <span className="card-title">Specification Matrix</span>
@@ -463,7 +463,7 @@ export default function TosDetailPage() {
         </div>
       )}
 
-      <div className="card">
+      <div className="card" data-tour="tos-topics">
         <div className="card-header">
           <span className="card-title">Topics</span>
           <span className="text-muted meta-sm">{topics.length} topic{topics.length === 1 ? '' : 's'}</span>

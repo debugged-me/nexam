@@ -253,7 +253,7 @@ export default function SubjectsPage() {
 
   return (
     <AppShell pageClass="subjects" activeNav="subjects" pageTitle="Subjects" wide>
-      <header className="list-head">
+      <header className="list-head" data-tour="subjects-head">
         <h1 className="list-head-title">
           Subjects
           {subjects && subjects.length > 0 && (
@@ -269,7 +269,7 @@ export default function SubjectsPage() {
           <span className="empty-icon"><BookOpen size={20} /></span>
           <h4>No subjects yet</h4>
           <p>A subject is the container for everything else — create one and the question bank, blueprints and exams follow.</p>
-          <button type="button" className="btn btn-primary" onClick={openNew}>
+          <button type="button" className="btn btn-primary" onClick={openNew} data-tour="subjects-new">
             <Plus size={16} /> New Subject
           </button>
         </div>
@@ -277,7 +277,7 @@ export default function SubjectsPage() {
         <section className="dataset" data-dataset data-select-mode="true" data-selecting={selectMode ? 'true' : 'false'}>
 
           {/* Toolbar */}
-          <div className="dataset-bar">
+          <div className="dataset-bar" data-tour="subjects-toolbar">
             <div className="dataset-bar-lead">
               <label className="ds-search" htmlFor="subjects-search">
                 <Search size={15} />
@@ -299,7 +299,7 @@ export default function SubjectsPage() {
               <button type="button" className="ds-btn" onClick={toggleSelectMode} aria-pressed={selectMode}>
                 <CheckSquare size={15} /> Select
               </button>
-              <button type="button" className="btn btn-primary btn-sm" onClick={openNew}>
+              <button type="button" className="btn btn-primary btn-sm" onClick={openNew} data-tour="subjects-new">
                 <Plus size={14} /> New Subject
               </button>
             </div>
@@ -317,7 +317,7 @@ export default function SubjectsPage() {
           )}
 
           {/* Scroll container + grid */}
-          <div className="dataset-scroll">
+          <div className="dataset-scroll" data-tour="subjects-table">
             <table className="grid datatable" data-grid="subjects" data-grid-label="subjects">
               <caption className="sr-only">Subjects in your workspace</caption>
               <thead>

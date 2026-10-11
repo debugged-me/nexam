@@ -89,7 +89,7 @@ export default function InstitutionBankPage() {
           <h1>Institution question bank</h1>
           <p>Search approved questions across the school. Reused items enter your private review queue before they can be placed in an exam.</p>
         </div>
-        <div className="institution-head-side">
+        <div className="institution-head-side" data-tour="institution-side">
           <div className="institution-count"><Library size={18} /> {filtered.length} questions</div>
           <button type="button" className="ds-btn" onClick={toggleDensity} aria-pressed={density === 'compact'} title={density === 'compact' ? 'Show full questions' : 'Show compact list'}>
             {density === 'compact' ? <StretchHorizontal size={15} /> : <Rows3 size={15} />}
@@ -98,7 +98,7 @@ export default function InstitutionBankPage() {
         </div>
       </section>
 
-      <section className="institution-toolbar" aria-label="Institution bank filters">
+      <section className="institution-toolbar" aria-label="Institution bank filters" data-tour="institution-filters">
         <label className="institution-search">
           <Search size={16} aria-hidden="true" />
           <span className="sr-only">Search institution questions</span>
@@ -123,7 +123,7 @@ export default function InstitutionBankPage() {
           <span>Questions appear here after an instructor approves them.</span>
         </div>
       ) : (
-        <div className="institution-list" data-density={density}>
+        <div className="institution-list" data-density={density} data-tour="institution-list">
           {filtered.map((question) => (
             <article className="institution-question" key={question.id}>
               <div className="institution-meta">

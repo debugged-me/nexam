@@ -403,19 +403,19 @@ export default function MaterialsPage() {
 
   return (
     <AppShell pageClass="materials" activeNav="materials" pageTitle="Materials">
-      <div className="mat-toolbar">
+      <div className="mat-toolbar" data-tour="materials-head">
             <div><span className="eyebrow">Manage</span><h1>Materials</h1></div>
             <div className="mat-toolbar-actions">
               <button className="btn" onClick={handleRefresh} disabled={refreshing} title="Refresh list">
                 <RefreshCw size={16} className={refreshing ? 'mat-spin' : undefined} /> Refresh
               </button>
-              <button className="btn btn-primary" onClick={() => { setUploadMode('file'); setUploadOpen(true); }}>
+              <button className="btn btn-primary" onClick={() => { setUploadMode('file'); setUploadOpen(true); }} data-tour="materials-upload">
                 <Upload size={16} /> Upload material
               </button>
             </div>
           </div>
 
-          <p className="mat-droptip">
+          <p className="mat-droptip" data-tour="materials-tip">
             <Upload size={13} /> Tip: drag files anywhere onto this page — several at once — to queue them for upload.
           </p>
 
@@ -437,12 +437,12 @@ export default function MaterialsPage() {
               <FileStack size={40} style={{ color: 'var(--ink-faint)', marginBottom: 12 }} />
               <h3>No materials yet</h3>
               <p>Upload PDFs, DOCX, PPTX, URLs, or YouTube transcripts to ground RAG question generation. You can also drag files straight onto this page.</p>
-              <button className="btn btn-primary" onClick={() => { setUploadMode('file'); setUploadOpen(true); }}>
+              <button className="btn btn-primary" onClick={() => { setUploadMode('file'); setUploadOpen(true); }} data-tour="materials-upload">
                 <Upload size={16} /> Upload first material
               </button>
             </div>
           ) : (
-            <div className="mat-list">
+            <div className="mat-list" data-tour="materials-list">
               {materials.map((m, i) => {
                 const Icon = SOURCE_ICONS[m.source_type] || FileText;
                 const matSubject = matSubjectOf(m);

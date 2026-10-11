@@ -486,7 +486,7 @@ export default function ReviewQueuePage() {
             Every AI-drafted question needs your decision before it joins the bank. One item at a time, in full.
           </p>
         </div>
-        <div className="rv-head-actions">
+        <div className="rv-head-actions" data-tour="review-tools">
           <label className="sr-only" htmlFor="rv-subject">Filter by subject</label>
           <select
             id="rv-subject"
@@ -535,7 +535,7 @@ export default function ReviewQueuePage() {
         </div>
       ) : (
         <>
-          <section className="rv-progress" aria-label="Review progress">
+          <section className="rv-progress" aria-label="Review progress" data-tour="review-progress">
             <div className="rv-progress-top">
               <span className="rv-progress-pos">
                 {tally.remaining > 0 ? <>Item <b>{cursor + 1}</b> of {total}</> : <>All {total} reviewed</>}
@@ -579,7 +579,7 @@ export default function ReviewQueuePage() {
             </div>
           ) : current ? (
             <>
-              <article className="rv-card" aria-label={`Draft ${cursor + 1} of ${total}`}>
+              <article className="rv-card" aria-label={`Draft ${cursor + 1} of ${total}`} data-tour="review-card">
                 <div className="rv-card-meta">
                   <span className="rv-chip rv-chip-type">{TYPE_LABELS[current.type] || current.type}</span>
                   {current.subject_name && <span className="rv-chip">{current.subject_name}</span>}
@@ -670,7 +670,7 @@ export default function ReviewQueuePage() {
               </article>
 
               {!editing && (
-                <div className="rv-actions">
+                <div className="rv-actions" data-tour="review-actions">
                   <div className="rv-actions-main">
                     <button type="button" className="rv-act is-approve" onClick={() => decide('approved')} disabled={busy || !similarityReady}>
                       <Check size={18} /> Approve <kbd className="rv-kbd">A</kbd>

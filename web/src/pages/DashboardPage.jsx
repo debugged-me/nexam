@@ -275,7 +275,7 @@ export default function DashboardPage() {
   return (
     <AppShell activeNav="dashboard" pageTitle="Overview" pageClass="dashboard">
       <div className="dash-home">
-        <div className="dash-kpis">
+        <div className="dash-kpis" data-tour="dash-kpis">
           {metrics.map((metric) => {
             const Icon = metric.icon;
             return (
@@ -309,7 +309,7 @@ export default function DashboardPage() {
 
         <div className="dash-main">
           <div className="dash-col">
-            <section className="dash-card" aria-labelledby="dash-activity-title">
+            <section className="dash-card" aria-labelledby="dash-activity-title" data-tour="dash-activity">
               <header className="dash-card-head">
                 <h2 id="dash-activity-title">Workspace activity</h2>
                 <span className="dash-chart-range">{chartRange}</span>
@@ -328,7 +328,7 @@ export default function DashboardPage() {
               </div>
             </section>
 
-            <section className="dash-card" aria-labelledby="dash-exams-title">
+            <section className="dash-card" aria-labelledby="dash-exams-title" data-tour="dash-exams">
               <header className="dash-card-head">
                 <h2 id="dash-exams-title">Recent exams</h2>
                 <Link to="/exams" className="dash-text-link">
@@ -407,7 +407,7 @@ export default function DashboardPage() {
               </Link>
             </section>
 
-            <section className="dash-card" aria-labelledby="dash-subjects-title">
+            <section className="dash-card" aria-labelledby="dash-subjects-title" data-tour="dash-subjects">
               <header className="dash-card-head">
                 <h2 id="dash-subjects-title">Your subjects</h2>
                 <Link to="/subjects" className="dash-text-link">
@@ -451,7 +451,7 @@ export default function DashboardPage() {
           </div>
 
           <div className="dash-col">
-            <section className="dash-card" aria-labelledby="dash-focus-title">
+            <section className="dash-card" aria-labelledby="dash-focus-title" data-tour="dash-focus">
               <header className="dash-card-head">
                 <h2 id="dash-focus-title">Next up</h2>
               </header>
@@ -490,7 +490,7 @@ export default function DashboardPage() {
               </div>
             </section>
 
-            <section className="dash-card" aria-labelledby="dash-actions-title">
+            <section className="dash-card" aria-labelledby="dash-actions-title" data-tour="dash-actions">
               <header className="dash-card-head">
                 <h2 id="dash-actions-title">Quick actions</h2>
               </header>
@@ -517,7 +517,7 @@ export default function DashboardPage() {
               </div>
             </section>
 
-            <section className="dash-card" aria-labelledby="dash-bank-title">
+            <section className="dash-card" aria-labelledby="dash-bank-title" data-tour="dash-bank">
               <header className="dash-card-head">
                 <h2 id="dash-bank-title">Your question bank</h2>
                 <Link to="/questions" className="dash-text-link">

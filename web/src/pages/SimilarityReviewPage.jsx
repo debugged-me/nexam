@@ -64,7 +64,7 @@ export default function SimilarityReviewPage() {
       </div>
 
       {/* Flagged Question card */}
-      <div className="card mb-3">
+      <div className="card mb-3" data-tour="sim-flagged">
         <div className="card-header">
           <span className="card-title">Flagged Question</span>
           {question.similarity_score != null && (
@@ -119,7 +119,7 @@ export default function SimilarityReviewPage() {
           </div>
         </div>
       ) : (
-        <div className="card mb-3">
+        <div className="card mb-3" data-tour="sim-matches">
           <div className="card-header">
             <span className="card-title">Similar Questions in the Bank</span>
             <span className="text-muted meta-sm">{matches.length} match{matches.length > 1 ? 'es' : ''}</span>
@@ -155,7 +155,7 @@ export default function SimilarityReviewPage() {
       )}
 
       {/* Decision card */}
-      <div className="card">
+      <div className="card" data-tour="sim-decision">
         <div className="card-header">
           <span className="card-title">Decision</span>
         </div>

@@ -56,7 +56,7 @@ export default function ItemAnalysisPage() {
           <p>Item-level analysis appears once OMR answer sheets have been scanned for this exam.</p>
         </div>
       ) : (
-        <div className="card">
+        <div className="card" data-tour="ia-table">
           <div className="card-header">
             <span className="card-title">Question Performance</span>
             <span className="text-muted meta-sm">{items.length} items</span>

@@ -20,9 +20,11 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../features/auth/AuthContext.jsx';
 import { useConfirm } from './ConfirmDialog.jsx';
+import { useToast } from './Toast.jsx';
 import { useTheme } from '../lib/theme.js';
 import api from '../lib/api.js';
 import useNetworkBusy from '../lib/useNetworkBusy.js';
+import { startGuidedTour, stopGuidedTour, GUIDE_AVATAR_SVG } from '../help/guide.js';
 import { ShellMetaContext } from './shellMeta.js';
 import { Spinner, PageLoader } from './Loaders.jsx';
 import { NAV_ITEMS, ADMIN_NAV_ITEMS, BUILD_ACTION } from './navigation.js';
@@ -50,6 +52,7 @@ const THEME_CHOICES = [
 export default function AppLayout() {
   const { user, logout, refreshUser } = useAuth();
   const confirm = useConfirm();
+  const toast = useToast();
   const { mode, setThemeMode } = useTheme();
   const location = useLocation();
   const navigate = useNavigate();
@@ -116,6 +119,23 @@ export default function AppLayout() {
     setUserMenuOpen(false);
     setCommandOpen(false);
   }, [location.pathname, location.search]);
+
+  // Guided tours are manual-start only: the Help button click below is the
+  // single entry point. These effects only ever tear a running tour down —
+  // on route change, layout unmount, or tab unload — they never start one.
+  useEffect(() => () => stopGuidedTour(), []);
+  useEffect(() => {
+    stopGuidedTour();
+  }, [location.pathname]);
+  useEffect(() => {
+    window.addEventListener('pagehide', stopGuidedTour);
+    return () => window.removeEventListener('pagehide', stopGuidedTour);
+  }, []);
+  const handleHelp = useCallback(() => {
+    void startGuidedTour(location.pathname, user?.role).then((result) => {
+      if (!result.started && result.message) toast.info(result.message);
+    });
+  }, [location.pathname, user?.role, toast]);
 
   // The mobile rail behaves as a dialog: contained focus, Escape, and return focus.
   useEffect(() => {
@@ -184,7 +204,7 @@ export default function AppLayout() {
             <X size={18} />
           </button>
         </div>
-        <nav className="sidebar-nav" aria-label="Primary navigation">
+        <nav className="sidebar-nav" aria-label="Primary navigation" data-tour="shell-nav">
           {navGroups.map((group) => (
             <div className="nav-group" key={group}>
               {group !== 'home' && <div className="nav-group-label">{group}</div>}
@@ -196,6 +216,7 @@ export default function AppLayout() {
                     to={item.to}
                     className={`nav-item ${activeKey === item.key ? 'active' : ''}`}
                     aria-current={activeKey === item.key ? 'page' : undefined}
+                    data-tour={`nav-${item.key}`}
                     onPointerEnter={() => prefetchAll(item.prefetch)}
                     onFocus={() => prefetchAll(item.prefetch)}
                   >
@@ -213,6 +234,7 @@ export default function AppLayout() {
               to="/wizard"
               className={`nav-item nav-item--featured ${activeKey === 'wizard' ? 'active' : ''}`}
               aria-current={activeKey === 'wizard' ? 'page' : undefined}
+              data-tour="shell-build"
               onPointerEnter={() => prefetchAll(BUILD_ACTION.prefetch)}
             >
               <Sparkles size={17} />
@@ -256,6 +278,7 @@ export default function AppLayout() {
               aria-label="Open navigation"
               aria-expanded={mobileOpen}
               aria-controls="workspace-navigation"
+              data-tour="shell-menu"
               onClick={() => setMobileOpen(true)}
             >
               <Menu size={18} />
@@ -275,6 +298,7 @@ export default function AppLayout() {
                 type="button"
                 aria-label="Open quick navigation"
                 aria-haspopup="dialog"
+                data-tour="shell-quicknav"
                 onClick={() => setCommandOpen(true)}
               >
                 <Search size={15} />
@@ -282,12 +306,29 @@ export default function AppLayout() {
                 <kbd>⌘ K</kbd>
               </button>
             )}
+            <button
+              className="topbar-help"
+              type="button"
+              aria-label="Start the guided tour for this page"
+              title="Guided tour"
+              data-tour="shell-help"
+              onClick={handleHelp}
+            >
+              <span
+                className="topbar-help-avatar"
+                aria-hidden="true"
+                dangerouslySetInnerHTML={{ __html: GUIDE_AVATAR_SVG }}
+              />
+              <span className="topbar-help-label">Guide</span>
+              <span className="topbar-help-ping" aria-hidden="true" />
+            </button>
             <div className="user-menu" ref={userMenuRef}>
               <button
                 className="user-trigger"
                 type="button"
                 aria-label="Account menu"
                 aria-expanded={userMenuOpen}
+                data-tour="shell-account"
                 onClick={() => setUserMenuOpen((value) => !value)}
               >
                 <UserAvatar user={user} className="avatar avatar-sm" />

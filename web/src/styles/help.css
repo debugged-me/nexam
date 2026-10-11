@@ -1,0 +1,318 @@
+/* ==========================================================================
+   help.css — guided-tour chrome: topbar Guide button, Driver.js popover themed
+   to the token system, the professor mascot, and step chrome.
+   Loaded once from guide.js (which lazy-loads driver.js itself on demand).
+   ========================================================================== */
+
+/* ---- Topbar Guide button ------------------------------------------------
+   A tinted pill carrying the guide character + a slow "ping" beacon so the
+   entry point is discoverable — visual only, the tour still never starts
+   until the button is clicked. */
+.topbar-help {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  height: 34px;
+  padding: 0 12px 0 5px;
+  border: 1px solid var(--accent-line);
+  border-radius: 999px;
+  background: var(--action-50);
+  color: var(--action-700);
+  font: 550 .78rem var(--font-body);
+  cursor: pointer;
+  transition: background-color .15s ease, border-color .15s ease,
+              box-shadow .15s ease, transform .15s ease;
+}
+.topbar-help:hover {
+  background: var(--action-100);
+  transform: translateY(-1px);
+  box-shadow: 0 3px 10px var(--ring-soft);
+}
+.topbar-help:active { transform: translateY(0); }
+.topbar-help:focus-visible {
+  outline: none;
+  border-color: var(--action-400);
+  box-shadow: 0 0 0 3px var(--ring);
+}
+.topbar-help-avatar {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: var(--surface);
+  display: grid;
+  place-items: center;
+  box-shadow: inset 0 0 0 1px var(--accent-line);
+}
+.topbar-help-avatar .nx-guide-avatar-svg { width: 22px; height: 22px; }
+.topbar-help-label { padding-right: 1px; }
+.topbar-help-ping {
+  position: absolute;
+  top: -1px;
+  right: -1px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--amber-600);
+  box-shadow: 0 0 0 2px var(--surface);
+  pointer-events: none;
+}
+.topbar-help-ping::after {
+  content: "";
+  position: absolute;
+  inset: -4px;
+  border-radius: 50%;
+  border: 2px solid var(--amber-600);
+  opacity: 0;
+  animation: nx-help-ping 3.4s var(--ease) infinite;
+}
+@keyframes nx-help-ping {
+  0%      { transform: scale(.45); opacity: .85; }
+  55%, 100% { transform: scale(1.5); opacity: 0; }
+}
+@media (max-width: 767px) {
+  .topbar-help { min-width: 44px; min-height: 44px; padding: 0 9px; justify-content: center; }
+  .topbar-help-label { display: none; }
+}
+
+/* ---- Driver.js popover, themed to tokens -------------------------------- */
+/* .driver-popover ships `all: unset`; the .nx-tour scope class carries every
+   override. Padding lives on the inner regions so the header band can run
+   edge-to-edge. */
+.driver-popover.nx-tour {
+  font-family: var(--font-body);
+  background: var(--surface);
+  color: var(--ink);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-lg), 0 0 0 4px var(--ring-soft);
+  padding: 0;
+  width: auto;
+  max-width: min(350px, calc(100vw - 20px));
+  /* no overflow:hidden — the driver arrow is an absolutely-positioned child
+     that lives outside the box; corners are rounded on the band + footer. */
+}
+.driver-popover.nx-tour.nx-pop { animation: nx-pop-in .24s var(--ease); }
+@keyframes nx-pop-in {
+  from { opacity: 0; transform: translateY(7px) scale(.985); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* ---- Branded header band ------------------------------------------------- */
+.nx-tour-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 11px 40px 11px 12px;
+  border-radius: calc(var(--radius-xl) - 1px) calc(var(--radius-xl) - 1px) 0 0;
+  background:
+    linear-gradient(100deg, var(--action-100) 0%, var(--accent-wash) 55%, transparent 100%);
+  border-bottom: 1px solid var(--line);
+}
+.nx-tour-avatar {
+  width: 38px;
+  height: 38px;
+  flex: 0 0 auto;
+  border-radius: 12px;
+  background: var(--surface);
+  display: grid;
+  place-items: center;
+  box-shadow: inset 0 0 0 1px var(--accent-line), 0 2px 6px var(--ring-soft);
+}
+.nx-tour-avatar .nx-guide-avatar-svg { width: 32px; height: 32px; }
+.nx-tour-meta { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.nx-tour-kicker {
+  font-size: .6rem;
+  font-weight: 700;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  color: var(--action-600);
+}
+.nx-tour-name {
+  font-family: var(--font-display);
+  font-size: .8rem;
+  font-weight: 650;
+  color: var(--ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.nx-tour-step {
+  margin-left: auto;
+  flex: 0 0 auto;
+  font-size: .66rem;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+  color: var(--action-700);
+  background: var(--surface);
+  border: 1px solid var(--accent-line);
+  border-radius: 999px;
+  padding: 3px 8px;
+}
+
+/* ---- Body --------------------------------------------------------------- */
+.driver-popover.nx-tour .driver-popover-title {
+  font-family: var(--font-display);
+  font-size: var(--text-md);
+  font-weight: 650;
+  line-height: 1.35;
+  color: var(--ink);
+  padding: 12px 16px 0;
+}
+.driver-popover.nx-tour .driver-popover-description {
+  font-size: var(--text-sm);
+  line-height: 1.6;
+  color: var(--ink-2);
+  padding: 0 16px;
+}
+.driver-popover.nx-tour .driver-popover-title[style*="block"] + .driver-popover-description {
+  margin-top: 5px;
+}
+
+/* ---- Footer: dots + buttons --------------------------------------------- */
+.driver-popover.nx-tour .driver-popover-footer {
+  margin-top: 13px;
+  padding: 11px 12px 12px;
+  border-top: 1px solid var(--line);
+  background: var(--surface-2);
+  border-radius: 0 0 calc(var(--radius-xl) - 1px) calc(var(--radius-xl) - 1px);
+}
+.driver-popover.nx-tour .driver-popover-progress-text { display: none; }
+.nx-tour-dots {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-right: auto;
+  padding-left: 4px;
+}
+.nx-tour-dots span {
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--line-strong);
+  opacity: .55;
+  transition: width .22s var(--ease), background-color .22s var(--ease), opacity .22s var(--ease);
+}
+.nx-tour-dots span.past { background: var(--action-400); opacity: .8; }
+.nx-tour-dots span.on {
+  width: 18px;
+  background: var(--action-600);
+  opacity: 1;
+}
+.driver-popover.nx-tour .driver-popover-footer-btn {
+  font-family: var(--font-body);
+  font-size: var(--text-sm);
+  font-weight: 550;
+  line-height: 1;
+  padding: 10px 15px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--ink-2);
+  transition: background-color .13s ease, color .13s ease,
+              border-color .13s ease, transform .13s ease;
+}
+.driver-popover.nx-tour .driver-popover-footer-btn:hover,
+.driver-popover.nx-tour .driver-popover-footer-btn:focus-visible {
+  background: var(--surface-3);
+  color: var(--ink);
+}
+.driver-popover.nx-tour .driver-popover-footer-btn:focus-visible {
+  outline: none;
+  border-color: var(--action-400);
+  box-shadow: 0 0 0 3px var(--ring-soft);
+}
+.driver-popover.nx-tour .driver-popover-next-btn,
+.driver-popover.nx-tour .driver-popover-done-btn {
+  background: var(--action-600);
+  border-color: var(--action-600);
+  color: #fff;
+  box-shadow: 0 2px 8px var(--ring);
+}
+.driver-popover.nx-tour .driver-popover-next-btn:hover,
+.driver-popover.nx-tour .driver-popover-next-btn:focus-visible,
+.driver-popover.nx-tour .driver-popover-done-btn:hover,
+.driver-popover.nx-tour .driver-popover-done-btn:focus-visible {
+  background: var(--action-700);
+  border-color: var(--action-700);
+  color: #fff;
+  transform: translateY(-1px);
+}
+.driver-popover.nx-tour .driver-popover-btn-disabled { opacity: .45; }
+.driver-popover.nx-tour .driver-popover-close-btn {
+  color: var(--ink-faint);
+  font-size: 19px;
+  font-weight: 400;
+  width: 28px;
+  height: 28px;
+  top: 8px;
+  right: 10px;
+  border-radius: var(--radius-sm);
+}
+.driver-popover.nx-tour .driver-popover-close-btn:hover,
+.driver-popover.nx-tour .driver-popover-close-btn:focus-visible {
+  color: var(--ink);
+  background: var(--surface);
+}
+/* The arrow inherits the popover surface so it reads as one piece. */
+.driver-popover.nx-tour .driver-popover-arrow { border-color: var(--surface); }
+
+/* ---- Highlighted element ------------------------------------------------ */
+/* driver.js marks the spotlighted element .driver-active-element — add a
+   soft breathing ring so the target reads as "the thing being explained". */
+.driver-active-element {
+  animation: nx-stage-glow 2.1s var(--ease) infinite;
+}
+@keyframes nx-stage-glow {
+  0%, 100% { box-shadow: 0 0 0 3px var(--ring-soft); }
+  50%      { box-shadow: 0 0 0 6px var(--ring); }
+}
+
+/* ---- Mascot motion ------------------------------------------------------- */
+.nx-guide-avatar-svg { display: block; }
+.nx-guide-avatar-arm {
+  transform-box: fill-box;
+  transform-origin: 15% 85%;
+  animation: nx-guide-wave 1.9s var(--ease) infinite;
+}
+@keyframes nx-guide-wave {
+  0%, 100% { transform: rotate(0deg); }
+  50%      { transform: rotate(-18deg); }
+}
+.nx-guide-eyes { animation: nx-guide-blink 4.4s linear infinite; }
+@keyframes nx-guide-blink {
+  0%, 93%, 100% { opacity: 1; }
+  95.5%         { opacity: 0; }
+}
+.nx-guide-sparkle {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: nx-guide-twinkle 2.6s var(--ease) infinite;
+}
+.nx-guide-sparkle--b { animation-delay: 1.3s; }
+@keyframes nx-guide-twinkle {
+  0%, 100% { transform: scale(.55); opacity: .35; }
+  50%      { transform: scale(1);   opacity: 1; }
+}
+
+/* ---- Reduced motion ------------------------------------------------------ */
+@media (prefers-reduced-motion: reduce) {
+  .topbar-help-ping::after,
+  .nx-guide-avatar-arm,
+  .nx-guide-eyes,
+  .nx-guide-sparkle,
+  .driver-active-element,
+  .driver-popover.nx-tour.nx-pop { animation: none; }
+  .topbar-help:hover,
+  .driver-popover.nx-tour .driver-popover-next-btn:hover,
+  .driver-popover.nx-tour .driver-popover-done-btn:hover { transform: none; }
+}
+
+/* ---- Small screens ------------------------------------------------------- */
+@media (max-width: 767px) {
+  .driver-popover.nx-tour .driver-popover-footer-btn {
+    min-height: 44px;
+    padding: 0 18px;
+  }
+  .nx-tour-dots { padding-left: 2px; }
+}

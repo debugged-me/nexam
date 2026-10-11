@@ -69,7 +69,7 @@ export default function AiEvalPage() {
         </div>
       </div>
 
-      <div className="stats-grid mb-3">
+      <div className="stats-grid mb-3" data-tour="aieval-stats">
         <div className="stat-card">
           <div className="stat-icon green"><Sparkles size={18} /></div>
           <div className="stat-info"><div className="stat-value">{pct(gen.precision)}%</div><div className="stat-label">Generation Precision</div></div>
@@ -91,7 +91,7 @@ export default function AiEvalPage() {
         </div>
       </div>
 
-      <div className="detail-grid-2 mb-3">
+      <div className="detail-grid-2 mb-3" data-tour="aieval-cards">
         <div className="card">
           <div className="card-header"><span className="card-title">Question Generation</span></div>
           <div className="card-body">
@@ -189,7 +189,7 @@ export default function AiEvalPage() {
         </div>
       )}
 
-      <div className="card mb-3">
+      <div className="card mb-3" data-tour="aieval-matrix">
         <div className="card-header">
           <span className="card-title">Bloom's Taxonomy Classification — Confusion Matrix</span>
           {cm.sampleSize > 0 && <span className="text-muted meta-sm">Sample size: {cm.sampleSize} reviewed questions</span>}

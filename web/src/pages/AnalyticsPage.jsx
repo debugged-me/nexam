@@ -116,13 +116,13 @@ export default function AnalyticsPage() {
           <p className="page-sub">Performance insights from scanned OMR answer sheets.</p>
         </div>
         <div className="header-actions">
-          <Link to="/analytics/ai-eval" className="btn btn-outline btn-sm" title="View AI accuracy, precision, recall, and Bloom-level classification metrics">
+          <Link to="/analytics/ai-eval" className="btn btn-outline btn-sm" data-tour="analytics-ai" title="View AI accuracy, precision, recall, and Bloom-level classification metrics">
             <Sparkles size={16} /> AI Evaluation Metrics
           </Link>
         </div>
       </div>
 
-      <div className="stats-grid mb-3">
+      <div className="stats-grid mb-3" data-tour="analytics-stats">
         <div className="stat-card">
           <div className="stat-icon blue"><FileText size={18} /></div>
           <div className="stat-info"><div className="stat-value">{parseInt(o.total_exams || 0, 10)}</div><div className="stat-label">Exams</div></div>
@@ -145,7 +145,7 @@ export default function AnalyticsPage() {
 
       <div className="detail-grid-2 mb-3">
         {/* Exam Averages */}
-        <div className="card">
+        <div className="card" data-tour="analytics-averages">
           <div className="card-header">
             <span className="card-title">Exam Averages</span>
           </div>
@@ -193,7 +193,7 @@ export default function AnalyticsPage() {
         </div>
 
         {/* Recent Scans */}
-        <div className="card">
+        <div className="card" data-tour="analytics-scans">
           <div className="card-header">
             <span className="card-title">Recent Scans</span>
           </div>

@@ -145,7 +145,7 @@ export default function ExamDetailPage() {
             <StatusPill status={exam.status} small inline />
           </div>
         </div>
-        <div className="header-actions">
+        <div className="header-actions" data-tour="exam-actions">
           {!published && (
             <button className="btn btn-primary btn-sm" onClick={handlePublish}>
               <Send size={14} /> Publish
@@ -170,7 +170,7 @@ export default function ExamDetailPage() {
         <div className="exam-detail-main">
           {/* The payoff: parallel print packs. One card per set, every artefact a real target. */}
           {showDownloads && (
-            <section className="print-packs" id="exam-downloads" aria-label="Generated print packs">
+            <section className="print-packs" id="exam-downloads" aria-label="Generated print packs" data-tour="exam-downloads">
               {setLabels.map((label) => (
                 <article key={label} className="print-pack">
                   <header className="print-pack-head">
@@ -203,7 +203,7 @@ export default function ExamDetailPage() {
             </div>
           )}
 
-          <div className="card">
+          <div className="card" data-tour="exam-questions">
             <div className="card-header">
               <span className="card-title">Questions</span>
               {questions.length > 0 && (
@@ -262,7 +262,7 @@ export default function ExamDetailPage() {
         </div>
 
         <aside className="exam-detail-side">
-          <div className="card">
+          <div className="card" data-tour="exam-details">
             <div className="card-header"><span className="card-title">Details</span></div>
             <dl className="detail-rows">
               <div className="detail-row"><dt>Status</dt><dd><StatusPill status={exam.status} small inline /></dd></div>
@@ -285,7 +285,7 @@ export default function ExamDetailPage() {
             </dl>
           </div>
 
-          <div className="card">
+          <div className="card" data-tour="exam-export">
             <div className="card-header"><span className="card-title">Export</span></div>
             <div className="card-body dl-body">
               {showDownloads && tos && (

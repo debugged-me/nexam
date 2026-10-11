@@ -206,7 +206,7 @@ export default function TosPage() {
   return (
     <AppShell pageClass="tos" activeNav="tos" pageTitle="Blueprints (TOS)" wide>
 
-      <header className="list-head">
+      <header className="list-head" data-tour="tos-head">
         <div className="list-head-main">
           <span className="eyebrow">Workspace</span>
           <h1 className="list-head-title">
@@ -233,7 +233,7 @@ export default function TosPage() {
             <Link to="/materials" className="btn btn-outline">
               <Upload size={16} /> Upload Syllabus
             </Link>
-            <button className="btn btn-primary" onClick={() => setEditing({ title: '', subject_id: subjects[0]?.id || '', total_items: 50, bloom_weights: { ...DEFAULT_BLOOM } })}>
+            <button className="btn btn-primary" data-tour="tos-new" onClick={() => setEditing({ title: '', subject_id: subjects[0]?.id || '', total_items: 50, bloom_weights: { ...DEFAULT_BLOOM } })}>
               <Plus size={16} /> New Blueprint
             </button>
           </div>
@@ -242,7 +242,7 @@ export default function TosPage() {
         <div className="dataset">
           <div className="dataset-bar">
             <div className="dataset-bar-lead">
-              <button className="btn btn-primary btn-sm" onClick={() => setEditing({ title: '', subject_id: subjects[0]?.id || '', total_items: 50, bloom_weights: { ...DEFAULT_BLOOM } })}>
+              <button className="btn btn-primary btn-sm" data-tour="tos-new" onClick={() => setEditing({ title: '', subject_id: subjects[0]?.id || '', total_items: 50, bloom_weights: { ...DEFAULT_BLOOM } })}>
                 <Plus size={14} /> New Blueprint
               </button>
               <span className="b-groupby">
@@ -267,7 +267,7 @@ export default function TosPage() {
               />
             </div>
           </div>
-          <div className="dataset-scroll">
+          <div className="dataset-scroll" data-tour="tos-table">
         <table className="grid datatable">
           <caption className="sr-only">Table of Specification blueprints in your workspace</caption>
           <thead>

@@ -226,7 +226,7 @@ export default function ExamsPage() {
 
   return (
     <AppShell pageClass="exams" activeNav="exams" pageTitle="Exams" wide>
-      <header className="list-head">
+      <header className="list-head" data-tour="exams-head">
         <div className="list-head-main">
           <span className="eyebrow">Workspace</span>
           <h1 className="list-head-title">
@@ -247,15 +247,15 @@ export default function ExamsPage() {
         <div className="empty-state">
           <h4>No exams yet</h4>
           <p>Start from a blank paper, or generate one from a blueprint so the Bloom spread is decided for you.</p>
-          <button className="btn btn-primary" onClick={() => navigate('/exams/new')}>
+          <button className="btn btn-primary" data-tour="exams-new" onClick={() => navigate('/exams/new')}>
             <Plus size={16} /> New exam
           </button>
         </div>
       ) : (
         <section className="dataset" data-density="comfortable">
-          <div className="dataset-bar">
+          <div className="dataset-bar" data-tour="exams-toolbar">
             <div className="dataset-bar-lead">
-              <button className="btn btn-primary btn-sm" onClick={() => navigate('/exams/new')}>
+              <button className="btn btn-primary btn-sm" data-tour="exams-new" onClick={() => navigate('/exams/new')}>
                 <Plus size={14} /> New exam
               </button>
               <label className="ds-search" htmlFor="exams-search">
@@ -291,7 +291,7 @@ export default function ExamsPage() {
             </div>
           </div>
 
-          <div className="dataset-scroll">
+          <div className="dataset-scroll" data-tour="exams-board">
             <table className="grid datatable" data-grid="exams" data-grid-label="exams">
               <caption className="sr-only">Exams in your workspace</caption>
               <thead>

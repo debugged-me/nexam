@@ -147,7 +147,7 @@ export default function WizardPage() {
           <h1>Build an exam</h1>
           <p>Choose a subject and add one source. Nexam handles the setup work; you review the questions and stay in control.</p>
         </div>
-        <div className="wizard-subject-picker">
+        <div className="wizard-subject-picker" data-tour="wizard-subject">
           <label htmlFor="wizard-subject">Subject</label>
           <select
             id="wizard-subject"
@@ -176,7 +176,7 @@ export default function WizardPage() {
       ) : pipeline && (
         <div className="wizard-layout">
           {/* Stage rail — vertical checklist, Linear-style */}
-          <ol className="wizard-steps">
+          <ol className="wizard-steps" data-tour="wizard-steps">
             {STAGES.map((stage, idx) => {
               const status = stageStatus(stage.key);
               const isFailed = status === 'failed';
@@ -206,7 +206,7 @@ export default function WizardPage() {
           </ol>
 
           {/* Current stage detail */}
-          <div className="wizard-detail">
+          <div className="wizard-detail" data-tour="wizard-detail">
             {effectiveStage === 'upload' && !pipeline.exam && (
               <div className="wizard-card">
                 <span className="wizard-step-tag">Step 1 of 4</span>

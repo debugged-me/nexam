@@ -1,0 +1,523 @@
+/**
+ * tours.js — guided-tour definitions, one per real route.
+ *
+ * CONTENT MODEL: every tour explains the SYSTEM — what this part of nexam
+ * does and why it exists in the pipeline — not widget anatomy. Each page
+ * tour opens with a popover-only narrative card ("what this screen is"),
+ * then highlights only the controls that carry the workflow.
+ *
+ * Steps point at `data-tour` attributes on real controls, never positional or
+ * nth-child selectors. A step whose element is absent or hidden (empty
+ * states, conditional panels, the mobile-only rail button, the desktop-only
+ * sidebar) is filtered when the tour starts, so every page degrades
+ * gracefully instead of erroring.
+ *
+ * Roles follow the auth vocabulary: 'instructor' for the workspace,
+ * 'admin'/'superadmin' for the console.
+ *
+ * Order matters: more specific patterns must precede the parameter routes
+ * that would also match them (`/exams/new` before `/exams/:id`, the
+ * `/questions/*` subpages before `/questions`).
+ */
+import { matchPath } from 'react-router-dom';
+
+const INSTRUCTOR = ['instructor'];
+const ADMIN = ['admin', 'superadmin'];
+const ANYONE = ['instructor', 'admin', 'superadmin'];
+
+/* ---- Shared shell steps ---------------------------------------------------
+   `minWidth`/`maxWidth` gate desktop-vs-mobile variants of the same idea:
+   the sidebar is hidden below 992px, so narrow screens get the menu button
+   or a narrative card instead. */
+const NAV_STEP = {
+  sel: '[data-tour="shell-nav"]', minWidth: 992, side: 'right', align: 'start',
+  title: 'The rail is the pipeline',
+  description: 'The sidebar is ordered like an assessment’s life: subject → sources → blueprint → bank → exam → results. Follow it top to bottom and you follow a real exam.',
+};
+const NAV_STEP_MOBILE = {
+  sel: '[data-tour="shell-menu"]', maxWidth: 991, side: 'right',
+  title: 'The rail is the pipeline',
+  description: 'Open the menu: Subjects → Materials → Blueprints → Question bank → Exams — the same path every exam takes.',
+};
+const PIPELINE_CARD_MOBILE = {
+  maxWidth: 991,
+  title: 'One pipeline, six stages',
+  description: 'Subjects → Materials → Blueprints → Question bank → Exams → Analytics. nexam walks source documents to graded answer sheets in that order — nothing skips a stage.',
+};
+export const TOURS = [
+  {
+    id: 'dashboard', name: 'How nexam works', patterns: ['/dashboard'], roles: INSTRUCTOR,
+    steps: [
+      {
+        title: 'Welcome to nexam',
+        description: 'nexam turns your course materials into print-ready exam sets — papers, answer keys, QR-linked OMR sheets, and Moodle/Canvas exports. This short tour follows the same path an exam takes.',
+      },
+      NAV_STEP,
+      NAV_STEP_MOBILE,
+      PIPELINE_CARD_MOBILE,
+      {
+        sel: '[data-tour="nav-subjects"]', minWidth: 992, side: 'right',
+        title: 'Stage 1 · Subjects',
+        description: 'A subject is the container everything hangs off — its materials, blueprints, question bank, and exams all live inside it.',
+      },
+      {
+        sel: '[data-tour="nav-materials"]', minWidth: 992, side: 'right',
+        title: 'Stage 2 · Materials',
+        description: 'Upload syllabi and lectures here. They are the only evidence the AI may cite when drafting questions — nothing is invented.',
+      },
+      {
+        sel: '[data-tour="nav-tos"]', minWidth: 992, side: 'right',
+        title: 'Stage 3 · Blueprints',
+        description: 'A Table of Specifications decides exactly how many items each topic × Bloom level contributes. Only finalized blueprints may drive generation.',
+      },
+      {
+        sel: '[data-tour="nav-questions"]', minWidth: 992, side: 'right',
+        title: 'Stage 4 · Question bank',
+        description: 'AI drafts wait in your review queue first. Only questions you approve become exam-eligible — you are the quality gate.',
+      },
+      {
+        sel: '[data-tour="nav-exams"]', minWidth: 992, side: 'right',
+        title: 'Stage 5 · Exams',
+        description: 'Assemble exact Set A / Set B papers that satisfy the blueprint, publish them, and download print packs with OMR sheets.',
+      },
+      {
+        sel: '[data-tour="nav-analytics"]', minWidth: 992, side: 'right',
+        title: 'Stage 6 · Analytics',
+        description: 'Scan completed OMR sheets with the mobile app — item difficulty and class performance roll up here.',
+      },
+      {
+        sel: '[data-tour="shell-build"]', minWidth: 992, side: 'right',
+        title: 'The shortcut',
+        description: 'Build an exam walks this exact pipeline as a guided path — pick a subject and it carries you stage by stage.',
+      },
+      {
+        sel: '[data-tour="dash-focus"]', side: 'left',
+        title: 'Where to look each day',
+        description: 'This panel is always the next real action: drafts awaiting your review, unfinished exams, or blueprint item shortfalls.',
+      },
+      {
+        title: 'That’s the whole system',
+        description: 'Source documents in, graded answer sheets out — with you approving every question along the way. Click Guide anytime to replay; it never starts on its own.',
+      },
+    ],
+  },
+  {
+    id: 'wizard', name: 'Exam builder', patterns: ['/wizard'], roles: INSTRUCTOR,
+    steps: [
+      {
+        title: 'The pipeline as a guided path',
+        description: 'This screen runs the same six stages the sidebar lists — but it watches progress for you and always shows the next real action.',
+      },
+      {
+        sel: '[data-tour="wizard-subject"]', side: 'bottom', align: 'end',
+        title: 'Pick a subject',
+        description: 'The pipeline runs per subject — choose one and the stage rail fills in with its live status.',
+      },
+      {
+        sel: '[data-tour="wizard-steps"]', side: 'right',
+        title: 'Four stages, one rule',
+        description: 'Extraction and blueprint drafting can run automatically; the review stages always stop and wait for your decision.',
+      },
+      {
+        sel: '[data-tour="wizard-detail"]', side: 'left',
+        title: 'The next real action',
+        description: 'Upload a syllabus, review the TOS, approve drafts, create the exam — this card is never filler; it is always the step that moves the exam forward.',
+      },
+    ],
+  },
+  {
+    id: 'subjects', name: 'Subjects', patterns: ['/subjects'], roles: INSTRUCTOR,
+    steps: [
+      {
+        title: 'Stage 1 of the pipeline',
+        description: 'Everything in nexam hangs off a subject. Create one and it unlocks its own materials shelf, blueprints, private question bank, and exams.',
+      },
+      {
+        sel: '[data-tour="subjects-new"]', side: 'bottom', align: 'end',
+        title: 'Create a subject',
+        description: 'A name is enough to start. Once it exists, you can upload materials into it and begin building assessments.',
+      },
+      {
+        sel: '[data-tour="subjects-table"]', side: 'top',
+        title: 'Each row is a workspace',
+        description: 'The counts are doors — a question count opens that subject’s bank, a blueprint count its TOS list. Right-click a row for open, edit, and delete.',
+      },
+    ],
+  },
+  {
+    id: 'materials', name: 'Materials', patterns: ['/materials'], roles: INSTRUCTOR,
+    steps: [
+      {
+        title: 'Stage 2 · the evidence shelf',
+        description: 'Materials are the foundation of trust: every AI-drafted question must cite an exact span from these documents, so grounding can never be faked.',
+      },
+      {
+        sel: '[data-tour="materials-upload"]', side: 'bottom', align: 'end',
+        title: 'Feed the system',
+        description: 'Upload PDF, DOCX, PPTX, or TXT — or paste a URL or text. Flag a file as the syllabus to unlock automatic blueprint generation.',
+      },
+      {
+        sel: '[data-tour="materials-tip"]', side: 'bottom',
+        title: 'Drop files anywhere',
+        description: 'Files dropped on this page queue for upload and processing — several at once.',
+      },
+      {
+        sel: '[data-tour="materials-list"]', side: 'top',
+        title: 'From file to fuel',
+        description: 'Text extraction and embedding run in the background. When a syllabus finishes, its row menu gains “Auto-generate Blueprint” — the bridge to Stage 3.',
+      },
+    ],
+  },
+  {
+    id: 'tos', name: 'Blueprints', patterns: ['/tos'], roles: INSTRUCTOR,
+    steps: [
+      {
+        title: 'Stage 3 · the exam’s contract',
+        description: 'A Table of Specifications is the promise an exam makes: exactly how many items each topic and Bloom level contributes. Exams are assembled to satisfy it exactly.',
+      },
+      {
+        sel: '[data-tour="tos-new"]', side: 'bottom', align: 'end',
+        title: 'Two ways to start',
+        description: 'Set item counts and Bloom weights by hand — or let a processed syllabus in Materials auto-generate the whole matrix.',
+      },
+      {
+        sel: '[data-tour="tos-table"]', side: 'top',
+        title: 'Draft vs finalized',
+        description: 'Drafts are editable; finalized is the locked contract. Generation refuses anything less — that is what guarantees your exam matches the plan.',
+      },
+    ],
+  },
+  {
+    id: 'tos-detail', name: 'Blueprint', patterns: ['/tos/:id'], roles: INSTRUCTOR,
+    steps: [
+      {
+        title: 'Building the contract',
+        description: 'This screen is where the exam’s shape is decided: topic coverage on rows, cognitive demand on columns.',
+      },
+      {
+        sel: '[data-tour="tos-workflow"]', side: 'bottom',
+        title: 'What happens downstream',
+        description: 'Finalize → AI drafts grounded questions → exams assemble Set A/B from approved items only. This card maps the rest of the pipeline.',
+      },
+      {
+        sel: '[data-tour="tos-detail-actions"]', side: 'bottom', align: 'end',
+        title: 'The unlock switch',
+        description: 'Auto-generate stays disabled until you finalize — the matrix must be exact before anything may build on it.',
+      },
+      {
+        sel: '[data-tour="tos-matrix"]', side: 'top',
+        title: 'The specification',
+        description: 'Each cell is the item count a topic owes at that Bloom level; row totals follow instructional hours, columns follow your Bloom weights.',
+      },
+      {
+        sel: '[data-tour="tos-topics"]', side: 'top',
+        title: 'Topics size the matrix',
+        description: 'Edit instructional hours to rebalance how many items each topic must contribute.',
+      },
+    ],
+  },
+  {
+    id: 'questions', name: 'Question bank', patterns: ['/questions'], roles: INSTRUCTOR,
+    steps: [
+      {
+        title: 'Stage 4 · your private bank',
+        description: 'This is the vault exams draw from. The rule that protects it: only ACTIVE questions can enter an exam — and nothing becomes active without passing review.',
+      },
+      {
+        sel: '[data-tour="questions-review"]', side: 'bottom', align: 'end',
+        title: 'The quality gate',
+        description: 'AI-drafted questions queue here for your approval. This queue is the reason generated content stays trustworthy.',
+      },
+      {
+        sel: '[data-tour="questions-new"]', side: 'bottom',
+        title: 'Write your own',
+        description: 'Four types: multiple choice, true/false, matching, and fill in the blank (“identification” in the data).',
+      },
+      {
+        sel: '[data-tour="questions-filters"]', side: 'bottom',
+        title: 'See it like the blueprint does',
+        description: 'Filter by blueprint, topic, and Bloom level — the same dimensions the TOS matrix uses, so gaps are easy to spot.',
+      },
+      {
+        sel: '[data-tour="questions-table"]', side: 'top',
+        title: 'Status is everything',
+        description: 'draft → active | rejected. Bulk-approve from here, or right-click a row for its full menu.',
+      },
+    ],
+  },
+  {
+    id: 'review', name: 'Review queue', patterns: ['/questions/review'], roles: INSTRUCTOR,
+    steps: [
+      {
+        title: 'The quality gate',
+        description: 'Every AI draft passes through this screen before it can touch an exam. Nothing enters the bank unreviewed — that is the system’s core promise.',
+      },
+      {
+        sel: '[data-tour="review-card"]', side: 'top',
+        title: 'Evidence, not vibes',
+        description: 'Each draft must cite an exact span from your materials. Flagged duplicates must be compared before approval — grounding is enforced, not trusted.',
+      },
+      {
+        sel: '[data-tour="review-actions"]', side: 'top',
+        title: 'Decide fast',
+        description: 'Approve (A), Reject (R), Edit (E), Skip (S); arrows move through the queue, U undoes. Speed here keeps the pipeline moving.',
+      },
+      {
+        sel: '[data-tour="review-tools"]', side: 'bottom', align: 'end',
+        title: 'Scope & bulk',
+        description: 'Filter to one subject, or approve checked drafts at once — bulk skips the per-item read this screen exists for.',
+      },
+    ],
+  },
+  {
+    id: 'similarity', name: 'Similarity check', patterns: ['/questions/:id/similarity'], roles: INSTRUCTOR,
+    steps: [
+      {
+        title: 'Duplicate defense',
+        description: 'The institution index compares each draft against every approved question. High similarity means you may already have this item — check before approving.',
+      },
+      {
+        sel: '[data-tour="sim-flagged"]', side: 'bottom',
+        title: 'The suspect item',
+        description: 'Its closest-match score sets the color band — the higher the band, the more likely it is a duplicate.',
+      },
+      {
+        sel: '[data-tour="sim-matches"]', side: 'top',
+        title: 'What it resembles',
+        description: 'Existing bank items ranked by semantic similarity — read them side by side.',
+      },
+      {
+        sel: '[data-tour="sim-decision"]', side: 'top',
+        title: 'Your call',
+        description: 'Keep it active or reject it — rejection is soft, the row stays for metrics.',
+      },
+    ],
+  },
+  {
+    id: 'institution', name: 'Institution bank', patterns: ['/questions/institution'], roles: INSTRUCTOR,
+    steps: [
+      {
+        title: 'The shared vault',
+        description: 'Every question an instructor at your institution has approved lives here — quality already vetted by a colleague’s review.',
+      },
+      {
+        sel: '[data-tour="institution-filters"]', side: 'bottom',
+        title: 'Mine the bank',
+        description: 'Search by stem, topic, Bloom level, and type to find items worth reusing.',
+      },
+      {
+        sel: '[data-tour="institution-list"]', side: 'top',
+        title: 'Reuse still passes through you',
+        description: 'Copying lands the item in YOUR review queue with a similarity check — it never goes straight into an exam. The gate applies to everything.',
+      },
+    ],
+  },
+  {
+    id: 'exam-form', name: 'Exam setup', patterns: ['/exams/new', '/exams/:id/edit'], roles: INSTRUCTOR,
+    steps: [
+      {
+        title: 'Stage 5 · assembly',
+        description: 'This is where the blueprint becomes an exam — and where the pipeline’s guarantees pay off.',
+      },
+      {
+        sel: '[data-tour="exam-source"]', side: 'bottom',
+        title: 'Start from a blueprint',
+        description: 'Pick a finalized TOS and nexam auto-assembles the exact topic × Bloom allocation from your approved bank. Blank works too, if you prefer full manual control.',
+      },
+      {
+        sel: '[data-tour="exam-details"]', side: 'top',
+        title: 'Print or digital',
+        description: 'Print produces papers, answer keys, and QR-linked OMR sheets; digital produces a Moodle GIFT or Canvas QTI export. nexam does not run exams online.',
+      },
+      {
+        sel: '[data-tour="exam-save"]', side: 'top',
+        title: 'Draft first',
+        description: 'Exams start as drafts — publishing is a separate, explicit step on the exam page.',
+      },
+    ],
+  },
+  {
+    id: 'exams', name: 'Exams', patterns: ['/exams'], roles: INSTRUCTOR,
+    steps: [
+      {
+        title: 'Where assessments ship',
+        description: 'Every exam here is built only from questions you approved — the pipeline’s guarantees end as papers in your hand.',
+      },
+      {
+        sel: '[data-tour="exams-new"]', side: 'bottom',
+        title: 'Assemble one',
+        description: 'Blank, or generated from a finalized blueprint so the matrix fills itself.',
+      },
+      {
+        sel: '[data-tour="exams-board"]', side: 'top',
+        title: 'Draft → published',
+        description: 'Status pills track each exam’s state. Open a row to attach questions, generate Set A/B packs, and publish.',
+      },
+    ],
+  },
+  {
+    id: 'exam-detail', name: 'Exam', patterns: ['/exams/:id'], roles: INSTRUCTOR,
+    steps: [
+      {
+        title: 'From draft to print pack',
+        description: 'This screen turns an assembled exam into the actual artifacts: parallel papers, keys, and OMR sheets.',
+      },
+      {
+        sel: '[data-tour="exam-actions"]', side: 'bottom', align: 'end',
+        title: 'The big two',
+        description: 'Generate sets builds the parallel Set A/B pack; Publish is always an explicit, confirmed step — nothing publishes itself.',
+      },
+      {
+        sel: '[data-tour="exam-downloads"]', side: 'bottom',
+        title: 'The artifacts',
+        description: 'Per set: a PDF paper, the answer key, and a QR-linked OMR sheet for the mobile scanner.',
+      },
+      {
+        sel: '[data-tour="exam-questions"]', side: 'top',
+        title: 'The contents',
+        description: 'Attach approved questions from the subject’s bank — a linked blueprint can fill the exact matrix automatically.',
+      },
+      {
+        sel: '[data-tour="exam-export"]', side: 'left',
+        title: 'Take it elsewhere',
+        description: 'GIFT for Moodle, QTI XML for Canvas, plus a TOS coverage report showing the exam satisfied its blueprint.',
+      },
+    ],
+  },
+  {
+    id: 'ai-eval', name: 'AI quality', patterns: ['/analytics/ai-eval'], roles: INSTRUCTOR,
+    steps: [
+      {
+        title: 'How well the AI serves you',
+        description: 'These metrics are measured against your own review decisions — not a benchmark, your judgment.',
+      },
+      {
+        sel: '[data-tour="aieval-stats"]', side: 'bottom',
+        title: 'The scorecard',
+        description: 'Precision and approval rate of AI drafts, similarity flag rate, extraction accuracy — the system grading itself.',
+      },
+      {
+        sel: '[data-tour="aieval-matrix"]', side: 'top',
+        title: 'Where it misjudges demand',
+        description: 'Predicted Bloom level versus the level you assigned — the confusion matrix shows exactly where it needs your correction.',
+      },
+    ],
+  },
+  {
+    id: 'item-analysis', name: 'Item analysis', patterns: ['/analytics/items/:examId'], roles: INSTRUCTOR,
+    steps: [
+      {
+        title: 'The per-question autopsy',
+        description: 'After grading, each item shows whether it discriminated well: correct rate, difficulty band, and which distractors students actually picked.',
+      },
+      {
+        sel: '[data-tour="ia-table"]', side: 'top',
+        title: 'Spot the weak item',
+        description: 'A bad question is a one-line read — too easy, too hard, or a distractor nobody chose.',
+      },
+    ],
+  },
+  {
+    id: 'analytics', name: 'Analytics', patterns: ['/analytics'], roles: INSTRUCTOR,
+    steps: [
+      {
+        title: 'Stage 6 · after the exam',
+        description: 'OMR sheets scanned in the mobile app roll up here — this is the payoff end of the pipeline: evidence of what students actually learned.',
+      },
+      {
+        sel: '[data-tour="analytics-stats"]', side: 'bottom',
+        title: 'The roll-up',
+        description: 'Exams, sheets scanned, students graded, and flags needing review.',
+      },
+      {
+        sel: '[data-tour="analytics-averages"]', side: 'right',
+        title: 'Per-exam results',
+        description: 'Click an exam for its score distribution and per-student rows.',
+      },
+      {
+        sel: '[data-tour="analytics-ai"]', side: 'bottom', align: 'end',
+        title: 'And the AI’s own grade',
+        description: 'How accurate generated questions have been — measured against your review decisions.',
+      },
+    ],
+  },
+  {
+    id: 'account', name: 'Account', patterns: ['/account'], roles: ANYONE,
+    steps: [
+      {
+        title: 'Your instructor identity',
+        description: 'Everything you build in nexam is scoped to this account — your subjects, materials, and question bank are private to you.',
+      },
+      {
+        sel: '[data-tour="account-photo"]', side: 'right',
+        title: 'Profile photo',
+        description: 'Upload or remove a photo — it shows in the sidebar and topbar.',
+      },
+      {
+        sel: '[data-tour="account-password"]', side: 'left',
+        title: 'Security',
+        description: 'Change your password here; the eye toggles reveal what you type.',
+      },
+    ],
+  },
+  {
+    id: 'appearance', name: 'Appearance', patterns: ['/appearance'], roles: ANYONE,
+    steps: [
+      {
+        title: 'Make the workspace yours',
+        description: 'Theme and palette live here — saved to this device, independent of your account data.',
+      },
+      {
+        sel: '[data-tour="appearance-themes"]', side: 'bottom',
+        title: 'Theme',
+        description: 'Light, dark, or follow your system — also reachable from the account menu.',
+      },
+      {
+        sel: '[data-tour="appearance-palette"]', side: 'top',
+        title: 'The palette',
+        description: 'The resolved design tokens for the active theme.',
+      },
+    ],
+  },
+  {
+    id: 'admin', name: 'Admin console', patterns: ['/admin/:view'], roles: ADMIN,
+    steps: [
+      {
+        title: 'The institution’s control room',
+        description: 'This console governs who gets in and what the system is allowed to do — approvals, sign-in security, and AI credentials.',
+      },
+      {
+        sel: '[data-tour="shell-nav"]', minWidth: 992, side: 'right',
+        title: 'Console sections',
+        description: 'Users, login logs, audit trail, and settings — the security sections are superadmin-only.',
+      },
+      NAV_STEP_MOBILE,
+      {
+        sel: '[data-tour="admin-kpis"]', side: 'bottom',
+        title: 'At a glance',
+        description: 'Pending approvals, active instructors, and sign-in activity.',
+      },
+      {
+        sel: '[data-tour="admin-toolbar"]', side: 'bottom',
+        title: 'Controls',
+        description: 'Search and filter the records below; per-row actions appear where your role allows.',
+      },
+      {
+        sel: '[data-tour="admin-table"]', side: 'top',
+        title: 'The records',
+        description: 'Approve or reject instructor accounts, review sign-ins, or inspect the audit trail — row menus hold the actions.',
+      },
+    ],
+  },
+];
+
+/** First tour whose pattern matches this pathname AND admits this role. */
+export function resolveTour(pathname, role) {
+  for (const tour of TOURS) {
+    if (role && !tour.roles.includes(role)) continue;
+    for (const pattern of tour.patterns) {
+      if (matchPath({ path: pattern, end: true }, pathname)) return tour;
+    }
+  }
+  return null;
+}

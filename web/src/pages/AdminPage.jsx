@@ -318,7 +318,7 @@ function DashboardTab({ toast }) {
   return (
     <div className="adm-panel adm-dash">
       {/* KPI cards — dbmanager stat-card pattern */}
-      <div className="stats-grid adm-kpis">
+      <div className="stats-grid adm-kpis" data-tour="admin-kpis">
         <div className="stat-card">
           <div className="stat-icon amber"><Clock size={20} /></div>
           <div className="stat-info">
@@ -527,7 +527,7 @@ function UsersTab({ toast, role }) {
 
   return (
     <div className="adm-panel">
-      <div className="adm-toolbar">
+      <div className="adm-toolbar" data-tour="admin-toolbar">
         <div className="adm-chips">
           {USER_FILTERS.map((f) => (
             <button
@@ -549,7 +549,7 @@ function UsersTab({ toast, role }) {
         </div>
       </div>
 
-      <div className="adm-table-wrap">
+      <div className="adm-table-wrap" data-tour="admin-table">
         <table className="adm-table">
           <thead>
             <tr>
@@ -612,13 +612,13 @@ function LoginsTab({ toast }) {
 
   return (
     <div className="adm-panel">
-      <div className="adm-toolbar">
+      <div className="adm-toolbar" data-tour="admin-toolbar">
         <span className="adm-hint">Latest 200 sign-in attempts.</span>
         <button className="adm-icon-btn" onClick={load} title="Refresh" aria-label="Refresh">
           <RefreshCw size={14} />
         </button>
       </div>
-      <div className="adm-table-wrap">
+      <div className="adm-table-wrap" data-tour="admin-table">
         <table className="adm-table">
           <thead>
             <tr><th>Time</th><th>Email</th><th>Result</th><th>Reason</th><th>IP address</th><th>User agent</th></tr>
@@ -670,13 +670,13 @@ function AuditTab({ toast }) {
 
   return (
     <div className="adm-panel">
-      <div className="adm-toolbar">
+      <div className="adm-toolbar" data-tour="admin-toolbar">
         <span className="adm-hint">Latest 200 recorded actions.</span>
         <button className="adm-icon-btn" onClick={load} title="Refresh" aria-label="Refresh">
           <RefreshCw size={14} />
         </button>
       </div>
-      <div className="adm-table-wrap">
+      <div className="adm-table-wrap" data-tour="admin-table">
         <table className="adm-table">
           <thead>
             <tr><th>Time</th><th>Actor</th><th>Action</th><th>Target</th><th>Detail</th><th>IP</th></tr>

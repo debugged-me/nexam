@@ -689,7 +689,7 @@ export default function QuestionsPage() {
 
   return (
     <AppShell pageClass="questions" activeNav="questions" pageTitle="Questions" wide>
-      <header className="list-head">
+      <header className="list-head" data-tour="questions-head">
         <div className="list-head-main">
           <span className="eyebrow">Workspace</span>
           <h1 className="list-head-title">
@@ -706,7 +706,7 @@ export default function QuestionsPage() {
         </div>
         {draftCount > 0 && (
           <div className="list-head-actions">
-            <Link to="/questions/review" className="btn btn-brand btn-sm q-review-cta">
+            <Link to="/questions/review" className="btn btn-brand btn-sm q-review-cta" data-tour="questions-review">
               <ListChecks size={15} /> Review {draftCount} draft{draftCount === 1 ? '' : 's'}
             </Link>
           </div>
@@ -720,10 +720,10 @@ export default function QuestionsPage() {
           <h4>Your question bank is empty</h4>
           <p>Add a question manually, import from GIFT/XML, or auto-generate from a blueprint (TOS) using your uploaded materials.</p>
           <div className="empty-state-actions">
-            <button type="button" className="btn btn-primary" onClick={() => setEditing({ type: 'mcq', status: 'draft', subject_id: subjects[0]?.id || '' })}>
+            <button type="button" className="btn btn-primary" data-tour="questions-new" onClick={() => setEditing({ type: 'mcq', status: 'draft', subject_id: subjects[0]?.id || '' })}>
               <Plus size={16} /> New Question
             </button>
-            <button type="button" className="btn btn-outline" onClick={openImport}>
+            <button type="button" className="btn btn-outline" data-tour="questions-import" onClick={openImport}>
               <Upload size={16} /> Import
             </button>
             <Link to="/tos" className="btn btn-outline">
@@ -741,7 +741,7 @@ export default function QuestionsPage() {
           {/* Toolbar */}
           <div className="dataset-bar">
             <div className="dataset-bar-lead">
-              <button type="button" className="btn btn-primary btn-sm" onClick={() => setEditing({ type: 'mcq', status: 'draft', subject_id: filters.subject_id || (subjects[0]?.id || '') })}>
+              <button type="button" className="btn btn-primary btn-sm" data-tour="questions-new" onClick={() => setEditing({ type: 'mcq', status: 'draft', subject_id: filters.subject_id || (subjects[0]?.id || '') })}>
                 <Plus size={14} /> New Question
               </button>
               <label className="ds-search" htmlFor="questions-search">
@@ -759,7 +759,7 @@ export default function QuestionsPage() {
                 <kbd aria-hidden="true">/</kbd>
               </label>
 
-              <div className="q-filters">
+              <div className="q-filters" data-tour="questions-filters">
                 <select
                   className="q-filter-select"
                   aria-label="Filter by subject"
@@ -848,7 +848,7 @@ export default function QuestionsPage() {
             </div>
 
             <div className="dataset-bar-trail">
-              <button type="button" className="btn btn-outline btn-sm" onClick={openImport}>
+              <button type="button" className="btn btn-outline btn-sm" data-tour="questions-import" onClick={openImport}>
                 <Upload size={16} /> Import
               </button>
             </div>
@@ -884,7 +884,7 @@ export default function QuestionsPage() {
           )}
 
           {/* Grid */}
-          <div className="dataset-scroll">
+          <div className="dataset-scroll" data-tour="questions-table">
             <table className="grid datatable" data-grid="questions" data-grid-label="questions">
               <caption className="sr-only">Questions in your question bank</caption>
               <thead>

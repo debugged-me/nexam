@@ -138,7 +138,7 @@ export default function ExamFormPage() {
               {!isEdit && (
                 <div className="form-section">
                   <div className="form-section-title">Source</div>
-                  <div className="src-options" role="radiogroup" aria-label="Exam source">
+                  <div className="src-options" role="radiogroup" aria-label="Exam source" data-tour="exam-source">
                     <label className={`src-option ${selectedTosId === '' ? 'is-selected' : ''}`}>
                       <input type="radio" name="source" checked={selectedTosId === ''} onChange={() => { setSelectedTosId(''); setTos(null); }} />
                       <span className="src-option-copy">
@@ -175,7 +175,7 @@ export default function ExamFormPage() {
                 </div>
               )}
 
-                  <div className="form-section">
+                  <div className="form-section" data-tour="exam-details">
                     <div className="form-section-title">Details</div>
                     <div className="form-group">
                       <label className="form-label" htmlFor="title">Title <span className="req">*</span></label>
@@ -243,7 +243,7 @@ export default function ExamFormPage() {
                     )}
                   </div>
 
-              <div className="form-actions form-actions--sticky">
+              <div className="form-actions form-actions--sticky" data-tour="exam-save">
                 <button type="submit" className="btn btn-primary" disabled={saving}>
                   {saving ? <span className="btn-spinner" /> : <Check size={16} />}
                   {isEdit ? 'Update exam' : (selectedTosId ? 'Generate exam' : 'Create blank exam')}

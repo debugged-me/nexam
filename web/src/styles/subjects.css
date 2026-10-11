@@ -60,10 +60,8 @@
   min-height: calc(100dvh - 250px);
   background: var(--surface);
   border: 1px solid var(--line);
-  border-radius: 18px;
-  box-shadow:
-    0 1px 2px rgba(28, 30, 37, .05),
-    0 12px 32px -18px rgba(28, 30, 37, .16);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-xs);
 }
 
 /* ==========================================================================
@@ -78,7 +76,7 @@
   min-height: 54px;
   padding: 8px var(--grid-x);
   border-bottom: 1px solid var(--line);
-  border-radius: 17px 17px 0 0;
+  border-radius: 11px 11px 0 0;
   background: var(--surface);
 }
 
@@ -192,7 +190,7 @@
   min-height: 54px;
   padding: 8px var(--grid-x);
   border-bottom: 1px solid color-mix(in srgb, var(--action-600) 30%, var(--line));
-  border-radius: 17px 17px 0 0;
+  border-radius: 11px 11px 0 0;
   background: color-mix(in srgb, var(--action-600) 4%, var(--surface));
 }
 .dataset[data-selecting="true"] .dataset-bar { display: none; }
@@ -291,7 +289,11 @@ table.grid tbody td {
 
 table.grid tbody tr:last-child > td { border-bottom: 0; }
 
-/* monday's hover is a whisper of blue, not a slab of gray. */
+/* Zebra striping — subtle warm tint on even rows, like the dbmanager grid.
+   Declared before the hover rule so the hover wash still wins. */
+table.grid tbody tr:nth-child(even) > td { background: var(--surface-2); }
+
+/* Hover is a whisper of blue, not a slab of gray. */
 table.grid tbody tr:hover > td {
   background: color-mix(in srgb, var(--action-50) 65%, var(--surface));
 }

@@ -169,6 +169,7 @@ a { color: inherit; text-decoration: none; }
   justify-content: center;
 }
 .panel-icon svg { width: 22px !important; height: 22px !important; display: block; color: #fff; }
+.panel-icon img { width: 26px; height: 26px; display: block; object-fit: contain; }
 .panel-org {
   font-family: var(--font-display, "Google Sans", sans-serif);
   font-size: .95rem;
@@ -431,6 +432,9 @@ a { color: inherit; text-decoration: none; }
 .auth-secondary-form .btn-register { width: 100%; }
 .form-links a { color: var(--ink); font-weight: 500; }
 .form-links a:hover { text-decoration: underline; }
+.form-links--legal { margin-top: 10px; font-size: .78rem; }
+.form-links--legal a { color: var(--ink-3); font-weight: 400; }
+.form-links--legal a:hover { color: var(--action-600); }
 
 /* ── Responsive ── */
 @media (max-width: 860px) {

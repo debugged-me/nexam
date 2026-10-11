@@ -19,9 +19,10 @@ import { useEffect, useState, useCallback, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import {
   Upload, Link2, Video, FileText, Trash2, RotateCw, FileStack, Sparkles,
-  BookOpen, Loader2, CheckCircle2, AlertCircle, RefreshCw, X,
+  BookOpen, Loader2, CheckCircle2, AlertCircle, RefreshCw, X, Copy,
 } from 'lucide-react';
 import { useToast } from '../components/Toast.jsx';
+import { useContextMenu, useCopyText } from '../components/ContextMenu.jsx';
 import { useConfirm } from '../components/ConfirmDialog.jsx';
 import Modal from '../components/Modal.jsx';
 import api, { ApiError, getToken } from '../lib/api.js';
@@ -71,6 +72,8 @@ function dragHasFiles(e) {
 export default function MaterialsPage() {
   const toast = useToast();
   const confirm = useConfirm();
+  const { menuEl, openMenu } = useContextMenu();
+  const copyText = useCopyText();
   const [searchParams, setSearchParams] = useSearchParams();
   const [materials, setMaterials] = useState(() => api.peek('/materials')?.materials ?? null);
   const [subjects, setSubjects] = useState(() => api.peek('/subjects')?.subjects ?? []);
@@ -380,6 +383,18 @@ export default function MaterialsPage() {
     }
   }
 
+  function materialMenu(e, m) {
+    const canGenerate = Boolean(Number(m.is_syllabus)) && m.status === 'processed';
+    openMenu(e, [
+      ...(canGenerate ? [{ label: 'Auto-generate Blueprint', icon: Sparkles, onClick: () => handleGenerateTos(m) }] : []),
+      { label: m.status === 'failed' ? 'Retry processing' : 'Reprocess', icon: RotateCw, onClick: () => handleReprocess(m) },
+      'sep',
+      { label: 'Copy title', icon: Copy, onClick: () => copyText(m.title, 'Title') },
+      'sep',
+      { label: 'Delete', icon: Trash2, danger: true, onClick: () => handleDelete(m) },
+    ]);
+  }
+
   const SOURCE_ICONS = { pdf: FileText, docx: FileText, pptx: FileText, text: FileText, url: Link2, youtube: Video, file: FileStack };
 
   const subjectName = subjects.find((s) => String(s.id) === String(form.subject_id));
@@ -432,7 +447,7 @@ export default function MaterialsPage() {
                 const Icon = SOURCE_ICONS[m.source_type] || FileText;
                 const matSubject = matSubjectOf(m);
                 return (
-                  <div key={m.id} className="mat-card" style={{ '--gc': groupColor(m.subject_id), '--i': Math.min(i, 8) }}>
+                  <div key={m.id} className="mat-card" style={{ '--gc': groupColor(m.subject_id), '--i': Math.min(i, 8) }} onContextMenu={(e) => materialMenu(e, m)}>
                     <div className="mat-card-main">
                       <span className="mat-filetype" data-type={m.source_type} aria-hidden="true">
                         <Icon size={15} />
@@ -656,6 +671,7 @@ export default function MaterialsPage() {
           </form>
         )}
       </Modal>
+      {menuEl}
     </AppShell>
   );
 }

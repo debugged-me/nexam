@@ -15,7 +15,6 @@ import {
   Eye,
   EyeOff,
   AlertCircle,
-  GraduationCap,
   FileText,
   ListChecks,
   Layers,
@@ -109,7 +108,7 @@ export default function LoginPage() {
           </p>
           <div className="panel-footer">
             <div className="panel-icon">
-              <GraduationCap />
+              <img src="/favicon.png" alt="" />
             </div>
             <div className="panel-org">
               nexam
@@ -203,6 +202,11 @@ export default function LoginPage() {
 
             <div className="form-links">
               <Link to="/forgot">Forgot password?</Link>
+            </div>
+            <div className="form-links form-links--legal">
+              <Link to="/privacy">Data Privacy</Link>
+              <span aria-hidden="true">·</span>
+              <Link to="/terms">Terms of Use</Link>
             </div>
           </form>
         </div>

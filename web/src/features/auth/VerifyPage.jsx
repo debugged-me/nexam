@@ -11,7 +11,7 @@ import '../../styles/auth-verify.css';
  */
 import { useState, useRef, useEffect } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
-import { AlertCircle, ShieldCheck, RotateCw } from 'lucide-react';
+import { AlertCircle, RotateCw } from 'lucide-react';
 import api, { ApiError } from '../../lib/api.js';
 import { useAuth } from './AuthContext.jsx';
 
@@ -98,11 +98,6 @@ export default function VerifyPage() {
     <div className="auth-page auth-page-verify">
       <div className="auth-wrap">
         <div className="auth-panel">
-          <div className="panel-hero" aria-hidden="true">
-            <span className="panel-disc panel-disc--outer" />
-            <span className="panel-disc panel-disc--inner" />
-            <img src="/favicon.png" alt="" />
-          </div>
           <span className="panel-badge">Verify Email</span>
           <div className="panel-title">
             One last step<em>confirm your email address.</em>
@@ -111,7 +106,7 @@ export default function VerifyPage() {
             Enter the 6-digit code we sent to your inbox. It expires in 15 minutes.
           </p>
           <div className="panel-footer">
-            <div className="panel-icon"><ShieldCheck /></div>
+            <div className="panel-icon"><img src="/favicon.png" alt="" /></div>
             <div className="panel-org">
               nexam
               <small>TOS-aligned Exam Builder</small>

@@ -11,9 +11,10 @@ import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import {
   Plus, Pencil, Trash2, Info, Eye, Ellipsis, Search,
-  Layers, ChevronUp, ChevronDown, Printer, MonitorSmartphone,
+  Layers, ChevronUp, ChevronDown, Printer, MonitorSmartphone, Copy,
 } from 'lucide-react';
 import { useToast } from '../components/Toast.jsx';
+import { useContextMenu, useCopyText } from '../components/ContextMenu.jsx';
 import { useConfirm } from '../components/ConfirmDialog.jsx';
 import api, { ApiError } from '../lib/api.js';
 import AppShell from '../components/AppShell.jsx';
@@ -46,6 +47,8 @@ export default function ExamsPage() {
   const toast = useToast();
   const confirm = useConfirm();
   const navigate = useNavigate();
+  const { menuEl, openMenu } = useContextMenu();
+  const copyText = useCopyText();
   const [exams, setExams] = useState(() => api.peek('/exams')?.exams ?? null);
   const [query, setQuery] = useState('');
   const [groupBy, setGroupBy] = useState('subject'); // subject | status | none
@@ -157,6 +160,17 @@ export default function ExamsPage() {
     catch (err) { toast.error(err instanceof ApiError ? err.message : 'Delete failed.'); }
   }
 
+  function examMenu(e, exam) {
+    openMenu(e, [
+      { label: 'Open', icon: Eye, onClick: () => navigate(`/exams/${exam.id}`) },
+      { label: 'Edit', icon: Pencil, onClick: () => navigate(`/exams/${exam.id}/edit`) },
+      'sep',
+      { label: 'Copy title', icon: Copy, onClick: () => copyText(exam.title, 'Title') },
+      'sep',
+      { label: 'Delete', icon: Trash2, danger: true, onClick: () => handleDelete(exam) },
+    ]);
+  }
+
   function ExamRow({ e }) {
     const count = e.question_count || 0;
     const print = e.format === 'print';
@@ -164,7 +178,7 @@ export default function ExamsPage() {
     if (e.duration_minutes) meta.push(`${e.duration_minutes} min`);
     meta.push(`${count} ${count === 1 ? 'item' : 'items'}`);
     return (
-      <tr className="b-row" data-id={e.id}>
+      <tr className="b-row" data-id={e.id} onContextMenu={(ev) => examMenu(ev, e)}>
         <td>
           <span className="g-primary">
             <Link to={`/exams/${e.id}`} className="g-title">{e.title}</Link>
@@ -340,6 +354,7 @@ export default function ExamsPage() {
           </div>
         </section>
       )}
+      {menuEl}
     </AppShell>
   );
 }

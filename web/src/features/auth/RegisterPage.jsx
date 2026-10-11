@@ -9,7 +9,7 @@ import '../../styles/auth-register.css';
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import {
-  Mail, Lock, Eye, EyeOff, AlertCircle, GraduationCap, User,
+  Mail, Lock, Eye, EyeOff, AlertCircle, User,
 } from 'lucide-react';
 import api, { ApiError } from '../../lib/api.js';
 
@@ -65,11 +65,6 @@ export default function RegisterPage() {
       <div className="auth-wrap">
         {/* Brand panel */}
         <div className="auth-panel">
-          <div className="panel-hero" aria-hidden="true">
-            <span className="panel-disc panel-disc--outer" />
-            <span className="panel-disc panel-disc--inner" />
-            <img src="/favicon.png" alt="" />
-          </div>
           <span className="panel-badge">New Account</span>
           <div className="panel-title">
             Join nexam<em>and let your materials build the exam.</em>
@@ -80,7 +75,7 @@ export default function RegisterPage() {
             print-ready exams aligned to your Table of Specifications.
           </p>
           <div className="panel-footer">
-            <div className="panel-icon"><GraduationCap /></div>
+            <div className="panel-icon"><img src="/favicon.png" alt="" /></div>
             <div className="panel-org">
               nexam
               <small>TOS-aligned Exam Builder</small>

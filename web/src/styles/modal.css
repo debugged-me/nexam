@@ -2,7 +2,7 @@
 .modal-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(28, 30, 37, .4);
+  background: rgba(15, 15, 15, .4);
   -webkit-backdrop-filter: blur(2px);
   backdrop-filter: blur(2px);
   display: flex;
@@ -17,17 +17,17 @@
 .modal-card {
   background: var(--surface);
   border: 1px solid var(--line);
-  border-radius: 18px;
+  border-radius: var(--radius-lg);
   box-shadow: var(--shadow-lg);
   width: 100%;
   max-height: 90vh;
   display: flex;
   flex-direction: column;
-  animation: modalSlide .2s var(--ease);
+  animation: modalSlide .2s cubic-bezier(.34, 1.4, .64, 1);
 }
 @keyframes modalSlide {
-  from { opacity: 0; transform: translateY(12px); }
-  to   { opacity: 1; transform: translateY(0); }
+  from { opacity: 0; transform: scale(.96) translateY(4px); }
+  to   { opacity: 1; transform: scale(1) translateY(0); }
 }
 .modal-sm { max-width: 420px; }
 .modal-md { max-width: 560px; }
@@ -37,12 +37,12 @@
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  padding: 20px 24px 16px;
+  padding: 16px 20px;
   border-bottom: 1px solid var(--line);
 }
 .modal-title {
   font-family: var(--font-display);
-  font-size: var(--text-md);
+  font-size: 15px;
   font-weight: 700;
   color: var(--ink);
   margin: 0;
@@ -67,9 +67,20 @@
 .modal-close:hover { background: var(--surface-2); color: var(--ink-2); }
 
 .modal-body {
-  padding: 20px 24px;
+  padding: 20px;
   overflow-y: auto;
   flex: 1;
+}
+
+/* Warning callout inside dialogs (dbmanager .modal-warn). */
+.modal-warn {
+  padding: 9px 11px;
+  margin-bottom: 14px;
+  border-radius: var(--radius-sm);
+  background: var(--amber-50);
+  color: var(--amber-700);
+  font-size: 12px;
+  line-height: 1.45;
 }
 
 /* Quiet focus inside dialogs — neutral edge, no blue ring. */
@@ -85,7 +96,7 @@
   display: flex;
   justify-content: flex-end;
   gap: 10px;
-  padding: 16px 24px 20px;
+  padding: 14px 20px;
   border-top: 1px solid var(--line);
 }
 

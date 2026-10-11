@@ -6,9 +6,10 @@ import '../styles/tos.css';
  * modal form using .form-section / .bloom-grid.
  */
 import { useEffect, useState, useCallback, useMemo } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
-import { Plus, Pencil, Trash2, Info, Eye, FilePlus2, Upload, Check, Layers } from 'lucide-react';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { Plus, Pencil, Trash2, Info, Eye, FilePlus2, Upload, Check, Layers, Copy } from 'lucide-react';
 import { useToast } from '../components/Toast.jsx';
+import { useContextMenu, useCopyText } from '../components/ContextMenu.jsx';
 import { useConfirm } from '../components/ConfirmDialog.jsx';
 import Modal from '../components/Modal.jsx';
 import api, { ApiError } from '../lib/api.js';
@@ -33,6 +34,9 @@ function fmtDate(iso) {
 export default function TosPage() {
   const toast = useToast();
   const confirm = useConfirm();
+  const navigate = useNavigate();
+  const { menuEl, openMenu } = useContextMenu();
+  const copyText = useCopyText();
   const [searchParams, setSearchParams] = useSearchParams();
   const [tosList, setTosList] = useState(() => api.peek('/tos')?.tos ?? null);
   const [subjects, setSubjects] = useState(() => api.peek('/subjects')?.subjects ?? []);
@@ -142,12 +146,24 @@ export default function TosPage() {
     ? BLOOM_ORDER.reduce((s, k) => s + (Number(editing.bloom_weights?.[k]) || 0), 0)
     : 0;
 
+  function tosMenu(e, t) {
+    openMenu(e, [
+      { label: 'Open', icon: Eye, onClick: () => navigate(`/tos/${t.id}`) },
+      { label: 'Edit', icon: Pencil, onClick: () => setEditing({ ...t, bloom_weights: t.bloom_weights || { ...DEFAULT_BLOOM } }) },
+      { label: 'Build exam', icon: FilePlus2, onClick: () => navigate('/exams') },
+      'sep',
+      { label: 'Copy title', icon: Copy, onClick: () => copyText(t.title, 'Title') },
+      'sep',
+      { label: 'Delete', icon: Trash2, danger: true, onClick: () => handleDelete(t) },
+    ]);
+  }
+
   function renderTosRow(t) {
     const topics = t.topic_count != null ? Number(t.topic_count) : 0;
     const items = Number(t.total_items);
     const touched = t.updated_at || t.created_at;
     return (
-      <tr key={t.id} data-id={t.id} className="b-row">
+      <tr key={t.id} data-id={t.id} className="b-row" onContextMenu={(e) => tosMenu(e, t)}>
         <td>
           <span className="g-primary">
             <Link to={`/tos/${t.id}`} className="g-title">{t.title}</Link>
@@ -352,6 +368,7 @@ export default function TosPage() {
         )}
       </Modal>
 
+      {menuEl}
     </AppShell>
   );
 }

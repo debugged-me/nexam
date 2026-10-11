@@ -7,7 +7,7 @@ import '../../styles/auth-forgot.css';
  */
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { Mail, AlertCircle, GraduationCap } from 'lucide-react';
+import { Mail, AlertCircle } from 'lucide-react';
 import api, { ApiError } from '../../lib/api.js';
 
 export default function ForgotPage() {
@@ -41,11 +41,6 @@ export default function ForgotPage() {
     <div className="auth-page auth-page-forgot">
       <div className="auth-wrap">
         <div className="auth-panel">
-          <div className="panel-hero" aria-hidden="true">
-            <span className="panel-disc panel-disc--outer" />
-            <span className="panel-disc panel-disc--inner" />
-            <img src="/favicon.png" alt="" />
-          </div>
           <span className="panel-badge">Reset Password</span>
           <div className="panel-title">
             Forgot your password?<em>we'll send a reset code.</em>
@@ -55,7 +50,7 @@ export default function ForgotPage() {
             code valid for 15 minutes.
           </p>
           <div className="panel-footer">
-            <div className="panel-icon"><GraduationCap /></div>
+            <div className="panel-icon"><img src="/favicon.png" alt="" /></div>
             <div className="panel-org">
               nexam
               <small>TOS-aligned Exam Builder</small>

@@ -7,7 +7,7 @@ import '../../styles/auth-reset.css';
  */
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
-import { Lock, Eye, EyeOff, AlertCircle, ShieldCheck } from 'lucide-react';
+import { Lock, Eye, EyeOff, AlertCircle } from 'lucide-react';
 import api, { ApiError } from '../../lib/api.js';
 
 export default function ResetPage() {
@@ -57,11 +57,6 @@ export default function ResetPage() {
     <div className="auth-page auth-page-reset">
       <div className="auth-wrap">
         <div className="auth-panel">
-          <div className="panel-hero" aria-hidden="true">
-            <span className="panel-disc panel-disc--outer" />
-            <span className="panel-disc panel-disc--inner" />
-            <img src="/favicon.png" alt="" />
-          </div>
           <span className="panel-badge">New Password</span>
           <div className="panel-title">
             Set a new password<em>and you're back in.</em>
@@ -70,7 +65,7 @@ export default function ResetPage() {
             Enter the reset code we sent, then choose a new password (min. 8 characters).
           </p>
           <div className="panel-footer">
-            <div className="panel-icon"><ShieldCheck /></div>
+            <div className="panel-icon"><img src="/favicon.png" alt="" /></div>
             <div className="panel-org">
               nexam
               <small>TOS-aligned Exam Builder</small>

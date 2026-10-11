@@ -1,6 +1,7 @@
 /**
  * Toast — lightweight application notification system.
  * Types: success, error, warning, info.
+ * Top-center stack with status fills and a countdown progress bar.
  */
 import { createContext, useContext, useState, useCallback } from 'react';
 import { CheckCircle2, XCircle, AlertTriangle, Info } from 'lucide-react';
@@ -8,17 +9,22 @@ import { CheckCircle2, XCircle, AlertTriangle, Info } from 'lucide-react';
 const ToastContext = createContext(null);
 
 let idCounter = 0;
+const EXIT_MS = 300;
 
 export function ToastProvider({ children }) {
   const [toasts, setToasts] = useState([]);
 
   const dismiss = useCallback((id) => {
-    setToasts((list) => list.filter((t) => t.id !== id));
+    // Fade out first, then drop the node so the exit motion is visible.
+    setToasts((list) => list.map((t) => (t.id === id ? { ...t, out: true } : t)));
+    setTimeout(() => {
+      setToasts((list) => list.filter((t) => t.id !== id));
+    }, EXIT_MS);
   }, []);
 
   const show = useCallback((message, type = 'info', duration = 4000) => {
     const id = ++idCounter;
-    setToasts((list) => [...list, { id, message, type }]);
+    setToasts((list) => [...list, { id, message, type, duration }]);
     if (duration > 0) {
       setTimeout(() => dismiss(id), duration);
     }
@@ -53,20 +59,19 @@ const ICONS = {
   info: Info,
 };
 
-const COLORS = {
-  success: { bg: 'var(--green-50)', border: 'var(--green-100)', color: 'var(--green-700)' },
-  error:   { bg: 'var(--red-50)',   border: 'var(--red-100)',   color: 'var(--red-700)' },
-  warning: { bg: 'var(--amber-50)', border: 'var(--amber-100)', color: 'var(--amber-700)' },
-  info:    { bg: 'var(--surface-2)', border: 'var(--line)', color: 'var(--ink-2)' },
-};
-
 function ToastItem({ toast, onDismiss }) {
   const Icon = ICONS[toast.type] || Info;
-  const c = COLORS[toast.type] || COLORS.info;
   return (
-    <div className="toast" style={{ background: c.bg, borderColor: c.border, color: c.color }} onClick={onDismiss}>
-      <Icon size={18} />
+    <div
+      className={`toast toast--${toast.type || 'info'}${toast.out ? ' toast--out' : ''}`}
+      role="status"
+      onClick={onDismiss}
+    >
+      <Icon size={16} />
       <span>{toast.message}</span>
+      {toast.duration > 0 && (
+        <span className="toast__progress" style={{ animationDuration: `${toast.duration}ms` }} />
+      )}
     </div>
   );
 }

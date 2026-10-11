@@ -5,13 +5,14 @@ import '../styles/subjects.css';
  * Subject workspace using the shared data-grid system. CRUD via /api/subjects.
  */
 import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import {
   Plus, Pencil, Trash2, Search, CheckSquare, BookOpen,
-  Eye, Check,
+  Eye, Check, Copy,
   ChevronUp, ChevronDown, ChevronFirst, ChevronLeft, ChevronRight, ChevronLast,
 } from 'lucide-react';
 import { useToast } from '../components/Toast.jsx';
+import { useContextMenu, useCopyText } from '../components/ContextMenu.jsx';
 import Modal from '../components/Modal.jsx';
 import api, { ApiError } from '../lib/api.js';
 import AppShell from '../components/AppShell.jsx';
@@ -39,6 +40,9 @@ function fmtDate(iso) {
 
 export default function SubjectsPage() {
   const toast = useToast();
+  const navigate = useNavigate();
+  const { menuEl, openMenu } = useContextMenu();
+  const copyText = useCopyText();
   const [searchParams, setSearchParams] = useSearchParams();
   const [subjects, setSubjects] = useState(() => api.peek('/subjects')?.subjects ?? null);
   const [editing, setEditing] = useState(null); // null | {} (new) | subject (edit)
@@ -225,6 +229,18 @@ export default function SubjectsPage() {
 
   const openNew = () => setEditing({ name: '', code: '', description: '' });
 
+  function subjectMenu(e, s) {
+    openMenu(e, [
+      { label: 'Open', icon: Eye, onClick: () => navigate(`/subjects/${encodeURIComponent(s.id)}`) },
+      { label: 'Edit', icon: Pencil, onClick: () => setEditing(s) },
+      'sep',
+      { label: 'Copy name', icon: Copy, onClick: () => copyText(s.name, 'Name') },
+      ...(s.code ? [{ label: 'Copy code', icon: Copy, onClick: () => copyText(s.code, 'Code') }] : []),
+      'sep',
+      { label: 'Delete', icon: Trash2, danger: true, onClick: () => handleDelete(s) },
+    ]);
+  }
+
   const renderSortArrow = (col) => {
     if (sort.col !== col) return null;
     return sort.dir === SORT_DIRS.asc
@@ -340,7 +356,7 @@ export default function SubjectsPage() {
                   const desc = s.description ? clip(s.description, 90) : 'No description';
                   const descTitle = s.description ? clip(s.description, 200) : '';
                   return (
-                    <tr key={s.id} data-id={s.id} style={{ '--i': Math.min(i, 12), '--gc': groupColor(s.id) }} className={selected.has(s.id) ? 'is-selected' : ''}>
+                    <tr key={s.id} data-id={s.id} style={{ '--i': Math.min(i, 12), '--gc': groupColor(s.id) }} className={selected.has(s.id) ? 'is-selected' : ''} onContextMenu={(e) => subjectMenu(e, s)}>
                       <td className="col-select">
                         {selectMode && (
                           <label className="ds-check">
@@ -421,6 +437,8 @@ export default function SubjectsPage() {
           </div>
         </section>
       )}
+
+      {menuEl}
 
       {/* Create/edit subject modal */}
       <Modal

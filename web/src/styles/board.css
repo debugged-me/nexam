@@ -984,6 +984,8 @@ table.grid tbody td {
 }
 
 table.grid tbody tr:last-child > td { border-bottom: 0; }
+/* Zebra striping — declared before hover so the hover wash still wins. */
+table.grid tbody tr:nth-child(even) > td { background: var(--surface-2); }
 table.grid tbody tr:hover > td { background: var(--surface-2); }
 table.grid tbody tr.is-selected > td { background: var(--action-50); }
 table.grid tbody tr.is-selected:hover > td { background: var(--action-100); }

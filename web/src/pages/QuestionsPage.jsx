@@ -14,9 +14,10 @@ import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import {
   Plus, Pencil, Trash2, Check, X, Info, Search, Upload, Sparkles,
-  MoreVertical, FileText, ListChecks, RotateCcw, FilterX, Layers,
+  MoreVertical, FileText, ListChecks, RotateCcw, FilterX, Layers, Copy,
 } from 'lucide-react';
 import { useToast } from '../components/Toast.jsx';
+import { useContextMenu, useCopyText } from '../components/ContextMenu.jsx';
 import { useConfirm } from '../components/ConfirmDialog.jsx';
 import Modal from '../components/Modal.jsx';
 import api, { ApiError } from '../lib/api.js';
@@ -80,6 +81,8 @@ function questionsPath(filters) {
 export default function QuestionsPage() {
   const toast = useToast();
   const confirm = useConfirm();
+  const { menuEl, openMenu } = useContextMenu();
+  const copyText = useCopyText();
   const [searchParams, setSearchParams] = useSearchParams();
   const [questions, setQuestions] = useState(() => api.peek(questionsPath(DEFAULT_FILTERS))?.questions ?? null);
   const [subjects, setSubjects] = useState(() => api.peek('/subjects')?.subjects ?? []);
@@ -474,6 +477,21 @@ export default function QuestionsPage() {
 
   const selecting = selectionCount > 0;
 
+  function questionMenu(e, q, stem) {
+    const isDraft = q.status === 'draft';
+    const isRejected = q.status === 'rejected';
+    openMenu(e, [
+      { label: 'Edit', icon: Pencil, onClick: () => openEdit(q) },
+      ...(isDraft ? [{ label: 'Approve', icon: Check, onClick: () => handleApprove(q) }] : []),
+      ...(isRejected ? [{ label: 'Restore', icon: RotateCcw, onClick: () => handleApprove(q) }] : []),
+      ...(!isRejected ? [{ label: 'Reject', icon: X, onClick: () => handleReject(q) }] : []),
+      'sep',
+      { label: 'Copy question text', icon: Copy, onClick: () => copyText(stem, 'Question text') },
+      'sep',
+      { label: 'Delete', icon: Trash2, danger: true, onClick: () => handleDelete(q) },
+    ]);
+  }
+
   /** One grid row — index is the row's position in `rows` (selection anchor). */
   function renderQuestionRow(q, index) {
     const stem = (q.stem || '').replace(/\s+/g, ' ').trim();
@@ -485,7 +503,7 @@ export default function QuestionsPage() {
     const touched = q.updated_at || q.created_at || '';
     const isChecked = selected.has(q.id);
     return (
-      <tr key={q.id} data-id={q.id} className={`b-row${isChecked ? ' is-selected' : ''}`}>
+      <tr key={q.id} data-id={q.id} className={`b-row${isChecked ? ' is-selected' : ''}`} onContextMenu={(e) => questionMenu(e, q, stem)}>
         <td className="col-select">
           <label className="ds-check">
             <input
@@ -1203,6 +1221,8 @@ export default function QuestionsPage() {
           </form>
         )}
       </Modal>
+
+      {menuEl}
     </AppShell>
   );
 }

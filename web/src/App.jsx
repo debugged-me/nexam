@@ -39,6 +39,7 @@ const AiEvalPage = lazy(() => import('./pages/AiEvalPage.jsx'));
 const AccountPage = lazy(() => import('./pages/AccountPage.jsx'));
 const WizardPage = lazy(() => import('./pages/WizardPage.jsx'));
 const InstitutionBankPage = lazy(() => import('./pages/InstitutionBankPage.jsx'));
+const LegalPage = lazy(() => import('./pages/LegalPage.jsx'));
 
 import './styles/tokens.css';
 import './styles/app.css';
@@ -83,6 +84,8 @@ function ToastOnMount() {
  *  must precede param patterns that would also match (e.g. /exams/new vs
  *  /exams/:id). */
 const PAGE_TITLES = [
+  ['/privacy', 'Data Privacy'],
+  ['/terms', 'Terms of Use'],
   ['/dashboard', 'Home'],
   ['/wizard', 'Build an exam'],
   ['/subjects', 'Subjects'],
@@ -153,6 +156,8 @@ export default function App() {
                     </RedirectIfAuthed>
                   }
                 />
+                <Route path="/privacy" element={<LegalPage doc="privacy" />} />
+                <Route path="/terms" element={<LegalPage doc="terms" />} />
                 <Route path="/verify" element={<VerifyPage />} />
                 <Route
                   path="/forgot"

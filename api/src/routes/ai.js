@@ -36,8 +36,11 @@ router.get('/status', requireAuth, async (_req, res, next) => {
 /** GET /api/ai/jobs — recent jobs for the authenticated user. */
 router.get('/jobs', requireAuth, async (req, res, next) => {
   try {
-    const rows = await jobs.recentByUser(req.user.id, 20);
-    res.json({ jobs: rows });
+    const [rows, activeCount] = await Promise.all([
+      jobs.recentByUser(req.user.id, 50),
+      jobs.countActive(req.user.id),
+    ]);
+    res.json({ jobs: rows, activeCount });
   } catch (err) {
     next(err);
   }
@@ -53,6 +56,34 @@ router.get('/jobs/:id', requireAuth, async (req, res, next) => {
       return res.status(404).json({ error: 'Job not found.' });
     }
     res.json({ job });
+  } catch (err) {
+    next(err);
+  }
+});
+
+/**
+ * POST /api/ai/jobs/:id/cancel — stop a queued or running job.
+ * Queued jobs are never claimed (the worker only takes status='queued'); a
+ * running job flips to 'cancelled' and cooperative handlers stop at their
+ * next checkpoint, keeping whatever they already produced.
+ */
+router.post('/jobs/:id/cancel', requireAuth, async (req, res, next) => {
+  try {
+    const job = await jobs.getById(req.params.id);
+    if (!job || (job.user_id && job.user_id !== req.user.id)) {
+      return res.status(404).json({ error: 'Job not found.' });
+    }
+    if (job.status !== 'queued' && job.status !== 'running') {
+      return res.status(409).json({
+        error: `This task is already ${job.status === 'done' ? 'finished' : job.status}.`,
+      });
+    }
+    const [r] = await pool.query(
+      `UPDATE ai_jobs SET status = 'cancelled', progress = NULL, finished_at = NOW()
+       WHERE id = :id AND status IN ('queued', 'running')`,
+      { id: job.id }
+    );
+    res.json({ cancelled: r.affectedRows > 0, status: 'cancelled' });
   } catch (err) {
     next(err);
   }
@@ -105,6 +136,15 @@ router.post('/generate-questions', requireAuth, async (req, res, next) => {
     if (rows[0].status !== 'finalized') {
       return res.status(409).json({
         error: 'Finalize the TOS after reviewing its topics, hours, outcomes, and Bloom distribution before generating questions.',
+      });
+    }
+
+    // A second run for the same blueprint only makes a parallel batch of
+    // duplicates. Generating a different blueprint at the same time is fine —
+    // the worker runs jobs concurrently.
+    if (await jobs.hasActiveJob('generate', (p) => p?.tosId === tosId)) {
+      return res.status(409).json({
+        error: 'A generation run for this blueprint is already in progress — watch Background work while it finishes.',
       });
     }
 
@@ -222,11 +262,21 @@ router.get('/pipeline/:subjectId', requireAuth, async (req, res, next) => {
       } else stage = 'processed';
     }
 
+    // Show instructors a friendly error, never raw provider JSON.
+    const friendly = (j) => (j && j.error
+      ? { ...j, error: jobs.friendlyJobError(j.error, j.finished_at || j.started_at || j.created_at) }
+      : j);
+
     res.json({
       subjectId,
       stage,
-      syllabus,
-      jobs: { extract: extractJob, embed: embedJob, tos: tosJob, generate: generateJob },
+      syllabus: friendly(syllabus),
+      jobs: {
+        extract: friendly(extractJob),
+        embed: friendly(embedJob),
+        tos: friendly(tosJob),
+        generate: friendly(generateJob),
+      },
       tos,
       questions: {
         total: Number(questionStats.total),

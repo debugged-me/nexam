@@ -458,22 +458,7 @@ table.grid td.col-actions {
 table.grid th.col-actions { text-transform: uppercase; }
 table.grid td.col-actions { background: var(--surface); z-index: 1; }
 
-.g-menu {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 28px;
-  height: 28px;
-  padding: 0;
-  border: 0;
-  border-radius: 7px;
-  background: transparent;
-  color: var(--ink-faint);
-  cursor: pointer;
-}
-.g-menu svg { width: 15px !important; height: 15px !important; display: block; }
-.g-menu:hover { background: var(--surface-3); color: var(--ink); }
-.g-menu:focus-visible { outline: 2px solid var(--action-600); outline-offset: 1px; }
+/* .g-menu trigger styling lives in board.css — shared across all list pages. */
 
 /* ==========================================================================
    Footer — range + pagination

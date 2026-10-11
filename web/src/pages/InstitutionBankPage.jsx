@@ -1,6 +1,6 @@
 import '../styles/institution.css';
-import { useEffect, useMemo, useState } from 'react';
-import { Copy, Library, Rows3, Search, StretchHorizontal } from 'lucide-react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { Copy, Library, Rows3, Search, StretchHorizontal, ChevronFirst, ChevronLeft, ChevronRight, ChevronLast } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import AppShell from '../components/AppShell.jsx';
 import { PageLoader } from '../components/Loaders.jsx';
@@ -18,6 +18,8 @@ const TYPE_LABELS = {
   matching: 'Matching type', identification: 'Fill in the blank',
 };
 
+const PAGE_SIZE = 12;
+
 export default function InstitutionBankPage() {
   const toast = useToast();
   const navigate = useNavigate();
@@ -30,6 +32,8 @@ export default function InstitutionBankPage() {
   const [targetSubjectId, setTargetSubjectId] = useState('');
   const [saving, setSaving] = useState(false);
   const [density, setDensity] = useState(() => localStorage.getItem('nexam.institution.density') || 'comfortable');
+  const [page, setPage] = useState(0);
+  const listRef = useRef(null);
 
   function toggleDensity() {
     const next = density === 'compact' ? 'comfortable' : 'compact';
@@ -56,6 +60,17 @@ export default function InstitutionBankPage() {
         .some((value) => String(value || '').toLowerCase().includes(needle));
     });
   }, [questions, query, bloom, type]);
+
+  const pageCount = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const safePage = Math.min(page, pageCount - 1);
+  const pageItems = filtered.slice(safePage * PAGE_SIZE, safePage * PAGE_SIZE + PAGE_SIZE);
+  const start = filtered.length ? safePage * PAGE_SIZE + 1 : 0;
+  const end = Math.min((safePage + 1) * PAGE_SIZE, filtered.length);
+
+  function goTo(p) {
+    setPage(p);
+    listRef.current?.scrollIntoView({ block: 'start', behavior: 'smooth' });
+  }
 
   function openReuse(question) {
     setReusing(question);
@@ -102,13 +117,13 @@ export default function InstitutionBankPage() {
         <label className="institution-search">
           <Search size={16} aria-hidden="true" />
           <span className="sr-only">Search institution questions</span>
-          <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search question, topic, or subject" />
+          <input value={query} onChange={(event) => { setQuery(event.target.value); setPage(0); }} placeholder="Search question, topic, or subject" />
         </label>
-        <select value={bloom} onChange={(event) => setBloom(event.target.value)} aria-label="Filter by Bloom level">
+        <select value={bloom} onChange={(event) => { setBloom(event.target.value); setPage(0); }} aria-label="Filter by Bloom level">
           <option value="">All Bloom levels</option>
           {Object.entries(BLOOM_LABELS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
         </select>
-        <select value={type} onChange={(event) => setType(event.target.value)} aria-label="Filter by question type">
+        <select value={type} onChange={(event) => { setType(event.target.value); setPage(0); }} aria-label="Filter by question type">
           <option value="">All question types</option>
           {Object.entries(TYPE_LABELS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
         </select>
@@ -123,8 +138,8 @@ export default function InstitutionBankPage() {
           <span>Questions appear here after an instructor approves them.</span>
         </div>
       ) : (
-        <div className="institution-list" data-density={density} data-tour="institution-list">
-          {filtered.map((question) => (
+        <div className="institution-list" data-density={density} data-tour="institution-list" ref={listRef}>
+          {pageItems.map((question) => (
             <article className="institution-question" key={question.id}>
               <div className="institution-meta">
                 <span className="b-chip" style={{ '--gc': groupColor(question.subject_id || question.subject_name) }}>
@@ -146,6 +161,31 @@ export default function InstitutionBankPage() {
               </button>
             </article>
           ))}
+        </div>
+      )}
+
+      {filtered.length > PAGE_SIZE && (
+        <div className="dataset-foot">
+          <div className="ds-range">
+            <b>{start}</b>–<b>{end}</b> of <b>{filtered.length}</b>
+          </div>
+          <div className="ds-pager">
+            <button type="button" className="ds-page" onClick={() => goTo(0)} disabled={safePage === 0} aria-label="First page">
+              <ChevronFirst size={15} />
+            </button>
+            <button type="button" className="ds-page" onClick={() => goTo(safePage - 1)} disabled={safePage === 0} aria-label="Previous page">
+              <ChevronLeft size={15} />
+            </button>
+            <span className="ds-page" aria-current="page">{safePage + 1}</span>
+            <span className="ds-gap">/</span>
+            <span className="ds-page">{pageCount}</span>
+            <button type="button" className="ds-page" onClick={() => goTo(safePage + 1)} disabled={safePage >= pageCount - 1} aria-label="Next page">
+              <ChevronRight size={15} />
+            </button>
+            <button type="button" className="ds-page" onClick={() => goTo(pageCount - 1)} disabled={safePage >= pageCount - 1} aria-label="Last page">
+              <ChevronLast size={15} />
+            </button>
+          </div>
         </div>
       )}
 

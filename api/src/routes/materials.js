@@ -17,7 +17,7 @@ import path from 'path';
 import { v4 as uuid } from 'uuid';
 import pool from '../config/db.js';
 import { requireAuth } from '../middleware/auth.js';
-import { enqueue } from '../services/jobs.js';
+import jobsService, { enqueue } from '../services/jobs.js';
 import { assertSafePublicUrl } from '../services/safeUrl.js';
 import { encryptFileAtRest } from '../services/storageCrypto.js';
 
@@ -160,7 +160,11 @@ router.get('/', requireAuth, async (req, res, next) => {
        ORDER BY created_at DESC`,
       { userId: req.user.id, subjectId: subject_id || null }
     );
-    res.json({ materials: rows });
+    // Instructors see a friendly message; raw errors stay in the DB for admins.
+    const materials = rows.map((m) =>
+      m.error ? { ...m, error: jobsService.friendlyJobError(m.error, m.updated_at || m.created_at) } : m
+    );
+    res.json({ materials });
   } catch (err) {
     next(err);
   }
@@ -179,6 +183,7 @@ router.get('/:id', requireAuth, async (req, res, next) => {
     if (m.content && m.content.length > 5000) {
       m.content = m.content.slice(0, 5000) + '\n...[truncated]';
     }
+    if (m.error) m.error = jobsService.friendlyJobError(m.error, m.updated_at || m.created_at);
     res.json({ material: m });
   } catch (err) {
     next(err);

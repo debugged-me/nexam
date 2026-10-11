@@ -15,6 +15,7 @@ import { Plus, Trash2, BookOpen, ChevronRight, Sparkles, FileText, Pencil, ListO
 import { useToast } from '../components/Toast.jsx';
 import { useConfirm } from '../components/ConfirmDialog.jsx';
 import api, { ApiError } from '../lib/api.js';
+import useJobs, { isActiveJob, jobPayload } from '../lib/useJobs.js';
 import AppShell from '../components/AppShell.jsx';
 import { PageLoader } from '../components/Loaders.jsx';
 
@@ -252,11 +253,19 @@ export default function TosDetailPage() {
     }
   }
 
+  // A generation run already active for THIS blueprint — other blueprints
+  // can still generate in parallel; the API refuses an identical duplicate.
+  const { jobs } = useJobs();
+  const generationActive = useMemo(
+    () => jobs.some((j) => j.type === 'generate' && isActiveJob(j) && jobPayload(j).tosId === id),
+    [jobs, id]
+  );
+
   async function handleGenerate() {
     setGenerating(true);
     try {
-      const result = await api.post('/ai/generate-questions', { tosId: id });
-      toast.success(`Generation queued (job ${result.jobId}). Drafts will appear on the Questions page.`);
+      await api.post('/ai/generate-questions', { tosId: id });
+      toast.success(`Generation queued — drafts will appear on the Questions page, and you can watch progress under Background work.`);
     } catch (err) {
       toast.error(err instanceof ApiError ? err.message : 'Generation failed to start.');
     } finally {
@@ -334,14 +343,22 @@ export default function TosDetailPage() {
               {finalizing ? <span className="btn-spinner" /> : <Lock size={14} />} Finalize TOS
             </button>
           )}
-          <button type="button" className="btn btn-brand btn-sm" onClick={handleGenerate} disabled={generating || !finalized}
-            title="AI drafts questions from your materials based on this blueprint">
-            {generating ? <span className="btn-spinner" /> : <Sparkles size={14} />} Auto-generate Questions
+          <button
+            type="button"
+            className="btn btn-brand btn-sm"
+            onClick={handleGenerate}
+            disabled={generating || !finalized || generationActive}
+            title={generationActive
+              ? 'A generation run for this blueprint is already in progress — watch it under Background work'
+              : 'AI drafts questions from your materials based on this blueprint'}
+          >
+            {generating || generationActive ? <span className="btn-spinner" /> : <Sparkles size={14} />}
+            {generationActive ? 'Generating…' : 'Auto-generate Questions'}
           </button>
-          <Link to="/exams" className="btn btn-outline btn-sm">
+          <Link to={`/exams/new?tos=${id}`} className="btn btn-outline btn-sm">
             <FileText size={14} /> Build Exam
           </Link>
-          {!finalized && <Link to="/tos" className="btn btn-outline btn-sm"><Pencil size={14} /> Edit</Link>}
+          {!finalized && <Link to={`/tos?edit=${id}`} className="btn btn-outline btn-sm"><Pencil size={14} /> Edit</Link>}
         </div>
       </div>
 

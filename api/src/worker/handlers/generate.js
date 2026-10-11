@@ -16,7 +16,7 @@ import { v4 as uuid } from 'uuid';
 import pool from '../../config/db.js';
 import { generate } from '../../services/aiProvider.js';
 import { retrieve } from '../../services/retriever.js';
-import { enqueue } from '../../services/jobs.js';
+import { enqueue, updateProgress, isCancelled, markStopped } from '../../services/jobs.js';
 import { getNumber } from '../../services/settings.js';
 import { buildTosMatrix } from '../../services/tosAlignment.js';
 import { isValidGeneratedQuestion } from '../../services/generationValidation.js';
@@ -62,68 +62,114 @@ export default async function generateHandler(job) {
   const { slots } = buildTosMatrix(topics, bloomWeights, totalItems);
 
   // ── Generate every exact matrix cell ─────────────────
-  const generatedQuestions = [];
+  // Questions are stored the moment their slot finishes — not in one burst at
+  // the end — so a failed or stopped run keeps everything it already drafted.
+  // A cell already covered by live (non-rejected) questions on this TOS is
+  // skipped, and a partly-covered cell only generates its deficit — a re-run
+  // after a failure fills gaps instead of duplicating the whole matrix.
+  let generatedCount = 0;
   const failedSlots = [];
+  let skippedCells = 0;
   let droppedInvalid = 0;
+  let slotIndex = 0;
+  let cancelled = false;
 
   for (const slot of slots) {
+    // Cooperative stop: the cancel endpoint flips status to 'cancelled';
+    // honour it at the next slot boundary rather than mid-LLM-call.
+    if (await isCancelled(job.id)) { cancelled = true; break; }
+
+    // Live progress so the UI can say what is being drafted, not just "busy".
+    await updateProgress(job.id, {
+      slotsDone: slotIndex,
+      slotsTotal: slots.length,
+      drafted: generatedCount,
+      skipped: skippedCells,
+      lastSlot: { topic: slot.topic, bloom: slot.bloom },
+    });
+    slotIndex += 1;
+
+    // Gap-fill: count live questions this blueprint already has for the cell.
+    // Drafts count — if the instructor later rejects them, the next run
+    // regenerates the cell. Rejected items never count.
+    const [covRows] = await pool.query(
+      `SELECT COUNT(*) AS n FROM questions q
+       WHERE q.subject_id = :subjectId AND q.created_by = :userId
+         AND q.status <> 'rejected'
+         AND (q.similarity_flag IS NULL OR q.similarity_flag <> 'rejected')
+         AND q.topic = :topic AND q.bloom = :bloom
+         AND (q.tos_id = :tosId OR EXISTS (
+           SELECT 1 FROM question_tos qt WHERE qt.question_id = q.id AND qt.tos_id = :tosId
+         ))`,
+      { subjectId: tos.subject_id, userId, topic: slot.topic, bloom: slot.bloom, tosId: tos.id }
+    );
+    const covered = Number(covRows[0]?.n || 0);
+    const needed = slot.count - covered;
+    if (needed <= 0) { skippedCells += 1; continue; }
+
     const topic = topics.find((candidate) => candidate.title === slot.topic);
-    const result = await generateForSlot(tos, topic, slot.bloom, slot.count);
-    if (result.questions.length > 0) generatedQuestions.push(...result.questions);
+    const result = await generateForSlot(tos, topic, slot.bloom, needed);
     if (result.dropped) droppedInvalid += result.dropped;
-    if (result.failed || result.questions.length !== slot.count) {
+
+    // Persist this slot's questions right away.
+    for (const q of result.questions) {
+      const questionId = uuid();
+      await pool.query(
+        `INSERT INTO questions
+           (id, subject_id, tos_id, topic, bloom, ai_predicted_bloom, type, stem, options, answer,
+            explanation, status, source, generation_meta, created_by)
+         VALUES
+           (:id, :subjectId, :tosId, :topic, :bloom, :aiPredictedBloom, :type, :stem, :options, :answer,
+            :explanation, 'draft', 'ai', :meta, :createdBy)`,
+        {
+          id: questionId,
+          subjectId: tos.subject_id,
+          tosId: tos.id,
+          topic: q.topic || null,
+          bloom: q.bloom,
+          aiPredictedBloom: q.bloom,
+          type: q.type,
+          stem: q.stem,
+          options: q.options ? JSON.stringify(q.options) : null,
+          answer: q.answer || null,
+          explanation: q.explanation || null,
+          meta: JSON.stringify(q.meta),
+          createdBy: userId,
+        }
+      );
+
+      // Enqueue similarity check for this new question
+      await enqueue({
+        type: 'similarity',
+        payload: { questionId, userId },
+        userId,
+        subjectId: tos.subject_id,
+      });
+    }
+    generatedCount += result.questions.length;
+
+    if (result.failed || result.questions.length !== needed) {
       failedSlots.push({
         topic: slot.topic,
         bloom: slot.bloom,
-        count: slot.count,
+        count: needed,
         generated: result.questions.length,
-        reason: result.reason || `Generated ${result.questions.length} of ${slot.count} required questions.`,
+        reason: result.reason || `Generated ${result.questions.length} of ${needed} required questions.`,
       });
     }
   }
 
-  // ── Store generated questions ───────────────────────
-  for (const q of generatedQuestions) {
-    const questionId = uuid();
-    await pool.query(
-      `INSERT INTO questions
-         (id, subject_id, tos_id, topic, bloom, ai_predicted_bloom, type, stem, options, answer,
-          explanation, status, source, generation_meta, created_by)
-       VALUES
-         (:id, :subjectId, :tosId, :topic, :bloom, :aiPredictedBloom, :type, :stem, :options, :answer,
-          :explanation, 'draft', 'ai', :meta, :createdBy)`,
-      {
-        id: questionId,
-        subjectId: tos.subject_id,
-        tosId: tos.id,
-        topic: q.topic || null,
-        bloom: q.bloom,
-        aiPredictedBloom: q.bloom,
-        type: q.type,
-        stem: q.stem,
-        options: q.options ? JSON.stringify(q.options) : null,
-        answer: q.answer || null,
-        explanation: q.explanation || null,
-        meta: JSON.stringify(q.meta),
-        createdBy: userId,
-      }
-    );
-
-    // Enqueue similarity check for this new question
-    await enqueue({
-      type: 'similarity',
-      payload: { questionId, userId },
-      userId,
-      subjectId: tos.subject_id,
-    });
-  }
-
-  return {
+  const summary = {
     tosId,
-    generated: generatedQuestions.length,
+    generated: generatedCount,
     droppedInvalid,
+    skippedCells,
     failedSlots,
+    ...(cancelled ? { stopped: true } : {}),
   };
+  // markDone is a no-op on a cancelled row — save the partial summary ourselves.
+  if (cancelled) await markStopped(job.id, summary);
+  return summary;
 }
 
 /**

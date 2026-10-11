@@ -50,7 +50,7 @@ export const TOURS = [
     steps: [
       {
         title: 'Welcome to nexam',
-        description: 'nexam turns your course materials into print-ready exam sets — papers, answer keys, QR-linked OMR sheets, and Moodle/Canvas exports. This short tour follows the same path an exam takes.',
+        description: 'nexam turns your course materials into print-ready exam sets — papers, answer keys, QR-linked OMR sheets, and Moodle/Canvas exports. This short tour follows the same path an exam takes. One habit worth forming early: every list row answers to a right-click (or its ⋯ button) for its action menu — and truncated text always has “Read more” / “View details”.',
       },
       NAV_STEP,
       NAV_STEP_MOBILE,
@@ -140,7 +140,7 @@ export const TOURS = [
       {
         sel: '[data-tour="subjects-table"]', side: 'top',
         title: 'Each row is a workspace',
-        description: 'The counts are doors — a question count opens that subject’s bank, a blueprint count its TOS list. Right-click a row for open, edit, and delete.',
+        description: 'The counts are doors — a question count opens that subject’s bank, a blueprint count its TOS list. Right-click a row (or tap its ⋯ button) for open, edit, and delete — “View details” and the inline “Read more” link show text the column can’t fit.',
       },
     ],
   },
@@ -164,7 +164,7 @@ export const TOURS = [
       {
         sel: '[data-tour="materials-list"]', side: 'top',
         title: 'From file to fuel',
-        description: 'Text extraction and embedding run in the background. When a syllabus finishes, its row menu gains “Auto-generate Blueprint” — the bridge to Stage 3.',
+        description: 'Text extraction and embedding run in the background. Right-click a card (or its ⋯ button) for the menu — a processed syllabus gains “Auto-generate Blueprint”, the bridge to Stage 3. Long titles wrap two lines and “Read more” opens the full details.',
       },
     ],
   },
@@ -183,7 +183,7 @@ export const TOURS = [
       {
         sel: '[data-tour="tos-table"]', side: 'top',
         title: 'Draft vs finalized',
-        description: 'Drafts are editable; finalized is the locked contract. Generation refuses anything less — that is what guarantees your exam matches the plan.',
+        description: 'Drafts are editable; finalized is the locked contract. Generation refuses anything less — that is what guarantees your exam matches the plan. Right-click a row (or its ⋯ button) for the menu — “View details” / “Read more” shows full titles the column clips.',
       },
     ],
   },
@@ -241,7 +241,7 @@ export const TOURS = [
       {
         sel: '[data-tour="questions-table"]', side: 'top',
         title: 'Status is everything',
-        description: 'draft → active | rejected. Bulk-approve from here, or right-click a row for its full menu.',
+        description: 'draft → active | rejected. Bulk-approve from here — or right-click a row / tap its ⋯ button for the full menu. “View details” and the “Read more” link display any stem the column truncates.',
       },
     ],
   },
@@ -351,7 +351,7 @@ export const TOURS = [
       {
         sel: '[data-tour="exams-board"]', side: 'top',
         title: 'Draft → published',
-        description: 'Status pills track each exam’s state. Open a row to attach questions, generate Set A/B packs, and publish.',
+        description: 'Status pills track each exam’s state. Open a row to attach questions, generate Set A/B packs, and publish — or right-click (⋯ button) for the row menu, including “View details” for clipped titles.',
       },
     ],
   },

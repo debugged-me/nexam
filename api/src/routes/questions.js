@@ -637,6 +637,16 @@ router.post('/bulk-delete', async (req, res, next) => {
       { ids: validIds, uid: req.user.id }
     );
 
+    // Their queued similarity checks would only fail on a missing question —
+    // cancel them so the jobs feed stays honest.
+    await pool.query(
+      `UPDATE ai_jobs SET status = 'cancelled', finished_at = NOW()
+       WHERE type = 'similarity' AND status = 'queued' AND user_id = :uid
+         AND JSON_VALID(payload)
+         AND JSON_UNQUOTE(JSON_EXTRACT(payload, '$.questionId')) IN (:ids)`,
+      { ids: validIds, uid: req.user.id }
+    );
+
     for (const q of owned) await removeQuestionFromIndex(q.subject_id, q.id);
 
     res.json({ deleted: result.affectedRows });

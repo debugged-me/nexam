@@ -19,12 +19,13 @@ import { useEffect, useState, useCallback, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import {
   Upload, Link2, Video, FileText, Trash2, RotateCw, FileStack, Sparkles,
-  BookOpen, Loader2, CheckCircle2, AlertCircle, RefreshCw, X, Copy,
+  BookOpen, Loader2, CheckCircle2, AlertCircle, RefreshCw, X, Copy, Ellipsis, Info,
 } from 'lucide-react';
 import { useToast } from '../components/Toast.jsx';
 import { useContextMenu, useCopyText } from '../components/ContextMenu.jsx';
 import { useConfirm } from '../components/ConfirmDialog.jsx';
 import Modal from '../components/Modal.jsx';
+import DetailsModal from '../components/DetailsModal.jsx';
 import api, { ApiError, getToken } from '../lib/api.js';
 import AppShell from '../components/AppShell.jsx';
 import { PageLoader } from '../components/Loaders.jsx';
@@ -34,6 +35,14 @@ const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:3000/api';
 
 /** Subject is remembered per session so a batch of uploads never re-asks. */
 const SUBJECT_MEMORY_KEY = 'nexam.materials.subject';
+
+/** Format an ISO date string as "M j, Y". */
+function fmtDate(iso) {
+  if (!iso) return null;
+  const d = new Date(String(iso).replace(' ', 'T'));
+  if (Number.isNaN(d.getTime())) return null;
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+}
 
 /** Filenames that obviously name a syllabus — a hint, never a silent decision. */
 const SYLLABUS_HINT = /syllab|course[\s_-]*outline/i;
@@ -86,6 +95,7 @@ export default function MaterialsPage() {
   const [queue, setQueue] = useState([]);
   const [refreshing, setRefreshing] = useState(false);
   const [pollsUsed, setPollsUsed] = useState(0);
+  const [viewing, setViewing] = useState(null);
   const fileInput = useRef(null);
   const dragDepth = useRef(0);
 
@@ -386,6 +396,7 @@ export default function MaterialsPage() {
   function materialMenu(e, m) {
     const canGenerate = Boolean(Number(m.is_syllabus)) && m.status === 'processed';
     openMenu(e, [
+      { label: 'View details', icon: Info, onClick: () => setViewing(m) },
       ...(canGenerate ? [{ label: 'Auto-generate Blueprint', icon: Sparkles, onClick: () => handleGenerateTos(m) }] : []),
       { label: m.status === 'failed' ? 'Retry processing' : 'Reprocess', icon: RotateCw, onClick: () => handleReprocess(m) },
       'sep',
@@ -463,6 +474,9 @@ export default function MaterialsPage() {
                           {matSubject ? `${matSubject.code || matSubject.name} · ` : ''}
                           {m.source_type} · {m.chunk_count || 0} chunks
                         </div>
+                        {m.title && m.title.length > 90 && (
+                          <button type="button" className="mat-readmore" onClick={() => setViewing(m)}>Read more</button>
+                        )}
                         {m.status === 'pending' && (
                           <div className="mat-card-progress">
                             <Loader2 size={13} className="mat-spin" />
@@ -483,13 +497,15 @@ export default function MaterialsPage() {
                       </div>
                     </div>
                     <div className="mat-card-actions">
-                      {Boolean(Number(m.is_syllabus)) && m.status === 'processed' && (
-                        <button className="btn btn-brand btn-sm" onClick={() => handleGenerateTos(m)} title="Auto-create a Table of Specification blueprint from this syllabus">
-                          <Sparkles size={14} /> Auto-generate Blueprint
-                        </button>
-                      )}
-                      <button className="btn mat-delete" onClick={() => handleDelete(m)} title="Delete material" aria-label={`Delete ${m.title}`}>
-                        <Trash2 size={14} />
+                      {/* Same floating menu as right-click — uniform with other pages. */}
+                      <button
+                        type="button"
+                        className="g-menu"
+                        onClick={(e) => materialMenu(e, m)}
+                        title="Actions"
+                        aria-label={`Actions for ${m.title}`}
+                      >
+                        <Ellipsis size={15} />
                       </button>
                     </div>
                   </div>
@@ -671,6 +687,24 @@ export default function MaterialsPage() {
           </form>
         )}
       </Modal>
+
+      <DetailsModal
+        open={!!viewing}
+        title={viewing?.title || 'Material'}
+        subtitle="Material details"
+        onClose={() => setViewing(null)}
+        fields={viewing ? [
+          { label: 'Title', value: viewing.title },
+          { label: 'Subject', value: (() => { const s = matSubjectOf(viewing); return s ? `${s.name}${s.code ? ` (${s.code})` : ''}` : null; })() },
+          { label: 'Source', value: viewing.source_type },
+          { label: 'Chunks', value: viewing.chunk_count || 0 },
+          { label: 'Status', value: <StatusPill status={viewing.status} small inline /> },
+          viewing.status === 'failed' ? { label: 'Error', value: viewing.error } : null,
+          { label: 'Syllabus', value: Number(viewing.is_syllabus) ? 'Yes' : 'No' },
+          { label: 'Added', value: fmtDate(viewing.created_at) },
+          { label: 'Processed', value: fmtDate(viewing.processed_at) },
+        ].filter(Boolean) : []}
+      />
       {menuEl}
     </AppShell>
   );

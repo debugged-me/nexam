@@ -262,6 +262,8 @@
 }
 .rv-alert-body span { display: block; margin-top: 2px; font-weight: 400; }
 .rv-alert .btn { flex: 0 0 auto; background: var(--surface); }
+.rv-spin { animation: spin 1s linear infinite; }
+.rv-alert + .rv-alert { margin-top: var(--space-2); }
 
 /* ---- Question content ------------------------------------------------ */
 

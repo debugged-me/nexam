@@ -30,6 +30,7 @@ import { ShellMetaContext } from './shellMeta.js';
 import { Spinner, PageLoader } from './Loaders.jsx';
 import { NAV_ITEMS, ADMIN_NAV_ITEMS, BUILD_ACTION } from './navigation.js';
 import CommandMenu from './CommandMenu.jsx';
+import JobsIndicator from './JobsIndicator.jsx';
 import UserAvatar from './UserAvatar.jsx';
 import AvatarPickerModal from './AvatarPickerModal.jsx';
 import SidebarLink from './SidebarLink.jsx';
@@ -353,6 +354,7 @@ export default function AppLayout() {
                 <kbd>⌘ K</kbd>
               </button>
             )}
+            {!isAdmin && <JobsIndicator />}
             <button
               className="topbar-help"
               type="button"

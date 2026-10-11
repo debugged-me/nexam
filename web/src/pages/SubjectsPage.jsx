@@ -8,13 +8,14 @@ import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import {
   Plus, Pencil, Trash2, Search, CheckSquare, BookOpen,
-  Eye, Check, Copy, Ellipsis,
+  Eye, Check, Copy, Ellipsis, Info,
   ChevronUp, ChevronDown, ChevronFirst, ChevronLeft, ChevronRight, ChevronLast,
 } from 'lucide-react';
 import { useToast } from '../components/Toast.jsx';
 import { useConfirm } from '../components/ConfirmDialog.jsx';
 import { useContextMenu, useCopyText } from '../components/ContextMenu.jsx';
 import Modal from '../components/Modal.jsx';
+import DetailsModal from '../components/DetailsModal.jsx';
 import api, { ApiError } from '../lib/api.js';
 import AppShell from '../components/AppShell.jsx';
 import { PageLoader } from '../components/Loaders.jsx';
@@ -48,6 +49,7 @@ export default function SubjectsPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [subjects, setSubjects] = useState(() => api.peek('/subjects')?.subjects ?? null);
   const [editing, setEditing] = useState(null); // null | {} (new) | subject (edit)
+  const [viewing, setViewing] = useState(null);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(null);
 
@@ -234,6 +236,7 @@ export default function SubjectsPage() {
 
   function subjectMenu(e, s) {
     openMenu(e, [
+      { label: 'View details', icon: Info, onClick: () => setViewing(s) },
       { label: 'Open', icon: Eye, onClick: () => navigate(`/subjects/${encodeURIComponent(s.id)}`) },
       { label: 'Edit', icon: Pencil, onClick: () => setEditing(s) },
       'sep',
@@ -373,7 +376,15 @@ export default function SubjectsPage() {
                         <span className="g-entity">
                           <span className="g-primary">
                             <Link to={`/subjects/${encodeURIComponent(s.id)}`} className="g-title" title={s.name}>{s.name}</Link>
-                            <span className="g-meta" title={descTitle}>{desc}</span>
+                            <span className="g-meta" title={descTitle}>
+                              {desc}
+                              {s.description && s.description.trim().length > 90 && (
+                                <>
+                                  {' '}
+                                  <button type="button" className="g-more" onClick={() => setViewing(s)}>Read more</button>
+                                </>
+                              )}
+                            </span>
                           </span>
                         </span>
                       </td>
@@ -440,6 +451,21 @@ export default function SubjectsPage() {
         </section>
       )}
 
+      <DetailsModal
+        open={!!viewing}
+        title={viewing?.name || 'Subject'}
+        subtitle="Subject details"
+        onClose={() => setViewing(null)}
+        fields={viewing ? [
+          { label: 'Name', value: viewing.name },
+          { label: 'Code', value: viewing.code },
+          { label: 'Description', value: viewing.description },
+          { label: 'Questions', value: viewing.question_count || 0 },
+          { label: 'Blueprints', value: viewing.tos_count || 0 },
+          { label: 'Exams', value: viewing.exam_count || 0 },
+          { label: 'Created', value: fmtDate(viewing.created_at) },
+        ] : []}
+      />
       {menuEl}
 
       {/* Create/edit subject modal */}

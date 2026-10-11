@@ -1032,6 +1032,9 @@ textarea.form-control { resize: vertical; min-height: 92px; height: auto; paddin
 .form-alert > svg { width: 18px !important; height: 18px !important; flex: 0 0 auto; margin-top: 1px; }
 .form-alert strong, .form-alert span { display: block; }
 .form-alert span { margin-top: 2px; font-weight: 400; }
+.form-alert a { color: inherit; font-weight: 600; text-decoration: underline; text-underline-offset: 2px; }
+.form-alert-list { margin: 8px 0; padding-left: 18px; font-weight: 400; }
+.form-alert-list li { margin-top: 2px; }
 
 /* ---- Form select ---- */
 .form-select { cursor: pointer; padding-right: 10px; }

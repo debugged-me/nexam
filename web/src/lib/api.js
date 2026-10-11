@@ -193,7 +193,7 @@ async function getBlob(path) {
 }
 
 export const api = {
-  get: (path) => get(path),
+  get: (path, options) => get(path, options),
   post: (path, body) => write('POST', path, body),
   put: (path, body) => write('PUT', path, body),
   del: (path) => write('DELETE', path),

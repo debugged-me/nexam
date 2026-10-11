@@ -72,10 +72,23 @@
   font-weight: 650;
   color: var(--ink);
   min-width: 0;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
   overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
 }
+.mat-readmore {
+  display: inline-block;
+  margin-top: 4px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--action-600);
+  font: 600 .6875rem var(--font-body);
+  cursor: pointer;
+}
+.mat-readmore:hover { text-decoration: underline; }
 .mat-syl-tag {
   flex-shrink: 0;
   padding: 1px 7px;

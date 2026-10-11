@@ -17,6 +17,7 @@ import { useToast } from '../components/Toast.jsx';
 import { useContextMenu, useCopyText } from '../components/ContextMenu.jsx';
 import { useConfirm } from '../components/ConfirmDialog.jsx';
 import api, { ApiError } from '../lib/api.js';
+import DetailsModal from '../components/DetailsModal.jsx';
 import AppShell from '../components/AppShell.jsx';
 import { PageLoader } from '../components/Loaders.jsx';
 import {
@@ -50,6 +51,7 @@ export default function ExamsPage() {
   const { menuEl, openMenu } = useContextMenu();
   const copyText = useCopyText();
   const [exams, setExams] = useState(() => api.peek('/exams')?.exams ?? null);
+  const [viewing, setViewing] = useState(null);
   const [query, setQuery] = useState('');
   const [groupBy, setGroupBy] = useState('subject'); // subject | status | none
   const [sort, setSort] = useState({ col: 'updated', dir: 'desc' });
@@ -162,6 +164,7 @@ export default function ExamsPage() {
 
   function examMenu(e, exam) {
     openMenu(e, [
+      { label: 'View details', icon: Info, onClick: () => setViewing(exam) },
       { label: 'Open', icon: Eye, onClick: () => navigate(`/exams/${exam.id}`) },
       { label: 'Edit', icon: Pencil, onClick: () => navigate(`/exams/${exam.id}/edit`) },
       'sep',
@@ -182,7 +185,15 @@ export default function ExamsPage() {
         <td>
           <span className="g-primary">
             <Link to={`/exams/${e.id}`} className="g-title">{e.title}</Link>
-            <span className="g-meta">{meta.join(' · ')}</span>
+            <span className="g-meta">
+              {meta.join(' · ')}
+              {e.title && e.title.length > 45 && (
+                <>
+                  {' · '}
+                  <button type="button" className="g-more" onClick={() => setViewing(e)}>Read more</button>
+                </>
+              )}
+            </span>
           </span>
         </td>
         <td data-order={e.subject_name || ''}>
@@ -206,19 +217,16 @@ export default function ExamsPage() {
           {fmtDate(e.updated_at || e.created_at)}
         </td>
         <td className="col-actions">
-          <details className="g-menu">
-            <summary className="g-menu-trigger" aria-label={`Actions for ${e.title}`}>
-              <Ellipsis size={16} />
-            </summary>
-            <div className="g-menu-panel">
-              <Link to={`/exams/${e.id}`} className="g-menu-item"><Eye size={15} /> Open</Link>
-              <Link to={`/exams/${e.id}/edit`} className="g-menu-item"><Pencil size={15} /> Edit</Link>
-              <div className="g-menu-sep" />
-              <button type="button" className="g-menu-item is-danger" onClick={() => handleDelete(e)}>
-                <Trash2 size={15} /> Delete
-              </button>
-            </div>
-          </details>
+          {/* Same floating menu as right-click — uniform with Subjects/Questions. */}
+          <button
+            type="button"
+            className="g-menu"
+            onClick={(ev) => examMenu(ev, e)}
+            title="Actions"
+            aria-label={`Actions for ${e.title}`}
+          >
+            <Ellipsis size={15} />
+          </button>
         </td>
       </tr>
     );
@@ -296,13 +304,13 @@ export default function ExamsPage() {
               <caption className="sr-only">Exams in your workspace</caption>
               <thead>
                 <tr>
-                  <th className={`col-primary wp-33 ${sortClass('exam')}`} onClick={() => toggleSort('exam')} data-name="Exam" data-locked>Exam{sortArrow('exam')}</th>
-                  <th className={`wp-17 ${sortClass('subject')}`} onClick={() => toggleSort('subject')} data-name="Subject">Subject{sortArrow('subject')}</th>
+                  <th className={`col-primary wp-31 ${sortClass('exam')}`} onClick={() => toggleSort('exam')} data-name="Exam" data-locked>Exam{sortArrow('exam')}</th>
+                  <th className={`wp-16 ${sortClass('subject')}`} onClick={() => toggleSort('subject')} data-name="Subject">Subject{sortArrow('subject')}</th>
                   <th className="wp-10" data-name="Format">Format</th>
                   <th className={`wp-12 ${sortClass('status')}`} onClick={() => toggleSort('status')} data-name="Status">Status{sortArrow('status')}</th>
                   <th className={`is-num wp-9 ${sortClass('items')}`} onClick={() => toggleSort('items')} data-name="Items">Items{sortArrow('items')}</th>
-                  <th className={`wp-14 ${sortClass('updated')}`} onClick={() => toggleSort('updated')} data-name="Updated">Updated{sortArrow('updated')}</th>
-                  <th className="col-actions wp-5"><span className="sr-only">Actions</span></th>
+                  <th className={`wp-12 ${sortClass('updated')}`} onClick={() => toggleSort('updated')} data-name="Updated">Updated{sortArrow('updated')}</th>
+                  <th className="col-actions wp-10">Actions</th>
                 </tr>
               </thead>
               {groups.length === 0 ? (
@@ -354,6 +362,21 @@ export default function ExamsPage() {
           </div>
         </section>
       )}
+      <DetailsModal
+        open={!!viewing}
+        title={viewing?.title || 'Exam'}
+        subtitle="Exam details"
+        onClose={() => setViewing(null)}
+        fields={viewing ? [
+          { label: 'Title', value: viewing.title },
+          { label: 'Subject', value: viewing.subject_name },
+          { label: 'Format', value: viewing.format === 'print' ? 'Print' : 'Digital' },
+          { label: 'Status', value: <StatusPill status={viewing.status} small inline /> },
+          { label: 'Items', value: viewing.question_count || 0 },
+          viewing.duration_minutes ? { label: 'Duration', value: `${viewing.duration_minutes} min` } : null,
+          { label: 'Updated', value: fmtDate(viewing.updated_at || viewing.created_at) },
+        ].filter(Boolean) : []}
+      />
       {menuEl}
     </AppShell>
   );

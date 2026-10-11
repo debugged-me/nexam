@@ -48,7 +48,6 @@ export default function AiEvalPage() {
   const gen = data.generation || {};
   const sim = data.similarity || {};
   const ext = data.extraction || {};
-  const providers = data.providers || [];
   const bloomDist = data.bloomDistribution || [];
   const typeDist = data.typeDistribution || [];
   const cm = data.confusionMatrix || {};
@@ -168,26 +167,6 @@ export default function AiEvalPage() {
           )}
         </div>
       </div>
-
-      {providers.length > 0 && (
-        <div className="card">
-          <div className="card-header"><span className="card-title">Provider Usage</span></div>
-          <div className="table-wrap">
-            <table className="data-table">
-              <thead><tr><th>Provider</th><th>Model</th><th>Questions Generated</th></tr></thead>
-              <tbody>
-                {providers.map((p, i) => (
-                  <tr key={i}>
-                    <td><span className="badge badge-gray">{p.provider || 'unknown'}</span></td>
-                    <td className="text-muted">{p.model || '—'}</td>
-                    <td>{p.count}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
 
       <div className="card mb-3" data-tour="aieval-matrix">
         <div className="card-header">

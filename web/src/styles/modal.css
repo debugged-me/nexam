@@ -205,3 +205,31 @@
   animation: btnSpin .7s linear infinite;
 }
 @keyframes btnSpin { to { transform: rotate(360deg); } }
+
+/* ---- Read-only record details (DetailsModal) ---------------------------- */
+.detail-list { margin: 0; }
+.detail-list-row {
+  display: grid;
+  grid-template-columns: 112px 1fr;
+  gap: 4px 14px;
+  padding: 9px 0;
+  border-bottom: 1px solid var(--line);
+}
+.detail-list-row:last-child { border-bottom: 0; }
+.detail-list-row dt {
+  padding-top: 2px;
+  color: var(--ink-3);
+  font: 600 .65625rem/1.4 var(--font-body);
+  letter-spacing: .05em;
+  text-transform: uppercase;
+}
+.detail-list-row dd {
+  margin: 0;
+  color: var(--ink);
+  font-size: .875rem;
+  line-height: 1.55;
+  overflow-wrap: anywhere;
+}
+@media (max-width: 480px) {
+  .detail-list-row { grid-template-columns: 1fr; gap: 2px; }
+}

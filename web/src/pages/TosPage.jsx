@@ -7,11 +7,12 @@ import '../styles/tos.css';
  */
 import { useEffect, useState, useCallback, useMemo } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { Plus, Pencil, Trash2, Info, Eye, FilePlus2, Upload, Check, Layers, Copy } from 'lucide-react';
+import { Plus, Pencil, Trash2, Info, Eye, Ellipsis, FilePlus2, Upload, Check, Layers, Copy } from 'lucide-react';
 import { useToast } from '../components/Toast.jsx';
 import { useContextMenu, useCopyText } from '../components/ContextMenu.jsx';
 import { useConfirm } from '../components/ConfirmDialog.jsx';
 import Modal from '../components/Modal.jsx';
+import DetailsModal from '../components/DetailsModal.jsx';
 import api, { ApiError } from '../lib/api.js';
 import AppShell from '../components/AppShell.jsx';
 import { PageLoader } from '../components/Loaders.jsx';
@@ -41,6 +42,7 @@ export default function TosPage() {
   const [tosList, setTosList] = useState(() => api.peek('/tos')?.tos ?? null);
   const [subjects, setSubjects] = useState(() => api.peek('/subjects')?.subjects ?? []);
   const [editing, setEditing] = useState(null);
+  const [viewing, setViewing] = useState(null);
   const [saving, setSaving] = useState(false);
   const [groupBy, setGroupBy] = useState('subject'); // subject | none
   const [collapsed, setCollapsed] = useState(() => new Set());
@@ -78,12 +80,29 @@ export default function TosPage() {
   useEffect(() => { load(); }, [load]);
 
   useEffect(() => {
-    if (searchParams.get('new') !== '1') return;
-    setEditing({ title: '', subject_id: subjects[0]?.id || '', total_items: 50, bloom_weights: { ...DEFAULT_BLOOM } });
+    const wantsNew = searchParams.get('new') === '1';
+    const editId = searchParams.get('edit');
+    if (!wantsNew && !editId) return;
+    if (wantsNew) {
+      setEditing({
+        title: '',
+        subject_id: searchParams.get('subject') || subjects[0]?.id || '',
+        total_items: 50,
+        bloom_weights: { ...DEFAULT_BLOOM },
+      });
+    } else {
+      // Wait for the list before consuming ?edit — otherwise the param is
+      // dropped before we can find the blueprint.
+      if (!tosList) return;
+      const t = tosList.find((x) => String(x.id) === String(editId));
+      if (t) setEditing({ ...t, bloom_weights: t.bloom_weights || { ...DEFAULT_BLOOM } });
+    }
     const next = new URLSearchParams(searchParams);
     next.delete('new');
+    next.delete('edit');
+    next.delete('subject');
     setSearchParams(next, { replace: true });
-  }, [searchParams, setSearchParams, subjects]);
+  }, [searchParams, setSearchParams, subjects, tosList]);
 
   async function handleSave(e) {
     e.preventDefault();
@@ -148,9 +167,10 @@ export default function TosPage() {
 
   function tosMenu(e, t) {
     openMenu(e, [
+      { label: 'View details', icon: Info, onClick: () => setViewing(t) },
       { label: 'Open', icon: Eye, onClick: () => navigate(`/tos/${t.id}`) },
       { label: 'Edit', icon: Pencil, onClick: () => setEditing({ ...t, bloom_weights: t.bloom_weights || { ...DEFAULT_BLOOM } }) },
-      { label: 'Build exam', icon: FilePlus2, onClick: () => navigate('/exams') },
+      { label: 'Build exam', icon: FilePlus2, onClick: () => navigate(`/exams/new?tos=${t.id}`) },
       'sep',
       { label: 'Copy title', icon: Copy, onClick: () => copyText(t.title, 'Title') },
       'sep',
@@ -171,6 +191,12 @@ export default function TosPage() {
               {topics
                 ? `${topics} ${topics === 1 ? 'topic' : 'topics'} · ${items} items`
                 : 'No topics defined yet'}
+              {t.title && t.title.length > 40 && (
+                <>
+                  {' · '}
+                  <button type="button" className="g-more" onClick={() => setViewing(t)}>Read more</button>
+                </>
+              )}
             </span>
           </span>
         </td>
@@ -188,16 +214,16 @@ export default function TosPage() {
         <td className="is-num"><span className="g-count">{items}</span></td>
         <td className="g-mute">{fmtDate(touched)}</td>
         <td className="col-actions">
-          <details className="g-menu">
-            <summary className="g-menu-trigger" aria-label={`Actions for ${t.title}`}><Eye size={16} /></summary>
-            <div className="g-menu-panel">
-              <Link to={`/tos/${t.id}`} className="g-menu-item"><Eye size={15} /> Open</Link>
-              <button className="g-menu-item" onClick={() => setEditing({ ...t, bloom_weights: t.bloom_weights || { ...DEFAULT_BLOOM } })}><Pencil size={15} /> Edit</button>
-              <Link to="/exams" className="g-menu-item"><FilePlus2 size={15} /> Build exam</Link>
-              <div className="g-menu-sep" />
-              <button className="g-menu-item is-danger" onClick={() => handleDelete(t)}><Trash2 size={15} /> Delete</button>
-            </div>
-          </details>
+          {/* Same floating menu as right-click — uniform with Subjects/Questions. */}
+          <button
+            type="button"
+            className="g-menu"
+            onClick={(e) => tosMenu(e, t)}
+            title="Actions"
+            aria-label={`Actions for ${t.title}`}
+          >
+            <Ellipsis size={15} />
+          </button>
         </td>
       </tr>
     );
@@ -230,7 +256,7 @@ export default function TosPage() {
           <h4>No blueprints yet</h4>
           <p>Upload a syllabus and click "Auto-generate Blueprint" to create one automatically, or create one manually and set the item count and Bloom weights yourself.</p>
           <div className="empty-state-actions">
-            <Link to="/materials" className="btn btn-outline">
+            <Link to="/materials?upload=1" className="btn btn-outline">
               <Upload size={16} /> Upload Syllabus
             </Link>
             <button className="btn btn-primary" data-tour="tos-new" onClick={() => setEditing({ title: '', subject_id: subjects[0]?.id || '', total_items: 50, bloom_weights: { ...DEFAULT_BLOOM } })}>
@@ -272,13 +298,13 @@ export default function TosPage() {
           <caption className="sr-only">Table of Specification blueprints in your workspace</caption>
           <thead>
             <tr>
-              <th className="col-primary wp-31">Blueprint</th>
+              <th className="col-primary wp-27">Blueprint</th>
               <th className="wp-17">Subject</th>
               <th className="wp-12">Status</th>
               <th className="is-num wp-10">Topics</th>
               <th className="is-num wp-9">Items</th>
-              <th className="wp-16">Updated</th>
-              <th className="col-actions wp-5"><span className="sr-only">Actions</span></th>
+              <th className="wp-14">Updated</th>
+              <th className="col-actions wp-11">Actions</th>
             </tr>
           </thead>
           {tosGroups ? tosGroups.map((g) => {
@@ -368,6 +394,22 @@ export default function TosPage() {
         )}
       </Modal>
 
+      <DetailsModal
+        open={!!viewing}
+        title={viewing?.title || 'Blueprint'}
+        subtitle="Blueprint details"
+        onClose={() => setViewing(null)}
+        fields={viewing ? [
+          { label: 'Title', value: viewing.title },
+          { label: 'Subject', value: viewing.subject_name },
+          { label: 'Status', value: <StatusPill status={viewing.status} small inline /> },
+          { label: 'Topics', value: viewing.topic_count != null ? Number(viewing.topic_count) : null },
+          { label: 'Items', value: viewing.total_items != null ? Number(viewing.total_items) : null },
+          { label: 'Bloom mix', value: viewing.bloom_weights ? BLOOM_ORDER.map((k) => `${BLOOM_LABELS[k]} ${Number(viewing.bloom_weights[k]) || 0}%`).join(' · ') : null },
+          { label: 'Created', value: fmtDate(viewing.created_at) },
+          { label: 'Updated', value: fmtDate(viewing.updated_at) },
+        ] : []}
+      />
       {menuEl}
     </AppShell>
   );

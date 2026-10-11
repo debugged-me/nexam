@@ -14,16 +14,19 @@ import '../styles/review.css';
  * vector index, which holds active questions only.
  */
 import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import {
   Check, X, Pencil, SkipForward, Undo2, ArrowLeft, ArrowRight, AlertTriangle,
   CheckCheck, ClipboardCheck, Keyboard, Sparkles, Plus, Trash2, Save, RefreshCw,
+  Loader2,
 } from 'lucide-react';
 import { useToast } from '../components/Toast.jsx';
 import Modal from '../components/Modal.jsx';
 import api, { ApiError } from '../lib/api.js';
+import useJobs, { isActiveJob } from '../lib/useJobs.js';
 import AppShell from '../components/AppShell.jsx';
 import { PageLoader } from '../components/Loaders.jsx';
+import { JobsActivityPanel } from '../components/JobsList.jsx';
 
 const BLOOM_LABELS = { remember: 'Remember', understand: 'Understand', apply: 'Apply', analyze: 'Analyze', evaluate: 'Evaluate', create: 'Create' };
 const BLOOM_ORDER = ['remember', 'understand', 'apply', 'analyze', 'evaluate', 'create'];
@@ -150,14 +153,65 @@ export default function ReviewQueuePage() {
   const [reloadTick, setReloadTick] = useState(0);
   const [subjects, setSubjects] = useState(() => api.peek('/subjects')?.subjects ?? []);
   const [subjectId, setSubjectId] = useState('');
+  const navigate = useNavigate();
+
+  /** Send the user to the right blueprint — not just the list. */
+  async function goGenerate() {
+    if (subjectId) {
+      try {
+        const data = await api.get(`/tos?subject_id=${encodeURIComponent(subjectId)}`);
+        const finalized = (data?.tos || []).filter((t) => t.status === 'finalized');
+        if (finalized.length === 1) { navigate(`/tos/${finalized[0].id}`); return; }
+      } catch { /* fall through to the list */ }
+    }
+    navigate('/tos');
+  }
   const [decisions, setDecisions] = useState({});
   const [cursor, setCursor] = useState(0);
   const [lastAction, setLastAction] = useState(null);
   const [editing, setEditing] = useState(null);
   const [busy, setBusy] = useState(false);
   const [confirmBulk, setConfirmBulk] = useState(false);
+  const [confirmClear, setConfirmClear] = useState(false);
 
   const reload = useCallback(() => setReloadTick((t) => t + 1), []);
+
+  // Live view of the background worker — generation and per-draft duplicate
+  // checks surface here instead of disappearing behind a toast. When a job
+  // that was active leaves the active set, fresh drafts may have landed, so
+  // the queue is pulled again.
+  const { jobs, activeCount, refresh: refreshJobs } = useJobs();
+  const activeJobs = useMemo(() => jobs.filter(isActiveJob), [jobs]);
+  const activeSummary = useMemo(() => {
+    const labels = {
+      generate: 'Generating questions',
+      similarity: 'Duplicate checks',
+      extract: 'Reading material',
+      embed: 'Indexing material',
+      syllabus_tos: 'Drafting blueprint',
+    };
+    const seen = [];
+    for (const j of activeJobs) {
+      const label = labels[j.type] || j.type;
+      if (!seen.includes(label)) seen.push(label);
+    }
+    return seen.join(' · ');
+  }, [activeJobs]);
+  const failedGenerate = useMemo(
+    () => jobs.find((j) => j.type === 'generate' && j.status === 'failed'),
+    [jobs]
+  );
+
+  const prevActiveIds = useRef(null);
+  useEffect(() => {
+    const now = new Set(activeJobs.map((j) => j.id));
+    const prev = prevActiveIds.current;
+    prevActiveIds.current = now;
+    if (!prev || prev.size === 0) return;
+    for (const id of prev) {
+      if (!now.has(id)) { reload(); break; }
+    }
+  }, [activeJobs, reload]);
 
   useEffect(() => {
     api.get('/subjects').then((data) => setSubjects(data.subjects || [])).catch(() => {});
@@ -200,6 +254,12 @@ export default function ReviewQueuePage() {
   const approvableIds = useMemo(
     () => (queue || []).filter((q) => !decisions[q.id]
       && q.similarity_checked_at && !q.similarity_error && q.similarity_flag === 'none').map((q) => q.id),
+    [queue, decisions]
+  );
+
+  // Undecided drafts — the set "Clear queue" would delete.
+  const pendingIds = useMemo(
+    () => (queue || []).filter((q) => !decisions[q.id]).map((q) => q.id),
     [queue, decisions]
   );
 
@@ -407,6 +467,32 @@ export default function ReviewQueuePage() {
     }
   }
 
+  // ── Clear queue ────────────────────────────────────
+  // Deletes every still-undecided draft via the same ownership-scoped bulk
+  // endpoint the question bank uses; queued duplicate checks for those rows
+  // are cancelled server-side so they don't fail on missing questions.
+
+  async function clearQueue() {
+    setConfirmClear(false);
+    if (pendingIds.length === 0) return;
+    setBusy(true);
+    try {
+      const res = await api.post('/questions/bulk-delete', { ids: pendingIds });
+      const count = typeof res?.deleted === 'number' ? res.deleted : pendingIds.length;
+      toastRef.current.success(`${count} draft${count === 1 ? '' : 's'} deleted.`);
+      setDecisions({});
+      setCursor(0);
+      setLastAction(null);
+      setEditing(null);
+      reload();
+      refreshJobs();
+    } catch (err) {
+      toastRef.current.error(err instanceof ApiError ? err.message : 'Could not clear the queue.');
+    } finally {
+      setBusy(false);
+    }
+  }
+
   // ── Keyboard ───────────────────────────────────────
 
   const hotkeys = useRef({});
@@ -509,30 +595,80 @@ export default function ReviewQueuePage() {
           >
             <CheckCheck size={16} /> Approve all remaining
           </button>
+          <button
+            type="button"
+            className="btn btn-outline btn-sm is-danger"
+            onClick={() => setConfirmClear(true)}
+            disabled={busy || pendingIds.length === 0}
+            title="Delete every draft still waiting in this queue"
+          >
+            <Trash2 size={16} /> Clear queue
+          </button>
           <Link to="/questions" className="btn btn-outline btn-sm">
             <ArrowLeft size={16} /> Question bank
           </Link>
         </div>
       </header>
 
+      {activeCount > 0 && (
+        <div className="rv-alert" role="status">
+          <Loader2 size={18} className="rv-spin" />
+          <div className="rv-alert-body">
+            <strong>{activeSummary || 'Background work in progress'}</strong>
+            <span>
+              {activeCount} task{activeCount === 1 ? '' : 's'} still running — new drafts
+              appear here automatically as they finish.
+            </span>
+          </div>
+          <button type="button" className="btn btn-outline btn-sm" onClick={reload} disabled={busy}>
+            <RefreshCw size={15} /> Refresh now
+          </button>
+        </div>
+      )}
+
+      {failedGenerate && (
+        <div className="rv-alert" role="alert">
+          <AlertTriangle size={18} />
+          <div className="rv-alert-body">
+            <strong>Question generation failed</strong>
+            <span>{failedGenerate.error || 'The worker reported an error.'}</span>
+          </div>
+        </div>
+      )}
+
       {queue === null ? (
         <PageLoader label="Loading the review queue…" />
       ) : queue.length === 0 ? (
-        <div className="rv-panel">
-          <div className="empty-state">
-            <ClipboardCheck size={26} />
-            <h4>Nothing waiting for review</h4>
-            <p>
-              {subjectId
-                ? 'This subject has no draft questions. Try another subject, or generate a new batch from a blueprint.'
-                : 'There are no draft questions right now. Generate a batch from a blueprint, and they will queue up here for your approval.'}
-            </p>
-            <div className="empty-state-actions">
-              <Link to="/questions" className="btn btn-outline"><ArrowLeft size={16} /> Question bank</Link>
-              <Link to="/tos" className="btn btn-primary"><Sparkles size={16} /> Generate from a blueprint</Link>
+        activeCount > 0 ? (
+          <JobsActivityPanel
+            jobs={jobs}
+            activeCount={activeCount}
+            title="Drafts are being generated"
+            onRefresh={refreshJobs}
+          >
+            <Link to="/questions" className="btn btn-outline btn-sm"><ArrowLeft size={15} /> Question bank</Link>
+          </JobsActivityPanel>
+        ) : (
+          <div className="rv-panel">
+            <div className="empty-state">
+              <ClipboardCheck size={26} />
+              <h4>Nothing waiting for review</h4>
+              <p>
+                {subjectId
+                  ? 'This subject has no draft questions. Try another subject, or generate a new batch from a blueprint.'
+                  : 'There are no draft questions right now. Generate a batch from a blueprint, and they will queue up here for your approval.'}
+              </p>
+              <div className="empty-state-actions">
+                <Link to="/questions" className="btn btn-outline"><ArrowLeft size={16} /> Question bank</Link>
+                {/* Resolve to the blueprint itself when the scoped subject has
+                    exactly one finalized TOS — otherwise land on the list. */}
+                <button type="button" className="btn btn-primary" onClick={goGenerate}>
+                  <Sparkles size={16} /> Generate from a blueprint
+                </button>
+              </div>
             </div>
           </div>
-        </div>
+        )
       ) : (
         <>
           <section className="rv-progress" aria-label="Review progress" data-tour="review-progress">
@@ -729,6 +865,27 @@ export default function ReviewQueuePage() {
           All {approvableIds.length} question{approvableIds.length === 1 ? '' : 's'} that passed duplicate checking will become
           active and enter the duplicate-check index immediately. There is no one-step undo for a bulk approval —
           you would have to reject them individually.
+        </p>
+      </Modal>
+
+      <Modal
+        open={confirmClear}
+        title={`Delete ${pendingIds.length} remaining draft${pendingIds.length === 1 ? '' : 's'}?`}
+        subtitle="Deleted questions are gone — reject instead if you want the record kept."
+        onClose={() => setConfirmClear(false)}
+        footer={
+          <>
+            <button className="btn btn-outline" onClick={() => setConfirmClear(false)}>Cancel</button>
+            <button className="btn btn-danger" onClick={clearQueue} disabled={busy}>
+              {busy && <span className="btn-spinner" />}
+              <Trash2 size={16} /> Delete {pendingIds.length} draft{pendingIds.length === 1 ? '' : 's'}
+            </button>
+          </>
+        }
+      >
+        <p className="rv-modal-text">
+          Every draft still waiting in this queue will be permanently deleted, and its pending
+          duplicate checks cancelled. Anything you already approved or rejected is untouched.
         </p>
       </Modal>
     </AppShell>

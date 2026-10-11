@@ -7,7 +7,7 @@ import '../styles/exam-form.css';
  */
 import { useEffect, useState, useCallback } from 'react';
 import { useParams, useNavigate, useSearchParams, Link } from 'react-router-dom';
-import { Check, Info } from 'lucide-react';
+import { Check, Info, AlertTriangle } from 'lucide-react';
 import { useToast } from '../components/Toast.jsx';
 import api, { ApiError } from '../lib/api.js';
 import AppShell from '../components/AppShell.jsx';
@@ -41,6 +41,7 @@ export default function ExamFormPage() {
     instructions: '',
   });
   const [saving, setSaving] = useState(false);
+  const [shortages, setShortages] = useState([]); // topic × Bloom cells the bank can't fill
 
   useEffect(() => {
     api.get('/subjects').then((data) => setSubjects(data.subjects)).catch(() => {});
@@ -86,6 +87,7 @@ export default function ExamFormPage() {
 
   async function handleSave(e) {
     e.preventDefault();
+    setShortages([]);
     setSaving(true);
     try {
       const body = {
@@ -108,6 +110,10 @@ export default function ExamFormPage() {
         navigate(`/exams/${result.exam.id}`);
       }
     } catch (err) {
+      // A 409 from assembly includes per-cell shortages — show them inline so
+      // the user can see exactly which topic × Bloom cells need more questions.
+      const short = err instanceof ApiError ? err.payload?.shortages : null;
+      setShortages(Array.isArray(short) && short.length ? short : []);
       toast.error(err instanceof ApiError ? err.message : 'Save failed.');
     } finally {
       setSaving(false);
@@ -140,7 +146,7 @@ export default function ExamFormPage() {
                   <div className="form-section-title">Source</div>
                   <div className="src-options" role="radiogroup" aria-label="Exam source" data-tour="exam-source">
                     <label className={`src-option ${selectedTosId === '' ? 'is-selected' : ''}`}>
-                      <input type="radio" name="source" checked={selectedTosId === ''} onChange={() => { setSelectedTosId(''); setTos(null); }} />
+                      <input type="radio" name="source" checked={selectedTosId === ''} onChange={() => { setSelectedTosId(''); setTos(null); setShortages([]); }} />
                       <span className="src-option-copy">
                         <strong>Blank exam</strong>
                         <small>Assemble questions yourself after creating.</small>
@@ -149,7 +155,7 @@ export default function ExamFormPage() {
                     {tosList.map((bp) => (
                       <label key={bp.id} className={`src-option ${selectedTosId === bp.id ? 'is-selected' : ''}`}>
                         <input type="radio" name="source" checked={selectedTosId === bp.id}
-                          onChange={() => setSelectedTosId(bp.id)} />
+                          onChange={() => { setSelectedTosId(bp.id); setShortages([]); }} />
                         <span className="src-option-copy">
                           <strong>{bp.title}</strong>
                           <small>{bp.subject_name || bp.subject_code} · {bp.total_items} items</small>
@@ -159,7 +165,7 @@ export default function ExamFormPage() {
                     ))}
                   </div>
                   {tosList.length === 0 && (
-                    <p className="form-hint">No finalized blueprints yet — <Link to="/tos">create a blueprint</Link> to auto-fill the exam from your question bank.</p>
+                    <p className="form-hint">No finalized blueprints yet — <Link to={`/tos?new=1${form.subject_id ? `&subject=${encodeURIComponent(form.subject_id)}` : ''}`}>create a blueprint</Link> to auto-fill the exam from your question bank.</p>
                   )}
                   {showTosCallout && (
                     <div className="src-summary">
@@ -170,6 +176,27 @@ export default function ExamFormPage() {
                         {' '}— drafts are not pulled. Need more?{' '}
                         <Link to={`/tos/${selectedTosId}`}>Generate questions on the blueprint</Link>.
                       </span>
+                    </div>
+                  )}
+                  {shortages.length > 0 && (
+                    <div className="form-alert" role="alert">
+                      <AlertTriangle size={18} aria-hidden="true" />
+                      <div>
+                        <strong>Not enough approved questions to fill this blueprint.</strong>
+                        <span>Every topic × Bloom cell must be fully stocked:</span>
+                        <ul className="form-alert-list">
+                          {shortages.slice(0, 8).map((s, i) => (
+                            <li key={i}>
+                              {s.topic} — {BLOOM_LABELS[s.bloom] || s.bloom}: needs {s.needed}, has {s.available}
+                            </li>
+                          ))}
+                          {shortages.length > 8 && <li>…and {shortages.length - 8} more cells</li>}
+                        </ul>
+                        <span>
+                          Approve drafts in <Link to="/questions/review">Review drafts</Link>, or{' '}
+                          <Link to={`/tos/${selectedTosId}`}>generate more questions</Link> from the blueprint.
+                        </span>
+                      </div>
                     </div>
                   )}
                 </div>
@@ -203,15 +230,14 @@ export default function ExamFormPage() {
                           <option value="digital">LMS export — no paper</option>
                         </select>
                         <small className="form-hint">
-                          Print builds PDF exam papers, answer keys and OMR answer sheets. LMS export builds a
-                          Moodle GIFT or Canvas XML file you upload into your LMS yourself — Nexam does not connect
-                          to an LMS and does not deliver or proctor exams online.
+                          Print: PDF papers, answer keys, and OMR sheets. LMS export: a GIFT or Canvas XML file
+                          you upload yourself — Nexam doesn't run exams online.
                         </small>
                       </div>
                       <div className="form-group">
                         <label className="form-label" htmlFor="set_count">Exam Sets</label>
                         <input id="set_count" name="set_count" className="form-control" value="2 sets (Set A + Set B)" disabled />
-                        <small className="form-hint">The approved scope requires both parallel sets; Set B shuffles the same validated questions.</small>
+                        <small className="form-hint">Both sets are required — Set B shuffles the same questions.</small>
                       </div>
                       <div className="form-group">
                         <label className="form-label" htmlFor="duration_minutes">Duration (minutes)</label>
@@ -238,7 +264,7 @@ export default function ExamFormPage() {
                             {exam.status === 'published' ? 'Published' : 'Draft'}
                           </span>
                         </div>
-                        <div className="form-hint">Publishing is managed from the exam details page so it always requires an explicit confirmation.</div>
+                        <div className="form-hint">Publish from the exam details page — always an explicit step.</div>
                       </div>
                     )}
                   </div>

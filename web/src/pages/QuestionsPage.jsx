@@ -14,15 +14,18 @@ import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import {
   Plus, Pencil, Trash2, Check, X, Info, Search, Upload, Sparkles,
-  MoreVertical, FileText, ListChecks, RotateCcw, FilterX, Layers, Copy,
+  Ellipsis, FileText, ListChecks, RotateCcw, FilterX, Layers, Copy, Eye,
 } from 'lucide-react';
 import { useToast } from '../components/Toast.jsx';
 import { useContextMenu, useCopyText } from '../components/ContextMenu.jsx';
 import { useConfirm } from '../components/ConfirmDialog.jsx';
 import Modal from '../components/Modal.jsx';
+import DetailsModal from '../components/DetailsModal.jsx';
 import api, { ApiError } from '../lib/api.js';
+import useJobs, { isActiveJob } from '../lib/useJobs.js';
 import AppShell from '../components/AppShell.jsx';
 import { PageLoader } from '../components/Loaders.jsx';
+import { JobsActivityPanel } from '../components/JobsList.jsx';
 import {
   StatusPill, StatusSummary, BoardGroupHead, BoardGroupFoot,
   BoardAddRow, GroupChip, groupColor, statusOf, STATUS_ORDER,
@@ -38,6 +41,14 @@ const TYPE_LABELS = { mcq: 'Multiple choice', true_false: 'True / false', matchi
 // The status vocabulary is exactly draft | active | rejected. 'rejected' is a
 // soft status — the row stays so AI-eval precision keeps counting instructor
 // decisions — so it needs its own cell state, not a fallback to "Draft".
+/** Format an ISO date string as "M j, Y". */
+function fmtDateQ(iso) {
+  if (!iso) return null;
+  const d = new Date(String(iso).replace(' ', 'T'));
+  if (Number.isNaN(d.getTime())) return null;
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+}
+
 const STATUS_META = {
   active:   { label: 'Active',   cls: 'is-live',     order: 2 },
   draft:    { label: 'Draft',    cls: 'is-draft',    order: 1 },
@@ -91,15 +102,14 @@ export default function QuestionsPage() {
   const [search, setSearch] = useState('');
   const [editing, setEditing] = useState(null);
   const [saving, setSaving] = useState(false);
-  const [menuOpen, setMenuOpen] = useState(null);
   const [selected, setSelected] = useState(() => new Set());
   const [bulkBusy, setBulkBusy] = useState(null); // null | 'approve' | 'reject' | 'delete'
   const [importState, setImportState] = useState(null);
   const [importing, setImporting] = useState(false);
+  const [viewing, setViewing] = useState(null);
   const [groupBy, setGroupBy] = useState('none'); // none | subject | status | bloom
   const [collapsed, setCollapsed] = useState(() => new Set());
   const searchRef = useRef(null);
-  const menuRef = useRef(null);
   const lastPickedRef = useRef(null); // anchor row index for shift-click ranges
 
   const load = useCallback(() => {
@@ -132,6 +142,21 @@ export default function QuestionsPage() {
 
   useEffect(() => { load(); }, [load]);
 
+  // Live worker feed — while generation or duplicate checks run, the empty
+  // bank becomes a live activity panel instead of a dead end, and the list
+  // refetches itself each time a watched job finishes.
+  const { jobs, activeCount, refresh: refreshJobs } = useJobs();
+  const prevJobIds = useRef(null);
+  useEffect(() => {
+    const now = new Set(jobs.filter(isActiveJob).map((j) => j.id));
+    const prev = prevJobIds.current;
+    prevJobIds.current = now;
+    if (!prev || prev.size === 0) return;
+    for (const id of prev) {
+      if (!now.has(id)) { load(); break; }
+    }
+  }, [jobs, load]);
+
   // "/" focuses the search field, mirroring the kbd hint in the toolbar.
   useEffect(() => {
     function onKey(e) {
@@ -144,17 +169,6 @@ export default function QuestionsPage() {
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, []);
-
-  // Close the open row menu on any outside press — mouse-leave alone strands
-  // the panel open on touch.
-  useEffect(() => {
-    if (!menuOpen) return;
-    function onDown(e) {
-      if (!menuRef.current || !menuRef.current.contains(e.target)) setMenuOpen(null);
-    }
-    document.addEventListener('mousedown', onDown);
-    return () => document.removeEventListener('mousedown', onDown);
-  }, [menuOpen]);
 
   // Topic options come from what is actually loaded — no extra endpoint. The
   // current topic stays in the list even when nothing matches it any more, so
@@ -194,6 +208,13 @@ export default function QuestionsPage() {
     () => tosList.filter((t) => !filters.subject_id || t.subject_id === filters.subject_id),
     [tosList, filters.subject_id]
   );
+
+  // Deep-link straight to the blueprint when exactly one matches the current
+  // subject filter; otherwise land on the blueprint list to choose.
+  const generateHref = useMemo(() => {
+    const cands = tosList.filter((t) => !filters.subject_id || String(t.subject_id) === String(filters.subject_id));
+    return cands.length === 1 ? `/tos/${cands[0].id}` : '/tos';
+  }, [tosList, filters.subject_id]);
 
   const draftCount = useMemo(
     () => (questions || []).filter((q) => q.status === 'draft').length,
@@ -320,17 +341,14 @@ export default function QuestionsPage() {
   }
 
   async function handleApprove(q) {
-    setMenuOpen(null);
     try { await api.post(`/questions/${q.id}/approve`); toast.success('Question approved.'); load(); }
     catch (err) { toast.error(err.message || 'Approve failed.'); }
   }
   async function handleReject(q) {
-    setMenuOpen(null);
     try { await api.post(`/questions/${q.id}/reject`); toast.success('Question rejected.'); load(); }
     catch (err) { toast.error(err.message || 'Reject failed.'); }
   }
   async function handleDelete(q) {
-    setMenuOpen(null);
     if (!(await confirm('Delete this question? This cannot be undone.', { title: 'Delete question' }))) return;
     try { await api.del(`/questions/${q.id}`); toast.success('Question deleted.'); load(); }
     catch (err) { toast.error(err.message || 'Delete failed.'); }
@@ -417,12 +435,10 @@ export default function QuestionsPage() {
   }
 
   function openEdit(q) {
-    setMenuOpen(null);
     setEditing({ ...q, optionsText: Array.isArray(q.options) ? q.options.join('\n') : '' });
   }
 
   function openImport() {
-    setMenuOpen(null);
     setImportState({
       format: 'gift',
       content: '',
@@ -481,6 +497,7 @@ export default function QuestionsPage() {
     const isDraft = q.status === 'draft';
     const isRejected = q.status === 'rejected';
     openMenu(e, [
+      { label: 'View details', icon: Eye, onClick: () => setViewing(q) },
       { label: 'Edit', icon: Pencil, onClick: () => openEdit(q) },
       ...(isDraft ? [{ label: 'Approve', icon: Check, onClick: () => handleApprove(q) }] : []),
       ...(isRejected ? [{ label: 'Restore', icon: RotateCcw, onClick: () => handleApprove(q) }] : []),
@@ -496,8 +513,6 @@ export default function QuestionsPage() {
   function renderQuestionRow(q, index) {
     const stem = (q.stem || '').replace(/\s+/g, ' ').trim();
     const status = STATUS_META[q.status] || STATUS_META.draft;
-    const isDraft = q.status === 'draft';
-    const isRejected = q.status === 'rejected';
     const level = q.bloom ? BLOOM_LEVELS[q.bloom] || 0 : 0;
     const subject = q.subject_name || '';
     const touched = q.updated_at || q.created_at || '';
@@ -524,14 +539,22 @@ export default function QuestionsPage() {
               onClick={() => openEdit(q)}
               style={{ textAlign: 'left', cursor: 'pointer' }}
             >
-              {stem.length > 120 ? stem.slice(0, 120) + '…' : stem}
+              {stem}
             </button>
             {q.similarity_flag === 'flagged' && (
               <Link to={`/questions/${q.id}/similarity`} className="sim-flag" title="Possible duplicate — click to review">
                 <FileText size={12} /> Similar
               </Link>
             )}
-            <span className="g-meta">{q.topic || 'No topic'}</span>
+            <span className="g-meta">
+              {q.topic || 'No topic'}
+              {stem.length > 70 && (
+                <>
+                  {' · '}
+                  <button type="button" className="g-more" onClick={() => setViewing(q)}>Read more</button>
+                </>
+              )}
+            </span>
           </span>
         </td>
         <td data-order={subject} data-filter={subject}>
@@ -558,78 +581,17 @@ export default function QuestionsPage() {
           {touched ? new Date(touched).toLocaleDateString('en', { month: 'short', day: 'numeric', year: 'numeric' }) : '—'}
         </td>
         <td className="col-actions">
-          <div className="row-actions">
-            {/* Every draft gets the one-click decision, however it
-                was written — AI, manual or imported. A rejected
-                row gets a one-click way back. */}
-            {isDraft && (
-              <>
-                <button
-                  type="button"
-                  className="btn btn-primary btn-xs"
-                  title="Approve"
-                  aria-label={`Approve “${stem.slice(0, 60)}”`}
-                  onClick={() => handleApprove(q)}
-                >
-                  <Check size={14} />
-                </button>
-                <button
-                  type="button"
-                  className="btn btn-outline btn-xs"
-                  title="Reject"
-                  aria-label={`Reject “${stem.slice(0, 60)}”`}
-                  onClick={() => handleReject(q)}
-                >
-                  <X size={14} />
-                </button>
-              </>
-            )}
-            {isRejected && (
-              <button
-                type="button"
-                className="btn btn-outline btn-xs"
-                title="Restore — make this question active again"
-                aria-label={`Restore “${stem.slice(0, 60)}”`}
-                onClick={() => handleApprove(q)}
-              >
-                <RotateCcw size={14} />
-              </button>
-            )}
-            <div className="g-menu" ref={menuOpen === q.id ? menuRef : null}>
-              <button
-                type="button"
-                className="g-menu-trigger"
-                aria-label={`Actions for ${stem}`}
-                aria-expanded={menuOpen === q.id}
-                onClick={() => setMenuOpen(menuOpen === q.id ? null : q.id)}
-              >
-                <MoreVertical size={16} />
-              </button>
-              {menuOpen === q.id && (
-                <div className="g-menu-panel">
-                  <button type="button" className="g-menu-item" onClick={() => openEdit(q)}>
-                    <Pencil size={15} /> Edit
-                  </button>
-                  {/* Drafts and rejected rows already carry their
-                      decision inline, so the menu only adds it
-                      for an active question. */}
-                  {!isDraft && !isRejected && (
-                    <button type="button" className="g-menu-item" onClick={() => handleReject(q)}>
-                      <X size={15} /> Reject
-                    </button>
-                  )}
-                  <div className="g-menu-sep" />
-                  <button
-                    type="button"
-                    className="g-menu-item is-danger"
-                    onClick={() => handleDelete(q)}
-                  >
-                    <Trash2 size={15} /> Delete
-                  </button>
-                </div>
-              )}
-            </div>
-          </div>
+          {/* One ⋯ trigger opens the same floating menu as right-click —
+              uniform with Subjects and every other list page. */}
+          <button
+            type="button"
+            className="g-menu"
+            onClick={(e) => questionMenu(e, q, stem)}
+            title="Actions"
+            aria-label={`Actions for “${stem.slice(0, 60)}”`}
+          >
+            <Ellipsis size={15} />
+          </button>
         </td>
       </tr>
     );
@@ -716,21 +678,37 @@ export default function QuestionsPage() {
       {filteredQuestions === null ? (
         <PageLoader label="Loading questions…" />
       ) : filteredQuestions.length === 0 && !activeFilterCount && !search ? (
-        <div className="empty-state">
-          <h4>Your question bank is empty</h4>
-          <p>Add a question manually, import from GIFT/XML, or auto-generate from a blueprint (TOS) using your uploaded materials.</p>
-          <div className="empty-state-actions">
-            <button type="button" className="btn btn-primary" data-tour="questions-new" onClick={() => setEditing({ type: 'mcq', status: 'draft', subject_id: subjects[0]?.id || '' })}>
-              <Plus size={16} /> New Question
+        activeCount > 0 ? (
+          <JobsActivityPanel
+            jobs={jobs}
+            activeCount={activeCount}
+            title="Building your question bank"
+            onRefresh={refreshJobs}
+          >
+            <button type="button" className="btn btn-primary btn-sm" onClick={() => setEditing({ type: 'mcq', status: 'draft', subject_id: subjects[0]?.id || '' })}>
+              <Plus size={15} /> New Question
             </button>
-            <button type="button" className="btn btn-outline" data-tour="questions-import" onClick={openImport}>
-              <Upload size={16} /> Import
+            <button type="button" className="btn btn-outline btn-sm" onClick={openImport}>
+              <Upload size={15} /> Import
             </button>
-            <Link to="/tos" className="btn btn-outline">
-              <Sparkles size={16} /> Auto-generate from Blueprint
-            </Link>
+          </JobsActivityPanel>
+        ) : (
+          <div className="empty-state">
+            <h4>Your question bank is empty</h4>
+            <p>Add a question manually, import from GIFT/XML, or auto-generate from a blueprint (TOS) using your uploaded materials.</p>
+            <div className="empty-state-actions">
+              <button type="button" className="btn btn-primary" data-tour="questions-new" onClick={() => setEditing({ type: 'mcq', status: 'draft', subject_id: subjects[0]?.id || '' })}>
+                <Plus size={16} /> New Question
+              </button>
+              <button type="button" className="btn btn-outline" data-tour="questions-import" onClick={openImport}>
+                <Upload size={16} /> Import
+              </button>
+              <Link to={generateHref} className="btn btn-outline">
+                <Sparkles size={16} /> Auto-generate from Blueprint
+              </Link>
+            </div>
           </div>
-        </div>
+        )
       ) : (
         <section
           className="dataset q-dataset"
@@ -903,12 +881,12 @@ export default function QuestionsPage() {
                     </label>
                   </th>
                   <th className="col-primary wp-27" data-name="Question" data-locked>Question</th>
-                  <th className="wp-14" data-name="Subject">Subject</th>
-                  <th className="wp-12" data-name="Bloom">Bloom</th>
-                  <th className="wp-12" data-name="Type">Type</th>
-                  <th className="wp-10" data-name="Status">Status</th>
-                  <th className="wp-10" data-name="Updated">Updated</th>
-                  <th className="col-actions wp-11"><span className="sr-only">Actions</span></th>
+                  <th className="wp-11" data-name="Subject">Subject</th>
+                  <th className="wp-11" data-name="Bloom">Bloom</th>
+                  <th className="wp-14" data-name="Type">Type</th>
+                  <th className="wp-9" data-name="Status">Status</th>
+                  <th className="wp-14" data-name="Updated">Updated</th>
+                  <th className="col-actions wp-10">Actions</th>
                 </tr>
               </thead>
               {renderQuestionRows()}
@@ -1138,7 +1116,7 @@ export default function QuestionsPage() {
                 </select>
                 {subjects.length === 0 && (
                   <p className="form-hint">
-                    You have no subjects yet — <Link to="/subjects">create one first</Link>.
+                    You have no subjects yet — <Link to="/subjects?new=1">create one first</Link>.
                   </p>
                 )}
               </div>
@@ -1222,6 +1200,22 @@ export default function QuestionsPage() {
         )}
       </Modal>
 
+      <DetailsModal
+        open={!!viewing}
+        title={viewing ? (viewing.stem || 'Question') : ''}
+        subtitle="Question details"
+        onClose={() => setViewing(null)}
+        fields={viewing ? [
+          { label: 'Question', value: viewing.stem },
+          { label: 'Topic', value: viewing.topic },
+          { label: 'Subject', value: viewing.subject_name },
+          { label: 'Bloom', value: BLOOM_LABELS[viewing.bloom] || viewing.bloom },
+          { label: 'Type', value: TYPE_LABELS[viewing.type] || viewing.type },
+          { label: 'Status', value: <StatusPill status={viewing.status} small inline /> },
+          viewing.similarity_flag === 'flagged' ? { label: 'Similarity', value: 'Flagged as a possible duplicate' } : null,
+          { label: 'Updated', value: fmtDateQ(viewing.updated_at || viewing.created_at) },
+        ].filter(Boolean) : []}
+      />
       {menuEl}
     </AppShell>
   );

@@ -159,7 +159,9 @@ function buildMatrix(tos, topics) {
   // claim items the matrix never actually shows.
   const grand = colTotals.reduce((s, n) => s + n, 0);
 
-  return { rows, colTotals, grand, weights, reconciled: storedSum !== totalItems, storedSum };
+  const cellMax = Math.max(1, ...rows.flatMap((r) => r.cells));
+
+  return { rows, colTotals, grand, weights, cellMax, reconciled: storedSum !== totalItems, storedSum };
 }
 
 export default function TosDetailPage() {
@@ -670,6 +672,7 @@ export default function TosDetailPage() {
                       return (
                         <td key={BLOOM_ORDER[c]}
                           className={`tos-matrix-num${n === 0 ? ' is-zero' : ''}${short ? ' is-short' : ''}${n > 0 && !short ? ' is-met' : ''}`}
+                          style={{ '--heat': n / matrix.cellMax }}
                           title={n > 0 ? `${have} of ${n} banked for ${topic.title} · ${BLOOM_LABELS[BLOOM_ORDER[c]]}` : undefined}>
                           {n === 0 ? 0 : (short ? <>{have}<span className="tos-matrix-need">/{n}</span></> : n)}
                         </td>

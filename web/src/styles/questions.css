@@ -231,6 +231,59 @@
     .q-dataset .dataset-bar-trail .btn { flex: 1; }
 }
 
+/* ---- Bank mix strip -----------------------------------------------------
+   One slim row: status segments + legend, Bloom coverage columns, types. */
+.qmix {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    flex-wrap: wrap;
+    margin: 2px 0 12px;
+    padding: 10px 14px;
+    border: 1px solid var(--line);
+    border-radius: var(--radius-lg);
+    background: var(--surface);
+    box-shadow: var(--shadow-sm);
+}
+.qmix-main { flex: 1 1 260px; min-width: 200px; }
+.qmix-seg {
+    display: flex;
+    height: 8px;
+    border-radius: 5px;
+    overflow: hidden;
+    background: color-mix(in srgb, var(--ink) 6%, transparent);
+}
+.qmix-seg-fill { display: block; height: 100%; transition: flex-grow .4s var(--ease, ease); }
+.qmix-legend {
+    display: flex;
+    gap: 14px;
+    margin-top: 7px;
+    font-size: .7rem;
+    color: var(--ink-3);
+}
+.qmix-key { display: inline-flex; align-items: center; gap: 5px; font-weight: 500; }
+.qmix-key strong { color: var(--ink-2); font-variant-numeric: tabular-nums; }
+.qmix-dot { width: 7px; height: 7px; border-radius: 50%; }
+.qmix-bloom {
+    display: flex;
+    align-items: flex-end;
+    gap: 4px;
+    height: 34px;
+    padding: 2px 0;
+}
+.qmix-bloom-col {
+    display: flex;
+    align-items: flex-end;
+    width: 10px;
+    height: 100%;
+    border-radius: 3px;
+    background: color-mix(in srgb, var(--ink) 6%, transparent);
+    overflow: hidden;
+}
+.qmix-bloom-col i { display: block; width: 100%; border-radius: 3px 3px 0 0; transition: height .5s var(--ease, ease); }
+.qmix-types { display: flex; gap: 12px; flex-wrap: wrap; font-size: .7rem; color: var(--ink-3); }
+.qmix-type strong { color: var(--ink-2); font-variant-numeric: tabular-nums; }
+
 /* The review call-to-action carries a count, so it must not shrink away. */
 .q-review-cta { white-space: nowrap; }
 

@@ -20,9 +20,41 @@ import api, { ApiError, getToken } from '../lib/api.js';
 import AppShell from '../components/AppShell.jsx';
 import { PageLoader } from '../components/Loaders.jsx';
 import { StatusPill, GroupChip, groupColor } from '../components/Board.jsx';
+import { PassDoughnut, DistBarChart } from '../components/AnalyticsCharts.jsx';
 
 const BLOOM_LABELS = { remember: 'Remember', understand: 'Understand', apply: 'Apply', analyze: 'Analyze', evaluate: 'Evaluate', create: 'Create' };
 const TYPE_LABELS = { mcq: 'MCQ', true_false: 'T/F', matching: 'Match', identification: 'Ident' };
+const DIST_BINS = [0, 10, 20, 30, 40, 50, 60, 70, 80, 90];
+
+/** Per-item correct-rate strip — one cell per printed item per set. */
+function ItemHeatStrip({ items }) {
+  const bySet = new Map();
+  items.forEach((it) => {
+    const key = it.set || '';
+    if (!bySet.has(key)) bySet.set(key, []);
+    bySet.get(key).push(it);
+  });
+  const band = (r) => (r >= 70 ? 'good' : r >= 40 ? 'mid' : 'low');
+  return (
+    <div className="item-heat" role="img" aria-label="Per-item correct rate — green mostly correct, amber mixed, red mostly wrong">
+      {[...bySet.entries()].map(([set, rows]) => (
+        <div className="item-heat-row" key={set || 'none'}>
+          {set && <span className="item-heat-set">Set {set}</span>}
+          <div className="item-heat-cells">
+            {rows.map((it) => (
+              <span
+                key={`${set}:${it.itemNumber}`}
+                className="item-heat-cell"
+                data-band={band(it.correctRate)}
+                title={`#${it.itemNumber} — ${it.correctRate}% correct${it.discrimination != null ? ` · r = ${it.discrimination}` : ''}`}
+              />
+            ))}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
 
 export default function ExamDetailPage() {
   const { id } = useParams();
@@ -38,10 +70,24 @@ export default function ExamDetailPage() {
   const [downloadsVisible, setDownloadsVisible] = useState(false);
   const [printCfg, setPrintCfg] = useState({ open: false, set: 'A', includeKey: false });
   const [printReady, setPrintReady] = useState(false);
+  const [results, setResults] = useState(null);
+  const [itemStats, setItemStats] = useState([]);
 
   const load = useCallback(() => {
     api.get(`/exams/${id}`)
-      .then(setData)
+      .then((d) => {
+        setData(d);
+        // Results panel — best-effort; no scans yet just means no card.
+        Promise.all([
+          api.get(`/analytics/exam/${id}`),
+          api.get(`/analytics/exam/${id}/items`),
+        ])
+          .then(([res, itemRes]) => {
+            setResults(res);
+            setItemStats(itemRes?.items || []);
+          })
+          .catch(() => {});
+      })
       .catch((err) => { toast.error(err.message || 'Could not load exam.'); navigate('/exams'); });
   }, [id, toast, navigate]);
 
@@ -227,6 +273,39 @@ export default function ExamDetailPage() {
               <div className="card-body">
                 <p className="preserve-lines">{exam.instructions}</p>
               </div>
+            </div>
+          )}
+
+          {parseInt(results?.stats?.total_scans || 0, 10) > 0 && (
+            <div className="card" data-tour="exam-results">
+              <div className="card-header">
+                <span className="card-title">Results at a glance</span>
+                <Link className="btn btn-outline btn-sm" to={`/analytics/exam/${exam.id}`}>Full analysis</Link>
+              </div>
+              <div className="exam-results-grid">
+                <PassDoughnut
+                  passing={parseInt(results.stats.passing_count || 0, 10)}
+                  failing={parseInt(results.stats.failing_count || 0, 10)}
+                />
+                <DistBarChart
+                  distMap={Object.fromEntries((results.distribution || []).map((d) => [d.bin_start, d.count]))}
+                  bins={DIST_BINS}
+                />
+              </div>
+              {(results.setComparison || []).length > 1 && (
+                <div className="exam-setbars" role="img" aria-label="Average score per set">
+                  {results.setComparison.map((s) => (
+                    <div className="exam-setbar" key={s.set_label}>
+                      <span className="exam-setbar-label">Set {s.set_label}</span>
+                      <div className="exam-setbar-track">
+                        <div className="exam-setbar-fill" style={{ width: `${Math.min(100, Number(s.avg_score || 0))}%` }} />
+                      </div>
+                      <span className="exam-setbar-val">{Number(s.avg_score || 0).toFixed(1)}%</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {itemStats.length > 0 && <ItemHeatStrip items={itemStats} />}
             </div>
           )}
 

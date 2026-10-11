@@ -27,9 +27,12 @@ import Modal from '../components/Modal.jsx';
 import { useAuth } from '../features/auth/AuthContext.jsx';
 import api, { ApiError } from '../lib/api.js';
 import { downloadCsv, downloadXlsx } from '../lib/exports.js';
+import { CountsBarChart, LoginTrendChart } from '../components/AnalyticsCharts.jsx';
+import { BLOOM_LABELS, BLOOM_ORDER } from '../lib/insights.js';
 
 const USER_FILTERS = ['all', 'pending', 'active', 'rejected'];
 const VIEWS = ['dashboard', 'users', 'reports', 'logins', 'audit', 'settings'];
+const TYPE_LABELS = { mcq: 'Multiple choice', true_false: 'True / false', matching: 'Matching', identification: 'Fill in the blank' };
 
 function fmtTime(ts) {
   if (!ts) return '—';
@@ -956,6 +959,13 @@ function ReportsTab({ toast }) {
 
         <div className="adm-card">
           <div className="adm-card-head"><Activity size={15} /><h3>Activity by month</h3></div>
+          {trendRows.length > 0 && (
+            <div className="adm-chart">
+              <LoginTrendChart
+                rows={trendRows.slice().reverse().map(([m, s, l, ok]) => ({ month: m, scans: s, logins: l, succeeded: ok }))}
+              />
+            </div>
+          )}
           <div className="adm-table-wrap">
             <table className="adm-table">
               <thead><tr><th>Month</th><th>Scans</th><th>Sign-ins</th><th>Succeeded</th></tr></thead>
@@ -992,6 +1002,25 @@ function ReportsTab({ toast }) {
       <div className="adm-grid-2">
         <div className="adm-card">
           <div className="adm-card-head"><BarChart3 size={15} /><h3>Question mix</h3></div>
+          {(bloomRows.length + typeRows.length) > 0 && (
+            <div className="adm-chart">
+              <CountsBarChart
+                rows={[
+                  ...BLOOM_ORDER.map((b, i) => {
+                    const hit = bloomRows.find(([name]) => name === b);
+                    return hit ? { name: BLOOM_LABELS[b] || b, n: hit[1], var: `--bloom-${i + 1}` } : null;
+                  }).filter(Boolean),
+                  ...typeRows
+                    .sort((a, b) => b[1] - a[1])
+                    .map(([ty, n], i) => ({
+                      name: TYPE_LABELS[ty] || ty,
+                      n,
+                      var: `--gc-${(i % 8) + 1}`,
+                    })),
+                ]}
+              />
+            </div>
+          )}
           <div className="adm-table-wrap">
             <table className="adm-table">
               <thead><tr><th>Group</th><th>Value</th><th>Questions</th></tr></thead>

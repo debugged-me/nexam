@@ -22,6 +22,7 @@ import api from '../lib/api.js';
 import { downloadCsv, downloadXlsx } from '../lib/exports.js';
 import AppShell from '../components/AppShell.jsx';
 import AnimatedNumber from '../components/AnimatedNumber.jsx';
+import Sparkline from '../components/Sparkline.jsx';
 import { PageLoader } from '../components/Loaders.jsx';
 import {
   MasteryBarChart, BloomRadarChart, TrendLineChart, DistBarChart, PassDoughnut,
@@ -361,6 +362,7 @@ export default function AnalyticsPage() {
           <div className="stat-icon green"><ScanLine size={18} /></div>
           <div className="stat-info"><div className="stat-value"><AnimatedNumber value={parseInt(o.total_scans || 0, 10)} /></div><div className="stat-label">Scanned Sheets</div></div>
           <div className="stat-context">across {parseInt(o.total_exams || 0, 10)} {parseInt(o.total_exams || 0, 10) === 1 ? 'exam' : 'exams'}</div>
+          {trend.length > 1 && <Sparkline points={trend.map((t) => parseInt(t.scans || 0, 10))} color="var(--green-600)" />}
         </motion.div>
         <motion.div className="stat-card" {...statCardAnim(2)}>
           <div className="stat-icon purple"><Users size={18} /></div>
@@ -678,6 +680,7 @@ export function ExamDetail({ examId, detail, onBack }) {
         <motion.div className="stat-card" {...statCardAnim(1)}>
           <div className="stat-icon green"><TrendingUp size={18} /></div>
           <div className="stat-info"><div className="stat-value"><AnimatedNumber value={Number(s.avg_score ?? 0)} format={(v) => `${v.toFixed(1)}%`} /></div><div className="stat-label">Class Average</div></div>
+          {studs.length > 1 && <Sparkline points={studs.map((st) => Number(st.score || 0))} color="var(--green-600)" cumulative={false} />}
         </motion.div>
         <motion.div className="stat-card" {...statCardAnim(2)}>
           <div className="stat-icon amber"><TrendingDown size={18} /></div>

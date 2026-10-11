@@ -188,6 +188,9 @@
   font-weight: 700;
   letter-spacing: -.01em;
 }
+.adm-chart {
+  margin: -4px 0 14px;
+}
 .adm-grid-2 {
   display: grid;
   grid-template-columns: 1fr 1fr;

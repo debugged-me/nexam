@@ -11,6 +11,60 @@
 .exam-detail-main { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
 .exam-detail-side { display: flex; flex-direction: column; gap: 14px; position: sticky; top: 70px; }
 
+/* Results at a glance — charts side by side inside the card. */
+.exam-results-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 16px;
+  padding: 4px 16px 14px;
+  align-items: center;
+}
+@media (max-width: 720px) { .exam-results-grid { grid-template-columns: 1fr; } }
+
+/* Set-vs-set average bars. */
+.exam-setbars {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 0 16px 12px;
+}
+.exam-setbar {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr) 52px;
+  align-items: center;
+  gap: 10px;
+}
+.exam-setbar-label { font-size: .72rem; font-weight: 700; color: var(--ink-2); }
+.exam-setbar-val { font-size: .72rem; font-weight: 600; color: var(--ink-3); text-align: right; font-variant-numeric: tabular-nums; }
+.exam-setbar-track {
+  height: 8px;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--ink) 7%, transparent);
+  overflow: hidden;
+}
+.exam-setbar-fill {
+  height: 100%;
+  border-radius: 4px;
+  background: var(--action-600);
+  transition: width .6s var(--ease, ease);
+}
+.exam-setbar:first-child .exam-setbar-fill { background: var(--action-600); }
+.exam-setbar:last-child .exam-setbar-fill { background: var(--brand-accent); }
+
+/* Per-item heat strip — one cell per printed item, green/amber/red. */
+.item-heat { display: flex; flex-direction: column; gap: 6px; padding: 0 16px 16px; }
+.item-heat-row { display: flex; align-items: center; gap: 10px; }
+.item-heat-set { font-size: .68rem; font-weight: 700; color: var(--ink-3); width: 36px; flex-shrink: 0; }
+.item-heat-cells { display: flex; flex-wrap: wrap; gap: 4px; }
+.item-heat-cell {
+  width: 14px; height: 14px;
+  border-radius: 4px;
+  background: var(--surface-3);
+}
+.item-heat-cell[data-band="good"] { background: color-mix(in srgb, var(--green-600) 78%, transparent); }
+.item-heat-cell[data-band="mid"]  { background: color-mix(in srgb, var(--amber-600) 82%, transparent); }
+.item-heat-cell[data-band="low"]  { background: color-mix(in srgb, var(--red-600) 82%, transparent); }
+
 .exam-meta { display: flex; align-items: center; gap: 8px; margin-top: 5px; flex-wrap: wrap; }
 
 .card-instructions { border-left: 3px solid var(--gc, var(--line-strong)); }

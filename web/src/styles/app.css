@@ -557,8 +557,19 @@ a[class]:hover, button[class]:hover { transition-timing-function: ease-out; }
   border-radius: var(--radius-lg);
   background: var(--surface);
   box-shadow: var(--shadow-md);
+  overflow: hidden;
   transition: border-color .18s ease, box-shadow .18s ease, transform .18s ease;
 }
+/* Sparkline — mini trend strip bleeding to the card's bottom edge. */
+.stat-card .sparkline {
+  position: absolute;
+  left: 0; right: 0; bottom: 0;
+  width: 100%;
+  height: 26px;
+  opacity: .5;
+  pointer-events: none;
+}
+.stat-card:has(.sparkline) { padding-bottom: 30px; }
 /* Colored KPI identity — each card takes a wash of its icon color so the
    stats read distinctly from the page and from each other. The icon tile
    flips to a surface chip so it stays visible on the tinted card. */

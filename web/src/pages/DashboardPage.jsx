@@ -22,6 +22,8 @@ import {
 import { useAuth } from '../features/auth/AuthContext.jsx';
 import AppShell from '../components/AppShell.jsx';
 import AnimatedNumber from '../components/AnimatedNumber.jsx';
+import Sparkline from '../components/Sparkline.jsx';
+import ActivityHeatmap from '../components/ActivityHeatmap.jsx';
 import { PageLoader } from '../components/Loaders.jsx';
 import { StatusPill } from '../components/Board.jsx';
 import api, { ApiError } from '../lib/api.js';
@@ -327,6 +329,7 @@ export default function DashboardPage() {
       tint: 2,
       hero: true,
       delta: deltaChip(deltas.questions),
+      spark: daily.map((d) => d.q || 0),
     },
     {
       label: 'Blueprints',
@@ -345,6 +348,7 @@ export default function DashboardPage() {
       icon: FileText,
       tint: 4,
       delta: deltaChip(deltas.exams),
+      spark: daily.map((d) => d.e || 0),
     },
   ];
 
@@ -352,10 +356,10 @@ export default function DashboardPage() {
     <AppShell activeNav="dashboard" pageTitle="Overview" pageClass="dashboard">
       <div className="dash-home">
         <div className="dash-kpis" data-tour="dash-kpis">
-          {metrics.map((metric) => {
+          {metrics.map((metric, i) => {
             const Icon = metric.icon;
             return (
-              <Link className={`dash-kpi ${metric.hero ? 'is-hero' : ''}`} to={metric.to} key={metric.label}>
+              <Link className={`dash-kpi ${metric.hero ? 'is-hero' : ''}`} to={metric.to} key={metric.label} style={{ '--i': i }}>
                 <span className="dash-kpi-top">
                   <span className={`dash-kpi-icon tint-${metric.tint}`}>
                     <Icon size={16} aria-hidden="true" />
@@ -378,6 +382,12 @@ export default function DashboardPage() {
                 </span>
                 <span className="dash-kpi-label">{metric.label}</span>
                 <small>{metric.hint}</small>
+                {metric.spark?.length > 0 && (
+                  <Sparkline
+                    points={metric.spark}
+                    color={metric.hero ? 'rgba(255,255,255,.9)' : `var(--gc-${metric.tint})`}
+                  />
+                )}
               </Link>
             );
           })}
@@ -402,6 +412,7 @@ export default function DashboardPage() {
                   </div>
                 ))}
               </div>
+              <ActivityHeatmap series={daily} />
             </section>
 
             <section className="dash-card" aria-labelledby="dash-exams-title" data-tour="dash-exams">

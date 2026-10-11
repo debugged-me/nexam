@@ -335,8 +335,17 @@
 .tos-matrix td.is-zero { color: var(--ink-faint); }
 .tos-matrix td.is-total { font-weight: 600; color: var(--ink); }
 
-/* Coverage: short cells go amber (banked/needed), satisfied cells stay quiet. */
-.tos-matrix td.is-short { color: var(--amber-700, #8F6617); font-weight: 600; }
+/* Coverage: short cells go amber (banked/needed), satisfied cells stay quiet.
+   `--heat` (0–1, set per cell in JSX) tints the background by how many items
+   the slot demands — the matrix reads as a density map, not just numbers. */
+.tos-matrix tbody td.tos-matrix-num {
+  background: color-mix(in srgb, var(--action-600) calc(var(--heat, 0) * 22%), transparent);
+}
+.tos-matrix tbody td.is-short {
+  color: var(--amber-700, #8F6617);
+  font-weight: 600;
+  background: color-mix(in srgb, var(--amber-600) calc(var(--heat, 0) * 20% + 4%), transparent);
+}
 .tos-matrix td.is-short .tos-matrix-need { font-weight: 400; color: var(--ink-faint); }
 .tos-matrix td.is-met { color: var(--green-700, #1E7B34); }
 

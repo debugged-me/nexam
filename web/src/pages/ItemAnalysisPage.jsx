@@ -14,6 +14,7 @@ import { downloadCsv, downloadXlsx } from '../lib/exports.js';
 import AppShell from '../components/AppShell.jsx';
 import { PageLoader } from '../components/Loaders.jsx';
 import Modal from '../components/Modal.jsx';
+import { ItemScatterChart } from '../components/AnalyticsCharts.jsx';
 import { BLOOM_LABELS } from '../lib/insights.js';
 
 const DIFF_CLASS = { easy: 'green', medium: 'amber', hard: 'red' };
@@ -47,11 +48,12 @@ export default function ItemAnalysisPage() {
     it.correctAnswer || '—',
     `${it.correctRate}%`,
     it.difficulty ? it.difficulty[0].toUpperCase() + it.difficulty.slice(1) : '—',
+    it.discrimination ?? '—',
     it.totalResponses,
     it.ambiguousCount,
     (it.answerDistribution || []).map((ad) => `${ad.marked_answer ?? 'blank'}:${ad.count}`).join('  '),
   ]);
-  const ITEM_HEADERS = ['#', 'Set', 'Question', 'Correct answer', 'Correct rate', 'Difficulty', 'Responses', 'Ambiguous', 'Distribution'];
+  const ITEM_HEADERS = ['#', 'Set', 'Question', 'Correct answer', 'Correct rate', 'Difficulty', 'Discrimination (r)', 'Responses', 'Ambiguous', 'Distribution'];
 
   function exportCsv() {
     downloadCsv('nexam-item-analysis', ITEM_HEADERS, itemRows);
@@ -119,6 +121,16 @@ export default function ItemAnalysisPage() {
           <p>Item-level analysis appears once OMR answer sheets have been scanned for this exam.</p>
         </div>
       ) : (
+        <>
+        <div className="card print-skip">
+          <div className="card-header">
+            <div>
+              <span className="card-title">Quality map</span>
+              <p className="card-sub">Difficulty vs discrimination — the shaded band is the ideal difficulty corridor; points under the dashed line don't separate strong from weak students.</p>
+            </div>
+          </div>
+          <ItemScatterChart items={items} />
+        </div>
         <div className="card print-skip" data-tour="ia-table">
           <div className="card-header">
             <span className="card-title">Question Performance</span>
@@ -158,6 +170,14 @@ export default function ItemAnalysisPage() {
                         <span className={`badge badge-${DIFF_CLASS[item.difficulty] || 'gray'}`}>
                           {item.difficulty ? item.difficulty[0].toUpperCase() + item.difficulty.slice(1) : '—'}
                         </span>
+                        {item.discrimination !== null && item.discrimination !== undefined && (
+                          <span
+                            className={`badge badge-${item.discrimination >= 0.3 ? 'green' : item.discrimination >= 0.15 ? 'amber' : 'red'}`}
+                            title={`Discrimination r = ${item.discrimination} — how well this item separates strong from weak students (≥.3 good, <.15 weak)`}
+                          >
+                            r {item.discrimination.toFixed(2)}
+                          </span>
+                        )}
                       </div>
                     </td>
                     <td className="ia-respcell">
@@ -215,6 +235,7 @@ export default function ItemAnalysisPage() {
             )}
           </Modal>
         </div>
+        </>
       )}
     </AppShell>
   );

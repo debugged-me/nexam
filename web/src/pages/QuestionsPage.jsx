@@ -40,6 +40,60 @@ const BLOOM_LEVELS = { remember: 1, understand: 2, apply: 3, analyze: 4, evaluat
 // Display labels only. The keys are the wire values shared with the API, the
 // OMR scoring service and the Flutter app — never rename a key.
 const TYPE_LABELS = { mcq: 'Multiple choice', true_false: 'True / false', matching: 'Matching type', identification: 'Fill in the blank' };
+const STATUS_MIX = [
+  ['active', 'Active', 'var(--green-600)'],
+  ['draft', 'Drafts', 'var(--amber-600)'],
+  ['rejected', 'Rejected', 'var(--red-600)'],
+];
+
+/** Bank mix strip — status segments, Bloom coverage columns, type counts.
+ *  Reflects the currently loaded (filtered) list. */
+function BankMix({ questions }) {
+  const byStatus = {}, byBloom = {}, byType = {};
+  questions.forEach((q) => {
+    byStatus[q.status] = (byStatus[q.status] || 0) + 1;
+    if (q.bloom) byBloom[q.bloom] = (byBloom[q.bloom] || 0) + 1;
+    if (q.type) byType[q.type] = (byType[q.type] || 0) + 1;
+  });
+  const bloomMax = Math.max(1, ...BLOOM_ORDER.map((b) => byBloom[b] || 0));
+  const segLabel = STATUS_MIX.map(([k, label]) => `${byStatus[k] || 0} ${label.toLowerCase()}`).join(', ');
+  return (
+    <div className="qmix" role="img" aria-label={`Bank mix — ${segLabel}`}>
+      <div className="qmix-main">
+        <div className="qmix-seg">
+          {STATUS_MIX.map(([k, label, color]) => (byStatus[k] || 0) > 0 && (
+            <span
+              key={k}
+              className="qmix-seg-fill"
+              style={{ flexGrow: byStatus[k], background: color }}
+              title={`${label}: ${byStatus[k]}`}
+            />
+          ))}
+        </div>
+        <div className="qmix-legend">
+          {STATUS_MIX.map(([k, label, color]) => (
+            <span key={k} className="qmix-key">
+              <i className="qmix-dot" style={{ background: color }} aria-hidden="true" />
+              {label} <strong>{byStatus[k] || 0}</strong>
+            </span>
+          ))}
+        </div>
+      </div>
+      <div className="qmix-bloom">
+        {BLOOM_ORDER.map((b, i) => (
+          <span key={b} className="qmix-bloom-col" title={`${BLOOM_LABELS[b]}: ${byBloom[b] || 0}`}>
+            <i style={{ height: `${Math.max(4, ((byBloom[b] || 0) / bloomMax) * 100)}%`, background: `var(--bloom-${i + 1})` }} />
+          </span>
+        ))}
+      </div>
+      <div className="qmix-types">
+        {Object.entries(byType).sort((a, b) => b[1] - a[1]).map(([t, n]) => (
+          <span key={t} className="qmix-type">{TYPE_LABELS[t] || t} <strong>{n}</strong></span>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 // The status vocabulary is exactly draft | active | rejected. 'rejected' is a
 // soft status — the row stays so AI-eval precision keeps counting instructor
@@ -974,6 +1028,8 @@ export default function QuestionsPage() {
               <button type="button" className="ds-btn" onClick={clearSelection} disabled={!!bulkBusy}>Clear</button>
             </div>
           )}
+
+          {questions && questions.length > 0 && <BankMix questions={questions} />}
 
           {/* Grid */}
           <div className="dataset-scroll" data-tour="questions-table">

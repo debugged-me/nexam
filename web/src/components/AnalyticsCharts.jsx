@@ -9,13 +9,15 @@ import {
   Chart as ChartJS,
   CategoryScale, LinearScale, RadialLinearScale,
   BarElement, LineElement, PointElement, ArcElement,
+  ScatterController,
   Filler, Tooltip, Legend,
 } from 'chart.js';
-import { Bar, Line, Radar, Doughnut } from 'react-chartjs-2';
+import { Bar, Line, Radar, Doughnut, Scatter } from 'react-chartjs-2';
 
 ChartJS.register(
   CategoryScale, LinearScale, RadialLinearScale,
   BarElement, LineElement, PointElement, ArcElement,
+  ScatterController,
   Filler, Tooltip, Legend
 );
 
@@ -231,7 +233,14 @@ export function TrendLineChart({ trend }) {
       tension: 0.4,
       borderColor: p.green,
       borderWidth: 2,
-      backgroundColor: `${p.green}1F`,
+      backgroundColor: (context) => {
+        const { ctx, chartArea } = context.chart;
+        if (!chartArea) return `${p.green}1F`;
+        const g = ctx.createLinearGradient(0, chartArea.top, 0, chartArea.bottom);
+        g.addColorStop(0, `${p.green}38`);
+        g.addColorStop(1, `${p.green}00`);
+        return g;
+      },
       pointRadius: 4,
       pointHoverRadius: 6,
       pointBackgroundColor: avgs.map((a) => bandColor(a, p)),
@@ -326,6 +335,217 @@ export function DistBarChart({ distMap, bins }) {
       height={240}
     >
       <Bar data={data} options={options} />
+    </ChartFigure>
+  );
+}
+
+/**
+ * Shades the "ideal difficulty" band and the fair-discrimination threshold
+ * behind the scatter — classic item-analysis quadrant reading.
+ */
+const itemZonesPlugin = {
+  id: 'itemZones',
+  beforeDraw(chart, _args, opts) {
+    const { ctx, chartArea, scales } = chart;
+    if (!chartArea || !opts) return;
+    ctx.save();
+    // Ideal difficulty corridor: 30–70% correct.
+    const x1 = scales.x.getPixelForValue(30);
+    const x2 = scales.x.getPixelForValue(70);
+    ctx.fillStyle = opts.band;
+    ctx.fillRect(x1, chartArea.top, x2 - x1, chartArea.bottom - chartArea.top);
+    // Fair discrimination threshold at r = .2 and the zero line.
+    ctx.setLineDash([5, 4]);
+    ctx.strokeStyle = opts.warn;
+    ctx.beginPath();
+    const yT = scales.y.getPixelForValue(0.2);
+    ctx.moveTo(chartArea.left, yT); ctx.lineTo(chartArea.right, yT); ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.strokeStyle = opts.axis;
+    ctx.beginPath();
+    const y0 = scales.y.getPixelForValue(0);
+    ctx.moveTo(chartArea.left, y0); ctx.lineTo(chartArea.right, y0); ctx.stroke();
+    ctx.restore();
+  },
+};
+
+/**
+ * Item quality map — difficulty index (% correct, x) against the corrected
+ * point-biserial discrimination (y). Upper band = strong items; below the
+ * dashed r=.2 line = items that don't separate strong from weak students.
+ */
+export function ItemScatterChart({ items }) {
+  const p = palette();
+  const points = (items || []).filter((it) => it.discrimination !== null && it.discrimination !== undefined);
+  const colorFor = (it) => {
+    if (it.discrimination >= 0.3) return p.green;
+    if (it.discrimination >= 0.15) return p.amber;
+    return p.red;
+  };
+  const data = {
+    datasets: [{
+      data: points.map((it) => ({ x: it.correctRate, y: it.discrimination, item: it })),
+      backgroundColor: points.map((it) => `${colorFor(it)}CC`),
+      borderColor: points.map(colorFor),
+      borderWidth: 1.5,
+      pointRadius: 6,
+      pointHoverRadius: 8,
+    }],
+  };
+  const options = {
+    maintainAspectRatio: false,
+    animation: { ...ANIM, delay: (ctx) => ctx.dataIndex * 25 },
+    scales: {
+      x: {
+        min: 0, max: 100,
+        title: { display: true, text: 'Difficulty — % correct', color: p.ink, font: { size: 11, weight: '600' } },
+        grid: { color: p.grid },
+        border: { display: false },
+        ticks: { color: p.ink, font: { size: 10 }, callback: (v) => `${v}%` },
+      },
+      y: {
+        suggestedMin: -0.2, suggestedMax: 0.8,
+        title: { display: true, text: 'Discrimination (point-biserial r)', color: p.ink, font: { size: 11, weight: '600' } },
+        grid: { color: p.grid },
+        border: { display: false },
+        ticks: { color: p.ink, font: { size: 10 } },
+      },
+    },
+    plugins: {
+      legend: { display: false },
+      itemZones: { band: `${p.blue}14`, warn: p.amber, axis: p.grid },
+      tooltip: {
+        ...tooltipBase(p),
+        callbacks: {
+          title: (items) => {
+            const it = items[0].raw.item;
+            return `Item ${it.itemNumber}${it.set ? ` · Set ${it.set}` : ''}`;
+          },
+          label: (ctx) => {
+            const it = ctx.raw.item;
+            const stem = it.stem ? (it.stem.length > 44 ? `${it.stem.slice(0, 44)}…` : it.stem) : '';
+            return ` ${it.correctRate}% correct · r = ${it.discrimination}${stem ? ` — ${stem}` : ''}`;
+          },
+        },
+      },
+    },
+  };
+  return (
+    <ChartFigure
+      label="Item quality map — difficulty versus discrimination per item"
+      columns={['Item', 'Set', '% correct', 'Discrimination r']}
+      rows={points.map((it) => [it.itemNumber, it.set || '—', `${it.correctRate}%`, it.discrimination])}
+      height={300}
+    >
+      <Scatter data={data} options={options} plugins={[itemZonesPlugin]} />
+    </ChartFigure>
+  );
+}
+
+/** Compact horizontal bars for raw counts — question mix, per-set sizes. */
+export function CountsBarChart({ rows, height }) {
+  const p = palette();
+  const h = height || Math.max(120, rows.length * 30 + 12);
+  const data = {
+    labels: rows.map((r) => r.name),
+    datasets: [{
+      data: rows.map((r) => Number(r.n || 0)),
+      backgroundColor: rows.map((r) => r.color || (r.var ? cssVar(r.var, p.blue) : p.blue)),
+      borderRadius: 5,
+      barThickness: 12,
+      maxBarThickness: 14,
+    }],
+  };
+  const options = {
+    indexAxis: 'y',
+    maintainAspectRatio: false,
+    animation: { ...ANIM, duration: 650, delay: (ctx) => ctx.dataIndex * 55 },
+    scales: {
+      x: {
+        beginAtZero: true,
+        grid: { color: p.grid },
+        border: { display: false },
+        ticks: { color: p.ink, font: { size: 10 }, precision: 0 },
+      },
+      y: {
+        grid: { display: false },
+        border: { display: false },
+        ticks: { color: p.ink2, font: { size: 10.5, weight: '600' }, autoSkip: false },
+      },
+    },
+    plugins: {
+      legend: { display: false },
+      tooltip: { ...tooltipBase(p), callbacks: { label: (ctx) => ` ${ctx.raw}` } },
+    },
+  };
+  return (
+    <ChartFigure
+      label="Count breakdown"
+      columns={['Group', 'Count']}
+      rows={rows.map((r) => [r.name, r.n])}
+      height={h}
+    >
+      <Bar data={data} options={options} />
+    </ChartFigure>
+  );
+}
+
+/** Multi-series monthly line — sign-ins vs succeeded vs scans over time. */
+export function LoginTrendChart({ rows }) {
+  const p = palette();
+  const labels = rows.map((r) => r.month);
+  const series = [
+    { key: 'logins', label: 'Sign-ins', color: p.blue },
+    { key: 'succeeded', label: 'Succeeded', color: p.green },
+    { key: 'scans', label: 'Scans', color: p.amber },
+  ];
+  const data = {
+    labels,
+    datasets: series.map((s) => ({
+      label: s.label,
+      data: rows.map((r) => Number(r[s.key] || 0)),
+      borderColor: s.color,
+      backgroundColor: `${s.color}2E`,
+      borderWidth: 2,
+      tension: 0.35,
+      fill: false,
+      pointRadius: 3,
+      pointHoverRadius: 5,
+      pointBackgroundColor: s.color,
+    })),
+  };
+  const options = {
+    maintainAspectRatio: false,
+    animation: { ...ANIM, delay: (ctx) => ctx.dataIndex * 45 },
+    scales: {
+      y: {
+        beginAtZero: true,
+        grid: { color: p.grid },
+        border: { display: false },
+        ticks: { color: p.ink, font: { size: 10 }, precision: 0 },
+      },
+      x: {
+        grid: { display: false },
+        border: { display: false },
+        ticks: { color: p.ink, font: { size: 10 }, maxRotation: 0 },
+      },
+    },
+    plugins: {
+      legend: {
+        position: 'bottom',
+        labels: { color: p.ink, font: { size: 10.5, weight: '500' }, boxWidth: 10, boxHeight: 10, padding: 12 },
+      },
+      tooltip: { ...tooltipBase(p) },
+    },
+  };
+  return (
+    <ChartFigure
+      label="Activity by month — sign-ins, succeeded sign-ins, and scans"
+      columns={['Month', ...series.map((s) => s.label)]}
+      rows={rows.map((r, i) => [labels[i], ...series.map((s) => r[s.key] || 0)])}
+      height={240}
+    >
+      <Line data={data} options={options} />
     </ChartFigure>
   );
 }

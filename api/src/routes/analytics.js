@@ -290,6 +290,42 @@ router.get('/exam/:examId/items', requireAuth, async (req, res, next) => {
       (distByItem[`${row.set_id}:${row.item_number}`] ||= []).push({ marked_answer: row.marked_answer, count: row.count });
     }
 
+    // Corrected point-biserial discrimination: correlate each item's 0/1
+    // outcome with the student's total minus that item's own contribution.
+    // Ambiguous responses are excluded — they are neither right nor wrong.
+    const [respRows] = await pool.query(
+      `SELECT
+         COALESCE(sr.exam_set_id, '') AS set_id,
+         sa.item_number, sa.is_correct, sa.ambiguous,
+         sr.correct_count
+       FROM scan_answers sa
+       JOIN scan_results sr ON sr.id = sa.scan_result_id
+       WHERE sr.exam_id = :examId`,
+      { examId }
+    );
+    const pbByItem = {};
+    for (const r of respRows) {
+      if (r.ambiguous) continue;
+      const key = `${r.set_id}:${r.item_number}`;
+      const bucket = (pbByItem[key] ||= { xs: [], ys: [] });
+      bucket.xs.push(r.is_correct ? 1 : 0);
+      bucket.ys.push(r.correct_count - (r.is_correct ? 1 : 0));
+    }
+    const pointBiserial = (bucket) => {
+      if (!bucket || bucket.xs.length < 4) return null;
+      const { xs, ys } = bucket;
+      const n = xs.length;
+      const mx = xs.reduce((a, b) => a + b, 0) / n;
+      const my = ys.reduce((a, b) => a + b, 0) / n;
+      let num = 0, dx = 0, dy = 0;
+      for (let i = 0; i < n; i += 1) {
+        const a = xs[i] - mx; const b = ys[i] - my;
+        num += a * b; dx += a * a; dy += b * b;
+      }
+      if (dx === 0 || dy === 0) return null; // all right or all wrong — no spread
+      return num / Math.sqrt(dx * dy);
+    };
+
     const itemAnalysis = [];
     for (const item of items) {
       const answerDist = distByItem[`${item.set_id}:${item.item_number}`] || [];
@@ -307,6 +343,10 @@ router.get('/exam/:examId/items', requireAuth, async (req, res, next) => {
         wrongCount: item.wrong_count,
         ambiguousCount: item.ambiguous_count,
         correctRate: parseFloat(((item.correct_count / total) * 100).toFixed(1)),
+        discrimination: (() => {
+          const r = pointBiserial(pbByItem[`${item.set_id}:${item.item_number}`]);
+          return r === null ? null : parseFloat(r.toFixed(2));
+        })(),
         answerDistribution: answerDist,
         // Difficulty index: <30% = hard, 30-70% = medium, >70% = easy
         difficulty: item.correct_count / total < 0.3 ? 'hard' :

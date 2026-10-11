@@ -388,6 +388,8 @@ export default function AnalyticsPage() {
         </div>
       )}
 
+      {trend.length > 0 && <div className="print-skip mb-3"><TrendCard trend={trend} tour="analytics-trend" /></div>}
+
       <div className="detail-grid-2 mb-3 print-skip">
         {/* Exam Averages */}
         <div className="card" data-tour="analytics-averages">
@@ -473,8 +475,6 @@ export default function AnalyticsPage() {
           )}
         </div>
       </div>
-
-      {trend.length > 0 && <div className="print-skip"><TrendCard trend={trend} tour="analytics-trend" /></div>}
     </AppShell>
   );
 }

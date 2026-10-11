@@ -22,6 +22,17 @@ a { text-decoration: none; color: inherit; }
 button { font-family: inherit; }
 ::selection { background: var(--action-100); color: var(--ink); }
 
+/* App density — the workspace reads slightly zoomed-out. `zoom` (not a
+   transform) so fixed overlays stay viewport-anchored and px/rem/percent
+   all scale together, including portaled modals, menus and toasts.
+   Auth + legal pages keep natural size; sub-768px screens keep full-size
+   touch targets. */
+@media (min-width: 768px) {
+  body:not(:has(.page--auth-login, .page--auth-register, .page--auth-forgot, .page--auth-reset, .page--auth-verify, .legal-page)) {
+    zoom: .93;
+  }
+}
+
 /* Consistent keyboard focus rings — only on keyboard navigation. */
 :focus-visible { outline: 2px solid var(--action-600); outline-offset: 2px; }
 button:focus:not(:focus-visible) { outline: none; }

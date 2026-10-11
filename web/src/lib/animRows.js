@@ -11,9 +11,13 @@ import { autoAnimate } from '@formkit/auto-animate';
 
 const applied = new WeakSet();
 
+// easeOutQuint — rows accelerate off the mark and settle, rather than the
+// default ease-in-out which reads as a lazy slide.
+const CONFIG = { duration: 280, easing: 'cubic-bezier(0.22, 1, 0.36, 1)' };
+
 export function animateRows(el) {
   if (el && !applied.has(el)) {
     applied.add(el);
-    autoAnimate(el);
+    autoAnimate(el, CONFIG);
   }
 }

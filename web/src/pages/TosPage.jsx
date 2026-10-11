@@ -17,6 +17,7 @@ import api, { ApiError } from '../lib/api.js';
 import AppShell from '../components/AppShell.jsx';
 import { TableSkeleton } from '../components/Loaders.jsx';
 import EmptyStateArt from '../components/EmptyStateArt.jsx';
+import { animateRows } from '../lib/animRows.js';
 import {
   StatusPill, BoardGroupHead, BoardGhostRows,
   GroupChip, groupColor, statusOf, statusMeta, STATUS_ORDER,
@@ -310,13 +311,13 @@ export default function TosPage() {
             const counts = {};
             for (const t of g.rows) { const k = statusOf(t.status); counts[k] = (counts[k] || 0) + 1; }
             return (
-              <tbody key={g.key} className={`b-group${isCollapsed ? ' is-collapsed' : ''}`} style={{ '--gc': g.color }}>
+              <tbody key={g.key} ref={animateRows} className={`b-group${isCollapsed ? ' is-collapsed' : ''}`} style={{ '--gc': g.color }}>
                 <BoardGroupHead color={g.color} title={g.title} count={g.rows.length} meta={statusMeta(counts, STATUS_ORDER.tos) || undefined} colSpan={7} collapsed={isCollapsed} onToggle={() => toggleGroup(g.key)} />
                 {g.rows.map(renderTosRow)}
               </tbody>
             );
           }) : (
-            <tbody>
+            <tbody ref={animateRows}>
               {tosList.map(renderTosRow)}
               <BoardGhostRows count={LEDGER_MIN - tosList.length} colSpan={7} />
             </tbody>

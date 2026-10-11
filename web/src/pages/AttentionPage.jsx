@@ -17,6 +17,7 @@ import { useToast } from '../components/Toast.jsx';
 import api from '../lib/api.js';
 import AppShell from '../components/AppShell.jsx';
 import { PageLoader } from '../components/Loaders.jsx';
+import { animateRows } from '../lib/animRows.js';
 import { BLOOM_LABELS } from '../lib/insights.js';
 
 const PAGE_SIZE = 20;
@@ -89,7 +90,7 @@ export default function AttentionPage() {
           </div>
           <table className="report-table">
             <thead><tr><th>Question</th><th>Type</th><th>Exam</th><th>Topic</th><th>Bloom</th><th>Resp.</th><th>Correct %</th></tr></thead>
-            <tbody>
+            <tbody ref={animateRows}>
               {items.map((w, i) => (
                 <tr key={i}>
                   <td>{w.stem}</td>
@@ -169,7 +170,7 @@ export default function AttentionPage() {
                       <th scope="col" className="attn-col-act"><span className="sr-only">Item analysis</span></th>
                     </tr>
                   </thead>
-                  <tbody>
+                  <tbody ref={animateRows}>
                     {pageItems.map((w, i) => (
                       <tr key={`${w.exam_id}-${w.item_number}-${i}`} className="attn-row"
                         onClick={() => navigate(`/analytics/items/${encodeURIComponent(w.exam_id)}`)}

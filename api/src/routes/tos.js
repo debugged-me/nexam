@@ -366,6 +366,87 @@ router.post('/:id/finalize', async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
+// ── Derive a new draft blueprint from selected topics ─
+// Copies the subject, item total and Bloom weights; copies only the chosen
+// topic rows. Used for per-period blueprints (Prelim, Midterm, Finals).
+router.post('/:id/derive', async (req, res, next) => {
+  try {
+    const tos = await getOwned(req.params.id, req.user.id);
+    if (!tos) return res.status(404).json({ error: 'TOS not found.' });
+
+    const topicIds = Array.isArray(req.body?.topicIds) ? req.body.topicIds.map(String) : [];
+    if (!topicIds.length) return res.status(422).json({ error: 'Select at least one topic.' });
+
+    const [topics] = await pool.query(
+      `SELECT id, title, instructional_hours, learning_outcomes, sort_order
+       FROM tos_topics WHERE tos_id = :id AND id IN (:topicIds) ORDER BY sort_order ASC`,
+      { id: tos.id, topicIds }
+    );
+    if (!topics.length) return res.status(422).json({ error: 'Selected topics not found in this blueprint.' });
+
+    const title = String(req.body?.title || '').trim();
+    if (!title) return res.status(422).json({ error: 'A title is required for the new blueprint.' });
+    if (title.length > 255) return res.status(422).json({ error: 'Title is too long.' });
+
+    const newId = uuid();
+    await pool.query(
+      `INSERT INTO tos (id, subject_id, title, total_items, bloom_weights, created_at, updated_at)
+       VALUES (:id, :subjectId, :title, :totalItems, :weights, NOW(), NOW())`,
+      {
+        id: newId,
+        subjectId: tos.subject_id,
+        title,
+        totalItems: Number(tos.total_items),
+        weights: typeof tos.bloom_weights === 'string' ? tos.bloom_weights : JSON.stringify(tos.bloom_weights || {}),
+      }
+    );
+
+    let order = 0;
+    for (const topic of topics) {
+      order += 1;
+      await pool.query(
+        `INSERT INTO tos_topics (id, tos_id, title, instructional_hours, learning_outcomes, item_count, sort_order)
+         VALUES (:id, :tosId, :title, :hours, :outcomes, 0, :order)`,
+        {
+          id: uuid(), tosId: newId,
+          title: topic.title,
+          hours: Number(topic.instructional_hours) || 0,
+          outcomes: typeof topic.learning_outcomes === 'string'
+            ? topic.learning_outcomes
+            : JSON.stringify(topic.learning_outcomes || []),
+          order,
+        }
+      );
+    }
+    await recalcTopicItemCounts(newId);
+
+    const [rows] = await pool.query(`SELECT * FROM tos WHERE id = :id`, { id: newId });
+    const derived = rows[0];
+    if (derived?.bloom_weights && typeof derived.bloom_weights === 'string') {
+      derived.bloom_weights = JSON.parse(derived.bloom_weights);
+    }
+    res.status(201).json({ tos: derived, topicsCopied: topics.length });
+  } catch (err) { next(err); }
+});
+
+// ── Bulk delete topics (draft only) ───────────────────
+router.post('/:id/topics/bulk-delete', async (req, res, next) => {
+  try {
+    const tos = await getOwned(req.params.id, req.user.id);
+    if (!tos) return res.status(404).json({ error: 'TOS not found.' });
+    if (!requireDraft(tos, res)) return;
+
+    const ids = Array.isArray(req.body?.ids) ? req.body.ids.map(String) : [];
+    if (!ids.length) return res.json({ deleted: 0 });
+    const [result] = await pool.query(
+      `DELETE FROM tos_topics WHERE tos_id = :id AND id IN (:ids)`,
+      { id: tos.id, ids }
+    );
+    await recalcTopicItemCounts(tos.id);
+    res.json({ deleted: result.affectedRows });
+  } catch (err) { next(err); }
+});
+
 // ── Delete ───────────────────────────────────────────
 router.delete('/:id', async (req, res, next) => {
   try {

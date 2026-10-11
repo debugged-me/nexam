@@ -11,9 +11,10 @@ import '../styles/blueprint-detail.css';
  */
 import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { Plus, Trash2, BookOpen, ChevronRight, Sparkles, FileText, Pencil, ListOrdered, Layers, Clock, Check, X, AlertTriangle, Lock, ChevronFirst, ChevronLeft, ChevronLast } from 'lucide-react';
+import { Plus, Trash2, BookOpen, ChevronRight, Sparkles, FileText, Pencil, ListOrdered, Layers, Clock, Check, X, AlertTriangle, Lock, ChevronFirst, ChevronLeft, ChevronLast, Copy } from 'lucide-react';
 import { useToast } from '../components/Toast.jsx';
 import { useConfirm } from '../components/ConfirmDialog.jsx';
+import Modal from '../components/Modal.jsx';
 import api, { ApiError } from '../lib/api.js';
 import useJobs, { isActiveJob, jobPayload } from '../lib/useJobs.js';
 import AppShell from '../components/AppShell.jsx';
@@ -174,6 +175,11 @@ export default function TosDetailPage() {
   const [savingEdit, setSavingEdit] = useState(false);
   const [expanded, setExpanded] = useState(() => new Set());
   const [topicPage, setTopicPage] = useState(0);
+  const [selTopics, setSelTopics] = useState(() => new Set());
+  const [deriveOpen, setDeriveOpen] = useState(false);
+  const [deriveTitle, setDeriveTitle] = useState('');
+  const [deriving, setDeriving] = useState(false);
+  const [removingSel, setRemovingSel] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [finalizing, setFinalizing] = useState(false);
   const titleRef = useRef(null);
@@ -290,6 +296,64 @@ export default function TosDetailPage() {
     }
   }
 
+  /** Toggle one topic's checkbox. */
+  function toggleTopicSel(topicId) {
+    setSelTopics((prev) => {
+      const next = new Set(prev);
+      if (next.has(topicId)) next.delete(topicId); else next.add(topicId);
+      return next;
+    });
+  }
+
+  /** Select/clear just the topics visible on the current page. */
+  function toggleTopicsOnPage(ids, turningOn) {
+    setSelTopics((prev) => {
+      const next = new Set(prev);
+      ids.forEach((id) => { if (turningOn) next.add(id); else next.delete(id); });
+      return next;
+    });
+  }
+
+  /** Remove the selected topics (draft blueprints only). */
+  async function handleRemoveSelected() {
+    const ids = [...selTopics];
+    if (!ids.length) return;
+    if (!(await confirm(
+      `Remove ${ids.length} selected topic${ids.length === 1 ? '' : 's'}? This cannot be undone.`,
+      { title: 'Remove topics', confirmText: 'Remove' }
+    ))) return;
+    setRemovingSel(true);
+    try {
+      await api.post(`/tos/${id}/topics/bulk-delete`, { ids });
+      toast.success(`${ids.length} topic${ids.length === 1 ? '' : 's'} removed.`);
+      if (editingId && selTopics.has(editingId)) setEditingId(null);
+      setSelTopics(new Set());
+      load();
+    } catch (err) {
+      toast.error(err.message || 'Could not remove topics.');
+    } finally {
+      setRemovingSel(false);
+    }
+  }
+
+  /** Clone the selected topics into a new draft blueprint. */
+  async function handleDerive(e) {
+    e.preventDefault();
+    const title = deriveTitle.trim();
+    if (!title || !selTopics.size) return;
+    setDeriving(true);
+    try {
+      const { tos: created } = await api.post(`/tos/${id}/derive`, { title, topicIds: [...selTopics] });
+      toast.success('New blueprint created from the selected topics.');
+      setDeriveOpen(false);
+      navigate(`/tos/${created.id}`);
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : 'Could not create the blueprint.');
+    } finally {
+      setDeriving(false);
+    }
+  }
+
   /** Expand / collapse one topic's outcome list without touching the others. */
   function toggleOutcomes(topicId) {
     setExpanded((prev) => {
@@ -346,6 +410,12 @@ export default function TosDetailPage() {
   const pageTopics = topics.slice(safeTopicPage * TOPIC_PAGE_SIZE, safeTopicPage * TOPIC_PAGE_SIZE + TOPIC_PAGE_SIZE);
   const topicStart = topics.length ? safeTopicPage * TOPIC_PAGE_SIZE + 1 : 0;
   const topicEnd = Math.min((safeTopicPage + 1) * TOPIC_PAGE_SIZE, topics.length);
+
+  // Topic checkboxes drive "remove" (draft only) and "derive into new blueprint".
+  const selTopicCount = selTopics.size;
+  const pageTopicIds = pageTopics.map((t) => t.id);
+  const allTopicsChecked = pageTopicIds.length > 0 && pageTopicIds.every((tId) => selTopics.has(tId));
+  const someTopicsChecked = !allTopicsChecked && pageTopicIds.some((tId) => selTopics.has(tId));
 
   return (
     <AppShell pageClass="blueprint-detail" activeNav="tos" pageTitle={tos.title}>
@@ -525,7 +595,22 @@ export default function TosDetailPage() {
       <div className="card" data-tour="tos-topics">
         <div className="card-header">
           <span className="card-title">Topics</span>
-          <span className="text-muted meta-sm">{topics.length} topic{topics.length === 1 ? '' : 's'}</span>
+          {selTopicCount > 0 ? (
+            <div className="tos-selbar">
+              <span className="tos-selbar-count">{selTopicCount} selected</span>
+              <button type="button" className="btn btn-primary btn-xs" onClick={() => { setDeriveTitle(''); setDeriveOpen(true); }}>
+                <Copy size={13} /> New blueprint
+              </button>
+              {!finalized && (
+                <button type="button" className="btn btn-outline btn-xs is-danger" onClick={handleRemoveSelected} disabled={removingSel}>
+                  {removingSel ? <span className="btn-spinner" /> : <Trash2 size={13} />} Remove
+                </button>
+              )}
+              <button type="button" className="btn btn-ghost btn-xs" onClick={() => setSelTopics(new Set())}>Clear</button>
+            </div>
+          ) : (
+            <span className="text-muted meta-sm">{topics.length} topic{topics.length === 1 ? '' : 's'}</span>
+          )}
         </div>
         {topics.length === 0 ? (
           <div className="empty-state empty-state-md">
@@ -538,6 +623,18 @@ export default function TosDetailPage() {
               <caption className="sr-only">Topics in this Table of Specification</caption>
               <thead>
                 <tr>
+                  <th scope="col" className="col-select">
+                    <label className="ds-check">
+                      <input
+                        type="checkbox"
+                        checked={allTopicsChecked}
+                        ref={(el) => { if (el) el.indeterminate = someTopicsChecked; }}
+                        onChange={() => toggleTopicsOnPage(pageTopicIds, !allTopicsChecked)}
+                      />
+                      <span aria-hidden="true" />
+                      <span className="sr-only">Select topics on this page</span>
+                    </label>
+                  </th>
                   <th scope="col" className="col-num">#</th>
                   <th scope="col">Topic</th>
                   <th scope="col" className="col-outcomes">Learning Outcomes</th>
@@ -555,8 +652,21 @@ export default function TosDetailPage() {
                   const shown = open ? outcomes : outcomes.slice(0, OUTCOME_PREVIEW);
                   const items = matrix?.rows[absI]?.items ?? (Number(tp.item_count) || 0);
 
+                  const isSel = selTopics.has(tp.id);
                   return (
-                    <tr key={tp.id} className={editing ? 'tos-row-editing' : undefined}>
+                    <tr key={tp.id} className={`${editing ? 'tos-row-editing' : ''}${isSel ? ' is-selected' : ''}`.trim() || undefined}>
+                      <td className="col-select">
+                        <label className="ds-check">
+                          <input
+                            type="checkbox"
+                            checked={isSel}
+                            disabled={editing}
+                            onChange={() => toggleTopicSel(tp.id)}
+                          />
+                          <span aria-hidden="true" />
+                          <span className="sr-only">Select “{tp.title}”</span>
+                        </label>
+                      </td>
                       <td className="text-muted">{absI + 1}</td>
                       <td>
                         {editing ? (
@@ -706,6 +816,42 @@ export default function TosDetailPage() {
           </form>
         </div>}
       </div>
+
+      {/* Derive modal — selected topics become a new draft blueprint */}
+      <Modal
+        open={deriveOpen}
+        title="New blueprint from selected topics"
+        subtitle={`Creates a separate draft blueprint with just the ${selTopicCount} topic${selTopicCount === 1 ? '' : 's'} you ticked — e.g. a Prelim or Midterm exam.`}
+        onClose={() => !deriving && setDeriveOpen(false)}
+        footer={
+          <>
+            <button type="button" className="btn btn-secondary" onClick={() => setDeriveOpen(false)} disabled={deriving}>Cancel</button>
+            <button type="submit" form="tos-derive-form" className="btn btn-primary" disabled={deriving || !deriveTitle.trim()}>
+              {deriving ? <span className="btn-spinner" /> : <Copy size={14} />} Create blueprint
+            </button>
+          </>
+        }
+      >
+        <form id="tos-derive-form" onSubmit={handleDerive}>
+          <div className="form-group">
+            <label className="form-label" htmlFor="derive-title">Blueprint title <span className="req">*</span></label>
+            <input
+              type="text"
+              id="derive-title"
+              className="form-control"
+              required
+              maxLength={255}
+              autoFocus
+              placeholder='e.g. "Prelim Exam — The Contemporary World"'
+              value={deriveTitle}
+              onChange={(e) => setDeriveTitle(e.target.value)}
+            />
+          </div>
+          <p className="form-hint">
+            The new blueprint keeps this one's subject, item total, and Bloom weights — item counts are re-shared across the selected topics.
+          </p>
+        </form>
+      </Modal>
 
     </AppShell>
   );

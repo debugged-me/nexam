@@ -189,8 +189,18 @@ export default function InstitutionBankPage() {
         </div>
       )}
 
-      <Modal open={!!reusing} title="Reuse approved question" onClose={() => !saving && setReusing(null)}>
-        <form onSubmit={submitReuse} className="institution-reuse-form">
+      <Modal
+        open={!!reusing}
+        title="Reuse approved question"
+        onClose={() => !saving && setReusing(null)}
+        footer={
+          <>
+            <button className="btn btn-secondary" type="button" onClick={() => setReusing(null)} disabled={saving}>Cancel</button>
+            <button className="btn btn-primary" type="submit" form="institution-reuse-form" disabled={saving || !targetSubjectId}>{saving ? 'Copying…' : 'Copy to review queue'}</button>
+          </>
+        }
+      >
+        <form id="institution-reuse-form" onSubmit={submitReuse} className="institution-reuse-form">
           <p>The copied item will be similarity-checked and must be reviewed before approval.</p>
           <label className="form-group">
             <span>Target subject</span>
@@ -199,10 +209,6 @@ export default function InstitutionBankPage() {
               {subjects.map((subject) => <option key={subject.id} value={subject.id}>{subject.code ? `${subject.code} — ` : ''}{subject.name}</option>)}
             </select>
           </label>
-          <div className="modal-actions">
-            <button className="btn btn-secondary" type="button" onClick={() => setReusing(null)} disabled={saving}>Cancel</button>
-            <button className="btn btn-primary" type="submit" disabled={saving || !targetSubjectId}>{saving ? 'Copying…' : 'Copy to review queue'}</button>
-          </div>
         </form>
       </Modal>
     </AppShell>

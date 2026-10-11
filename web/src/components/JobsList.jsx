@@ -37,6 +37,8 @@ function resultSummary(job) {
     if (job.type === 'generate') {
       const parts = [];
       if (Number.isFinite(r?.generated)) parts.push(`${r.generated} drafted`);
+      const adopted = Number(r?.adopted || 0);
+      if (adopted) parts.push(`${adopted} reused from your bank`);
       const skipped = Number(r?.skippedCells || 0);
       if (skipped) parts.push(`${skipped} cell${skipped === 1 ? '' : 's'} already filled`);
       const short = Array.isArray(r?.failedSlots) ? r.failedSlots.length : 0;
@@ -97,7 +99,10 @@ function detailOf(job, now) {
           prog.lastSlot?.topic
             ? `${prog.lastSlot.topic}${prog.lastSlot.bloom ? ` (${cap(prog.lastSlot.bloom)})` : ''}`
             : null,
-          `${prog.drafted ?? 0} drafted so far`,
+          [
+            `${prog.drafted ?? 0} drafted`,
+            prog.adopted ? `${prog.adopted} reused` : null,
+          ].filter(Boolean).join(' · '),
         ].filter(Boolean).join(' — ');
     return [ctx, slot, `started ${timeAgo(job.started_at, now)}`].filter(Boolean).join(' · ');
   }

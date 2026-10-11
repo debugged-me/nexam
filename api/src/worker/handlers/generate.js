@@ -70,6 +70,7 @@ export default async function generateHandler(job) {
   let generatedCount = 0;
   const failedSlots = [];
   let skippedCells = 0;
+  let adoptedCount = 0;
   let droppedInvalid = 0;
   let slotIndex = 0;
   let cancelled = false;
@@ -84,6 +85,7 @@ export default async function generateHandler(job) {
       slotsDone: slotIndex,
       slotsTotal: slots.length,
       drafted: generatedCount,
+      adopted: adoptedCount,
       skipped: skippedCells,
       lastSlot: { topic: slot.topic, bloom: slot.bloom },
     });
@@ -104,7 +106,34 @@ export default async function generateHandler(job) {
       { subjectId: tos.subject_id, userId, topic: slot.topic, bloom: slot.bloom, tosId: tos.id }
     );
     const covered = Number(covRows[0]?.n || 0);
-    const needed = slot.count - covered;
+    let needed = slot.count - covered;
+    if (needed <= 0) { skippedCells += 1; continue; }
+
+    // Adopt before drafting: the subject bank may already hold live questions
+    // for this exact cell — e.g. generated for a sibling blueprint (a whole-
+    // syllabus master vs. a derived Prelim). A blueprint only needs coverage,
+    // so link them via question_tos instead of spending tokens on duplicates.
+    const [adoptable] = await pool.query(
+      `SELECT q.id FROM questions q
+       WHERE q.subject_id = :subjectId AND q.created_by = :userId
+         AND q.status <> 'rejected'
+         AND (q.similarity_flag IS NULL OR q.similarity_flag <> 'rejected')
+         AND q.topic = :topic AND q.bloom = :bloom
+         AND NOT (q.tos_id = :tosId OR EXISTS (
+           SELECT 1 FROM question_tos qt WHERE qt.question_id = q.id AND qt.tos_id = :tosId
+         ))
+       ORDER BY (q.status = 'active') DESC, q.created_at ASC
+       LIMIT :needed`,
+      { subjectId: tos.subject_id, userId, topic: slot.topic, bloom: slot.bloom, tosId: tos.id, needed }
+    );
+    for (const row of adoptable) {
+      await pool.query(
+        `INSERT IGNORE INTO question_tos (question_id, tos_id) VALUES (:qid, :tosId)`,
+        { qid: row.id, tosId: tos.id }
+      );
+    }
+    adoptedCount += adoptable.length;
+    needed -= adoptable.length;
     if (needed <= 0) { skippedCells += 1; continue; }
 
     const topic = topics.find((candidate) => candidate.title === slot.topic);
@@ -162,6 +191,7 @@ export default async function generateHandler(job) {
   const summary = {
     tosId,
     generated: generatedCount,
+    adopted: adoptedCount,
     droppedInvalid,
     skippedCells,
     failedSlots,

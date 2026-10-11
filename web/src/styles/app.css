@@ -31,6 +31,11 @@ button { font-family: inherit; }
   body:not(:has(.page--auth-login, .page--auth-register, .page--auth-forgot, .page--auth-reset, .page--auth-verify, .legal-page)) {
     zoom: .93;
   }
+  /* `zoom` scales vh units too — counter-stretch the fixed rail so it still
+     spans the full viewport height instead of stopping short. */
+  body:not(:has(.page--auth-login, .page--auth-register, .page--auth-forgot, .page--auth-reset, .page--auth-verify, .legal-page)) .sidebar {
+    height: calc(100dvh / .93);
+  }
 }
 
 /* Consistent keyboard focus rings — only on keyboard navigation. */
@@ -218,7 +223,13 @@ svg.lucide { stroke-width: 1.5; }
 .sidebar-foot .avatar { background: var(--action-600); border-color: transparent; color: #fff; }
 .sidebar-foot-icon { display: flex; width: 29px; height: 29px; flex-shrink: 0; align-items: center; justify-content: center; border-radius: 8px; background: var(--sb-field); color: var(--sb-text); }
 .sidebar-foot-meta { min-width: 0; flex: 1; }
-.sidebar-foot strong, .sidebar-foot small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sidebar-foot strong {
+  display: block;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  line-height: 1.25;
+}
+.sidebar-foot small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .sidebar-foot strong { font-family: var(--font-display); font-size: .78rem; font-weight: 600; color: var(--ink); }
 .sidebar-foot small { margin-top: 1px; font-size: .66rem; color: var(--sb-title); }
 

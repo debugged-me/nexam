@@ -661,7 +661,7 @@ export function ExamDetail({ examId, detail, onBack }) {
       </div>
 
       {/* ── Interactive UI (hidden on paper) ── */}
-      <div className="stats-grid mb-3 print-skip">
+      <div className="stats-grid mb-3 print-skip" data-tour="exam-stats">
         <div className="stat-card">
           <div className="stat-icon blue"><Users size={18} /></div>
           <div className="stat-info"><div className="stat-value">{parseInt(s.total_scans || 0, 10)}</div><div className="stat-label">Students</div></div>
@@ -718,7 +718,7 @@ export function ExamDetail({ examId, detail, onBack }) {
       </div>
 
       {/* Student Scores */}
-      <div className="card print-skip">
+      <div className="card print-skip" data-tour="exam-students">
         <div className="card-header">
           <span className="card-title">Student Scores</span>
           <span className="text-muted meta-sm">{studs.length} students</span>

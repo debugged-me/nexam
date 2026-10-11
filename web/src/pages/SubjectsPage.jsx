@@ -237,7 +237,7 @@ export default function SubjectsPage() {
   function subjectMenu(e, s) {
     openMenu(e, [
       { label: 'View details', icon: Info, onClick: () => setViewing(s) },
-      { label: 'Open', icon: Eye, onClick: () => navigate(`/subjects/${encodeURIComponent(s.id)}`) },
+      { label: 'Open in question bank', icon: Eye, onClick: () => navigate(`/questions?subject_id=${encodeURIComponent(s.id)}`) },
       { label: 'Edit', icon: Pencil, onClick: () => setEditing(s) },
       'sep',
       { label: 'Copy name', icon: Copy, onClick: () => copyText(s.name, 'Name') },
@@ -375,7 +375,7 @@ export default function SubjectsPage() {
                       <td className="col-primary">
                         <span className="g-entity">
                           <span className="g-primary">
-                            <Link to={`/subjects/${encodeURIComponent(s.id)}`} className="g-title" title={s.name}>{s.name}</Link>
+                            <Link to={`/questions?subject_id=${encodeURIComponent(s.id)}`} className="g-title" title={s.name}>{s.name}</Link>
                             <span className="g-meta" title={descTitle}>
                               {desc}
                               {s.description && s.description.trim().length > 90 && (

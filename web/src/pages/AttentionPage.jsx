@@ -123,6 +123,7 @@ export default function AttentionPage() {
               )}
               <select
                 className="form-control attn-filter"
+                data-tour="attn-filter"
                 value={examFilter}
                 onChange={(e) => {
                   setPage(0);
@@ -143,7 +144,7 @@ export default function AttentionPage() {
             </div>
           ) : (
             <>
-              <div className="table-wrap table-bare">
+              <div className="table-wrap table-bare" data-tour="attn-table">
                 <table className="data-table attn-table">
                   <caption className="sr-only">Questions with the lowest correct rates across scanned exams</caption>
                   <colgroup>

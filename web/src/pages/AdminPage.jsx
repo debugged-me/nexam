@@ -541,7 +541,7 @@ function UsersTab({ toast, role }) {
           ))}
         </div>
         <div className="adm-toolbar-actions">
-          <button className="adm-btn adm-btn-primary adm-btn-sm" onClick={() => setAdding(true)}>
+          <button className="adm-btn adm-btn-primary adm-btn-sm" onClick={() => setAdding(true)} data-tour="admin-add">
             <UserPlus size={13} /> Add user
           </button>
           <button className="adm-icon-btn" onClick={load} title="Refresh" aria-label="Refresh">

@@ -96,6 +96,11 @@ export const TOURS = [
         description: 'Extraction, blueprint drafting, question generation, and duplicate checks are background jobs — this badge counts them. Open it to see each task’s title and live slot progress, or press its stop button to cancel. Finished work announces itself wherever you are.',
       },
       {
+        sel: '[data-tour="shell-account"]', side: 'bottom', align: 'end',
+        title: 'Your menu',
+        description: 'Profile photo, Account, Appearance (light / dark / system — saved per user, per device), and sign out. Appearance is a shared page, so staff get it too.',
+      },
+      {
         sel: '[data-tour="dash-focus"]', side: 'left',
         title: 'Where to look each day',
         description: 'A prioritized queue: scans needing verification, drafts awaiting review, named blueprint shortfalls, and publish-ready exams — each row deep-links to where the work happens.',
@@ -145,7 +150,7 @@ export const TOURS = [
       {
         sel: '[data-tour="subjects-table"]', side: 'top',
         title: 'Each row is a workspace',
-        description: 'The counts are doors — a question count opens that subject’s bank, a blueprint count its TOS list. Right-click a row (or tap its ⋯ button) for open, edit, and delete — “View details” and the inline “Read more” link show text the column can’t fit.',
+        description: 'The name opens the subject’s question bank; the counts are doors too — a question count opens that subject’s bank, a blueprint count its TOS list. Right-click a row (or tap its ⋯ button) for open, edit, copy, and delete.',
       },
     ],
   },
@@ -423,6 +428,49 @@ export const TOURS = [
     ],
   },
   {
+    id: 'attention', name: 'Needs attention', patterns: ['/analytics/attention'], roles: INSTRUCTOR,
+    steps: [
+      {
+        title: 'The weak-signal list',
+        description: 'Every scanned item that underperformed across your exams lands here — the questions worth revising before they go out again.',
+      },
+      {
+        sel: '[data-tour="attn-filter"]', side: 'bottom', align: 'end',
+        title: 'One exam or all of them',
+        description: 'Scope the list to a single exam — or keep the cross-exam view to spot items that struggle everywhere.',
+      },
+      {
+        sel: '[data-tour="attn-table"]', side: 'top',
+        title: 'Read the row',
+        description: 'Each row pairs the item’s correct rate with its topic and Bloom level, so you can tell a hard question from a broken one. Print turns this list into a review checklist.',
+      },
+    ],
+  },
+  {
+    id: 'exam-analytics', name: 'Exam report', patterns: ['/analytics/exam/:examId'], roles: INSTRUCTOR,
+    steps: [
+      {
+        title: 'One exam, fully read',
+        description: 'This is the per-exam report: who was scanned, how the class scored, and where the items landed. It has its own URL now — refresh, share, or bookmark it.',
+      },
+      {
+        sel: '[data-tour="exam-stats"]', side: 'bottom',
+        title: 'The headline numbers',
+        description: 'Students scanned, class average, spread, pass count, and sheets still awaiting your review.',
+      },
+      {
+        sel: '[data-tour="analytics-topics"]', side: 'right',
+        title: 'What the class mastered',
+        description: 'Topic and Bloom breakdowns for this exam alone — the same color language as the overview, narrowed to one paper.',
+      },
+      {
+        sel: '[data-tour="exam-students"]', side: 'top',
+        title: 'Per-student rows',
+        description: 'Score, correct count, and review status per scanned sheet — anything flagged waits here for your confirmation.',
+      },
+    ],
+  },
+  {
     id: 'analytics', name: 'Analytics', patterns: ['/analytics'], roles: INSTRUCTOR,
     steps: [
       {
@@ -448,11 +496,6 @@ export const TOURS = [
         sel: '[data-tour="analytics-averages"]', side: 'right',
         title: 'Per-exam results',
         description: 'Click an exam for its score distribution, per-student rows, and that exam’s own topic and cognitive-level breakdown.',
-      },
-      {
-        sel: '[data-tour="analytics-ai"]', side: 'bottom', align: 'end',
-        title: 'And the AI’s own grade',
-        description: 'How accurate generated questions have been — measured against your review decisions.',
       },
       {
         sel: '[data-tour="analytics-ai"]', side: 'bottom', align: 'end',
@@ -504,28 +547,33 @@ export const TOURS = [
     steps: [
       {
         title: 'The institution’s control room',
-        description: 'This console governs who gets in and what the system is allowed to do — approvals, sign-in security, and AI credentials.',
+        description: 'This console governs who gets in and what the system is allowed to do — approvals, sign-in security, and AI credentials. What you see depends on your role: admins manage instructors, the superadmin manages everything.',
       },
       {
         sel: '[data-tour="shell-nav"]', minWidth: 992, side: 'right',
         title: 'Console sections',
-        description: 'Users, usage reports, login logs, audit trail, and settings — the security sections are superadmin-only. Reports prints or exports to Excel.',
+        description: 'Dashboard and Users are for everyone here; reports, login logs, audit trail, and settings are superadmin-only. Reports prints or exports to Excel.',
       },
       NAV_STEP_MOBILE,
       {
         sel: '[data-tour="admin-kpis"]', side: 'bottom',
         title: 'At a glance',
-        description: 'Pending approvals, active instructors, and sign-in activity.',
+        description: 'Pending approvals, active instructors, and sign-in activity. System health appears for the superadmin only.',
       },
       {
         sel: '[data-tour="admin-toolbar"]', side: 'bottom',
         title: 'Controls',
-        description: 'Search and filter the records below; per-row actions appear where your role allows.',
+        description: 'Search and filter the records below — the Users view opens on All; the chips switch to Pending, Active, or Rejected.',
+      },
+      {
+        sel: '[data-tour="admin-add"]', side: 'bottom', align: 'end',
+        title: 'Provision an account',
+        description: 'Add user creates a verified account instantly — the server generates the password and emails it straight to the user, so it never appears on your screen. The superadmin can create admins; admins create instructors only.',
       },
       {
         sel: '[data-tour="admin-table"]', side: 'top',
         title: 'The records',
-        description: 'Approve or reject instructor accounts, review sign-ins, or inspect the audit trail — row menus hold the actions.',
+        description: 'Every row answers to its ⋯ menu (or right-click): Approve, Edit details — all four name fields — and Send reset link, which emails the user a one-time link without ever showing you a password. Reject sits at the bottom in red.',
       },
     ],
   },

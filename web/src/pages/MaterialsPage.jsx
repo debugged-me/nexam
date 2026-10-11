@@ -415,7 +415,16 @@ export default function MaterialsPage() {
   return (
     <AppShell pageClass="materials" activeNav="materials" pageTitle="Materials">
       <div className="mat-toolbar" data-tour="materials-head">
-            <div><span className="eyebrow">Manage</span><h1>Materials</h1></div>
+            <div className="list-head-main">
+              <span className="eyebrow">Workspace</span>
+              <h1 className="list-head-title">
+                Materials
+                {materials && materials.length > 0 && (
+                  <span className="list-head-count">{materials.length}</span>
+                )}
+              </h1>
+              <p className="page-description">Upload syllabi and reference files — they ground your blueprints and AI drafts.</p>
+            </div>
             <div className="mat-toolbar-actions">
               <button className="btn" onClick={handleRefresh} disabled={refreshing} title="Refresh list">
                 <RefreshCw size={16} className={refreshing ? 'mat-spin' : undefined} /> Refresh

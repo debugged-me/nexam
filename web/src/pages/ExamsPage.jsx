@@ -21,11 +21,12 @@ import DetailsModal from '../components/DetailsModal.jsx';
 import AppShell from '../components/AppShell.jsx';
 import { PageLoader } from '../components/Loaders.jsx';
 import {
-  StatusPill, StatusSummary, BoardGroupHead, BoardGroupFoot,
-  BoardAddRow, GroupChip, groupColor, statusOf, STATUS_LABELS, STATUS_ORDER,
+  StatusPill, BoardGroupHead, BoardGhostRows,
+  BoardAddRow, GroupChip, groupColor, statusOf, statusMeta, STATUS_LABELS, STATUS_ORDER,
 } from '../components/Board.jsx';
 
 const COL_SPAN = 7;
+const LEDGER_MIN = 11; // ghost rows pad a short table out to a real ledger
 const EXAM_STATUSES = STATUS_ORDER.exam;
 
 function fmtDate(iso) {
@@ -263,9 +264,6 @@ export default function ExamsPage() {
         <section className="dataset" data-density="comfortable">
           <div className="dataset-bar" data-tour="exams-toolbar">
             <div className="dataset-bar-lead">
-              <button className="btn btn-primary btn-sm" data-tour="exams-new" onClick={() => navigate('/exams/new')}>
-                <Plus size={14} /> New exam
-              </button>
               <label className="ds-search" htmlFor="exams-search">
                 <Search size={15} />
                 <span className="sr-only">Search exams</span>
@@ -295,7 +293,9 @@ export default function ExamsPage() {
               </span>
             </div>
             <div className="dataset-bar-trail">
-              <StatusSummary counts={statusCounts(filtered)} order={EXAM_STATUSES} legend={false} totalLabel={`${filtered.length} exam${filtered.length === 1 ? '' : 's'}`} />
+              <button className="btn btn-primary btn-sm" data-tour="exams-new" onClick={() => navigate('/exams/new')}>
+                <Plus size={14} /> New exam
+              </button>
             </div>
           </div>
 
@@ -335,18 +335,17 @@ export default function ExamsPage() {
                         color={g.color}
                         title={g.title}
                         count={g.rows.length}
-                        meta={groupBy === 'subject' && itemTotal ? `${itemTotal} items` : undefined}
+                        meta={[
+                          groupBy !== 'status' ? statusMeta(counts, EXAM_STATUSES) : '',
+                          itemTotal ? `${itemTotal} item${itemTotal === 1 ? '' : 's'}` : '',
+                        ].filter(Boolean).join(' · ') || undefined}
                         colSpan={COL_SPAN}
                         collapsed={isCollapsed}
                         onToggle={() => toggleGroup(g.key)}
                       />
                     )}
                     {g.rows.map((e) => <ExamRow key={e.id} e={e} />)}
-                    {grouped && (
-                      <BoardGroupFoot colSpan={COL_SPAN}>
-                        <StatusSummary counts={counts} order={EXAM_STATUSES} totalLabel={`${g.rows.length} exam${g.rows.length === 1 ? '' : 's'}`} />
-                      </BoardGroupFoot>
-                    )}
+                    {!grouped && <BoardGhostRows count={LEDGER_MIN - g.rows.length} colSpan={COL_SPAN} />}
                     {grouped && groupBy === 'subject' && (
                       <BoardAddRow
                         colSpan={COL_SPAN}

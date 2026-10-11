@@ -1,6 +1,7 @@
 import '../styles/institution.css';
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { Copy, Library, Rows3, Search, StretchHorizontal, ChevronFirst, ChevronLeft, ChevronRight, ChevronLast } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useWindowVirtualizer } from '@tanstack/react-virtual';
+import { Copy, Library, Rows3, Search, StretchHorizontal } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import AppShell from '../components/AppShell.jsx';
 import { PageLoader } from '../components/Loaders.jsx';
@@ -18,8 +19,6 @@ const TYPE_LABELS = {
   matching: 'Matching type', identification: 'Fill in the blank',
 };
 
-const PAGE_SIZE = 12;
-
 export default function InstitutionBankPage() {
   const toast = useToast();
   const navigate = useNavigate();
@@ -32,8 +31,7 @@ export default function InstitutionBankPage() {
   const [targetSubjectId, setTargetSubjectId] = useState('');
   const [saving, setSaving] = useState(false);
   const [density, setDensity] = useState(() => localStorage.getItem('nexam.institution.density') || 'comfortable');
-  const [page, setPage] = useState(0);
-  const listRef = useRef(null);
+  const [scrollMargin, setScrollMargin] = useState(0);
 
   function toggleDensity() {
     const next = density === 'compact' ? 'comfortable' : 'compact';
@@ -61,16 +59,29 @@ export default function InstitutionBankPage() {
     });
   }, [questions, query, bloom, type]);
 
-  const pageCount = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
-  const safePage = Math.min(page, pageCount - 1);
-  const pageItems = filtered.slice(safePage * PAGE_SIZE, safePage * PAGE_SIZE + PAGE_SIZE);
-  const start = filtered.length ? safePage * PAGE_SIZE + 1 : 0;
-  const end = Math.min((safePage + 1) * PAGE_SIZE, filtered.length);
+  // The bank browses as one continuous list: only the cards near the viewport
+  // are mounted, driven by window scroll. `scrollMargin` is the list's offset
+  // from the document top so item positions line up with page scroll — the
+  // callback ref measures exactly when the list element mounts (it isn't in
+  // the tree while loading or while filters return nothing).
+  const listRef = useCallback((el) => {
+    if (el) setScrollMargin(el.getBoundingClientRect().top + window.scrollY);
+  }, []);
 
-  function goTo(p) {
-    setPage(p);
-    listRef.current?.scrollIntoView({ block: 'start', behavior: 'smooth' });
-  }
+  const virtualizer = useWindowVirtualizer({
+    count: filtered.length,
+    estimateSize: () => (density === 'compact' ? 76 : 260),
+    overscan: 8,
+    gap: density === 'compact' ? 0 : 12,
+    scrollMargin,
+    getItemKey: (index) => filtered[index]?.id ?? index,
+  });
+
+  // Density swaps row height and spacing — drop the measurement cache so
+  // everything re-measures under the new estimate.
+  useEffect(() => {
+    virtualizer.measure();
+  }, [density, virtualizer]);
 
   function openReuse(question) {
     setReusing(question);
@@ -138,54 +149,45 @@ export default function InstitutionBankPage() {
           <span>Questions appear here after an instructor approves them.</span>
         </div>
       ) : (
-        <div className="institution-list" data-density={density} data-tour="institution-list" ref={listRef}>
-          {pageItems.map((question) => (
-            <article className="institution-question" key={question.id}>
-              <div className="institution-meta">
-                <span className="b-chip" style={{ '--gc': groupColor(question.subject_id || question.subject_name) }}>
-                  <span>{question.subject_code || question.subject_name}</span>
-                </span>
-                <span>{question.topic || 'No topic'}</span>
-                <span>{BLOOM_LABELS[question.bloom] || question.bloom}</span>
-                <span>{TYPE_LABELS[question.type] || question.type}</span>
-              </div>
-              <h2>{question.stem}</h2>
-              {Array.isArray(question.options) && question.options.length > 0 && (
-                <ol className="institution-options" type="A">
-                  {question.options.map((option, index) => <li key={`${question.id}-${index}`}>{option}</li>)}
-                </ol>
-              )}
-              <div className="institution-answer"><strong>Answer:</strong> {question.answer || 'Not specified'}</div>
-              <button className="btn btn-outline btn-sm institution-reuse" type="button" onClick={() => openReuse(question)} disabled={!subjects.length}>
-                <Copy size={15} /> Reuse as draft
-              </button>
-            </article>
-          ))}
-        </div>
-      )}
-
-      {filtered.length > PAGE_SIZE && (
-        <div className="dataset-foot">
-          <div className="ds-range">
-            <b>{start}</b>–<b>{end}</b> of <b>{filtered.length}</b>
-          </div>
-          <div className="ds-pager">
-            <button type="button" className="ds-page" onClick={() => goTo(0)} disabled={safePage === 0} aria-label="First page">
-              <ChevronFirst size={15} />
-            </button>
-            <button type="button" className="ds-page" onClick={() => goTo(safePage - 1)} disabled={safePage === 0} aria-label="Previous page">
-              <ChevronLeft size={15} />
-            </button>
-            <span className="ds-page" aria-current="page">{safePage + 1}</span>
-            <span className="ds-gap">/</span>
-            <span className="ds-page">{pageCount}</span>
-            <button type="button" className="ds-page" onClick={() => goTo(safePage + 1)} disabled={safePage >= pageCount - 1} aria-label="Next page">
-              <ChevronRight size={15} />
-            </button>
-            <button type="button" className="ds-page" onClick={() => goTo(pageCount - 1)} disabled={safePage >= pageCount - 1} aria-label="Last page">
-              <ChevronLast size={15} />
-            </button>
-          </div>
+        <div
+          className="institution-list institution-list--virtual"
+          data-density={density}
+          data-tour="institution-list"
+          ref={listRef}
+          style={{ height: `${virtualizer.getTotalSize()}px` }}
+        >
+          {virtualizer.getVirtualItems().map((virtualItem) => {
+            const question = filtered[virtualItem.index];
+            if (!question) return null;
+            return (
+              <article
+                className="institution-question"
+                key={virtualItem.key}
+                data-index={virtualItem.index}
+                ref={virtualizer.measureElement}
+                style={{ transform: `translateY(${virtualItem.start - virtualizer.options.scrollMargin}px)` }}
+              >
+                <div className="institution-meta">
+                  <span className="b-chip" style={{ '--gc': groupColor(question.subject_id || question.subject_name) }}>
+                    <span>{question.subject_code || question.subject_name}</span>
+                  </span>
+                  <span>{question.topic || 'No topic'}</span>
+                  <span>{BLOOM_LABELS[question.bloom] || question.bloom}</span>
+                  <span>{TYPE_LABELS[question.type] || question.type}</span>
+                </div>
+                <h2>{question.stem}</h2>
+                {Array.isArray(question.options) && question.options.length > 0 && (
+                  <ol className="institution-options" type="A">
+                    {question.options.map((option, index) => <li key={`${question.id}-${index}`}>{option}</li>)}
+                  </ol>
+                )}
+                <div className="institution-answer"><strong>Answer:</strong> {question.answer || 'Not specified'}</div>
+                <button className="btn btn-outline btn-sm institution-reuse" type="button" onClick={() => openReuse(question)} disabled={!subjects.length}>
+                  <Copy size={15} /> Reuse as draft
+                </button>
+              </article>
+            );
+          })}
         </div>
       )}
 

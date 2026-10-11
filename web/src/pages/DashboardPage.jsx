@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../features/auth/AuthContext.jsx';
 import AppShell from '../components/AppShell.jsx';
+import AnimatedNumber from '../components/AnimatedNumber.jsx';
 import { PageLoader } from '../components/Loaders.jsx';
 import { StatusPill } from '../components/Board.jsx';
 import api, { ApiError } from '../lib/api.js';
@@ -362,7 +363,7 @@ export default function DashboardPage() {
                   <ArrowUpRight size={15} className="dash-kpi-arrow" />
                 </span>
                 <span className="dash-kpi-num">
-                  <strong>{metric.value.toLocaleString()}</strong>
+                  <strong><AnimatedNumber value={metric.value} /></strong>
                   {metric.delta && (
                     <span
                       className={`dash-delta ${metric.delta.cls}`}

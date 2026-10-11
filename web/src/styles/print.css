@@ -21,6 +21,7 @@
   .jobs-panel,
   .toast-root,
   .toasts,
+  [data-sonner-toaster],
   .modal-overlay,
   .ctx-menu,
   .command-menu,

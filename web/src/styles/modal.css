@@ -1,4 +1,5 @@
 /* modal.css — shared modal/dialog styles */
+/* Enter/exit motion is driven by motion/react inside Modal.jsx. */
 .modal-overlay {
   position: fixed;
   inset: 0;
@@ -10,9 +11,7 @@
   justify-content: center;
   z-index: 10000;
   padding: 20px;
-  animation: modalFade .15s ease;
 }
-@keyframes modalFade { from { opacity: 0; } to { opacity: 1; } }
 
 .modal-card {
   background: var(--surface);
@@ -23,11 +22,6 @@
   max-height: 90vh;
   display: flex;
   flex-direction: column;
-  animation: modalSlide .2s cubic-bezier(.34, 1.4, .64, 1);
-}
-@keyframes modalSlide {
-  from { opacity: 0; transform: scale(.96) translateY(4px); }
-  to   { opacity: 1; transform: scale(1) translateY(0); }
 }
 .modal-sm { max-width: 420px; }
 .modal-md { max-width: 560px; }

@@ -1,12 +1,13 @@
 /**
  * Board — Monday-style board primitives layered on the shared .dataset grid.
  *
- *   <StatusPill status="live" />          solid state block for a grid cell
+ *   <StatusPill status="live" />          tinted status pill for a grid cell
  *   <BoardGroupHead />                    collapsible coloured group band (tr)
- *   <BoardGroupFoot />                    segmented status summary strip (tr)
  *   <BoardAddRow />                       "+ Add" affordance row (tr)
+ *   <BoardGhostRows />                    empty ledger rows for sparse tables
  *   groupColor(key)                       deterministic accent per entity
  *   statusOf(value)                       canonical tone for a raw status
+ *   statusMeta(counts, order)             "2 published · 1 draft" rollup text
  *
  * Everything renders inside a plain <table className="grid datatable">: a
  * group is a <tbody className="b-group"> whose first row is a BoardGroupHead,
@@ -59,7 +60,7 @@ export function groupColor(key) {
   return `var(--gc-${(hash % 8) + 1})`;
 }
 
-/** Solid status block for a grid cell. `tone` may differ from label. */
+/** Tinted status pill for a grid cell. `tone` may differ from label. */
 export function StatusPill({ status, label, small = false, inline = false }) {
   const tone = statusOf(status);
   return (
@@ -102,39 +103,26 @@ export function BoardGroupHead({ color, title, count, meta, colSpan, collapsed, 
 }
 
 /**
- * Segmented status strip under a group: counts keyed by canonical tone,
- * rendered in `order` (STATUS_ORDER lists). Hidden tones are skipped.
+ * Compact status rollup for a group head's `meta` slot:
+ * "2 published · 1 draft" in canonical order, zero tones skipped.
  */
-export function StatusSummary({ counts, order, totalLabel, legend = true }) {
-  const total = order.reduce((n, k) => n + (counts[k] || 0), 0);
-  if (!total) return null;
-  const named = order.filter((k) => counts[k]);
-  return (
-    <span className="b-sum">
-      <span className="b-sum-bar" role="img" aria-label={named.map((k) => `${counts[k]} ${STATUS_LABELS[k] || k}`).join(', ')}>
-        {named.map((k) => (
-          <span key={k} className="b-sum-seg" data-tone={k} style={{ width: `${(counts[k] / total) * 100}%` }} />
-        ))}
-      </span>
-      <span className="b-sum-total">{totalLabel || `${total} item${total === 1 ? '' : 's'}`}</span>
-      {legend && named.length > 1 && (
-        <span className="b-sum-legend" aria-hidden="true">
-          {named.map((k) => (
-            <span key={k}><i data-tone={k} />{counts[k]}</span>
-          ))}
-        </span>
-      )}
-    </span>
-  );
+export function statusMeta(counts, order) {
+  return order
+    .filter((k) => counts[k])
+    .map((k) => `${counts[k]} ${(STATUS_LABELS[k] || k).toLowerCase()}`)
+    .join(' · ');
 }
 
-/** Summary row; sits last inside tbody.b-group. */
-export function BoardGroupFoot({ colSpan, children }) {
-  return (
-    <tr className="b-group-foot">
-      <td colSpan={colSpan}>{children}</td>
-    </tr>
-  );
+/**
+ * Empty ledger rows that make a sparse table read as an intentional empty
+ * ledger instead of a void. Render inside a tbody; `colSpan` must cover the
+ * visible columns.
+ */
+export function BoardGhostRows({ count, colSpan }) {
+  if (!count || count <= 0) return null;
+  return Array.from({ length: count }, (_, i) => (
+    <tr key={`ghost-${i}`} className="b-ghost" aria-hidden="true"><td colSpan={colSpan} /></tr>
+  ));
 }
 
 /** "+ Add" affordance row, matching the group's left spine. */

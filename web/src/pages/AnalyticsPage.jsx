@@ -10,6 +10,7 @@ import '../styles/analytics.css';
  */
 import { useEffect, useState, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { motion } from 'motion/react';
 import {
   FileText, ScanLine, Users, AlertCircle, BarChart3,
   TrendingUp, TrendingDown, Sparkles, ListChecks, ArrowLeft,
@@ -20,6 +21,7 @@ import { useToast } from '../components/Toast.jsx';
 import api from '../lib/api.js';
 import { downloadCsv, downloadXlsx } from '../lib/exports.js';
 import AppShell from '../components/AppShell.jsx';
+import AnimatedNumber from '../components/AnimatedNumber.jsx';
 import { PageLoader } from '../components/Loaders.jsx';
 import {
   MasteryBarChart, BloomRadarChart, TrendLineChart, DistBarChart, PassDoughnut,
@@ -61,6 +63,13 @@ function trimwd(s, n = 30) {
 
 const BINS = Array.from({ length: 10 }, (_, i) => i * 10);
 const STUDENTS_PER_PAGE = 25;
+
+/** Shared stat-card entrance — a gentle rise, staggered by index. */
+const statCardAnim = (i) => ({
+  initial: { opacity: 0, y: 10 },
+  animate: { opacity: 1, y: 0 },
+  transition: { duration: 0.35, delay: i * 0.06, ease: [0.16, 1, 0.3, 1] },
+});
 
 /** Narrative insight card — icon-tagged findings derived from the data. */
 function InsightsCard({ insights, tour }) {
@@ -344,24 +353,24 @@ export default function AnalyticsPage() {
 
       {/* ── Interactive UI (hidden on paper) ── */}
       <div className="stats-grid mb-3 print-skip" data-tour="analytics-stats">
-        <div className="stat-card">
+        <motion.div className="stat-card" {...statCardAnim(0)}>
           <div className="stat-icon blue"><FileText size={18} /></div>
-          <div className="stat-info"><div className="stat-value">{parseInt(o.total_exams || 0, 10)}</div><div className="stat-label">Exams</div></div>
-        </div>
-        <div className="stat-card">
+          <div className="stat-info"><div className="stat-value"><AnimatedNumber value={parseInt(o.total_exams || 0, 10)} /></div><div className="stat-label">Exams</div></div>
+        </motion.div>
+        <motion.div className="stat-card" {...statCardAnim(1)}>
           <div className="stat-icon green"><ScanLine size={18} /></div>
-          <div className="stat-info"><div className="stat-value">{parseInt(o.total_scans || 0, 10)}</div><div className="stat-label">Scanned Sheets</div></div>
+          <div className="stat-info"><div className="stat-value"><AnimatedNumber value={parseInt(o.total_scans || 0, 10)} /></div><div className="stat-label">Scanned Sheets</div></div>
           <div className="stat-context">across {parseInt(o.total_exams || 0, 10)} {parseInt(o.total_exams || 0, 10) === 1 ? 'exam' : 'exams'}</div>
-        </div>
-        <div className="stat-card">
+        </motion.div>
+        <motion.div className="stat-card" {...statCardAnim(2)}>
           <div className="stat-icon purple"><Users size={18} /></div>
-          <div className="stat-info"><div className="stat-value">{parseInt(o.total_students || 0, 10)}</div><div className="stat-label">Students</div></div>
-        </div>
-        <div className="stat-card">
+          <div className="stat-info"><div className="stat-value"><AnimatedNumber value={parseInt(o.total_students || 0, 10)} /></div><div className="stat-label">Students</div></div>
+        </motion.div>
+        <motion.div className="stat-card" {...statCardAnim(3)}>
           <div className="stat-icon amber"><AlertCircle size={18} /></div>
-          <div className="stat-info"><div className="stat-value">{parseInt(o.needs_review || 0, 10)}</div><div className="stat-label">Need Review</div></div>
+          <div className="stat-info"><div className="stat-value"><AnimatedNumber value={parseInt(o.needs_review || 0, 10)} /></div><div className="stat-label">Need Review</div></div>
           <div className="stat-context">{parseInt(o.total_scans || 0, 10) > 0 ? `${Math.round((parseInt(o.needs_review || 0, 10) / parseInt(o.total_scans, 10)) * 100)}% of scans flagged` : 'no scans yet'}</div>
-        </div>
+        </motion.div>
       </div>
 
       <div className="print-skip"><InsightsCard insights={insights} tour="analytics-insights" /></div>
@@ -662,29 +671,29 @@ export function ExamDetail({ examId, detail, onBack }) {
 
       {/* ── Interactive UI (hidden on paper) ── */}
       <div className="stats-grid mb-3 print-skip" data-tour="exam-stats">
-        <div className="stat-card">
+        <motion.div className="stat-card" {...statCardAnim(0)}>
           <div className="stat-icon blue"><Users size={18} /></div>
-          <div className="stat-info"><div className="stat-value">{parseInt(s.total_scans || 0, 10)}</div><div className="stat-label">Students</div></div>
-        </div>
-        <div className="stat-card">
+          <div className="stat-info"><div className="stat-value"><AnimatedNumber value={parseInt(s.total_scans || 0, 10)} /></div><div className="stat-label">Students</div></div>
+        </motion.div>
+        <motion.div className="stat-card" {...statCardAnim(1)}>
           <div className="stat-icon green"><TrendingUp size={18} /></div>
-          <div className="stat-info"><div className="stat-value">{fmtPct1(s.avg_score ?? 0)}%</div><div className="stat-label">Class Average</div></div>
-        </div>
-        <div className="stat-card">
+          <div className="stat-info"><div className="stat-value"><AnimatedNumber value={Number(s.avg_score ?? 0)} format={(v) => `${v.toFixed(1)}%`} /></div><div className="stat-label">Class Average</div></div>
+        </motion.div>
+        <motion.div className="stat-card" {...statCardAnim(2)}>
           <div className="stat-icon amber"><TrendingDown size={18} /></div>
-          <div className="stat-info"><div className="stat-value">{fmtPct0(s.min_score ?? 0)}%</div><div className="stat-label">Lowest</div></div>
-        </div>
-        <div className="stat-card">
+          <div className="stat-info"><div className="stat-value"><AnimatedNumber value={Number(s.min_score ?? 0)} format={(v) => `${Math.round(v)}%`} /></div><div className="stat-label">Lowest</div></div>
+        </motion.div>
+        <motion.div className="stat-card" {...statCardAnim(3)}>
           <div className="stat-icon purple"><TrendingUp size={18} /></div>
-          <div className="stat-info"><div className="stat-value">{fmtPct0(s.max_score ?? 0)}%</div><div className="stat-label">Highest</div></div>
-        </div>
-        <div className="stat-card">
+          <div className="stat-info"><div className="stat-value"><AnimatedNumber value={Number(s.max_score ?? 0)} format={(v) => `${Math.round(v)}%`} /></div><div className="stat-label">Highest</div></div>
+        </motion.div>
+        <motion.div className="stat-card" {...statCardAnim(4)}>
           <div className="stat-icon green"><CheckCircle size={18} /></div>
           <div className="stat-info">
-            <div className="stat-value">{parseInt(s.passing_count || 0, 10)}/{parseInt(s.total_scans || 0, 10)}</div>
+            <div className="stat-value"><AnimatedNumber value={parseInt(s.passing_count || 0, 10)} />/{parseInt(s.total_scans || 0, 10)}</div>
             <div className="stat-label">Passed (≥{PASS_MARK}%)</div>
           </div>
-        </div>
+        </motion.div>
       </div>
 
       <div className="print-skip"><InsightsCard insights={insights} tour="analytics-insights" /></div>

@@ -1258,6 +1258,7 @@ select.form-control:not([multiple]) {
 /* ==========================================================================
    Context menu — right-click row menu (dbmanager pattern)
    ========================================================================== */
+/* Enter/exit motion is driven by motion/react inside ContextMenu.jsx. */
 .ctx-menu {
   position: fixed;
   z-index: 100001;
@@ -1267,11 +1268,6 @@ select.form-control:not([multiple]) {
   border: 1px solid var(--line);
   border-radius: var(--radius-sm);
   box-shadow: 0 8px 24px rgba(15, 15, 15, .14);
-  animation: ctxIn .12s ease;
-}
-@keyframes ctxIn {
-  from { opacity: 0; transform: translateY(-3px) scale(.98); }
-  to   { opacity: 1; transform: none; }
 }
 .ctx-menu__item {
   display: flex;
@@ -1300,9 +1296,6 @@ select.form-control:not([multiple]) {
 .ctx-menu__item--danger:hover { background: var(--red-50); color: var(--red-700); }
 .ctx-menu__item--danger:hover svg { color: var(--red-700); }
 .ctx-menu__sep { height: 1px; margin: 4px 6px; background: var(--line); }
-@media (prefers-reduced-motion: reduce) {
-  .ctx-menu { animation: none; }
-}
 .file-drop.dragover { border-color: var(--ink-3); background: var(--surface-2); }
 .file-drop-prompt { text-align: center; }
 .file-drop-prompt svg { width: 28px !important; height: 28px !important; color: var(--ink-faint); margin-bottom: 8px; }
@@ -1338,12 +1331,10 @@ select.form-control:not([multiple]) {
 .sidebar-foot strong { font-size: .74rem; }
 .sidebar-foot small { font-size: .62rem; }
 
-/* Portaled labels stay visible outside the scrollable icon rail. */
+/* Portaled labels stay visible outside the scrollable icon rail.
+   Positioning comes from Radix's popper — this block is visuals only. */
 .sidebar-tooltip {
-  position: fixed;
   z-index: 1100;
-  top: var(--sidebar-tooltip-top, 8px);
-  left: var(--sidebar-tooltip-left, 80px);
   max-width: 240px;
   padding: 8px 12px;
   border-radius: 6px;
@@ -1356,6 +1347,26 @@ select.form-control:not([multiple]) {
 }
 @media (max-width: 991.98px) {
   .sidebar-tooltip { display: none; }
+}
+
+/* Radix tooltip used inside page content (row actions, topbar buttons). */
+.nx-tip {
+  z-index: 100010;
+  max-width: 240px;
+  padding: 5px 9px;
+  border-radius: var(--radius-xs);
+  background: var(--ink);
+  color: var(--canvas);
+  box-shadow: var(--shadow-md);
+  font: 500 .72rem/1.4 var(--font-body);
+  animation: nxTipIn .12s ease;
+}
+@keyframes nxTipIn {
+  from { opacity: 0; transform: translateY(2px); }
+  to   { opacity: 1; transform: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .nx-tip { animation: none; }
 }
 
 /* Desktop icon rail. One width variable keeps the sidebar and content aligned. */
@@ -1409,7 +1420,16 @@ select.form-control:not([multiple]) {
 .command-icon { display: grid; place-items: center; color: var(--ink-3); width: 30px; height: 32px; }
 .command-option strong { display: block; font: 500 .82rem var(--font-display); }
 .command-option small { display: block; color: var(--ink-3); font-size: .68rem; margin-top: 3px; }
-.command-enter { margin-left: auto; color: var(--ink-faint); flex-shrink: 0; }
+.command-enter { margin-left: auto; color: var(--ink-faint); flex-shrink: 0; display: none; }
+.command-option[aria-selected="true"] .command-enter { display: block; }
+/* cmdk group headings reuse the old flat "Go to" label treatment. */
+.command-results [cmdk-group-heading] {
+  font-size: .67rem;
+  color: var(--ink-3);
+  padding: 12px 12px 4px;
+  user-select: none;
+}
+.command-results [cmdk-group]:first-child [cmdk-group-heading] { padding-top: 6px; }
 .command-footer { display: flex; gap: 18px; padding: 10px 16px; border-top: 1px solid var(--line); background: var(--surface-2); font-size: .62rem; color: var(--ink-3); }
 .command-footer span { display: flex; align-items: center; gap: 4px; }
 .command-footer kbd { font-family: inherit; }

@@ -17,13 +17,14 @@ import api, { ApiError } from '../lib/api.js';
 import AppShell from '../components/AppShell.jsx';
 import { PageLoader } from '../components/Loaders.jsx';
 import {
-  StatusPill, StatusSummary, BoardGroupHead, BoardGroupFoot,
-  GroupChip, groupColor, statusOf, STATUS_ORDER,
+  StatusPill, BoardGroupHead, BoardGhostRows,
+  GroupChip, groupColor, statusOf, statusMeta, STATUS_ORDER,
 } from '../components/Board.jsx';
 
 const BLOOM_LABELS = { remember: 'Remember', understand: 'Understand', apply: 'Apply', analyze: 'Analyze', evaluate: 'Evaluate', create: 'Create' };
 const BLOOM_ORDER = ['remember', 'understand', 'apply', 'analyze', 'evaluate', 'create'];
 const DEFAULT_BLOOM = { remember: 15, understand: 20, apply: 20, analyze: 20, evaluate: 15, create: 10 };
+const LEDGER_MIN = 11; // ghost rows pad a short table out to a real ledger
 
 function fmtDate(iso) {
   if (!iso) return '—';
@@ -269,9 +270,6 @@ export default function TosPage() {
         <div className="dataset">
           <div className="dataset-bar">
             <div className="dataset-bar-lead">
-              <button className="btn btn-primary btn-sm" data-tour="tos-new" onClick={() => setEditing({ title: '', subject_id: subjects[0]?.id || '', total_items: 50, bloom_weights: { ...DEFAULT_BLOOM } })}>
-                <Plus size={14} /> New Blueprint
-              </button>
               <span className="b-groupby">
                 <Layers size={14} aria-hidden="true" />
                 <select
@@ -286,12 +284,9 @@ export default function TosPage() {
               </span>
             </div>
             <div className="dataset-bar-trail">
-              <StatusSummary
-                counts={tosList.reduce((m, t) => { const k = statusOf(t.status); m[k] = (m[k] || 0) + 1; return m; }, {})}
-                order={STATUS_ORDER.tos}
-                legend={false}
-                totalLabel={`${tosList.length} blueprint${tosList.length === 1 ? '' : 's'}`}
-              />
+              <button className="btn btn-primary btn-sm" data-tour="tos-new" onClick={() => setEditing({ title: '', subject_id: subjects[0]?.id || '', total_items: 50, bloom_weights: { ...DEFAULT_BLOOM } })}>
+                <Plus size={14} /> New Blueprint
+              </button>
             </div>
           </div>
           <div className="dataset-scroll" data-tour="tos-table">
@@ -314,15 +309,15 @@ export default function TosPage() {
             for (const t of g.rows) { const k = statusOf(t.status); counts[k] = (counts[k] || 0) + 1; }
             return (
               <tbody key={g.key} className={`b-group${isCollapsed ? ' is-collapsed' : ''}`} style={{ '--gc': g.color }}>
-                <BoardGroupHead color={g.color} title={g.title} count={g.rows.length} colSpan={7} collapsed={isCollapsed} onToggle={() => toggleGroup(g.key)} />
+                <BoardGroupHead color={g.color} title={g.title} count={g.rows.length} meta={statusMeta(counts, STATUS_ORDER.tos) || undefined} colSpan={7} collapsed={isCollapsed} onToggle={() => toggleGroup(g.key)} />
                 {g.rows.map(renderTosRow)}
-                <BoardGroupFoot colSpan={7}>
-                  <StatusSummary counts={counts} order={STATUS_ORDER.tos} totalLabel={`${g.rows.length} blueprint${g.rows.length === 1 ? '' : 's'}`} />
-                </BoardGroupFoot>
               </tbody>
             );
           }) : (
-            <tbody>{tosList.map(renderTosRow)}</tbody>
+            <tbody>
+              {tosList.map(renderTosRow)}
+              <BoardGhostRows count={LEDGER_MIN - tosList.length} colSpan={7} />
+            </tbody>
           )}
         </table>
           </div>

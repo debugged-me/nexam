@@ -28,8 +28,8 @@ import AppShell from '../components/AppShell.jsx';
 import { PageLoader } from '../components/Loaders.jsx';
 import { JobsActivityPanel } from '../components/JobsList.jsx';
 import {
-  StatusPill, StatusSummary, BoardGroupHead, BoardGroupFoot,
-  BoardAddRow, GroupChip, groupColor, statusOf, STATUS_ORDER,
+  StatusPill, BoardGroupHead, BoardGhostRows,
+  BoardAddRow, GroupChip, groupColor, statusOf, statusMeta, STATUS_ORDER,
 } from '../components/Board.jsx';
 
 const BLOOM_LABELS = { remember: 'Remember', understand: 'Understand', apply: 'Apply', analyze: 'Analyze', evaluate: 'Evaluate', create: 'Create' };
@@ -47,6 +47,24 @@ function fmtDateQ(iso) {
   if (!iso) return null;
   const d = new Date(String(iso).replace(' ', 'T'));
   if (Number.isNaN(d.getTime())) return null;
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+}
+
+/** Relative-first date for the Updated column — Today / Yesterday / weekday,
+    then "Mon j" within the year, full date beyond it. */
+function relDate(iso) {
+  if (!iso) return '—';
+  const d = new Date(String(iso).replace(' ', 'T'));
+  if (Number.isNaN(d.getTime())) return '—';
+  const now = new Date();
+  const day = (x) => new Date(x.getFullYear(), x.getMonth(), x.getDate());
+  const days = Math.round((day(now) - day(d)) / 86400000);
+  if (days <= 0) return 'Today';
+  if (days === 1) return 'Yesterday';
+  if (days < 7) return d.toLocaleDateString('en-US', { weekday: 'long' });
+  if (d.getFullYear() === now.getFullYear()) {
+    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  }
   return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 }
 
@@ -69,6 +87,7 @@ function readFileText(file) {
 
 const DEFAULT_FILTERS = { subject_id: '', bloom: '', type: '', status: '', tos_id: '', topic: '' };
 const PAGE_SIZE = 25;
+const LEDGER_MIN = 11; // ghost rows pad a short table out to a real ledger
 
 /** API path for a filter set — also the cache key api.peek() looks up. */
 function questionsPath(filters) {
@@ -293,6 +312,11 @@ export default function QuestionsPage() {
   }, [questions, search, filters.topic]);
 
   const activeFilterCount = [filters.subject_id, filters.bloom, filters.type, filters.status, filters.tos_id, filters.topic].filter(Boolean).length;
+
+  // When the list is already filtered to one subject the column only repeats
+  // that subject — drop it and let every other column take the width.
+  const showSubject = !filters.subject_id;
+  const COLS = showSubject ? 8 : 7;
 
   const clearFilters = useCallback(() => {
     setPage(0);
@@ -700,13 +724,15 @@ export default function QuestionsPage() {
             </span>
           </span>
         </td>
-        <td data-order={subject} data-filter={subject}>
-          {subject ? (
-            <GroupChip color={groupColor(q.subject_id || subject)} title={subject}>{subject}</GroupChip>
-          ) : (
-            <span className="g-mute">—</span>
-          )}
-        </td>
+        {showSubject && (
+          <td data-order={subject} data-filter={subject}>
+            {subject ? (
+              <GroupChip color={groupColor(q.subject_id || subject)} title={subject}>{subject}</GroupChip>
+            ) : (
+              <span className="g-mute">—</span>
+            )}
+          </td>
+        )}
         <td data-order={level} data-filter={level ? BLOOM_LABELS[q.bloom] : ''}>
           {level ? (
             <span className="g-bloom" data-level={level}>{BLOOM_LABELS[q.bloom]}</span>
@@ -720,8 +746,8 @@ export default function QuestionsPage() {
         <td data-order={status.order} data-filter={status.label}>
           <StatusPill status={q.status} />
         </td>
-        <td className="g-mute" data-order={touched}>
-          {touched ? new Date(touched).toLocaleDateString('en', { month: 'short', day: 'numeric', year: 'numeric' }) : '—'}
+        <td className="g-mute" data-order={touched} title={fmtDateQ(touched) || undefined}>
+          {relDate(touched)}
         </td>
         <td className="col-actions">
           {/* One ⋯ trigger opens the same floating menu as right-click —
@@ -746,7 +772,7 @@ export default function QuestionsPage() {
       return (
         <tbody>
           <tr>
-            <td colSpan={8} className="ds-noresults">
+            <td colSpan={COLS} className="ds-noresults">
               <span className="ds-noresults-title">No questions found</span>
               <span className="ds-noresults-sub">
                 <button type="button" onClick={clearFilters}>Clear filters</button>
@@ -757,7 +783,12 @@ export default function QuestionsPage() {
       );
     }
     if (!qGroups) {
-      return <tbody>{pageRows.map((q, i) => renderQuestionRow(q, safePage * PAGE_SIZE + i))}</tbody>;
+      return (
+        <tbody>
+          {pageRows.map((q, i) => renderQuestionRow(q, safePage * PAGE_SIZE + i))}
+          <BoardGhostRows count={LEDGER_MIN - pageRows.length} colSpan={COLS} />
+        </tbody>
+      );
     }
     return qGroups.map((g) => {
       const isCollapsed = collapsed.has(g.key);
@@ -772,17 +803,15 @@ export default function QuestionsPage() {
             color={g.color}
             title={g.title}
             count={g.rows.length}
-            colSpan={8}
+            meta={groupBy !== 'status' ? statusMeta(counts, STATUS_ORDER.question) || undefined : undefined}
+            colSpan={COLS}
             collapsed={isCollapsed}
             onToggle={() => toggleGroup(g.key)}
           />
           {g.rows.map(({ q, index }) => renderQuestionRow(q, index))}
-          <BoardGroupFoot colSpan={8}>
-            <StatusSummary counts={counts} order={STATUS_ORDER.question} totalLabel={`${g.rows.length} question${g.rows.length === 1 ? '' : 's'}`} />
-          </BoardGroupFoot>
           {groupBy === 'subject' && g.subjectId && (
             <BoardAddRow
-              colSpan={8}
+              colSpan={COLS}
               label="New question"
               onClick={() => setEditing({ picker: true, subject_id: g.subjectId })}
             />
@@ -862,9 +891,6 @@ export default function QuestionsPage() {
           {/* Toolbar */}
           <div className="dataset-bar">
             <div className="dataset-bar-lead">
-              <button type="button" className="btn btn-primary btn-sm" data-tour="questions-new" onClick={() => setEditing({ picker: true, subject_id: filters.subject_id || (subjects[0]?.id || '') })}>
-                <Plus size={14} /> New Question
-              </button>
               <label className="ds-search" htmlFor="questions-search">
                 <Search size={15} />
                 <span className="sr-only">Search questions</span>
@@ -910,6 +936,9 @@ export default function QuestionsPage() {
             <div className="dataset-bar-trail">
               <button type="button" className="btn btn-outline btn-sm" data-tour="questions-import" onClick={openImport}>
                 <Upload size={16} /> Import
+              </button>
+              <button type="button" className="btn btn-primary btn-sm" data-tour="questions-new" onClick={() => setEditing({ picker: true, subject_id: filters.subject_id || (subjects[0]?.id || '') })}>
+                <Plus size={14} /> New Question
               </button>
             </div>
           </div>
@@ -963,11 +992,11 @@ export default function QuestionsPage() {
                     </label>
                   </th>
                   <th className="col-primary wp-27" data-name="Question" data-locked>Question</th>
-                  <th className="wp-11" data-name="Subject">Subject</th>
-                  <th className="wp-11" data-name="Bloom">Bloom</th>
+                  {showSubject && <th className="wp-10" data-name="Subject">Subject</th>}
+                  <th className="wp-14" data-name="Bloom">Bloom</th>
                   <th className="wp-14" data-name="Type">Type</th>
-                  <th className="wp-9" data-name="Status">Status</th>
-                  <th className="wp-14" data-name="Updated">Updated</th>
+                  <th className="wp-11" data-name="Status">Status</th>
+                  <th className="wp-10" data-name="Updated">Updated</th>
                   <th className="col-actions wp-10">Actions</th>
                 </tr>
               </thead>

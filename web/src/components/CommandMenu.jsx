@@ -1,25 +1,33 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { Command } from 'cmdk';
 import { Search, ArrowUp, ArrowDown, CornerDownLeft, X } from 'lucide-react';
 import { COMMAND_ITEMS } from './navigation.js';
 
-/** Local navigation search. It never fetches or indexes instructor content. */
+/** Local navigation search (cmdk). It never fetches or indexes instructor content. */
+
+const GROUP_LABELS = {
+  home: 'Home',
+  Workspace: 'Workspace',
+  Assessment: 'Assessment',
+  Institution: 'Institution',
+};
+const GROUP_ORDER = ['quick', 'home', 'Workspace', 'Assessment', 'Institution'];
+
+// Items without a `group` (Build an exam, Account settings) lead the list.
+const GROUPED = (() => {
+  const map = new Map(GROUP_ORDER.map((g) => [g, []]));
+  for (const item of COMMAND_ITEMS) {
+    map.get(item.group && GROUP_LABELS[item.group] ? item.group : 'quick').push(item);
+  }
+  return [...map.entries()].filter(([, items]) => items.length);
+})();
+
 export default function CommandMenu({ open, onClose }) {
   const dialogRef = useRef(null);
   const inputRef = useRef(null);
   const [query, setQuery] = useState('');
-  const [selected, setSelected] = useState(0);
   const navigate = useNavigate();
-  const needle = query.trim().toLowerCase();
-  const rank = (item) =>
-    item.label.toLowerCase().startsWith(needle)
-      ? 0
-      : item.label.toLowerCase().includes(needle)
-        ? 1
-        : 2;
-  const results = COMMAND_ITEMS.filter((item) =>
-    `${item.label} ${item.description}`.toLowerCase().includes(needle)
-  ).sort((a, b) => rank(a) - rank(b));
 
   useEffect(() => {
     const dialog = dialogRef.current;
@@ -34,10 +42,6 @@ export default function CommandMenu({ open, onClose }) {
       };
     }
   }, [open]);
-
-  useEffect(() => {
-    if (open) document.getElementById(`command-${selected}`)?.scrollIntoView({ block: 'nearest' });
-  }, [selected, open]);
 
   function choose(item) {
     onClose();
@@ -54,38 +58,15 @@ export default function CommandMenu({ open, onClose }) {
         if (event.target === event.currentTarget) onClose();
       }}
     >
-      <div className="command-surface">
+      <Command className="command-surface" label="Go to a page" loop>
         <div className="command-search">
           <Search size={20} aria-hidden="true" />
-          <input
+          <Command.Input
             ref={inputRef}
             value={query}
+            onValueChange={setQuery}
             placeholder="Where would you like to go?"
             aria-label="Search pages"
-            role="combobox"
-            aria-expanded="true"
-            aria-controls="command-results"
-            aria-autocomplete="list"
-            aria-activedescendant={results.length ? `command-${selected}` : undefined}
-            onChange={(event) => {
-              setQuery(event.target.value);
-              setSelected(0);
-            }}
-            onKeyDown={(event) => {
-              if (['ArrowDown', 'ArrowUp'].includes(event.key)) {
-                event.preventDefault();
-                setSelected((current) =>
-                  results.length
-                    ? (current + (event.key === 'ArrowDown' ? 1 : -1) + results.length) %
-                      results.length
-                    : 0
-                );
-              }
-              if (event.key === 'Enter' && results[selected]) {
-                event.preventDefault();
-                choose(results[selected]);
-              }
-            }}
           />
           <button
             type="button"
@@ -96,40 +77,39 @@ export default function CommandMenu({ open, onClose }) {
             <X size={18} />
           </button>
         </div>
-        <p className="command-label">Go to</p>
-        <div id="command-results" role="listbox" aria-label="Pages" className="command-results">
-          {results.map((item, index) => {
-            const Icon = item.icon;
-            return (
-              <button
-                key={item.key}
-                id={`command-${index}`}
-                type="button"
-                role="option"
-                aria-selected={index === selected}
-                className="command-option"
-                onClick={() => choose(item)}
-                onPointerMove={() => setSelected(index)}
-              >
-                <span className="command-icon">
-                  <Icon size={18} />
-                </span>
-                <span>
-                  <strong>{item.label}</strong>
-                  <small>{item.description}</small>
-                </span>
-                {index === selected && (
-                  <CornerDownLeft size={15} className="command-enter" aria-hidden="true" />
-                )}
-              </button>
-            );
-          })}
-        </div>
-        {!results.length && (
-          <p className="command-empty" role="status">
+        <Command.List id="command-results" className="command-results" aria-label="Pages">
+          <Command.Empty className="command-empty">
             No pages match “{query}”. Try “subjects” or “exams”.
-          </p>
-        )}
+          </Command.Empty>
+          {GROUPED.map(([group, items]) => (
+            <Command.Group
+              key={group}
+              heading={group === 'quick' ? 'Quick actions' : GROUP_LABELS[group]}
+            >
+              {items.map((item) => {
+                const Icon = item.icon;
+                return (
+                  <Command.Item
+                    key={item.key}
+                    value={item.label}
+                    keywords={[item.description || '', GROUP_LABELS[item.group] || '']}
+                    onSelect={() => choose(item)}
+                    className="command-option"
+                  >
+                    <span className="command-icon">
+                      <Icon size={18} />
+                    </span>
+                    <span>
+                      <strong>{item.label}</strong>
+                      <small>{item.description}</small>
+                    </span>
+                    <CornerDownLeft size={15} className="command-enter" aria-hidden="true" />
+                  </Command.Item>
+                );
+              })}
+            </Command.Group>
+          ))}
+        </Command.List>
         <footer className="command-footer">
           <span>
             <ArrowUp size={12} />
@@ -142,7 +122,7 @@ export default function CommandMenu({ open, onClose }) {
             <kbd>esc</kbd> to close
           </span>
         </footer>
-      </div>
+      </Command>
     </dialog>
   );
 }

@@ -18,8 +18,11 @@ import { Link, useNavigate } from 'react-router-dom';
 import {
   Check, X, Pencil, SkipForward, Undo2, ArrowLeft, ArrowRight, AlertTriangle,
   CheckCheck, ClipboardCheck, Keyboard, Sparkles, Plus, Trash2, Save, RefreshCw,
-  Loader2,
+  Loader2, GripVertical,
 } from 'lucide-react';
+import { DndContext, PointerSensor, KeyboardSensor, closestCenter, useSensor, useSensors } from '@dnd-kit/core';
+import { SortableContext, arrayMove, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import { useToast } from '../components/Toast.jsx';
 import Modal from '../components/Modal.jsx';
 import api, { ApiError } from '../lib/api.js';
@@ -984,6 +987,59 @@ function QuestionBody({ question }) {
   );
 }
 
+/** One sortable option row in the MCQ editor. The grip is the only drag
+ *  handle so text selection inside the input stays untouched. Row ids are
+ *  positional — the list is a plain string[] — and correctIndex is remapped
+ *  on drop in moveOption(). */
+function SortableOptionRow({ id, index, opt, editing, setOption, removeOption, onCorrect }) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
+  const letter = String.fromCharCode(65 + index);
+  return (
+    <div
+      ref={setNodeRef}
+      className={`rv-edit-option${isDragging ? ' is-dragging' : ''}`}
+      style={{ transform: CSS.Transform.toString(transform), transition }}
+    >
+      <button
+        type="button"
+        className="rv-option-grip"
+        aria-label={`Drag to reorder option ${letter}`}
+        {...attributes}
+        {...listeners}
+      >
+        <GripVertical size={14} />
+      </button>
+      <span className="rv-option-letter">{letter}</span>
+      <label className="rv-radio-wrap">
+        <span className="sr-only">Mark option {letter} as correct</span>
+        <input
+          type="radio"
+          name="rv-correct"
+          className="rv-radio"
+          checked={editing.correctIndex === index}
+          onChange={() => onCorrect(index)}
+        />
+      </label>
+      <input
+        type="text"
+        className="form-control"
+        value={opt}
+        placeholder={`Option ${letter}`}
+        onChange={(e) => setOption(index, e.target.value)}
+      />
+      <button
+        type="button"
+        className="rv-option-remove"
+        aria-label={`Remove option ${letter}`}
+        onClick={() => removeOption(index)}
+        disabled={editing.optionList.length <= 2}
+      >
+        <Trash2 size={16} />
+      </button>
+    </div>
+  );
+}
+
 /**
  * Inline editor. It lives in the card rather than a modal so fixing a typo and
  * approving is one motion instead of a context switch. The payload it builds is
@@ -991,6 +1047,21 @@ function QuestionBody({ question }) {
  */
 function EditPanel({ editing, setEditing, busy, onCancel, onSaveDraft, onSaveApprove }) {
   const isMcq = editing.type === 'mcq';
+
+  const sensors = useSensors(
+    // A 6px travel threshold keeps clicks (radio, caret placement) off the drag path.
+    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+  );
+
+  function moveOption(from, to) {
+    const optionList = arrayMove(editing.optionList, from, to);
+    let correctIndex = editing.correctIndex;
+    if (correctIndex === from) correctIndex = to;
+    else if (from < to && correctIndex > from && correctIndex <= to) correctIndex -= 1;
+    else if (to < from && correctIndex >= to && correctIndex < from) correctIndex += 1;
+    setEditing({ ...editing, optionList, correctIndex });
+  }
 
   function setOption(i, value) {
     const optionList = editing.optionList.slice();
@@ -1022,40 +1093,34 @@ function EditPanel({ editing, setEditing, busy, onCancel, onSaveDraft, onSaveApp
 
       {isMcq && (
         <div className="form-group">
-          <span className="form-label">Options <span className="form-hint-inline">select the correct one</span></span>
-          <div className="rv-edit-options">
-            {editing.optionList.map((opt, i) => (
-              <div className="rv-edit-option" key={i}>
-                <span className="rv-option-letter">{String.fromCharCode(65 + i)}</span>
-                <label className="rv-radio-wrap">
-                  <span className="sr-only">Mark option {String.fromCharCode(65 + i)} as correct</span>
-                  <input
-                    type="radio"
-                    name="rv-correct"
-                    className="rv-radio"
-                    checked={editing.correctIndex === i}
-                    onChange={() => setEditing({ ...editing, correctIndex: i })}
+          <span className="form-label">Options <span className="form-hint-inline">select the correct one · drag to reorder</span></span>
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragEnd={({ active, over }) => {
+              if (over && active.id !== over.id) moveOption(Number(active.id), Number(over.id));
+            }}
+          >
+            <SortableContext
+              items={editing.optionList.map((_, i) => i)}
+              strategy={verticalListSortingStrategy}
+            >
+              <div className="rv-edit-options">
+                {editing.optionList.map((opt, i) => (
+                  <SortableOptionRow
+                    key={i}
+                    id={i}
+                    index={i}
+                    opt={opt}
+                    editing={editing}
+                    setOption={setOption}
+                    removeOption={removeOption}
+                    onCorrect={(idx) => setEditing({ ...editing, correctIndex: idx })}
                   />
-                </label>
-                <input
-                  type="text"
-                  className="form-control"
-                  value={opt}
-                  placeholder={`Option ${String.fromCharCode(65 + i)}`}
-                  onChange={(e) => setOption(i, e.target.value)}
-                />
-                <button
-                  type="button"
-                  className="rv-option-remove"
-                  aria-label={`Remove option ${String.fromCharCode(65 + i)}`}
-                  onClick={() => removeOption(i)}
-                  disabled={editing.optionList.length <= 2}
-                >
-                  <Trash2 size={16} />
-                </button>
+                ))}
               </div>
-            ))}
-          </div>
+            </SortableContext>
+          </DndContext>
           <button
             type="button"
             className="btn btn-outline btn-sm rv-edit-add"

@@ -14,15 +14,20 @@ import {
 import { useToast } from '../components/Toast.jsx';
 import { useConfirm } from '../components/ConfirmDialog.jsx';
 import { useContextMenu, useCopyText } from '../components/ContextMenu.jsx';
+import {
+  useReactTable, getCoreRowModel, getFilteredRowModel,
+  getSortedRowModel, getPaginationRowModel,
+} from '@tanstack/react-table';
 import Modal from '../components/Modal.jsx';
 import DetailsModal from '../components/DetailsModal.jsx';
+import Tooltip from '../components/Tooltip.jsx';
 import api, { ApiError } from '../lib/api.js';
 import AppShell from '../components/AppShell.jsx';
 import { PageLoader } from '../components/Loaders.jsx';
-import { groupColor } from '../components/Board.jsx';
+import { groupColor, BoardGhostRows } from '../components/Board.jsx';
 
 const PAGE_SIZE = 25;
-const SORT_DIRS = { asc: 'asc', desc: 'desc' };
+const LEDGER_MIN = 11; // ghost rows pad a short table out to a real ledger
 
 /** Trim + collapse internal whitespace, then clip to `len` with an ellipsis. */
 function clip(str, len = 90) {
@@ -53,13 +58,13 @@ export default function SubjectsPage() {
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(null);
 
-  // Grid state — search, sort, selection, pagination (client-side, like the
-  // PHP DataTables config but in React).
+  // Grid state — search + selection are local; sort/filter/pagination live in
+  // the headless table instance (same DOM and classes as before).
   const [query, setQuery] = useState('');
-  const [sort, setSort] = useState({ col: 'created', dir: SORT_DIRS.desc });
+  const [sorting, setSorting] = useState([{ id: 'created', desc: true }]);
   const [selectMode, setSelectMode] = useState(false);
   const [selected, setSelected] = useState(new Set());
-  const [page, setPage] = useState(0);
+  const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: PAGE_SIZE });
 
   const searchRef = useRef(null);
 
@@ -92,55 +97,50 @@ export default function SubjectsPage() {
     return () => window.removeEventListener('keydown', onKey);
   }, []);
 
-  const filtered = useMemo(() => {
-    if (!subjects) return [];
-    const q = query.trim().toLowerCase();
-    let rows = subjects;
-    if (q) {
-      rows = rows.filter((s) =>
-        String(s.name || '').toLowerCase().includes(q) ||
-        String(s.code || '').toLowerCase().includes(q));
-    }
-    const { col, dir } = sort;
-    const mul = dir === SORT_DIRS.desc ? -1 : 1;
-    rows = [...rows].sort((a, b) => {
-      let av, bv;
-      switch (col) {
-        case 'subject': av = String(a.name || '').toLowerCase(); bv = String(b.name || '').toLowerCase(); break;
-        case 'code': av = String(a.code || '').toLowerCase(); bv = String(b.code || '').toLowerCase(); break;
-        case 'questions': av = a.question_count || 0; bv = b.question_count || 0; break;
-        case 'blueprints': av = a.tos_count || 0; bv = b.tos_count || 0; break;
-        case 'exams': av = a.exam_count || 0; bv = b.exam_count || 0; break;
-        case 'created': av = a.created_at || ''; bv = b.created_at || ''; break;
-        default: av = ''; bv = '';
-      }
-      if (av < bv) return -1 * mul;
-      if (av > bv) return 1 * mul;
-      return 0;
-    });
-    return rows;
-  }, [subjects, query, sort]);
+  const columns = useMemo(() => [
+    { id: 'select', enableSorting: false },
+    { id: 'subject', accessorFn: (s) => String(s.name || '').toLowerCase() },
+    { id: 'code', accessorFn: (s) => String(s.code || '').toLowerCase() },
+    { id: 'questions', accessorKey: 'question_count' },
+    { id: 'blueprints', accessorKey: 'tos_count' },
+    { id: 'exams', accessorKey: 'exam_count' },
+    { id: 'created', accessorKey: 'created_at' },
+    { id: 'actions', enableSorting: false },
+  ], []);
 
-  const pageCount = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
-  const safePage = Math.min(page, pageCount - 1);
-  const pageRows = filtered.slice(safePage * PAGE_SIZE, safePage * PAGE_SIZE + PAGE_SIZE);
-  const start = filtered.length ? safePage * PAGE_SIZE + 1 : 0;
-  const end = Math.min((safePage + 1) * PAGE_SIZE, filtered.length);
+  const table = useReactTable({
+    data: subjects || [],
+    columns,
+    state: { sorting, globalFilter: query, pagination },
+    onSortingChange: setSorting,
+    onPaginationChange: setPagination,
+    globalFilterFn: (row, _col, value) =>
+      `${row.original.name || ''} ${row.original.code || ''}`
+        .toLowerCase()
+        .includes(String(value).toLowerCase()),
+    enableSortingRemoval: false, // keep the old cycle: asc ⇄ desc, never unsorted
+    sortDescFirst: false,        // first click on any column sorts ascending
+    getCoreRowModel: getCoreRowModel(),
+    getFilteredRowModel: getFilteredRowModel(),
+    getSortedRowModel: getSortedRowModel(),
+    getPaginationRowModel: getPaginationRowModel(),
+  });
 
-  function toggleSort(col) {
-    setSort((prev) => {
-      if (prev.col === col) {
-        return { col, dir: prev.dir === SORT_DIRS.asc ? SORT_DIRS.desc : SORT_DIRS.asc };
-      }
-      return { col, dir: SORT_DIRS.asc };
-    });
-    setPage(0);
-  }
+  const filteredCount = table.getFilteredRowModel().rows.length;
+  const pageCount = Math.max(1, table.getPageCount());
+  const safePage = Math.min(pagination.pageIndex, pageCount - 1);
+  const pageRows = table.getRowModel().rows.map((row) => row.original);
+  const start = filteredCount ? safePage * PAGE_SIZE + 1 : 0;
+  const end = Math.min((safePage + 1) * PAGE_SIZE, filteredCount);
 
   function sortClass(col) {
-    if (sort.col !== col) return 'sorting';
-    return sort.dir === SORT_DIRS.asc ? 'sorting_asc' : 'sorting_desc';
+    const dir = table.getColumn(col)?.getIsSorted();
+    if (dir === 'asc') return 'sorting_asc';
+    if (dir === 'desc') return 'sorting_desc';
+    return 'sorting';
   }
+
+  const sortHandler = (col) => table.getColumn(col)?.getToggleSortingHandler();
 
   function toggleSelectMode() {
     setSelectMode((v) => {
@@ -248,8 +248,9 @@ export default function SubjectsPage() {
   }
 
   const renderSortArrow = (col) => {
-    if (sort.col !== col) return null;
-    return sort.dir === SORT_DIRS.asc
+    const dir = table.getColumn(col)?.getIsSorted();
+    if (!dir) return null;
+    return dir === 'asc'
       ? <span className="ds-sort"><ChevronUp size={13} /></span>
       : <span className="ds-sort"><ChevronDown size={13} /></span>;
   };
@@ -257,12 +258,20 @@ export default function SubjectsPage() {
   return (
     <AppShell pageClass="subjects" activeNav="subjects" pageTitle="Subjects" wide>
       <header className="list-head" data-tour="subjects-head">
-        <h1 className="list-head-title">
-          Subjects
-          {subjects && subjects.length > 0 && (
-            <span className="list-head-count">{subjects.length}</span>
-          )}
-        </h1>
+        <div className="list-head-main">
+          <span className="eyebrow">Workspace</span>
+          <h1 className="list-head-title">
+            Subjects
+            {subjects && subjects.length > 0 && (
+              <span className="list-head-count">{subjects.length}</span>
+            )}
+          </h1>
+          <details className="list-head-info">
+            <summary aria-label="About subjects"><Info size={16} /></summary>
+            <p>A subject is the container for your question bank, blueprints, materials and exams.</p>
+          </details>
+          <p className="page-description">Everything you build lives inside a subject.</p>
+        </div>
       </header>
 
       {subjects === null ? (
@@ -292,7 +301,7 @@ export default function SubjectsPage() {
                   autoComplete="off"
                   placeholder="Search by name or code…"
                   value={query}
-                  onChange={(e) => { setQuery(e.target.value); setPage(0); }}
+                  onChange={(e) => setQuery(e.target.value)}
                 />
                 <kbd aria-hidden="true">/</kbd>
               </label>
@@ -334,14 +343,14 @@ export default function SubjectsPage() {
                       </label>
                     )}
                   </th>
-                  <th className={`col-primary ${sortClass('subject')}`} onClick={() => toggleSort('subject')} data-name="Subject" data-locked>
+                  <th className={`col-primary ${sortClass('subject')}`} onClick={sortHandler('subject')} data-name="Subject" data-locked>
                     Subject{renderSortArrow('subject')}
                   </th>
-                  <th className={`col-code ${sortClass('code')}`} onClick={() => toggleSort('code')} data-name="Code">Code{renderSortArrow('code')}</th>
-                  <th className={`col-questions is-num ${sortClass('questions')}`} onClick={() => toggleSort('questions')} data-name="Questions">Questions{renderSortArrow('questions')}</th>
-                  <th className={`col-blueprints is-num ${sortClass('blueprints')}`} onClick={() => toggleSort('blueprints')} data-name="Blueprints">Blueprints{renderSortArrow('blueprints')}</th>
-                  <th className={`col-exams is-num ${sortClass('exams')}`} onClick={() => toggleSort('exams')} data-name="Exams">Exams{renderSortArrow('exams')}</th>
-                  <th className={`col-created ${sortClass('created')}`} onClick={() => toggleSort('created')} data-name="Created">Created{renderSortArrow('created')}</th>
+                  <th className={`col-code ${sortClass('code')}`} onClick={sortHandler('code')} data-name="Code">Code{renderSortArrow('code')}</th>
+                  <th className={`col-questions is-num ${sortClass('questions')}`} onClick={sortHandler('questions')} data-name="Questions">Questions{renderSortArrow('questions')}</th>
+                  <th className={`col-blueprints is-num ${sortClass('blueprints')}`} onClick={sortHandler('blueprints')} data-name="Blueprints">Blueprints{renderSortArrow('blueprints')}</th>
+                  <th className={`col-exams is-num ${sortClass('exams')}`} onClick={sortHandler('exams')} data-name="Exams">Exams{renderSortArrow('exams')}</th>
+                  <th className={`col-created ${sortClass('created')}`} onClick={sortHandler('created')} data-name="Created">Created{renderSortArrow('created')}</th>
                   <th className="col-actions">Actions</th>
                 </tr>
               </thead>
@@ -408,19 +417,23 @@ export default function SubjectsPage() {
                       </td>
                       <td className="g-mute" data-order={s.created_at}>{fmtDate(s.created_at)}</td>
                       <td className="col-actions">
-                        <button
-                          type="button"
-                          className="g-menu"
-                          onClick={(e) => subjectMenu(e, s)}
-                          title="Actions"
-                          aria-label={`Actions for ${s.name}`}
-                        >
-                          <Ellipsis size={15} />
-                        </button>
+                        <Tooltip label="Actions">
+                          <button
+                            type="button"
+                            className="g-menu"
+                            onClick={(e) => subjectMenu(e, s)}
+                            aria-label={`Actions for ${s.name}`}
+                          >
+                            <Ellipsis size={15} />
+                          </button>
+                        </Tooltip>
                       </td>
                     </tr>
                   );
                 })}
+                {pageRows.length > 0 && (
+                  <BoardGhostRows count={LEDGER_MIN - pageRows.length} colSpan={selectMode ? 8 : 7} />
+                )}
               </tbody>
             </table>
           </div>
@@ -428,22 +441,22 @@ export default function SubjectsPage() {
           {/* Footer — range + pagination */}
           <div className="dataset-foot">
             <div className="ds-range">
-              <b>{start}</b>–<b>{end}</b> of <b>{filtered.length}</b>
+              <b>{start}</b>–<b>{end}</b> of <b>{filteredCount}</b>
             </div>
             <div className="ds-pager">
-              <button type="button" className="ds-page" onClick={() => setPage(0)} disabled={safePage === 0} aria-label="First page">
+              <button type="button" className="ds-page" onClick={() => table.setPageIndex(0)} disabled={!table.getCanPreviousPage()} aria-label="First page">
                 <ChevronFirst size={15} />
               </button>
-              <button type="button" className="ds-page" onClick={() => setPage((p) => Math.max(0, p - 1))} disabled={safePage === 0} aria-label="Previous page">
+              <button type="button" className="ds-page" onClick={() => table.previousPage()} disabled={!table.getCanPreviousPage()} aria-label="Previous page">
                 <ChevronLeft size={15} />
               </button>
               <span className="ds-page" aria-current="page">{safePage + 1}</span>
               <span className="ds-gap">/</span>
               <span className="ds-page">{pageCount}</span>
-              <button type="button" className="ds-page" onClick={() => setPage((p) => Math.min(pageCount - 1, p + 1))} disabled={safePage >= pageCount - 1} aria-label="Next page">
+              <button type="button" className="ds-page" onClick={() => table.nextPage()} disabled={!table.getCanNextPage()} aria-label="Next page">
                 <ChevronRight size={15} />
               </button>
-              <button type="button" className="ds-page" onClick={() => setPage(pageCount - 1)} disabled={safePage >= pageCount - 1} aria-label="Last page">
+              <button type="button" className="ds-page" onClick={() => table.setPageIndex(pageCount - 1)} disabled={!table.getCanNextPage()} aria-label="Last page">
                 <ChevronLast size={15} />
               </button>
             </div>

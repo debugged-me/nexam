@@ -1,62 +1,29 @@
-/* toast.css — toast notification styles (dbmanager pattern:
-   top-center stack, solid status fill, icon, countdown progress bar) */
-.toast-container {
-  position: fixed;
-  top: 20px;
-  left: 50%;
-  transform: translateX(-50%);
-  z-index: 100000;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  align-items: center;
-  pointer-events: none;
+/* toast.css — sonner bridge
+   --------------------------------------------------------------------------
+   Toasts are rendered by `sonner` (components/Toast.jsx keeps the app-facing
+   API). richColors reads these CSS variables, so the stack inherits the
+   token palette — including the dark-mode flips from tokens.css.
+   -------------------------------------------------------------------------- */
+:root {
+  --normal-bg: var(--surface);
+  --normal-text: var(--ink);
+  --normal-border: var(--line);
+  --success-bg: var(--green-50);
+  --success-text: var(--green-700);
+  --success-border: var(--green-100);
+  --info-bg: var(--blue-50);
+  --info-text: var(--blue-700);
+  --info-border: var(--blue-100);
+  --warning-bg: var(--amber-50);
+  --warning-text: var(--amber-700);
+  --warning-border: var(--amber-100);
+  --error-bg: var(--red-50);
+  --error-text: var(--red-700);
+  --error-border: var(--red-100);
 }
-.toast {
-  position: relative;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 10px 16px 10px 14px;
-  border-radius: var(--radius-sm);
-  box-shadow: var(--shadow-lg);
-  font-size: 13px;
-  font-weight: 600;
-  font-family: var(--font-body);
-  color: #fff;
-  cursor: pointer;
-  pointer-events: auto;
-  max-width: 380px;
-  overflow: hidden;
-  animation: toastIn .2s ease;
-}
-.toast svg { width: 16px; height: 16px; flex-shrink: 0; }
-.toast--success { background: #1B873F; }
-.toast--error   { background: #D93025; }
-.toast--warning { background: #B45309; }
-.toast--info    { background: var(--ink); }
-.toast--out { opacity: 0; transform: translateY(-6px); transition: opacity .3s ease, transform .3s ease; }
 
-/* Countdown bar — shows time remaining before auto-dismiss. */
-.toast__progress {
-  position: absolute;
-  left: 0;
-  bottom: 0;
-  height: 2px;
-  width: 100%;
-  background: rgba(255, 255, 255, .4);
-  transform-origin: left;
-  animation: toastProgress linear forwards;
-}
-@keyframes toastIn {
-  from { opacity: 0; transform: translateY(-8px); }
-  to   { opacity: 1; transform: translateY(0); }
-}
-@keyframes toastProgress {
-  from { transform: scaleX(1); }
-  to   { transform: scaleX(0); }
-}
-@media (prefers-reduced-motion: reduce) {
-  .toast { animation: none; }
-  .toast__progress { animation: none; display: none; }
+[data-sonner-toast] {
+  font-family: var(--font-body);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-md);
 }

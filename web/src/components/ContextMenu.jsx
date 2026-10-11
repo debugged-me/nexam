@@ -12,6 +12,7 @@
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
+import { AnimatePresence, motion } from 'motion/react';
 import { useToast } from './Toast.jsx';
 
 const MENU_MIN_W = 220;
@@ -47,9 +48,11 @@ export function useContextMenu() {
 
   const closeMenu = useCallback(() => setMenu(null), []);
 
-  const menuEl = menu ? (
-    <ContextMenuPanel x={menu.x} y={menu.y} items={menu.items} onClose={closeMenu} />
-  ) : null;
+  const menuEl = (
+    <AnimatePresence>
+      {menu && <ContextMenuPanel x={menu.x} y={menu.y} items={menu.items} onClose={closeMenu} />}
+    </AnimatePresence>
+  );
 
   return { menuEl, openMenu, closeMenu };
 }
@@ -117,7 +120,16 @@ function ContextMenuPanel({ x, y, items, onClose }) {
   }, []);
 
   return createPortal(
-    <div ref={ref} className="ctx-menu" role="menu" style={{ left: x, top: y }}>
+    <motion.div
+      ref={ref}
+      className="ctx-menu"
+      role="menu"
+      style={{ left: x, top: y, transformOrigin: 'top left' }}
+      initial={{ opacity: 0, scale: 0.96, y: -4 }}
+      animate={{ opacity: 1, scale: 1, y: 0 }}
+      exit={{ opacity: 0, scale: 0.97, transition: { duration: 0.1 } }}
+      transition={{ duration: 0.14, ease: [0.16, 1, 0.3, 1] }}
+    >
       {items.map((item, i) =>
         item === 'sep' ? (
           <div key={i} className="ctx-menu__sep" role="separator" />
@@ -135,7 +147,7 @@ function ContextMenuPanel({ x, y, items, onClose }) {
           </button>
         )
       )}
-    </div>,
+    </motion.div>,
     document.body
   );
 }

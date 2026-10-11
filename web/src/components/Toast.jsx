@@ -1,35 +1,24 @@
 /**
- * Toast — lightweight application notification system.
- * Types: success, error, warning, info.
- * Top-center stack with status fills and a countdown progress bar.
+ * Toast — application notifications backed by `sonner`.
+ *
+ * The public API is unchanged (useToast → show/success/error/warning/info/
+ * dismiss) so call sites don't move; the rendered stack is sonner's, themed
+ * through the CSS variables in styles/toast.css.
  */
-import { createContext, useContext, useState, useCallback, useMemo } from 'react';
+import { createContext, useContext, useCallback, useMemo } from 'react';
+import { Toaster, toast as sonner } from 'sonner';
 import { CheckCircle2, XCircle, AlertTriangle, Info } from 'lucide-react';
 
 const ToastContext = createContext(null);
 
-let idCounter = 0;
-const EXIT_MS = 300;
-
 export function ToastProvider({ children }) {
-  const [toasts, setToasts] = useState([]);
-
-  const dismiss = useCallback((id) => {
-    // Fade out first, then drop the node so the exit motion is visible.
-    setToasts((list) => list.map((t) => (t.id === id ? { ...t, out: true } : t)));
-    setTimeout(() => {
-      setToasts((list) => list.filter((t) => t.id !== id));
-    }, EXIT_MS);
-  }, []);
+  const dismiss = useCallback((id) => sonner.dismiss(id), []);
 
   const show = useCallback((message, type = 'info', duration = 4000) => {
-    const id = ++idCounter;
-    setToasts((list) => [...list, { id, message, type, duration }]);
-    if (duration > 0) {
-      setTimeout(() => dismiss(id), duration);
-    }
-    return id;
-  }, [dismiss]);
+    const opts = { duration: duration > 0 ? duration : Infinity };
+    const fn = sonner[type] || sonner;
+    return fn(message, opts);
+  }, []);
 
   // Memoized so consumers receive a stable context value — an unmemoized
   // object would give every useToast() caller a new `toast` each render and
@@ -46,36 +35,19 @@ export function ToastProvider({ children }) {
   return (
     <ToastContext.Provider value={api}>
       {children}
-      <div className="toast-container">
-        {toasts.map((t) => (
-          <ToastItem key={t.id} toast={t} onDismiss={() => dismiss(t.id)} />
-        ))}
-      </div>
+      <Toaster
+        position="top-center"
+        richColors
+        gap={8}
+        visibleToasts={4}
+        icons={{
+          success: <CheckCircle2 size={16} />,
+          error: <XCircle size={16} />,
+          warning: <AlertTriangle size={16} />,
+          info: <Info size={16} />,
+        }}
+      />
     </ToastContext.Provider>
-  );
-}
-
-const ICONS = {
-  success: CheckCircle2,
-  error: XCircle,
-  warning: AlertTriangle,
-  info: Info,
-};
-
-function ToastItem({ toast, onDismiss }) {
-  const Icon = ICONS[toast.type] || Info;
-  return (
-    <div
-      className={`toast toast--${toast.type || 'info'}${toast.out ? ' toast--out' : ''}`}
-      role="status"
-      onClick={onDismiss}
-    >
-      <Icon size={16} />
-      <span>{toast.message}</span>
-      {toast.duration > 0 && (
-        <span className="toast__progress" style={{ animationDuration: `${toast.duration}ms` }} />
-      )}
-    </div>
   );
 }
 

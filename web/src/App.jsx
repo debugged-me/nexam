@@ -10,6 +10,7 @@
  * stays mounted between pages so navigation only swaps the page body.
  */
 import { BrowserRouter, Routes, Route, Navigate, useLocation, matchPath } from 'react-router-dom';
+import { MotionConfig } from 'motion/react';
 import { AuthProvider, useAuth } from './features/auth/AuthContext.jsx';
 import { ToastProvider, useToast } from './components/Toast.jsx';
 import { ConfirmProvider } from './components/ConfirmDialog.jsx';
@@ -185,6 +186,9 @@ function ScrollToTop() {
 export default function App() {
   return (
     <ToastProvider>
+      {/* reducedMotion="user" — motion swaps transforms for a simple fade when
+          the OS asks for less motion. */}
+      <MotionConfig reducedMotion="user">
       <AuthProvider>
         <ConfirmProvider>
           <BrowserRouter>
@@ -302,6 +306,7 @@ export default function App() {
           </BrowserRouter>
         </ConfirmProvider>
       </AuthProvider>
+      </MotionConfig>
     </ToastProvider>
   );
 }

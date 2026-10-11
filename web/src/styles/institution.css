@@ -49,6 +49,15 @@
 .institution-search input { padding: 0 .85rem 0 2.45rem; }
 
 .institution-list { display: grid; gap: var(--space-3); }
+/* Virtualized mode: cards are absolutely positioned rows inside a measured
+   spacer — the grid/gap above is replaced by the virtualizer's `gap`. */
+.institution-list--virtual { display: block; position: relative; }
+.institution-list--virtual .institution-question {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+}
 .institution-question { position: relative; border: 1px solid var(--line); border-radius: 12px; padding: var(--space-5); background: var(--surface); box-shadow: var(--shadow-md); }
 .institution-question h2 { margin: .65rem 0; color: var(--ink); font: 600 var(--text-md)/1.5 var(--font-display); }
 .institution-meta { display: flex; flex-wrap: wrap; gap: .45rem .9rem; color: var(--ink-3); font-size: var(--text-xs); }

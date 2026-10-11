@@ -5,6 +5,7 @@
  */
 import { useContext, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
+import { AnimatePresence, motion } from 'motion/react';
 import { X } from 'lucide-react';
 import { PageScopeContext } from './shellMeta.js';
 
@@ -51,26 +52,47 @@ export default function Modal({ open, title, subtitle, onClose, children, footer
     };
   }, [open]);
 
-  if (!open) return null;
-
   // Render at document.body — inside a page panel the fixed overlay gets
-  // clipped by overflow/containing-block ancestors.
+  // clipped by overflow/containing-block ancestors. AnimatePresence keeps the
+  // dialog mounted long enough to play its exit motion.
   return createPortal(
-    <div className={`modal-overlay${scope ? ` ${scope}` : ''}`} onClick={(e) => { if (e.target === e.currentTarget) onClose?.(); }}>
-      <div className={`modal-card modal-${size}`} role="dialog" aria-modal="true" aria-label={title} ref={cardRef} tabIndex={-1}>
-        <div className="modal-header">
-          <div>
-            <h2 className="modal-title">{title}</h2>
-            {subtitle && <p className="modal-subtitle">{subtitle}</p>}
-          </div>
-          <button className="modal-close" onClick={onClose} aria-label="Close">
-            <X size={18} />
-          </button>
-        </div>
-        <div className="modal-body">{children}</div>
-        {footer && <div className="modal-footer">{footer}</div>}
-      </div>
-    </div>,
+    <AnimatePresence>
+      {open && (
+        <motion.div
+          className={`modal-overlay${scope ? ` ${scope}` : ''}`}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.16, ease: 'easeOut' }}
+          onClick={(e) => { if (e.target === e.currentTarget) onClose?.(); }}
+        >
+          <motion.div
+            className={`modal-card modal-${size}`}
+            role="dialog"
+            aria-modal="true"
+            aria-label={title}
+            ref={cardRef}
+            tabIndex={-1}
+            initial={{ opacity: 0, scale: 0.96, y: 6 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.97, y: 4 }}
+            transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
+          >
+            <div className="modal-header">
+              <div>
+                <h2 className="modal-title">{title}</h2>
+                {subtitle && <p className="modal-subtitle">{subtitle}</p>}
+              </div>
+              <button className="modal-close" onClick={onClose} aria-label="Close">
+                <X size={18} />
+              </button>
+            </div>
+            <div className="modal-body">{children}</div>
+            {footer && <div className="modal-footer">{footer}</div>}
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>,
     document.body
   );
 }

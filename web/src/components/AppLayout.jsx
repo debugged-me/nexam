@@ -19,6 +19,7 @@ import {
   ChevronsRight,
   Settings2,
 } from 'lucide-react';
+import * as RadixTooltip from '@radix-ui/react-tooltip';
 import { useAuth } from '../features/auth/AuthContext.jsx';
 import { useConfirm } from './ConfirmDialog.jsx';
 import { useToast } from './Toast.jsx';
@@ -34,6 +35,7 @@ import JobsIndicator from './JobsIndicator.jsx';
 import UserAvatar from './UserAvatar.jsx';
 import AvatarPickerModal from './AvatarPickerModal.jsx';
 import SidebarLink from './SidebarLink.jsx';
+import Tooltip from './Tooltip.jsx';
 
 function activeFor(pathname) {
   if (pathname.startsWith('/analytics/attention')) return 'attention';
@@ -199,6 +201,7 @@ export default function AppLayout() {
   }, [mobileOpen]);
 
   return (
+    <RadixTooltip.Provider delayDuration={300} skipDelayDuration={150}>
     <div className={`app-shell${sidebarCollapsed ? ' app-shell--sidebar-collapsed' : ''}`}>
       <a href="#workspace-content" className="skip-link">
         Skip to content
@@ -322,17 +325,18 @@ export default function AppLayout() {
             >
               <Menu size={18} />
             </button>
-            <button
-              className="sidebar-toggle"
-              type="button"
-              aria-label={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-              title={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-              aria-expanded={!sidebarCollapsed}
-              aria-controls="workspace-navigation"
-              onClick={toggleSidebar}
-            >
-              {sidebarCollapsed ? <ChevronsRight size={18} aria-hidden="true" /> : <ChevronsLeft size={18} aria-hidden="true" />}
-            </button>
+            <Tooltip label={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'} side="bottom">
+              <button
+                className="sidebar-toggle"
+                type="button"
+                aria-label={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+                aria-expanded={!sidebarCollapsed}
+                aria-controls="workspace-navigation"
+                onClick={toggleSidebar}
+              >
+                {sidebarCollapsed ? <ChevronsRight size={18} aria-hidden="true" /> : <ChevronsLeft size={18} aria-hidden="true" />}
+              </button>
+            </Tooltip>
             <div className="topbar-heading">
               <span className="topbar-workspace">{isAdmin ? 'Admin console' : 'Faculty workspace'}</span>
               <ChevronRight size={13} className="topbar-divider" aria-hidden="true" />
@@ -356,11 +360,11 @@ export default function AppLayout() {
               </button>
             )}
             {!isAdmin && <JobsIndicator />}
+            <Tooltip label="Guided tour" side="bottom">
             <button
               className="topbar-help"
               type="button"
               aria-label="Start the guided tour for this page"
-              title="Guided tour"
               data-tour="shell-help"
               onClick={handleHelp}
             >
@@ -372,6 +376,7 @@ export default function AppLayout() {
               <span className="topbar-help-label">Guide</span>
               <span className="topbar-help-ping" aria-hidden="true" />
             </button>
+            </Tooltip>
             <div className="user-menu" ref={userMenuRef}>
               <button
                 className="user-trigger"
@@ -476,5 +481,6 @@ export default function AppLayout() {
         />
       )}
     </div>
+    </RadixTooltip.Provider>
   );
 }

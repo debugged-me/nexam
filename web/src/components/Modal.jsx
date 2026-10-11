@@ -4,6 +4,7 @@
  * Closes on backdrop click or Escape.
  */
 import { useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 
 export default function Modal({ open, title, subtitle, onClose, children, footer, size = 'md' }) {
@@ -20,7 +21,9 @@ export default function Modal({ open, title, subtitle, onClose, children, footer
 
   if (!open) return null;
 
-  return (
+  // Render at document.body — inside a page panel the fixed overlay gets
+  // clipped by overflow/containing-block ancestors.
+  return createPortal(
     <div className="modal-overlay" onClick={(e) => { if (e.target === e.currentTarget) onClose?.(); }}>
       <div className={`modal-card modal-${size}`} role="dialog" aria-modal="true" aria-label={title}>
         <div className="modal-header">
@@ -35,6 +38,7 @@ export default function Modal({ open, title, subtitle, onClose, children, footer
         <div className="modal-body">{children}</div>
         {footer && <div className="modal-footer">{footer}</div>}
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

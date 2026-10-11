@@ -124,6 +124,7 @@ export const ADMIN_NAV_ITEMS = [
     to: '/admin/logins',
     group: 'Security',
     description: 'Sign-in attempts with IP and user agent',
+    superOnly: true,
   },
   {
     label: 'Audit trail',
@@ -132,6 +133,7 @@ export const ADMIN_NAV_ITEMS = [
     to: '/admin/audit',
     group: 'Security',
     description: 'Recorded superadmin actions',
+    superOnly: true,
   },
   {
     label: 'Settings',
@@ -140,6 +142,7 @@ export const ADMIN_NAV_ITEMS = [
     to: '/admin/settings',
     group: 'Security',
     description: 'reCAPTCHA and AI credentials',
+    superOnly: true,
   },
 ];
 

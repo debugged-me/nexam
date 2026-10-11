@@ -115,6 +115,8 @@
 .adm-pill-pending { background: var(--amber-50); color: var(--amber-700); }
 .adm-pill-active { background: var(--green-50); color: var(--green-700); }
 .adm-pill-rejected { background: var(--red-50); color: var(--red-700); }
+.adm-pill-admin { background: var(--purple-50, #F1EAFD); color: var(--purple-700, #5B3FA8); }
+.adm-pill-instructor { background: var(--blue-100, #E3F0FC); color: var(--action-700); }
 .adm-tag {
   display: inline-block;
   font-size: .72rem;
@@ -210,11 +212,41 @@
   box-shadow: 0 0 0 3px rgba(35, 131, 226, .12);
 }
 .adm-field-hint { font-size: .7rem; color: var(--ink-faint); }
+.adm-opt { font-weight: 400; color: var(--ink-faint); }
+select.adm-input { cursor: pointer; }
 .adm-save-row {
   display: flex;
   align-items: center;
   gap: 14px;
   padding: 4px 2px;
+}
+
+/* ── Add user ── */
+.adm-toolbar-actions { display: flex; align-items: center; gap: 8px; }
+.adm-btn-sm { padding: 5px 11px; }
+.adm-form { display: flex; flex-direction: column; gap: 14px; }
+.adm-role-pick { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.adm-role-pick:has(.adm-role-opt:only-child) { grid-template-columns: 1fr; }
+.adm-role-opt {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+  text-align: left;
+  cursor: pointer;
+  font-family: inherit;
+  transition: border-color .12s, background .12s;
+}
+.adm-role-opt:hover { border-color: var(--line-strong, var(--line)); }
+.adm-role-opt strong { font-size: .82rem; color: var(--ink); }
+.adm-role-opt small { font-size: .7rem; color: var(--ink-faint); }
+.adm-role-opt.is-active {
+  border-color: var(--action-600);
+  background: var(--blue-50, #EEF6FE);
+  box-shadow: 0 0 0 3px rgba(35, 131, 226, .12);
 }
 
 /* ── Dashboard ── */

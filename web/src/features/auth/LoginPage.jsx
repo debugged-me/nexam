@@ -40,7 +40,7 @@ export default function LoginPage() {
     try {
       const data = await api.post('/auth/login', { email, password });
       login(data.token, data.user);
-      navigate(data.user.role === 'superadmin' ? '/admin/dashboard' : '/dashboard');
+      navigate(['admin', 'superadmin'].includes(data.user.role) ? '/admin/dashboard' : '/dashboard');
     } catch (err) {
       if (err instanceof ApiError && err.payload?.needsVerification) {
         // Email not verified — go to the verify page. We don't have a verify

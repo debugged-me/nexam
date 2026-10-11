@@ -65,25 +65,27 @@ function RequireAuth({ children }) {
 function RedirectIfAuthed({ children }) {
   const { user, loading } = useAuth();
   if (loading) return <BootScreen />;
-  if (user) return <Navigate to={user.role === 'superadmin' ? '/admin/dashboard' : '/dashboard'} replace />;
+  if (user) return <Navigate to={['admin', 'superadmin'].includes(user.role) ? '/admin/dashboard' : '/dashboard'} replace />;
   return children;
 }
 
-/** Superadmin console — the overseer role only; instructors go to the app. */
-function RequireSuperadmin({ children }) {
+/** Admin console — superadmin and the mid-tier admin role; instructors go
+ *  to the app. Individual console views further restrict superadmin-only
+ *  areas (settings, audit trail, login logs). */
+function RequireAdminConsole({ children }) {
   const { user, loading } = useAuth();
   if (loading) return <BootScreen />;
   if (!user) return <Navigate to="/login" replace />;
-  if (user.role !== 'superadmin') return <Navigate to="/dashboard" replace />;
+  if (!['admin', 'superadmin'].includes(user.role)) return <Navigate to="/dashboard" replace />;
   return children;
 }
 
-/** Instructor workspace — superadmins are bounced to /admin instead. */
+/** Instructor workspace — staff roles are bounced to the console instead. */
 function RequireInstructor({ children }) {
   const { user, loading } = useAuth();
   if (loading) return <BootScreen />;
   if (!user) return <Navigate to="/login" replace />;
-  if (user.role === 'superadmin') return <Navigate to="/admin/dashboard" replace />;
+  if (['admin', 'superadmin'].includes(user.role)) return <Navigate to="/admin/dashboard" replace />;
   if (user.role !== 'instructor') return <Navigate to="/login" replace />;
   return children;
 }
@@ -209,12 +211,12 @@ export default function App() {
                 <Route path="/privacy" element={<PinLightTheme><LegalPage doc="privacy" /></PinLightTheme>} />
                 <Route path="/terms" element={<PinLightTheme><LegalPage doc="terms" /></PinLightTheme>} />
 
-                {/* Superadmin console — same shell, console nav */}
+                {/* Admin console — superadmin + admin, same shell */}
                 <Route
                   element={
-                    <RequireSuperadmin>
+                    <RequireAdminConsole>
                       <AppLayout />
-                    </RequireSuperadmin>
+                    </RequireAdminConsole>
                   }
                 >
                   <Route path="/admin" element={<AdminPage />} />
@@ -242,8 +244,8 @@ export default function App() {
                   }
                 />
 
-                {/* Shared (protected, both roles) — keep ahead of the role
-                    groups so /appearance isn't swallowed by a role guard. */}
+                {/* Shared (protected, all roles) — keep ahead of the role
+                    groups so these aren't swallowed by a role guard. */}
                 <Route
                   element={
                     <RequireAnyAuth>
@@ -252,6 +254,7 @@ export default function App() {
                   }
                 >
                   <Route path="/appearance" element={<AppearancePage />} />
+                  <Route path="/account" element={<AccountPage />} />
                 </Route>
 
                 {/* App (protected) */}
@@ -279,7 +282,6 @@ export default function App() {
                   <Route path="/analytics" element={<AnalyticsPage />} />
                   <Route path="/analytics/items/:examId" element={<ItemAnalysisPage />} />
                   <Route path="/analytics/ai-eval" element={<AiEvalPage />} />
-                  <Route path="/account" element={<AccountPage />} />
                 </Route>
 
                 {/* Default → dashboard (which redirects to /login if not authed) */}

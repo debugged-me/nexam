@@ -6,14 +6,18 @@ import '../../styles/auth-reset.css';
  * On success, redirects to /login with a success toast.
  */
 import { useState, useEffect, useRef } from 'react';
-import { useNavigate, useLocation, Link } from 'react-router-dom';
+import { useNavigate, useLocation, useSearchParams, Link } from 'react-router-dom';
 import { Lock, Eye, EyeOff, AlertCircle } from 'lucide-react';
 import api, { ApiError } from '../../lib/api.js';
 
 export default function ResetPage() {
   const navigate = useNavigate();
   const location = useLocation();
+  const [searchParams] = useSearchParams();
   const { resetToken, email } = location.state || {};
+  // Staff-initiated reset: the emailed link carries ?key=<token> and skips
+  // the OTP step — link possession is the proof factor.
+  const resetKey = searchParams.get('key') || '';
 
   const [code, setCode] = useState('');
   const [password, setPassword] = useState('');
@@ -22,14 +26,15 @@ export default function ResetPage() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const codeRef = useRef(null);
+  const pwRef = useRef(null);
 
   useEffect(() => {
-    if (!resetToken) {
+    if (!resetToken && !resetKey) {
       navigate('/forgot', { replace: true });
       return;
     }
-    codeRef.current?.focus();
-  }, [resetToken, navigate]);
+    (resetKey ? pwRef : codeRef).current?.focus();
+  }, [resetToken, resetKey, navigate]);
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -44,7 +49,11 @@ export default function ResetPage() {
     }
     setLoading(true);
     try {
-      await api.post('/auth/reset', { resetToken, code, password });
+      if (resetKey) {
+        await api.post('/auth/reset-link', { key: resetKey, password });
+      } else {
+        await api.post('/auth/reset', { resetToken, code, password });
+      }
       navigate('/login', { state: { toast: 'Password reset successfully! You can now log in.' } });
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Reset failed.');
@@ -62,7 +71,9 @@ export default function ResetPage() {
             Set a new password<em>and you're back in.</em>
           </div>
           <p className="panel-tagline">
-            Enter the reset code we sent, then choose a new password (min. 8 characters).
+            {resetKey
+              ? 'Choose a new password (min. 8 characters) and you\'re back in.'
+              : 'Enter the reset code we sent, then choose a new password (min. 8 characters).'}
           </p>
           <div className="panel-footer">
             <div className="panel-icon"><img src="/favicon.png" alt="" /></div>
@@ -81,10 +92,10 @@ export default function ResetPage() {
             </div>
             <div className="auth-heading">
               <h1>Reset password</h1>
-              <p>Enter the code and your new password.</p>
+              <p>{resetKey ? 'Choose your new password.' : 'Enter the code and your new password.'}</p>
             </div>
 
-            {email && <div className="verify-email-line">Code sent to <strong>{email}</strong></div>}
+            {email && !resetKey && <div className="verify-email-line">Code sent to <strong>{email}</strong></div>}
 
             {error && (
               <div className="form-alert" role="alert">
@@ -93,20 +104,22 @@ export default function ResetPage() {
               </div>
             )}
 
-            <div className="form-group">
-              <label className="form-label" htmlFor="code">Reset Code <span className="req">*</span></label>
-              <div className="input-wrap">
-                <input id="code" ref={codeRef} type="text" inputMode="text" pattern="[0-9A-Za-z]{6}"
-                  className="form-input code-input" placeholder="••••••" maxLength={6}
-                  value={code} onChange={(e) => setCode(e.target.value.replace(/[^0-9a-z]/gi, '').toUpperCase().slice(0, 6))} required />
+            {!resetKey && (
+              <div className="form-group">
+                <label className="form-label" htmlFor="code">Reset Code <span className="req">*</span></label>
+                <div className="input-wrap">
+                  <input id="code" ref={codeRef} type="text" inputMode="text" pattern="[0-9A-Za-z]{6}"
+                    className="form-input code-input" placeholder="••••••" maxLength={6}
+                    value={code} onChange={(e) => setCode(e.target.value.replace(/[^0-9a-z]/gi, '').toUpperCase().slice(0, 6))} required />
+                </div>
               </div>
-            </div>
+            )}
 
             <div className="form-group">
               <label className="form-label" htmlFor="password">New Password <span className="req">*</span></label>
               <div className="input-wrap password-wrap">
                 <span className="input-icon"><Lock /></span>
-                <input id="password" type={showPw ? 'text' : 'password'} className="form-input"
+                <input id="password" ref={pwRef} type={showPw ? 'text' : 'password'} className="form-input"
                   autoComplete="new-password" placeholder="Min. 8 characters"
                   value={password} onChange={(e) => setPassword(e.target.value)} maxLength={128} required />
                 <button type="button" className="password-toggle" onClick={() => setShowPw((s) => !s)}

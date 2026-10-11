@@ -71,9 +71,13 @@ export default function AppLayout() {
     );
   }, []);
   const closeCommand = useCallback(() => setCommandOpen(false), []);
-  const isAdmin = user?.role === 'superadmin';
-  const navItems = isAdmin ? ADMIN_NAV_ITEMS : NAV_ITEMS;
-  const navGroups = isAdmin ? ['home', 'Manage', 'Security'] : ['home', 'Workspace', 'Assessment', 'Institution'];
+  const isAdmin = ['admin', 'superadmin'].includes(user?.role);
+  const navItems = isAdmin
+    ? ADMIN_NAV_ITEMS.filter((item) => user?.role === 'superadmin' || !item.superOnly)
+    : NAV_ITEMS;
+  const navGroups = isAdmin
+    ? (user?.role === 'superadmin' ? ['home', 'Manage', 'Security'] : ['home', 'Manage'])
+    : ['home', 'Workspace', 'Assessment', 'Institution'];
   const activeKey = isAdmin
     ? location.pathname.split('/')[2] || 'dashboard'
     : activeFor(location.pathname) || meta.activeNav;
@@ -218,15 +222,19 @@ export default function AppLayout() {
           </div>
         )}
         <Link
-          to={isAdmin ? '/admin/settings' : '/account'}
+          to="/account"
           className="sidebar-foot"
           onPointerEnter={() => prefetchAll(isAdmin ? undefined : ['/auth/me'])}
           onFocus={() => prefetchAll(isAdmin ? undefined : ['/auth/me'])}
         >
           <UserAvatar user={user} className="avatar avatar-sm" />
           <span className="sidebar-foot-meta">
-            <strong>{user?.full_name || (isAdmin ? 'Superadmin' : 'Instructor')}</strong>
-            <small>{isAdmin ? 'Superadmin console' : 'Personal workspace'}</small>
+            <strong>{user?.full_name || (isAdmin ? 'Console' : 'Instructor')}</strong>
+            <small>
+              {user?.role === 'superadmin' ? 'Superadmin console'
+                : user?.role === 'admin' ? 'Admin console'
+                : 'Personal workspace'}
+            </small>
           </span>
           <Settings2 size={16} aria-hidden="true" />
         </Link>

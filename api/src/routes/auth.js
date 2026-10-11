@@ -19,6 +19,7 @@
 import { Router } from 'express';
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
+import crypto from 'crypto';
 import multer from 'multer';
 import fs from 'fs/promises';
 import path from 'path';
@@ -246,7 +247,7 @@ router.post('/login', async (req, res, next) => {
       return res.status(403).json({ error: 'This account was not approved. Contact your administrator.' });
     }
 
-    if (user.role !== 'instructor' && user.role !== 'superadmin') {
+    if (!['instructor', 'admin', 'superadmin'].includes(user.role)) {
       logLogin({ userId: user.id, email, success: false, reason: 'role_denied', ip, userAgent: ua });
       return res.status(403).json({ error: 'Nexam is restricted to faculty/instructor accounts.' });
     }
@@ -635,6 +636,56 @@ router.post('/reset', async (req, res, next) => {
       `UPDATE users SET password_hash = :hash WHERE id = :id`,
       { hash: password_hash, id: payload.uid }
     );
+
+    res.json({ message: 'Password reset successfully! You can now log in.' });
+  } catch (err) {
+    next(err);
+  }
+});
+
+/**
+ * POST /api/auth/reset-link
+ * Body: { key, password } — completes a staff-initiated reset. The key is a
+ * single-use token delivered by email; it is looked up by SHA-256 hash so
+ * the raw token never exists in the database.
+ */
+router.post('/reset-link', async (req, res, next) => {
+  try {
+    const { key, password } = req.body || {};
+    if (!key || !password) {
+      return res.status(400).json({ error: 'Reset key and new password are required.' });
+    }
+    if (String(password).length < 8 || String(password).length > 128) {
+      return res.status(400).json({ error: 'Password must be between 8 and 128 characters.' });
+    }
+
+    const k = rateKey('reset_link', req.ip);
+    if (rateExceeded(k, 10, 900)) {
+      return res.status(429).json({ error: 'Too many attempts. Please wait a few minutes and try again.' });
+    }
+
+    const hash = crypto.createHash('sha256').update(String(key)).digest('hex');
+    const [rows] = await pool.query(
+      `SELECT id, user_id FROM password_reset_tokens
+       WHERE token_hash = :hash AND used_at IS NULL AND expires_at > NOW()
+       LIMIT 1`,
+      { hash }
+    );
+    if (!rows.length) {
+      rateRecord(k, 900);
+      return res.status(400).json({ error: 'This reset link is invalid or has expired. Please request a new one.' });
+    }
+
+    const password_hash = await bcrypt.hash(password, 12);
+    await pool.query(
+      'UPDATE users SET password_hash = :hash WHERE id = :id',
+      { hash: password_hash, id: rows[0].user_id }
+    );
+    await pool.query(
+      'UPDATE password_reset_tokens SET used_at = NOW() WHERE id = :id',
+      { id: rows[0].id }
+    );
+    rateClear(k);
 
     res.json({ message: 'Password reset successfully! You can now log in.' });
   } catch (err) {

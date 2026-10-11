@@ -2,14 +2,24 @@ import jwt from 'jsonwebtoken';
 import env from '../config/env.js';
 import pool from '../config/db.js';
 
+/**
+ * Paths where ?token= is honored — file-serving routes only (downloads,
+ * exports, the avatar image), the only places a browser can't attach an
+ * Authorization header (<a href>, <img>). Every other endpoint requires the
+ * header so a URL leaked into browser history or access logs can neither
+ * read other data nor mutate anything.
+ */
+const QUERY_TOKEN_PATHS = /\/(download|export|avatar)(\/|$)/;
+
 function extractToken(req) {
   const header = req.headers.authorization || '';
   const token = header.startsWith('Bearer ') ? header.slice(7) : null;
-  // Fall back to ?token= query param for download/export links (e.g. <a href> tags
-  // that can't set Authorization headers). This is safe because the token is still
-  // a signed JWT — it just travels in the URL instead of a header.
-  const queryToken = req.query?.token;
-  return token || (typeof queryToken === 'string' ? queryToken : null);
+  if (token) return token;
+  if (['GET', 'HEAD'].includes(req.method) && QUERY_TOKEN_PATHS.test(req.path)) {
+    const queryToken = req.query?.token;
+    return typeof queryToken === 'string' ? queryToken : null;
+  }
+  return null;
 }
 
 /**
@@ -78,6 +88,34 @@ export async function requireSuperadmin(req, res, next) {
 }
 
 /**
+ * Admin-console gate — valid JWT plus a live DB check for the staff roles
+ * (admin or superadmin). Individual routes layer requireSuperadmin on top
+ * for anything the mid-tier admin must not touch (settings, audit trail,
+ * provisioning other admins).
+ */
+export async function requireAdminConsole(req, res, next) {
+  const finalToken = extractToken(req);
+  if (!finalToken) {
+    return res.status(401).json({ error: 'Missing authentication token.' });
+  }
+  try {
+    const payload = jwt.verify(finalToken, env.jwt.secret);
+    const [rows] = await pool.query(
+      `SELECT id, email, role, status FROM users WHERE id = :id LIMIT 1`,
+      { id: payload.id }
+    );
+    const u = rows[0];
+    if (!u || !['admin', 'superadmin'].includes(u.role) || u.status !== 'active') {
+      return res.status(403).json({ error: 'Admin access required.' });
+    }
+    req.user = { ...payload, id: u.id, email: u.email, role: u.role };
+    next();
+  } catch {
+    return res.status(401).json({ error: 'Invalid or expired token.' });
+  }
+}
+
+/**
  * Role gate — use after requireAuth: `router.get('/admin', requireAuth, requireRole('admin'), ...)`
  */
 export function requireRole(...roles) {
@@ -89,4 +127,4 @@ export function requireRole(...roles) {
   };
 }
 
-export default { requireAuth, requireAnyAuth, requireSuperadmin, requireRole };
+export default { requireAuth, requireAnyAuth, requireSuperadmin, requireAdminConsole, requireRole };

@@ -17,13 +17,17 @@ import { useCallback, useEffect, useState } from 'react';
 import { useParams, Navigate, Link } from 'react-router-dom';
 import {
   RefreshCw, Check, X, ShieldCheck, Settings2, UserCheck, Clock,
-  LogIn, ShieldAlert, Activity, Copy, ArrowRight,
+  LogIn, ShieldAlert, Activity, Copy, ArrowRight, UserPlus, Ellipsis,
+  Pencil, KeyRound,
 } from 'lucide-react';
 import { useToast } from '../components/Toast.jsx';
 import { useContextMenu, useCopyText } from '../components/ContextMenu.jsx';
+import { useConfirm } from '../components/ConfirmDialog.jsx';
+import Modal from '../components/Modal.jsx';
+import { useAuth } from '../features/auth/AuthContext.jsx';
 import api, { ApiError } from '../lib/api.js';
 
-const USER_FILTERS = ['pending', 'active', 'rejected', 'all'];
+const USER_FILTERS = ['all', 'pending', 'active', 'rejected'];
 const VIEWS = ['dashboard', 'users', 'logins', 'audit', 'settings'];
 
 function fmtTime(ts) {
@@ -43,9 +47,109 @@ function StatusPill({ status }) {
   return <span className={`adm-pill adm-pill-${status}`}>{status}</span>;
 }
 
-/** Shared approve/reject action with busy-state, used by Dashboard + Users. */
+function RolePill({ role }) {
+  return <span className={`adm-pill ${role === 'admin' ? 'adm-pill-admin' : 'adm-pill-instructor'}`}>{role}</span>;
+}
+
+/**
+ * AddUserModal — staff provisioned account. Superadmin chooses Admin or
+ * Instructor; admins may provision instructors only. The password is
+ * generated server-side and emailed to the new user — it never appears
+ * on this screen. Created accounts are verified + active immediately.
+ */
+function AddUserModal({ role, onClose, onCreated }) {
+  const toast = useToast();
+  const [form, setForm] = useState({
+    first_name: '', last_name: '', email: '',
+    role: 'instructor',
+  });
+  const [saving, setSaving] = useState(false);
+  const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
+
+  async function submit(e) {
+    e.preventDefault();
+    setSaving(true);
+    try {
+      const res = await api.post('/admin/users', form);
+      toast.success(
+        res.emailed
+          ? `Credentials emailed to ${form.email}.`
+          : `Account created, but the credentials email failed — ${form.email} can use “Forgot password” to sign in.`
+      );
+      onCreated?.();
+      onClose();
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : 'Could not create the account.');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <Modal
+      open
+      size="sm"
+      title="Add user"
+      subtitle="A generated password is emailed to the user — it never appears here."
+      onClose={saving ? undefined : onClose}
+      footer={(
+        <>
+          <button type="button" className="btn btn-ghost" onClick={onClose} disabled={saving}>Cancel</button>
+          <button type="submit" form="adm-adduser" className="btn btn-primary" disabled={saving}>
+            {saving ? 'Creating…' : 'Create account'}
+          </button>
+        </>
+      )}
+    >
+      <form id="adm-adduser" className="adm-form" onSubmit={submit}>
+        <div className="adm-grid-2">
+          <div className="adm-field">
+            <label className="adm-label" htmlFor="au-fn">First name</label>
+            <input id="au-fn" className="adm-input" value={form.first_name} onChange={set('first_name')} required autoComplete="off" />
+          </div>
+          <div className="adm-field">
+            <label className="adm-label" htmlFor="au-ln">Last name</label>
+            <input id="au-ln" className="adm-input" value={form.last_name} onChange={set('last_name')} required autoComplete="off" />
+          </div>
+        </div>
+        <div className="adm-field">
+          <label className="adm-label" htmlFor="au-email">Email</label>
+          <input id="au-email" className="adm-input" type="email" value={form.email} onChange={set('email')} required autoComplete="off" />
+          <span className="adm-field-hint">Sign-in credentials are sent to this address, and the account is active immediately.</span>
+        </div>
+        <div className="adm-field">
+          <label className="adm-label">Position</label>
+          <div className="adm-role-pick">
+            <button
+              type="button"
+              className={`adm-role-opt ${form.role === 'instructor' ? 'is-active' : ''}`}
+              onClick={() => setForm((f) => ({ ...f, role: 'instructor' }))}
+            >
+              <strong>Instructor</strong>
+              <small>Teaches and builds exams</small>
+            </button>
+            {role === 'superadmin' && (
+              <button
+                type="button"
+                className={`adm-role-opt ${form.role === 'admin' ? 'is-active' : ''}`}
+                onClick={() => setForm((f) => ({ ...f, role: 'admin' }))}
+              >
+                <strong>Admin</strong>
+                <small>Manages instructor accounts</small>
+              </button>
+            )}
+          </div>
+        </div>
+      </form>
+    </Modal>
+  );
+}
+
+/** Shared approve/reject/reset actions with busy-state — Dashboard + Users. */
 function useUserActions(toast, reload) {
   const [busyId, setBusyId] = useState(null);
+  const confirm = useConfirm();
+
   const act = useCallback(async (user, action) => {
     setBusyId(user.id);
     try {
@@ -58,31 +162,142 @@ function useUserActions(toast, reload) {
       setBusyId(null);
     }
   }, [toast, reload]);
-  return { act, busyId };
+
+  const sendReset = useCallback(async (user) => {
+    const ok = await confirm({
+      title: 'Send password reset link?',
+      message: `A single-use reset link will be emailed to ${user.email}. It expires in 30 minutes — the password itself is never shown to you.`,
+      confirmText: 'Send link',
+      danger: false,
+      icon: KeyRound,
+      tone: 'accent',
+    });
+    if (!ok) return;
+    setBusyId(user.id);
+    try {
+      await api.post(`/admin/users/${user.id}/send-reset`);
+      toast.success(`Reset link sent to ${user.email}.`);
+    } catch (e) {
+      toast.error(e instanceof ApiError ? e.message : 'Could not send the reset link.');
+    } finally {
+      setBusyId(null);
+    }
+  }, [confirm, toast]);
+
+  return { act, sendReset, busyId };
 }
 
-/** Context-menu items for an instructor account row. */
-function userMenuItems(u, act, copyText) {
+/** Context-menu items for a staff-managed account row. */
+function userMenuItems(u, act, copyText, onEdit, sendReset) {
   return [
     ...(u.status === 'pending'
       ? [{ label: 'Approve', icon: Check, onClick: () => act(u, 'approve') }]
       : []),
-    ...(u.status !== 'rejected'
-      ? [{ label: 'Reject', icon: X, danger: true, onClick: () => act(u, 'reject') }]
-      : []),
+    { label: 'Edit details', icon: Pencil, onClick: () => onEdit?.(u) },
+    { label: 'Send reset link', icon: KeyRound, onClick: () => sendReset?.(u) },
     'sep',
     { label: 'Copy email', icon: Copy, onClick: () => copyText(u.email, 'Email') },
     { label: 'Copy name', icon: Copy, onClick: () => copyText(u.full_name || '', 'Name') },
+    ...(u.status !== 'rejected'
+      ? ['sep', { label: 'Reject', icon: X, danger: true, onClick: () => act(u, 'reject') }]
+      : []),
   ];
+}
+
+/**
+ * EditUserModal — staff edit of a managed account's name/email. Role
+ * boundaries are enforced server-side; this dialog only ever opens for
+ * accounts the caller can already see in their scoped list.
+ */
+function EditUserModal({ user, onClose, onSaved }) {
+  const toast = useToast();
+  const [form, setForm] = useState({
+    first_name: user.first_name || '',
+    middle_name: user.middle_name || '',
+    last_name: user.last_name || '',
+    name_ext: user.name_ext || '',
+    email: user.email || '',
+  });
+  const [saving, setSaving] = useState(false);
+  const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
+
+  async function submit(e) {
+    e.preventDefault();
+    setSaving(true);
+    try {
+      await api.put(`/admin/users/${user.id}`, form);
+      toast.success(`Updated ${[form.first_name, form.last_name].filter(Boolean).join(' ')}.`);
+      onSaved?.();
+      onClose();
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : 'Could not update the account.');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <Modal
+      open
+      size="sm"
+      title="Edit details"
+      subtitle={`${user.role} · applies on their next sign-in`}
+      onClose={saving ? undefined : onClose}
+      footer={(
+        <>
+          <button type="button" className="btn btn-ghost" onClick={onClose} disabled={saving}>Cancel</button>
+          <button type="submit" form="adm-edituser" className="btn btn-primary" disabled={saving}>
+            {saving ? 'Saving…' : 'Save changes'}
+          </button>
+        </>
+      )}
+    >
+      <form id="adm-edituser" className="adm-form" onSubmit={submit}>
+        <div className="adm-grid-2">
+          <div className="adm-field">
+            <label className="adm-label" htmlFor="eu-fn">First name</label>
+            <input id="eu-fn" className="adm-input" value={form.first_name} onChange={set('first_name')} required autoComplete="off" />
+          </div>
+          <div className="adm-field">
+            <label className="adm-label" htmlFor="eu-mn">Middle name <span className="adm-opt">(optional)</span></label>
+            <input id="eu-mn" className="adm-input" value={form.middle_name} onChange={set('middle_name')} maxLength={100} autoComplete="off" />
+          </div>
+        </div>
+        <div className="adm-grid-2">
+          <div className="adm-field">
+            <label className="adm-label" htmlFor="eu-ln">Last name</label>
+            <input id="eu-ln" className="adm-input" value={form.last_name} onChange={set('last_name')} required autoComplete="off" />
+          </div>
+          <div className="adm-field">
+            <label className="adm-label" htmlFor="eu-ext">Ext. <span className="adm-opt">(optional)</span></label>
+            <select id="eu-ext" className="adm-input" value={form.name_ext} onChange={set('name_ext')}>
+              <option value="">—</option>
+              <option value="Jr.">Jr.</option>
+              <option value="Sr.">Sr.</option>
+              <option value="II">II</option>
+              <option value="III">III</option>
+              <option value="IV">IV</option>
+            </select>
+          </div>
+        </div>
+        <div className="adm-field">
+          <label className="adm-label" htmlFor="eu-email">Email</label>
+          <input id="eu-email" className="adm-input" type="email" value={form.email} onChange={set('email')} required autoComplete="off" />
+          <span className="adm-field-hint">This is their sign-in address — password reset links go here too.</span>
+        </div>
+      </form>
+    </Modal>
+  );
 }
 
 // ── Dashboard tab ──────────────────────────────────────
 function DashboardTab({ toast }) {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [editing, setEditing] = useState(null);
   const { menuEl, openMenu } = useContextMenu();
   const copyText = useCopyText();
-  const { act, busyId } = useUserActions(toast, () => load());
+  const { act, sendReset, busyId } = useUserActions(toast, () => load());
 
   const load = useCallback(() => {
     api.get('/admin/stats')
@@ -170,7 +385,7 @@ function DashboardTab({ toast }) {
               <div
                 className="adm-row"
                 key={p.id}
-                onContextMenu={(e) => openMenu(e, userMenuItems(p, act, copyText))}
+                onContextMenu={(e) => openMenu(e, userMenuItems(p, act, copyText, setEditing, sendReset))}
               >
                 <div className="adm-row-main">
                   <strong>{p.full_name || '—'}</strong>
@@ -191,6 +406,15 @@ function DashboardTab({ toast }) {
                     onClick={() => act(p, 'reject')}
                   >
                     <X size={13} /> Reject
+                  </button>
+                  <button
+                    className="adm-icon-btn"
+                    disabled={busyId === p.id}
+                    onClick={(e) => openMenu(e, userMenuItems(p, act, copyText, setEditing, sendReset))}
+                    title="More actions"
+                    aria-label={`Actions for ${p.email}`}
+                  >
+                    <Ellipsis size={15} />
                   </button>
                 </div>
               </div>
@@ -240,7 +464,8 @@ function DashboardTab({ toast }) {
         </div>
       </div>
 
-      {/* System configuration status */}
+      {/* System configuration status — superadmin only (system is null for admins) */}
+      {data.system && (
       <div className="adm-card">
         <div className="adm-card-head">
           <ShieldCheck size={15} />
@@ -271,20 +496,24 @@ function DashboardTab({ toast }) {
           </div>
         </div>
       </div>
+      )}
 
       {menuEl}
+      {editing && <EditUserModal user={editing} onClose={() => setEditing(null)} onSaved={load} />}
     </div>
   );
 }
 
 // ── Users tab ──────────────────────────────────────────
-function UsersTab({ toast }) {
-  const [filter, setFilter] = useState('pending');
+function UsersTab({ toast, role }) {
+  const [filter, setFilter] = useState('all');
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [adding, setAdding] = useState(false);
+  const [editing, setEditing] = useState(null);
   const { menuEl, openMenu } = useContextMenu();
   const copyText = useCopyText();
-  const { act, busyId } = useUserActions(toast, () => load());
+  const { act, sendReset, busyId } = useUserActions(toast, () => load());
 
   const load = useCallback(() => {
     setLoading(true);
@@ -310,42 +539,47 @@ function UsersTab({ toast }) {
             </button>
           ))}
         </div>
-        <button className="adm-icon-btn" onClick={load} title="Refresh" aria-label="Refresh">
-          <RefreshCw size={14} />
-        </button>
+        <div className="adm-toolbar-actions">
+          <button className="adm-btn adm-btn-primary adm-btn-sm" onClick={() => setAdding(true)}>
+            <UserPlus size={13} /> Add user
+          </button>
+          <button className="adm-icon-btn" onClick={load} title="Refresh" aria-label="Refresh">
+            <RefreshCw size={14} />
+          </button>
+        </div>
       </div>
 
       <div className="adm-table-wrap">
         <table className="adm-table">
           <thead>
             <tr>
-              <th>Name</th><th>Email</th><th>Verified</th><th>Status</th>
+              <th>Name</th><th>Email</th><th>Position</th><th>Verified</th><th>Status</th>
               <th>Registered</th><th className="adm-col-actions">Actions</th>
             </tr>
           </thead>
           <tbody>
-            {loading && <tr><td colSpan="6" className="adm-empty">Loading…</td></tr>}
+            {loading && <tr><td colSpan="7" className="adm-empty">Loading…</td></tr>}
             {!loading && !users.length && (
-              <tr><td colSpan="6" className="adm-empty">No {filter === 'all' ? '' : filter} instructor accounts.</td></tr>
+              <tr><td colSpan="7" className="adm-empty">No {filter === 'all' ? '' : filter} accounts.</td></tr>
             )}
             {!loading && users.map((u) => (
-              <tr key={u.id} onContextMenu={(e) => openMenu(e, userMenuItems(u, act, copyText))}>
+              <tr key={u.id} onContextMenu={(e) => openMenu(e, userMenuItems(u, act, copyText, setEditing, sendReset))}>
                 <td><strong>{u.full_name || '—'}</strong></td>
                 <td>{u.email}</td>
+                <td><RolePill role={u.role} /></td>
                 <td>{u.email_verified ? 'Yes' : 'No'}</td>
                 <td><StatusPill status={u.status} /></td>
                 <td className="adm-nowrap">{fmtTime(u.created_at)}</td>
                 <td className="adm-col-actions">
-                  {u.status === 'pending' && (
-                    <button className="adm-btn adm-btn-ok" disabled={busyId === u.id} onClick={() => act(u, 'approve')}>
-                      <Check size={13} /> Approve
-                    </button>
-                  )}
-                  {u.status !== 'rejected' && (
-                    <button className="adm-btn adm-btn-danger" disabled={busyId === u.id} onClick={() => act(u, 'reject')}>
-                      <X size={13} /> Reject
-                    </button>
-                  )}
+                  <button
+                    className="adm-icon-btn"
+                    disabled={busyId === u.id}
+                    onClick={(e) => openMenu(e, userMenuItems(u, act, copyText, setEditing, sendReset))}
+                    title="Actions"
+                    aria-label={`Actions for ${u.email}`}
+                  >
+                    <Ellipsis size={15} />
+                  </button>
                 </td>
               </tr>
             ))}
@@ -353,6 +587,8 @@ function UsersTab({ toast }) {
         </table>
       </div>
       {menuEl}
+      {adding && <AddUserModal role={role} onClose={() => setAdding(false)} onCreated={load} />}
+      {editing && <EditUserModal user={editing} onClose={() => setEditing(null)} onSaved={load} />}
     </div>
   );
 }
@@ -585,14 +821,17 @@ function SettingsTab({ toast }) {
 // ── Page ───────────────────────────────────────────────
 export default function AdminPage() {
   const toast = useToast();
+  const { user } = useAuth();
   const { view } = useParams();
+  // Mid-tier admins get Dashboard + Users; everything else is superadmin-only.
+  const allowed = user?.role === 'superadmin' ? VIEWS : ['dashboard', 'users'];
   if (!view) return <Navigate to="/admin/dashboard" replace />;
-  if (!VIEWS.includes(view)) return <Navigate to="/admin/dashboard" replace />;
+  if (!allowed.includes(view)) return <Navigate to="/admin/dashboard" replace />;
 
   return (
     <div className="admin-page">
       {view === 'dashboard' && <DashboardTab toast={toast} />}
-      {view === 'users' && <UsersTab toast={toast} />}
+      {view === 'users' && <UsersTab toast={toast} role={user?.role} />}
       {view === 'logins' && <LoginsTab toast={toast} />}
       {view === 'audit' && <AuditTab toast={toast} />}
       {view === 'settings' && <SettingsTab toast={toast} />}

@@ -101,11 +101,20 @@ export const NAV_ITEMS = [
 /** Superadmin console — replaces the instructor nav inside the same shell. */
 export const ADMIN_NAV_ITEMS = [
   {
+    label: 'Dashboard',
+    key: 'dashboard',
+    icon: House,
+    to: '/admin/dashboard',
+    group: 'home',
+    description: 'Console overview and activity',
+    prefetch: ['/admin/stats'],
+  },
+  {
     label: 'Users',
     key: 'users',
     icon: Users,
-    to: '/admin',
-    group: 'home',
+    to: '/admin/users',
+    group: 'Manage',
     description: 'Approve and manage instructor accounts',
   },
   {

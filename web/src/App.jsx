@@ -64,7 +64,7 @@ function RequireAuth({ children }) {
 function RedirectIfAuthed({ children }) {
   const { user, loading } = useAuth();
   if (loading) return <BootScreen />;
-  if (user) return <Navigate to={user.role === 'superadmin' ? '/admin' : '/dashboard'} replace />;
+  if (user) return <Navigate to={user.role === 'superadmin' ? '/admin/dashboard' : '/dashboard'} replace />;
   return children;
 }
 
@@ -82,7 +82,7 @@ function RequireInstructor({ children }) {
   const { user, loading } = useAuth();
   if (loading) return <BootScreen />;
   if (!user) return <Navigate to="/login" replace />;
-  if (user.role === 'superadmin') return <Navigate to="/admin" replace />;
+  if (user.role === 'superadmin') return <Navigate to="/admin/dashboard" replace />;
   if (user.role !== 'instructor') return <Navigate to="/login" replace />;
   return children;
 }

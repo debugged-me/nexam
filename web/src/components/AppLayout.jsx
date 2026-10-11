@@ -73,9 +73,9 @@ export default function AppLayout() {
   const closeCommand = useCallback(() => setCommandOpen(false), []);
   const isAdmin = user?.role === 'superadmin';
   const navItems = isAdmin ? ADMIN_NAV_ITEMS : NAV_ITEMS;
-  const navGroups = isAdmin ? ['home', 'Security'] : ['home', 'Workspace', 'Assessment', 'Institution'];
+  const navGroups = isAdmin ? ['home', 'Manage', 'Security'] : ['home', 'Workspace', 'Assessment', 'Institution'];
   const activeKey = isAdmin
-    ? location.pathname.split('/')[2] || 'users'
+    ? location.pathname.split('/')[2] || 'dashboard'
     : activeFor(location.pathname) || meta.activeNav;
   const section =
     [...navItems, ...(isAdmin ? [] : [BUILD_ACTION])].find((item) => item.key === activeKey)?.label || 'Account';
@@ -165,7 +165,7 @@ export default function AppLayout() {
         aria-label="Workspace navigation"
       >
         <div className="sidebar-brand">
-          <Link to={isAdmin ? '/admin' : '/dashboard'} className="sidebar-brand-link" aria-label="Nexam overview">
+          <Link to={isAdmin ? '/admin/dashboard' : '/dashboard'} className="sidebar-brand-link" aria-label="Nexam overview">
             <img className="sidebar-mark" src="/favicon.png" alt="" />
             <span className="sidebar-wordmark">
               nexam<span className="sidebar-edition">{isAdmin ? 'console' : 'workspace'}</span>

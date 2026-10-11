@@ -36,6 +36,65 @@ function clampLimit(v, fallback = 100) {
   return Math.min(Math.max(n, 1), 500);
 }
 
+// ── Dashboard summary ──────────────────────────────────
+
+/**
+ * GET /stats — console overview: account counts, 24h sign-in activity,
+ * the pending approval queue, and which integrations are configured.
+ */
+router.get('/stats', async (req, res, next) => {
+  try {
+    const [[users]] = await pool.query(
+      `SELECT COUNT(*) AS total,
+              SUM(status = 'pending') AS pending,
+              SUM(status = 'active') AS active,
+              SUM(status = 'rejected') AS rejected,
+              SUM(email_verified = 1) AS verified
+       FROM users WHERE role = 'instructor'`
+    );
+    const [[logins]] = await pool.query(
+      `SELECT COUNT(*) AS total,
+              SUM(success = 1) AS success,
+              SUM(success = 0) AS failed,
+              COUNT(DISTINCT ip) AS unique_ips
+       FROM login_logs
+       WHERE created_at >= NOW() - INTERVAL 1 DAY`
+    );
+    const [recentLogins] = await pool.query(
+      `SELECT l.email, l.success, l.reason, l.ip, l.created_at, u.full_name
+       FROM login_logs l
+       LEFT JOIN users u ON u.id = l.user_id
+       ORDER BY l.created_at DESC
+       LIMIT 8`
+    );
+    const [pendingUsers] = await pool.query(
+      `SELECT id, email, full_name, created_at
+       FROM users WHERE role = 'instructor' AND status = 'pending'
+       ORDER BY created_at DESC
+       LIMIT 6`
+    );
+
+    const siteKey = await getSetting('recaptcha_site_key', null);
+    const secret = await getSetting('recaptcha_secret_key', null);
+    const geminiKey = await getSetting('gemini_api_key', null);
+    const groqKey = await getSetting('groq_api_key', null);
+
+    res.json({
+      users,
+      logins24h: logins,
+      recentLogins,
+      pendingUsers,
+      system: {
+        recaptcha: Boolean(siteKey && secret),
+        gemini: Boolean(geminiKey || env.ai.gemini.apiKey),
+        groq: Boolean(groqKey || env.ai.groq.apiKey),
+      },
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
 // ── Users ──────────────────────────────────────────────
 
 /**

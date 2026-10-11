@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import '../../../core/network/api_exception.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/nexam_app_bar.dart';
+import '../../../core/widgets/pill_field.dart';
+import '../../../core/widgets/states.dart';
 import '../data/auth_api.dart';
 import 'verify_email_screen.dart';
 
@@ -87,43 +89,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
   String? _required(String? v) =>
       (v == null || v.trim().isEmpty) ? 'Required' : null;
 
-  /// Same white pill field style the login screen uses.
-  InputDecoration _pillDecoration({String? hint, IconData? icon, Widget? suffix}) {
-    final shape = OutlineInputBorder(
-      borderRadius: BorderRadius.circular(16),
-      borderSide: const BorderSide(color: AppTheme.cardBorder),
-    );
-    return InputDecoration(
-      hintText: hint,
-      filled: true,
-      fillColor: Colors.white,
-      prefixIcon: icon == null ? null : Icon(icon, size: 19),
-      suffixIcon: suffix,
-      border: shape,
-      enabledBorder: shape,
-      focusedBorder: shape.copyWith(
-        borderSide: const BorderSide(color: AppTheme.primary, width: 1.5),
-      ),
-      errorBorder: shape.copyWith(
-        borderSide: const BorderSide(color: AppTheme.error),
-      ),
-      contentPadding:
-          const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-    );
-  }
-
-  Widget _label(String text) => Padding(
-        padding: const EdgeInsets.only(left: 4, bottom: 7),
-        child: Text(
-          text,
-          style: const TextStyle(
-            fontSize: 13,
-            fontWeight: FontWeight.w600,
-            color: AppTheme.textDark,
-          ),
-        ),
-      );
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -162,7 +127,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                             crossAxisAlignment:
                                 CrossAxisAlignment.start,
                             children: [
-                              _label('First name'),
+                              pillFieldLabel('First name'),
                               TextFormField(
                                 controller: _firstController,
                                 textInputAction: TextInputAction.next,
@@ -171,7 +136,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                 ],
                                 validator: _required,
                                 decoration:
-                                    _pillDecoration(hint: 'Clark Steven'),
+                                    pillFieldDecoration(hint: 'Clark Steven'),
                               ),
                             ],
                           ),
@@ -182,7 +147,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                             crossAxisAlignment:
                                 CrossAxisAlignment.start,
                             children: [
-                              _label('Last name'),
+                              pillFieldLabel('Last name'),
                               TextFormField(
                                 controller: _lastController,
                                 textInputAction: TextInputAction.next,
@@ -191,7 +156,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                 ],
                                 validator: _required,
                                 decoration:
-                                    _pillDecoration(hint: 'Edong'),
+                                    pillFieldDecoration(hint: 'Edong'),
                               ),
                             ],
                           ),
@@ -208,14 +173,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
                             crossAxisAlignment:
                                 CrossAxisAlignment.start,
                             children: [
-                              _label('Middle Name (optional)'),
+                              pillFieldLabel('Middle Name (optional)'),
                               TextFormField(
                                 controller: _middleController,
                                 textInputAction: TextInputAction.next,
                                 autofillHints: const [
                                   AutofillHints.middleName
                                 ],
-                                decoration: _pillDecoration(),
+                                decoration: pillFieldDecoration(),
                               ),
                             ],
                           ),
@@ -227,7 +192,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                             crossAxisAlignment:
                                 CrossAxisAlignment.start,
                             children: [
-                              _label('Ext. (optional)'),
+                              pillFieldLabel('Ext. (optional)'),
                               DropdownButtonFormField<String>(
                                 initialValue: _nameExt,
                                 items: _nameExtensions
@@ -241,7 +206,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                     .toList(),
                                 onChanged: (v) => setState(
                                     () => _nameExt = v ?? ''),
-                                decoration: _pillDecoration(),
+                                decoration: pillFieldDecoration(),
                               ),
                             ],
                           ),
@@ -249,7 +214,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       ],
                     ),
                     const SizedBox(height: 16),
-                    _label('Email Address'),
+                    pillFieldLabel('Email Address'),
                     TextFormField(
                       controller: _emailController,
                       keyboardType: TextInputType.emailAddress,
@@ -263,13 +228,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         }
                         return null;
                       },
-                      decoration: _pillDecoration(
+                      decoration: pillFieldDecoration(
                         hint: 'Enter your email',
                         icon: Icons.mail_outline_rounded,
                       ),
                     ),
                     const SizedBox(height: 16),
-                    _label('Password'),
+                    pillFieldLabel('Password'),
                     TextFormField(
                       controller: _passwordController,
                       obscureText: _obscure,
@@ -283,7 +248,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         }
                         return null;
                       },
-                      decoration: _pillDecoration(
+                      decoration: pillFieldDecoration(
                         hint: 'At least 8 characters',
                         icon: Icons.lock_outline_rounded,
                         suffix: IconButton(
@@ -292,15 +257,15 @@ class _RegisterScreenState extends State<RegisterScreen> {
                               setState(() => _obscure = !_obscure),
                           icon: Icon(
                             _obscure
-                                ? Icons.visibility_off_outlined
-                                : Icons.visibility_outlined,
+                                ? Icons.visibility_off_rounded
+                                : Icons.visibility_rounded,
                             size: 19,
                           ),
                         ),
                       ),
                     ),
                     const SizedBox(height: 16),
-                    _label('Confirm Password'),
+                    pillFieldLabel('Confirm Password'),
                     TextFormField(
                       controller: _confirmController,
                       obscureText: _obscure,
@@ -316,14 +281,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         }
                         return null;
                       },
-                      decoration: _pillDecoration(
+                      decoration: pillFieldDecoration(
                         hint: 'Re-enter password',
                         icon: Icons.lock_outline_rounded,
                       ),
                     ),
                     if (_error != null) ...[
                       const SizedBox(height: 14),
-                      _ErrorBanner(message: _error!),
+                      InlineBanner(message: _error!),
                     ],
                     const SizedBox(height: 22),
                     SizedBox(
@@ -371,34 +336,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
               ),
             ),
           ),
-        ),
-      ),
-    );
-  }
-}
-
-class _ErrorBanner extends StatelessWidget {
-  const _ErrorBanner({required this.message});
-
-  final String message;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: AppTheme.error.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(10),
-        border:
-            Border.all(color: AppTheme.error.withValues(alpha: 0.30)),
-      ),
-      child: Text(
-        message,
-        style: const TextStyle(
-          fontSize: 13,
-          color: AppTheme.error,
-          fontWeight: FontWeight.w600,
         ),
       ),
     );

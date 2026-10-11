@@ -4,6 +4,8 @@ import 'package:flutter/services.dart';
 import '../../../core/network/api_exception.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/nexam_app_bar.dart';
+import '../../../core/widgets/pill_field.dart';
+import '../../../core/widgets/states.dart';
 import '../data/auth_api.dart';
 
 /// OTP screen after registration — enters the 6-char email code and calls
@@ -95,10 +97,6 @@ class _VerifyEmailScreenState extends State<VerifyEmailScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final shape = OutlineInputBorder(
-      borderRadius: BorderRadius.circular(16),
-      borderSide: const BorderSide(color: AppTheme.cardBorder),
-    );
     return Scaffold(
       backgroundColor: AppTheme.surface,
       appBar: const NexamAppBar(title: 'Verify email'),
@@ -124,17 +122,7 @@ class _VerifyEmailScreenState extends State<VerifyEmailScreen> {
                         fontSize: 13.5, color: AppTheme.textMuted),
                   ),
                   const SizedBox(height: 24),
-                  const Padding(
-                    padding: EdgeInsets.only(left: 4, bottom: 7),
-                    child: Text(
-                      'Verification code',
-                      style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                        color: AppTheme.textDark,
-                      ),
-                    ),
-                  ),
+                  pillFieldLabel('Verification code'),
                   TextFormField(
                     controller: _codeController,
                     textAlign: TextAlign.center,
@@ -149,28 +137,19 @@ class _VerifyEmailScreenState extends State<VerifyEmailScreen> {
                     style: AppTheme.display(20,
                             weight: FontWeight.w700)
                         .copyWith(letterSpacing: 8),
-                    decoration: InputDecoration(
-                      hintText: '——————',
-                      counterText: '',
-                      filled: true,
-                      fillColor: Colors.white,
-                      border: shape,
-                      enabledBorder: shape,
-                      focusedBorder: shape.copyWith(
-                        borderSide: const BorderSide(
-                            color: AppTheme.primary, width: 1.5),
-                      ),
+                    decoration: pillFieldDecoration(
+                      hint: 'A1B2C3',
                       contentPadding:
                           const EdgeInsets.symmetric(vertical: 18),
-                    ),
+                    ).copyWith(counterText: ''),
                   ),
                   if (_error != null) ...[
                     const SizedBox(height: 14),
-                    _Banner(message: _error!, isError: true),
+                    InlineBanner(message: _error!, isError: true),
                   ],
                   if (_notice != null) ...[
                     const SizedBox(height: 14),
-                    _Banner(message: _notice!, isError: false),
+                    InlineBanner(message: _notice!, isError: false),
                   ],
                   const SizedBox(height: 22),
                   SizedBox(
@@ -214,12 +193,11 @@ class _VerifyEmailScreenState extends State<VerifyEmailScreen> {
                     ],
                   ),
                   const SizedBox(height: 10),
-                  const Center(
+                  Center(
                     child: Text(
                       'You can sign in once your account is approved.',
                       textAlign: TextAlign.center,
-                      style: TextStyle(
-                          fontSize: 12.5, color: AppTheme.textFaint),
+                      style: AppTheme.body(size: 12.5),
                     ),
                   ),
                 ],
@@ -227,32 +205,6 @@ class _VerifyEmailScreenState extends State<VerifyEmailScreen> {
             ),
           ),
         ),
-      ),
-    );
-  }
-}
-
-class _Banner extends StatelessWidget {
-  const _Banner({required this.message, required this.isError});
-
-  final String message;
-  final bool isError;
-
-  @override
-  Widget build(BuildContext context) {
-    final color = isError ? AppTheme.error : AppTheme.success;
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: color.withValues(alpha: 0.30)),
-      ),
-      child: Text(
-        message,
-        style: TextStyle(
-            fontSize: 13, color: color, fontWeight: FontWeight.w600),
       ),
     );
   }

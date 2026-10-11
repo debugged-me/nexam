@@ -4,6 +4,8 @@ import 'package:flutter/services.dart';
 import '../../../core/network/api_exception.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/nexam_app_bar.dart';
+import '../../../core/widgets/pill_field.dart';
+import '../../../core/widgets/states.dart';
 import '../data/auth_api.dart';
 
 /// Password reset flow: step 1 sends the code via /api/auth/forgot, step 2
@@ -130,44 +132,6 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
     }
   }
 
-  InputDecoration _pillDecoration(
-      {String? hint, IconData? icon, Widget? suffix}) {
-    final shape = OutlineInputBorder(
-      borderRadius: BorderRadius.circular(16),
-      borderSide: const BorderSide(color: AppTheme.cardBorder),
-    );
-    return InputDecoration(
-      hintText: hint,
-      filled: true,
-      fillColor: Colors.white,
-      prefixIcon: icon == null ? null : Icon(icon, size: 19),
-      suffixIcon: suffix,
-      border: shape,
-      enabledBorder: shape,
-      focusedBorder: shape.copyWith(
-        borderSide:
-            const BorderSide(color: AppTheme.primary, width: 1.5),
-      ),
-      errorBorder: shape.copyWith(
-        borderSide: const BorderSide(color: AppTheme.error),
-      ),
-      contentPadding:
-          const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-    );
-  }
-
-  Widget _label(String text) => Padding(
-        padding: const EdgeInsets.only(left: 4, bottom: 7),
-        child: Text(
-          text,
-          style: const TextStyle(
-            fontSize: 13,
-            fontWeight: FontWeight.w600,
-            color: AppTheme.textDark,
-          ),
-        ),
-      );
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -199,7 +163,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                         fontSize: 13.5, color: AppTheme.textMuted),
                   ),
                   const SizedBox(height: 24),
-                  _label('Email Address'),
+                  pillFieldLabel('Email Address'),
                   TextFormField(
                     controller: _emailController,
                     enabled: !_codeSent,
@@ -209,14 +173,14 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                         : TextInputAction.send,
                     onFieldSubmitted: (_) => _sendCode(),
                     autofillHints: const [AutofillHints.email],
-                    decoration: _pillDecoration(
+                    decoration: pillFieldDecoration(
                       hint: 'Enter your email',
                       icon: Icons.mail_outline_rounded,
                     ),
                   ),
                   if (_codeSent) ...[
                     const SizedBox(height: 16),
-                    _label('Reset code'),
+                    pillFieldLabel('Reset code'),
                     TextFormField(
                       controller: _codeController,
                       textAlign: TextAlign.center,
@@ -231,20 +195,20 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                       style: AppTheme.display(20,
                               weight: FontWeight.w700)
                           .copyWith(letterSpacing: 8),
-                      decoration: _pillDecoration(hint: '——————')
-                          .copyWith(
+                      decoration: pillFieldDecoration(
+                        hint: 'A1B2C3',
                         contentPadding:
                             const EdgeInsets.symmetric(vertical: 16),
-                      ),
+                      ).copyWith(counterText: ''),
                     ),
                     const SizedBox(height: 16),
-                    _label('New password'),
+                    pillFieldLabel('New password'),
                     TextFormField(
                       controller: _passwordController,
                       obscureText: _obscure,
                       textInputAction: TextInputAction.next,
                       autofillHints: const [AutofillHints.newPassword],
-                      decoration: _pillDecoration(
+                      decoration: pillFieldDecoration(
                         hint: 'At least 8 characters',
                         icon: Icons.lock_outline_rounded,
                         suffix: IconButton(
@@ -253,21 +217,21 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                               setState(() => _obscure = !_obscure),
                           icon: Icon(
                             _obscure
-                                ? Icons.visibility_off_outlined
-                                : Icons.visibility_outlined,
+                                ? Icons.visibility_off_rounded
+                                : Icons.visibility_rounded,
                             size: 19,
                           ),
                         ),
                       ),
                     ),
                     const SizedBox(height: 16),
-                    _label('Confirm password'),
+                    pillFieldLabel('Confirm password'),
                     TextFormField(
                       controller: _confirmController,
                       obscureText: _obscure,
                       textInputAction: TextInputAction.done,
                       onFieldSubmitted: (_) => _reset(),
-                      decoration: _pillDecoration(
+                      decoration: pillFieldDecoration(
                         hint: 'Repeat the new password',
                         icon: Icons.lock_outline_rounded,
                       ),
@@ -275,11 +239,11 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                   ],
                   if (_error != null) ...[
                     const SizedBox(height: 14),
-                    _Banner(message: _error!, isError: true),
+                    InlineBanner(message: _error!, isError: true),
                   ],
                   if (_notice != null) ...[
                     const SizedBox(height: 14),
-                    _Banner(message: _notice!, isError: false),
+                    InlineBanner(message: _notice!, isError: false),
                   ],
                   const SizedBox(height: 22),
                   SizedBox(
@@ -324,32 +288,6 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
             ),
           ),
         ),
-      ),
-    );
-  }
-}
-
-class _Banner extends StatelessWidget {
-  const _Banner({required this.message, required this.isError});
-
-  final String message;
-  final bool isError;
-
-  @override
-  Widget build(BuildContext context) {
-    final color = isError ? AppTheme.error : AppTheme.success;
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: color.withValues(alpha: 0.30)),
-      ),
-      child: Text(
-        message,
-        style: TextStyle(
-            fontSize: 13, color: color, fontWeight: FontWeight.w600),
       ),
     );
   }

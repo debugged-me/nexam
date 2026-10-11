@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_theme.dart';
+import '../../../core/widgets/pill_field.dart';
 import 'auth_controller.dart';
 import 'forgot_password_screen.dart';
 import 'register_screen.dart';
@@ -140,7 +141,7 @@ class _LoginScreenState extends State<LoginScreen> {
               keyboardType: TextInputType.url,
               decoration: const InputDecoration(
                 hintText: 'http://192.168.1.5:3000',
-                prefixIcon: Icon(Icons.dns_outlined),
+                prefixIcon: Icon(Icons.dns_rounded),
               ),
             ),
             const SizedBox(height: 16),
@@ -158,8 +159,8 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
-  /// White pill field from the reference — a small label sits above a
-  /// rounded white input with a leading icon.
+  /// White pill field — label above a rounded white input, shared
+  /// decoration from `pill_field.dart`.
   Widget _labeledField({
     required String label,
     required TextEditingController controller,
@@ -173,24 +174,10 @@ class _LoginScreenState extends State<LoginScreen> {
     String? Function(String?)? validator,
     ValueChanged<String>? onSubmitted,
   }) {
-    final shape = OutlineInputBorder(
-      borderRadius: BorderRadius.circular(16),
-      borderSide: const BorderSide(color: AppTheme.cardBorder),
-    );
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Padding(
-          padding: const EdgeInsets.only(left: 4, bottom: 7),
-          child: Text(
-            label,
-            style: const TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
-              color: AppTheme.textDark,
-            ),
-          ),
-        ),
+        pillFieldLabel(label),
         TextFormField(
           controller: controller,
           obscureText: obscure,
@@ -199,23 +186,10 @@ class _LoginScreenState extends State<LoginScreen> {
           autofillHints: autofillHints,
           validator: validator,
           onFieldSubmitted: onSubmitted,
-          decoration: InputDecoration(
-            hintText: hint,
-            filled: true,
-            fillColor: Colors.white,
-            prefixIcon: Icon(icon, size: 19),
-            suffixIcon: suffix,
-            border: shape,
-            enabledBorder: shape,
-            focusedBorder: shape.copyWith(
-              borderSide:
-                  const BorderSide(color: AppTheme.primary, width: 1.5),
-            ),
-            errorBorder: shape.copyWith(
-              borderSide: const BorderSide(color: AppTheme.error),
-            ),
-            contentPadding: const EdgeInsets.symmetric(
-                horizontal: 16, vertical: 16),
+          decoration: pillFieldDecoration(
+            hint: hint,
+            icon: icon,
+            suffix: suffix,
           ),
         ),
       ],
@@ -308,8 +282,8 @@ class _LoginScreenState extends State<LoginScreen> {
                             suffix: IconButton(
                               icon: Icon(
                                 _obscurePassword
-                                    ? Icons.visibility_off_outlined
-                                    : Icons.visibility_outlined,
+                                    ? Icons.visibility_off_rounded
+                                    : Icons.visibility_rounded,
                                 size: 19,
                               ),
                               onPressed: () => setState(() =>
@@ -381,88 +355,24 @@ class _LoginScreenState extends State<LoginScreen> {
                                   )
                                 : const Text('Log In'),
                           ),
-                          const SizedBox(height: 22),
-                          Row(
-                            children: [
-                              const Expanded(
-                                  child: Divider(height: 1)),
-                              Padding(
-                                padding:
-                                    const EdgeInsets.symmetric(
-                                        horizontal: 12),
-                                child: Text(
-                                  'Connection',
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    color: AppTheme.textMuted
-                                        .withValues(alpha: 0.8),
-                                  ),
-                                ),
-                              ),
-                              const Expanded(
-                                  child: Divider(height: 1)),
-                            ],
-                          ),
-                          const SizedBox(height: 16),
-                          // Server pill — same shape as the
-                          // reference's secondary pill buttons.
-                          OutlinedButton(
-                            style: OutlinedButton.styleFrom(
-                              minimumSize:
-                                  const Size(double.infinity, 50),
-                              side: const BorderSide(
-                                  color: AppTheme.cardBorder),
-                              backgroundColor: Colors.white,
-                              shape: RoundedRectangleBorder(
-                                borderRadius:
-                                    BorderRadius.circular(999),
-                              ),
-                            ),
-                            onPressed: _editServer,
-                            child: Row(
-                              mainAxisAlignment:
-                                  MainAxisAlignment.center,
-                              children: [
-                                Container(
-                                  width: 7,
-                                  height: 7,
-                                  decoration:
-                                      const BoxDecoration(
-                                    color: AppTheme.success,
-                                    shape: BoxShape.circle,
-                                  ),
-                                ),
-                                const SizedBox(width: 8),
-                                Flexible(
-                                  child: Text(
-                                    _serverHost,
-                                    overflow:
-                                        TextOverflow.ellipsis,
-                                    style: const TextStyle(
-                                      fontSize: 12.5,
-                                      color: AppTheme.textMuted,
-                                      fontWeight:
-                                          FontWeight.w500,
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(width: 6),
-                                const Text(
-                                  'Change',
-                                  style: TextStyle(
-                                    fontSize: 12.5,
-                                    color: AppTheme.primary,
-                                    fontWeight: FontWeight.w700,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
                         ],
                       ),
                     ),
                   ],
                 ),
+              ),
+            ),
+
+            // Server access — a settings concern, tucked into the
+            // corner gear instead of competing with the form.
+            Positioned(
+              top: 4,
+              right: 4,
+              child: IconButton(
+                onPressed: _editServer,
+                icon: const Icon(Icons.dns_rounded,
+                    size: 20, color: AppTheme.textMuted),
+                tooltip: 'Server: $_serverHost',
               ),
             ),
 

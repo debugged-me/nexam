@@ -46,14 +46,14 @@ class ProfileScreen extends StatelessWidget {
                 ),
               );
             },
-            icon: const Icon(Icons.edit_outlined, size: 16),
+            icon: const Icon(Icons.edit_rounded, size: 16),
             label: const Text('Edit'),
           ),
           const SizedBox(width: 4),
         ],
       ),
       body: ListView(
-        padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
         children: [
           _identityCard(),
           const SizedBox(height: 16),
@@ -148,7 +148,7 @@ class ProfileScreen extends StatelessWidget {
       child: Column(
         children: [
           _infoRow(
-            icon: Icons.dns_outlined,
+            icon: Icons.dns_rounded,
             label: 'Server',
             value: _serverHost,
             first: true,
@@ -159,7 +159,7 @@ class ProfileScreen extends StatelessWidget {
             value: session.email,
           ),
           _infoRow(
-            icon: Icons.badge_outlined,
+            icon: Icons.badge_rounded,
             label: 'Role',
             value: session.role,
           ),

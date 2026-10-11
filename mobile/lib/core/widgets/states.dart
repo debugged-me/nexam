@@ -101,6 +101,41 @@ class EmptyState extends StatelessWidget {
   }
 }
 
+/// Small inline notice for forms — an error (red) or info (green)
+/// banner placed between fields and the submit button.
+class InlineBanner extends StatelessWidget {
+  const InlineBanner({
+    super.key,
+    required this.message,
+    this.isError = true,
+  });
+
+  final String message;
+  final bool isError;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = isError ? AppTheme.error : AppTheme.success;
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(AppTheme.radiusSm),
+        border: Border.all(color: color.withValues(alpha: 0.30)),
+      ),
+      child: Text(
+        message,
+        style: AppTheme.body(
+          size: 13,
+          color: color,
+          weight: FontWeight.w600,
+        ),
+      ),
+    );
+  }
+}
+
 /// One visual language for "this failed" — amber tile, the API message,
 /// and a single Retry button. Used by every screen's load failure.
 class ErrorState extends StatelessWidget {
@@ -129,7 +164,7 @@ class ErrorState extends StatelessWidget {
                 borderRadius: BorderRadius.circular(16),
               ),
               child: const Icon(
-                Icons.cloud_off_outlined,
+                Icons.cloud_off_rounded,
                 color: AppTheme.warning,
                 size: 24,
               ),

@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../../../core/network/api_exception.dart';
 import '../../../core/theme/app_theme.dart';
@@ -129,39 +130,19 @@ class _ScanDetailScreenState extends State<ScanDetailScreen> {
   }
 
   Future<void> _editMatching(ScanAnswerItem item) async {
-    final letters = (item.markedAnswer.isEmpty
-            ? <String>[]
-            : item.markedAnswer.split(','))
-        .toList();
-    final controller = TextEditingController(text: letters.join(','));
-    final result = await showDialog<String>(
+    final result = await showModalBottomSheet<String>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-        ),
-        title: Text('Item ${item.itemNumber} — matching'),
-        content: TextField(
-          controller: controller,
-          decoration: const InputDecoration(
-            labelText: 'Answers in order (e.g. B,A,D,C)',
-          ),
-          textCapitalization: TextCapitalization.characters,
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(ctx).pop(controller.text),
-            child: const Text('Save'),
-          ),
-        ],
+      isScrollControlled: true,
+      showDragHandle: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius:
+            BorderRadius.vertical(top: Radius.circular(24)),
       ),
+      builder: (ctx) => _MatchingCorrectionSheet(item: item),
     );
     if (result != null && result != item.markedAnswer) {
-      setState(() => _corrections[item.itemNumber] = result.toUpperCase());
+      setState(() => _corrections[item.itemNumber] = result);
     }
   }
 
@@ -211,38 +192,32 @@ class _ScanDetailScreenState extends State<ScanDetailScreen> {
 
   Widget _buildBody() {
     final bottomPad = _corrections.isNotEmpty ? 110.0 : 24.0;
-    return ListView(
-      padding: EdgeInsets.fromLTRB(16, 8, 16, bottomPad),
-      children: [
-        if (_detail!.scan.isNotEmpty) _buildScoreHero(),
-        const SizedBox(height: 16),
-        Row(
-          children: [
-            const Text(
-              'ITEM LEDGER',
-              style: TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.w800,
-                letterSpacing: 1.4,
-                color: AppTheme.textFaint,
+    return RefreshIndicator(
+      onRefresh: _load,
+      color: AppTheme.primary,
+      child: ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: EdgeInsets.fromLTRB(16, 8, 16, bottomPad),
+        children: [
+          if (_detail!.scan.isNotEmpty) _buildScoreHero(),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              Text('ITEM LEDGER', style: AppTheme.micro()),
+              const Spacer(),
+              Text(
+                'tap a row to correct',
+                style: AppTheme.body(size: 11.5),
               ),
-            ),
-            const Spacer(),
-            Text(
-              'tap a row to correct',
-              style: TextStyle(
-                fontSize: 11.5,
-                color: AppTheme.textFaint.withValues(alpha: 0.8),
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 8),
-        for (final item in _detail!.answers) ...[
-          _buildItemCard(item),
+            ],
+          ),
           const SizedBox(height: 8),
+          for (final item in _detail!.answers) ...[
+            _buildItemCard(item),
+            const SizedBox(height: 8),
+          ],
         ],
-      ],
+      ),
     );
   }
 
@@ -365,7 +340,7 @@ class _ScanDetailScreenState extends State<ScanDetailScreen> {
                         'Needs review',
                         AppTheme.warning.withValues(alpha: 0.2),
                         AppTheme.warning,
-                        icon: Icons.flag_outlined,
+                        icon: Icons.flag_rounded,
                       ),
                   ],
                 ),
@@ -473,8 +448,9 @@ class _ScanDetailScreenState extends State<ScanDetailScreen> {
                       style: TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.w700,
-                        color:
-                            corrected ? AppTheme.primary : AppTheme.ink,
+                        color: corrected
+                            ? AppTheme.primary
+                            : AppTheme.textDark,
                       ),
                     ),
                     const SizedBox(height: 2),
@@ -485,10 +461,7 @@ class _ScanDetailScreenState extends State<ScanDetailScreen> {
                             item.correctAnswer!.isNotEmpty)
                           'key: ${item.correctAnswer}',
                       ].join('  •  '),
-                      style: const TextStyle(
-                        fontSize: 11.5,
-                        color: AppTheme.textMuted,
-                      ),
+                      style: AppTheme.body(size: 11.5),
                     ),
                   ],
                 ),
@@ -605,7 +578,10 @@ class _ScanDetailScreenState extends State<ScanDetailScreen> {
       color: selected ? AppTheme.primary : AppTheme.surfaceAlt,
       borderRadius: BorderRadius.circular(10),
       child: InkWell(
-        onTap: () => Navigator.of(ctx).pop(value ?? label),
+        onTap: () {
+          HapticFeedback.selectionClick();
+          Navigator.of(ctx).pop(value ?? label);
+        },
         borderRadius: BorderRadius.circular(10),
         child: Container(
           constraints: const BoxConstraints(minWidth: 48, minHeight: 42),
@@ -663,4 +639,178 @@ class _ScoreRingPainter extends CustomPainter {
   @override
   bool shouldRepaint(_ScoreRingPainter old) =>
       old.progress != progress || old.color != color;
+}
+
+/// Matching-type correction — one letter chip per premise, each letter
+/// usable once (matching can't repeat a response). Premise count comes
+/// from the marked/keyed comma-joined answer; option count derives from
+/// the largest letter seen, floored at 5 (the OMR sheet's A–E).
+class _MatchingCorrectionSheet extends StatefulWidget {
+  const _MatchingCorrectionSheet({required this.item});
+
+  final ScanAnswerItem item;
+
+  @override
+  State<_MatchingCorrectionSheet> createState() =>
+      _MatchingCorrectionSheetState();
+}
+
+class _MatchingCorrectionSheetState
+    extends State<_MatchingCorrectionSheet> {
+  late final List<String?> _picks;
+  late final List<String> _letters;
+
+  static List<String> _split(String? s) =>
+      (s == null || s.isEmpty) ? <String>[] : s.split(',');
+
+  @override
+  void initState() {
+    super.initState();
+    final marked = _split(widget.item.markedAnswer);
+    final keyed = _split(widget.item.correctAnswer);
+
+    // Highest letter seen anywhere drives the option range (min A–E).
+    var maxIndex = 4;
+    for (final l in [...marked, ...keyed]) {
+      if (l.isNotEmpty) {
+        final idx = l.codeUnitAt(0) - 65;
+        if (idx > maxIndex) maxIndex = idx;
+      }
+    }
+    _letters = List.generate(
+      math.min(maxIndex + 1, 8),
+      (i) => String.fromCharCode(65 + i),
+    );
+
+    final premiseCount =
+        math.max(math.max(marked.length, keyed.length), 4);
+    _picks = List.generate(
+      premiseCount,
+      (i) => i < marked.length && marked[i].isNotEmpty
+          ? marked[i]
+          : null,
+    );
+  }
+
+  bool get _complete => _picks.every((p) => p != null);
+
+  void _pick(int premise, String letter) {
+    HapticFeedback.selectionClick();
+    setState(() {
+      if (_picks[premise] == letter) {
+        _picks[premise] = null;
+      } else {
+        // Enforce uniqueness — steal the letter from its old premise.
+        final other = _picks.indexOf(letter);
+        if (other != -1) _picks[other] = null;
+        _picks[premise] = letter;
+      }
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      child: Padding(
+        padding: EdgeInsets.fromLTRB(
+            20, 0, 20, MediaQuery.of(context).viewInsets.bottom + 20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    'Item ${widget.item.itemNumber} — matching',
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(''),
+                  child: const Text('Mark blank'),
+                ),
+              ],
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'Tap a letter per premise — each can be used once.',
+              style: AppTheme.body(size: 12.5),
+            ),
+            const SizedBox(height: 14),
+            for (var i = 0; i < _picks.length; i++) ...[
+              Row(
+                children: [
+                  Container(
+                    width: 28,
+                    height: 28,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: AppTheme.surfaceAlt,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      '${i + 1}',
+                      style: AppTheme.label(size: 12.5,
+                          weight: FontWeight.w700),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Wrap(
+                      spacing: 6,
+                      runSpacing: 6,
+                      children: [
+                        for (final letter in _letters)
+                          _letterChip(i, letter),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              if (i < _picks.length - 1) const SizedBox(height: 8),
+            ],
+            const SizedBox(height: 16),
+            ElevatedButton(
+              onPressed: _complete
+                  ? () => Navigator.of(context)
+                      .pop(_picks.join(','))
+                  : null,
+              child: const Text('Save'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _letterChip(int premise, String letter) {
+    final selected = _picks[premise] == letter;
+    return Material(
+      color: selected ? AppTheme.primary : AppTheme.surfaceAlt,
+      borderRadius: BorderRadius.circular(AppTheme.radiusSm),
+      child: InkWell(
+        onTap: () => _pick(premise, letter),
+        borderRadius: BorderRadius.circular(AppTheme.radiusSm),
+        child: Container(
+          constraints:
+              const BoxConstraints(minWidth: 38, minHeight: 38),
+          alignment: Alignment.center,
+          padding: const EdgeInsets.symmetric(horizontal: 10),
+          child: Text(
+            letter,
+            style: TextStyle(
+              fontSize: 13.5,
+              fontWeight: FontWeight.w700,
+              color:
+                  selected ? Colors.white : AppTheme.textMuted,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }

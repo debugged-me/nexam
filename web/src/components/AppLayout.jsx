@@ -15,7 +15,8 @@ import {
   X,
   Search,
   Sparkles,
-  PanelLeft,
+  ChevronsLeft,
+  ChevronsRight,
   Settings2,
 } from 'lucide-react';
 import { useAuth } from '../features/auth/AuthContext.jsx';
@@ -31,6 +32,7 @@ import { NAV_ITEMS, ADMIN_NAV_ITEMS, BUILD_ACTION } from './navigation.js';
 import CommandMenu from './CommandMenu.jsx';
 import UserAvatar from './UserAvatar.jsx';
 import AvatarPickerModal from './AvatarPickerModal.jsx';
+import SidebarLink from './SidebarLink.jsx';
 
 function activeFor(pathname) {
   if (pathname.startsWith('/questions/institution')) return 'institution';
@@ -49,6 +51,16 @@ const THEME_CHOICES = [
   { key: 'system', label: 'System', Icon: Monitor },
 ];
 
+const SIDEBAR_COLLAPSED_KEY = 'nexam.sidebar.collapsed';
+
+function readSidebarCollapsed() {
+  try {
+    return localStorage.getItem(SIDEBAR_COLLAPSED_KEY) === 'true';
+  } catch {
+    return false;
+  }
+}
+
 export default function AppLayout() {
   const { user, logout, refreshUser } = useAuth();
   const confirm = useConfirm();
@@ -59,6 +71,7 @@ export default function AppLayout() {
   const busy = useNetworkBusy();
   const [meta, setMeta] = useState({});
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(readSidebarCollapsed);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [commandOpen, setCommandOpen] = useState(false);
   const userMenuRef = useRef(null);
@@ -88,6 +101,14 @@ export default function AppLayout() {
     [...navItems, ...(isAdmin ? [] : [BUILD_ACTION])].find((item) => item.key === activeKey)?.label || 'Account';
   const title = activeKey === 'dashboard' ? 'Overview' : meta.pageTitle || section;
   const [pickerOpen, setPickerOpen] = useState(false);
+
+  function toggleSidebar() {
+    const next = !sidebarCollapsed;
+    setSidebarCollapsed(next);
+    try {
+      localStorage.setItem(SIDEBAR_COLLAPSED_KEY, String(next));
+    } catch { /* Keep the current choice in memory when storage is unavailable. */ }
+  }
 
   useEffect(() => {
     function handleClick(event) {
@@ -176,7 +197,7 @@ export default function AppLayout() {
   }, [mobileOpen]);
 
   return (
-    <div className="app-shell">
+    <div className={`app-shell${sidebarCollapsed ? ' app-shell--sidebar-collapsed' : ''}`}>
       <a href="#workspace-content" className="skip-link">
         Skip to content
       </a>
@@ -189,12 +210,18 @@ export default function AppLayout() {
         aria-label="Workspace navigation"
       >
         <div className="sidebar-brand">
-          <Link to={isAdmin ? '/admin/dashboard' : '/dashboard'} className="sidebar-brand-link" aria-label="Nexam overview">
+          <SidebarLink
+            to={isAdmin ? '/admin/dashboard' : '/dashboard'}
+            className="sidebar-brand-link"
+            label="Nexam overview"
+            compact={sidebarCollapsed}
+            onClick={() => setMobileOpen(false)}
+          >
             <img className="sidebar-mark" src="/favicon.png" alt="" />
             <span className="sidebar-wordmark">
               nexam<span className="sidebar-edition">{isAdmin ? 'console' : 'workspace'}</span>
             </span>
-          </Link>
+          </SidebarLink>
           <button
             className="sidebar-close"
             type="button"
@@ -211,18 +238,21 @@ export default function AppLayout() {
               {navItems.filter((item) => item.group === group).map((item) => {
                 const Icon = item.icon;
                 return (
-                  <Link
+                  <SidebarLink
                     key={item.key}
                     to={item.to}
                     className={`nav-item ${activeKey === item.key ? 'active' : ''}`}
+                    label={item.label}
+                    compact={sidebarCollapsed}
                     aria-current={activeKey === item.key ? 'page' : undefined}
                     data-tour={`nav-${item.key}`}
+                    onClick={() => setMobileOpen(false)}
                     onPointerEnter={() => prefetchAll(item.prefetch)}
                     onFocus={() => prefetchAll(item.prefetch)}
                   >
-                    <Icon size={17} />
-                    <span>{item.label}</span>
-                  </Link>
+                    <Icon size={17} aria-hidden="true" />
+                    <span className="nav-item-label">{item.label}</span>
+                  </SidebarLink>
                 );
               })}
             </div>
@@ -230,22 +260,29 @@ export default function AppLayout() {
         </nav>
         {!isAdmin && (
           <div className="sidebar-create">
-            <Link
+            <SidebarLink
               to="/wizard"
               className={`nav-item nav-item--featured ${activeKey === 'wizard' ? 'active' : ''}`}
+              label="Build an exam"
+              compact={sidebarCollapsed}
               aria-current={activeKey === 'wizard' ? 'page' : undefined}
               data-tour="shell-build"
+              onClick={() => setMobileOpen(false)}
               onPointerEnter={() => prefetchAll(BUILD_ACTION.prefetch)}
+              onFocus={() => prefetchAll(BUILD_ACTION.prefetch)}
             >
-              <Sparkles size={17} />
-              <span>Build an exam</span>
-              <ChevronRight size={14} />
-            </Link>
+              <Sparkles size={17} aria-hidden="true" />
+              <span className="nav-item-label">Build an exam</span>
+              <ChevronRight className="nav-item-chevron" size={14} aria-hidden="true" />
+            </SidebarLink>
           </div>
         )}
-        <Link
+        <SidebarLink
           to="/account"
           className="sidebar-foot"
+          label="Account settings"
+          compact={sidebarCollapsed}
+          onClick={() => setMobileOpen(false)}
           onPointerEnter={() => prefetchAll(isAdmin ? undefined : ['/auth/me'])}
           onFocus={() => prefetchAll(isAdmin ? undefined : ['/auth/me'])}
         >
@@ -259,7 +296,7 @@ export default function AppLayout() {
             </small>
           </span>
           <Settings2 size={16} aria-hidden="true" />
-        </Link>
+        </SidebarLink>
       </aside>
       {mobileOpen && (
         <div
@@ -283,7 +320,17 @@ export default function AppLayout() {
             >
               <Menu size={18} />
             </button>
-            <PanelLeft size={16} className="topbar-workspace-icon" aria-hidden="true" />
+            <button
+              className="sidebar-toggle"
+              type="button"
+              aria-label={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+              title={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+              aria-expanded={!sidebarCollapsed}
+              aria-controls="workspace-navigation"
+              onClick={toggleSidebar}
+            >
+              {sidebarCollapsed ? <ChevronsRight size={18} aria-hidden="true" /> : <ChevronsLeft size={18} aria-hidden="true" />}
+            </button>
             <div className="topbar-heading">
               <span className="topbar-workspace">{isAdmin ? 'Admin console' : 'Faculty workspace'}</span>
               <ChevronRight size={13} className="topbar-divider" aria-hidden="true" />

@@ -32,6 +32,47 @@ class AppTheme {
         height: 1.08,
       );
 
+  /// Uppercase micro-label — section headers ("ITEM LEDGER"), stat
+  /// captions, chart titles. Default color is muted, never faint — at
+  /// this size faint text fails contrast.
+  static TextStyle micro({Color color = textMuted}) => TextStyle(
+        fontSize: 10.5,
+        fontWeight: FontWeight.w800,
+        letterSpacing: 1.3,
+        color: color,
+      );
+
+  /// Semibold label — field labels, chip text, nav captions.
+  static TextStyle label({
+    double size = 13,
+    Color color = textDark,
+    FontWeight weight = FontWeight.w600,
+  }) =>
+      TextStyle(fontSize: size, fontWeight: weight, color: color);
+
+  /// Standard body text.
+  static TextStyle body({
+    double size = 13.5,
+    Color color = textMuted,
+    FontWeight weight = FontWeight.w400,
+    double? height,
+  }) =>
+      TextStyle(
+        fontSize: size,
+        fontWeight: weight,
+        color: color,
+        height: height,
+      );
+
+  /// Row title — names/titles inside ledger rows.
+  static TextStyle rowTitle({double size = 14, Color color = textDark}) =>
+      TextStyle(
+        fontSize: size,
+        fontWeight: FontWeight.w600,
+        letterSpacing: -0.1,
+        color: color,
+      );
+
   // ── Brand palette — mirrored from web tokens.css ─────────────────────────
   static const Color primary = Color(0xFF2383E2);   // --action-600
   static const Color primaryLight = Color(0xFF4FA1EC); // --action-400

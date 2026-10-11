@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../../../core/network/api_exception.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/motion.dart';
 import '../../../core/widgets/nexam_app_bar.dart';
+import '../../../core/widgets/scan_row.dart';
 import '../../../core/widgets/skeleton.dart';
 import '../../../core/widgets/states.dart';
 import '../../auth/domain/instructor_session.dart';
@@ -187,7 +189,10 @@ class _ScansScreenState extends State<ScansScreen> {
           : Colors.white,
       borderRadius: BorderRadius.circular(999),
       child: InkWell(
-        onTap: onTap,
+        onTap: () {
+          HapticFeedback.selectionClick();
+          onTap();
+        },
         borderRadius: BorderRadius.circular(999),
         child: Container(
           padding: const EdgeInsets.symmetric(
@@ -214,113 +219,35 @@ class _ScansScreenState extends State<ScansScreen> {
   }
 
   Widget _scanRow(Map<String, dynamic> scan) {
-    final score =
-        double.tryParse(scan['score']?.toString() ?? '0') ?? 0;
     final needsReview =
         scan['needs_review'] == 1 || scan['needs_review'] == true;
-    final accent = needsReview ? AppTheme.warning : AppTheme.success;
-    final tint = needsReview ? AppTheme.tintAmber : AppTheme.tintGreen;
-
     return Material(
       color: Colors.white,
       borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-      child: InkWell(
-        onTap: () {
-          Navigator.of(context).push(
-            MaterialPageRoute(
-              builder: (_) => ScanDetailScreen(
-                scanId: scan['id']?.toString() ?? '',
-                baseUrl: widget.session.baseUrl,
-                token: widget.session.token,
-                onSessionExpired: widget.onSessionExpired,
-                onReviewed: _load,
-              ),
-            ),
-          );
-        },
-        borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-        child: Container(
-          padding:
-              const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-            border: Border.all(
-              color: needsReview
-                  ? AppTheme.warning.withValues(alpha: 0.35)
-                  : AppTheme.cardBorder,
-            ),
+      child: Container(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+          border: Border.all(
+            color: needsReview
+                ? AppTheme.warning.withValues(alpha: 0.35)
+                : AppTheme.cardBorder,
           ),
-          child: Row(
-            children: [
-              Container(
-                width: 40,
-                height: 40,
-                decoration: BoxDecoration(
-                  color: tint,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Icon(
-                  needsReview
-                      ? Icons.flag_outlined
-                      : Icons.check_circle_outline,
-                  size: 19,
-                  color: accent,
+        ),
+        child: ScanRow(
+          scan: scan,
+          onTap: () {
+            Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (_) => ScanDetailScreen(
+                  scanId: scan['id']?.toString() ?? '',
+                  baseUrl: widget.session.baseUrl,
+                  token: widget.session.token,
+                  onSessionExpired: widget.onSessionExpired,
+                  onReviewed: _load,
                 ),
               ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      scan['student_name']?.toString() ?? 'Unknown',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                        color: AppTheme.textDark,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      '${scan['exam_title'] ?? ''} • ${_formatDate(scan['scanned_at']?.toString())}',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        fontSize: 12,
-                        color: AppTheme.textMuted,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 10),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  Text(
-                    '${score.toStringAsFixed(0)}%',
-                    style: AppTheme.display(16,
-                        weight: FontWeight.w700,
-                        color: accent,
-                        letterSpacing: -0.3),
-                  ),
-                  Text(
-                    '${scan['correct_count'] ?? 0}/${scan['total_items'] ?? 0}',
-                    style: const TextStyle(
-                      fontSize: 11.5,
-                      color: AppTheme.textFaint,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(width: 2),
-              const Icon(Icons.chevron_right_rounded,
-                  size: 18, color: AppTheme.textFaint),
-            ],
-          ),
+            );
+          },
         ),
       ),
     );
@@ -333,7 +260,7 @@ class _ScansScreenState extends State<ScansScreen> {
         const SizedBox(height: 130),
         EmptyState(
           icon: _scans.isEmpty
-              ? Icons.document_scanner_outlined
+              ? Icons.document_scanner_rounded
               : Icons.filter_list_off_rounded,
           title: _scans.isEmpty
               ? 'No scans yet'
@@ -348,15 +275,4 @@ class _ScansScreenState extends State<ScansScreen> {
 
   Widget _buildError() =>
       ErrorState(message: _error!, onRetry: _load);
-
-  String _formatDate(String? dateStr) {
-    if (dateStr == null || dateStr.isEmpty) return '';
-    try {
-      final dt = DateTime.parse(dateStr);
-      return '${dt.month}/${dt.day} '
-          '${dt.hour}:${dt.minute.toString().padLeft(2, '0')}';
-    } catch (_) {
-      return '';
-    }
-  }
 }

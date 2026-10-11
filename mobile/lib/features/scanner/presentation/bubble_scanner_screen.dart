@@ -309,7 +309,7 @@ class _BubbleScannerScreenState extends State<BubbleScannerScreen>
                 borderRadius: BorderRadius.circular(18),
               ),
               child: const Icon(
-                Icons.videocam_off_outlined,
+                Icons.videocam_off_rounded,
                 color: Colors.white70,
                 size: 26,
               ),
@@ -362,7 +362,7 @@ class _BubbleScannerScreenState extends State<BubbleScannerScreen>
             child: _darkField(
               controller: _numberController,
               hint: 'Student ID',
-              icon: Icons.badge_outlined,
+              icon: Icons.badge_rounded,
             ),
           ),
         ],
@@ -745,7 +745,7 @@ class _ScanReviewScreenState extends State<ScanReviewScreen> {
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Icon(Icons.flag_outlined,
+                  const Icon(Icons.flag_rounded,
                       size: 13, color: AppTheme.warning),
                   const SizedBox(width: 4),
                   Text(
@@ -822,7 +822,7 @@ class _ScanReviewScreenState extends State<ScanReviewScreen> {
               else if (_answers[index].isEmpty)
                 const Text('blank',
                     style: TextStyle(
-                        fontSize: 11.5, color: AppTheme.textFaint))
+                        fontSize: 11.5, color: AppTheme.textMuted))
               else
                 const Icon(Icons.check_circle_rounded,
                     color: AppTheme.success, size: 17),
@@ -993,7 +993,7 @@ class _ScanReviewScreenState extends State<ScanReviewScreen> {
                     ? Icons.check_rounded
                     : Icons.close_rounded,
                 size: 15,
-                color: selected ? accent : AppTheme.textFaint,
+                color: selected ? accent : AppTheme.textMuted,
               ),
               const SizedBox(width: 5),
               Text(

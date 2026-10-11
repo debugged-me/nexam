@@ -153,7 +153,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
           mainAxisSize: MainAxisSize.min,
           children: [
             ListTile(
-              leading: const Icon(Icons.photo_library_outlined),
+              leading: const Icon(Icons.photo_library_rounded),
               title: const Text('Change photo'),
               onTap: () {
                 Navigator.pop(ctx);
@@ -242,7 +242,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         subtitle: 'Synced with your web account',
       ),
       body: ListView(
-        padding: const EdgeInsets.fromLTRB(20, 16, 20, 40),
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 40),
         children: [
           _photoCard(),
           const SizedBox(height: 20),
@@ -321,7 +321,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                               color: Colors.white,
                             ),
                           )
-                        : const Icon(Icons.photo_camera_outlined,
+                        : const Icon(Icons.photo_camera_rounded,
                             size: 15, color: Colors.white),
                   ),
                 ),
@@ -352,12 +352,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
   Widget _sectionLabel(String label) => Text(
         label,
-        style: const TextStyle(
-          fontSize: 11,
-          fontWeight: FontWeight.w800,
-          letterSpacing: 1.1,
-          color: AppTheme.textFaint,
-        ),
+        style: AppTheme.micro(),
       );
 
   Widget _nameCard() {

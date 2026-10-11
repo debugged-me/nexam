@@ -86,6 +86,12 @@ class _QrScannerScreenState extends State<QrScannerScreen>
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         foregroundColor: Colors.white,
+        leading: IconButton(
+          onPressed: () => Navigator.of(context).maybePop(),
+          icon: const Icon(Icons.arrow_back_ios_new_rounded,
+              size: 19),
+          tooltip: 'Back',
+        ),
         title: const Text(
           'Scan sheet QR',
           style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),

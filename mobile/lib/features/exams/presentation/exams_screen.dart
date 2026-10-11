@@ -9,6 +9,7 @@ import '../../../core/widgets/states.dart';
 import '../../auth/domain/instructor_session.dart';
 import '../data/exam_api.dart';
 import '../domain/exam.dart';
+import 'exam_row.dart';
 
 /// Exams tab — the instructor's exam library, read-only on mobile.
 /// (Assembly happens on the web; the phone is for grading.)
@@ -99,7 +100,7 @@ class _ExamsScreenState extends State<ExamsScreen> {
                               const SizedBox(height: 8),
                           itemBuilder: (_, i) => StaggerIn(
                             index: i,
-                            child: _examRow(_exams[i]),
+                            child: _examCard(_exams[i]),
                           ),
                         ),
                 ),
@@ -122,83 +123,16 @@ class _ExamsScreenState extends State<ExamsScreen> {
     );
   }
 
-  Widget _examRow(ExamSummary exam) {
-    final published = exam.status.toLowerCase() == 'published';
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-        border: Border.all(color: AppTheme.cardBorder),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 40,
-            height: 40,
-            decoration: BoxDecoration(
-              color: AppTheme.tintBlue,
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: const Icon(
-              Icons.description_outlined,
-              size: 19,
-              color: AppTheme.primary,
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  exam.title,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                    color: AppTheme.textDark,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  '${exam.subjectName} • ${exam.questionCount} questions',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    fontSize: 12,
-                    color: AppTheme.textMuted,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 10),
-          Container(
-            padding: const EdgeInsets.symmetric(
-                horizontal: 9, vertical: 4),
-            decoration: BoxDecoration(
-              color: published
-                  ? AppTheme.tintGreen
-                  : AppTheme.surfaceAlt,
-              borderRadius: BorderRadius.circular(999),
-            ),
-            child: Text(
-              exam.status.isEmpty
-                  ? ''
-                  : exam.status[0].toUpperCase() +
-                      exam.status.substring(1),
-              style: TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.w700,
-                color: published
-                    ? AppTheme.success
-                    : AppTheme.textMuted,
-              ),
-            ),
-          ),
-        ],
+  Widget _examCard(ExamSummary exam) {
+    return Material(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+      child: Container(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+          border: Border.all(color: AppTheme.cardBorder),
+        ),
+        child: ExamRow(exam: exam),
       ),
     );
   }
@@ -209,7 +143,7 @@ class _ExamsScreenState extends State<ExamsScreen> {
       children: const [
         SizedBox(height: 130),
         EmptyState(
-          icon: Icons.assignment_outlined,
+          icon: Icons.assignment_rounded,
           title: 'No exams yet',
           message:
               'Create exams on the web platform — they appear here.',

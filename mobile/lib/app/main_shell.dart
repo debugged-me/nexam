@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../core/theme/app_theme.dart';
 import '../core/widgets/session_avatar.dart';
@@ -40,6 +41,7 @@ class _MainShellState extends State<MainShell> {
   int _flagged = 0;
 
   void _startScan() {
+    HapticFeedback.mediumImpact();
     launchScanFlow(
       context,
       session: widget.session,
@@ -87,7 +89,11 @@ class _MainShellState extends State<MainShell> {
         index: _tab,
         flagged: _flagged,
         session: widget.session,
-        onTap: (i) => setState(() => _tab = i),
+        onTap: (i) {
+          if (i == _tab) return;
+          HapticFeedback.selectionClick();
+          setState(() => _tab = i);
+        },
         onScan: _startScan,
       ),
     );
@@ -214,12 +220,12 @@ class _NavBar extends StatelessWidget {
             Text(
               'Profile',
               style: TextStyle(
-                fontSize: 10.5,
+                fontSize: 11,
                 fontWeight:
                     selected ? FontWeight.w700 : FontWeight.w500,
                 color: selected
                     ? AppTheme.primary
-                    : AppTheme.textFaint,
+                    : AppTheme.textMuted,
               ),
             ),
           ],
@@ -237,7 +243,7 @@ class _NavBar extends StatelessWidget {
   }) {
     final selected = this.index == index;
     final color =
-        selected ? AppTheme.primary : AppTheme.textFaint;
+        selected ? AppTheme.primary : AppTheme.textMuted;
     return Expanded(
       child: InkWell(
         onTap: () => onTap(index),
@@ -264,7 +270,7 @@ class _NavBar extends StatelessWidget {
             Text(
               label,
               style: TextStyle(
-                fontSize: 10.5,
+                fontSize: 11,
                 fontWeight:
                     selected ? FontWeight.w700 : FontWeight.w500,
                 color: color,

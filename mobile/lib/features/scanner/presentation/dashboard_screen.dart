@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../../../core/network/api_exception.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/motion.dart';
 import '../../../core/widgets/nexam_app_bar.dart';
+import '../../../core/widgets/scan_row.dart';
 import '../../../core/widgets/skeleton.dart';
 import '../../../core/widgets/states.dart';
+import '../../exams/presentation/exam_row.dart';
 import '../../auth/domain/instructor_session.dart';
 import '../../exams/data/exam_api.dart';
 import '../../exams/domain/exam.dart';
@@ -184,7 +187,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   color: AppTheme.primary,
                   child: ListView(
                     physics: const AlwaysScrollableScrollPhysics(),
-                    padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
+                    padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
                     children: [
                       _buildHeroCard(),
                       const SizedBox(height: 14),
@@ -207,7 +210,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   /// instant content instead of a spinner.
   Widget _buildSkeleton() {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
       child: Shimmer(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -271,10 +274,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 children: [
                   Text(
                     'GRADING DESK',
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: 1.4,
+                    style: AppTheme.micro(
                       color: Colors.white.withValues(alpha: 0.65),
                     ),
                   ),
@@ -361,10 +361,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       children: [
         Text(
           'LAST 7 DAYS${total > 0 ? ' · $total scan${total == 1 ? '' : 's'}' : ''}',
-          style: TextStyle(
-            fontSize: 10,
-            fontWeight: FontWeight.w700,
-            letterSpacing: 1.2,
+          style: AppTheme.micro(
             color: Colors.white.withValues(alpha: 0.55),
           ),
         ),
@@ -436,18 +433,21 @@ class _DashboardScreenState extends State<DashboardScreen> {
             value: _exams.length,
             label: 'Exams',
             color: AppTheme.primary,
+            tab: 2,
           ),
           _hairline(),
           _statCell(
             value: _recentScans.length,
             label: 'Scans',
             color: AppTheme.success,
+            tab: 1,
           ),
           _hairline(),
           _statCell(
             value: _pendingReview,
             label: 'To review',
             color: AppTheme.warning,
+            tab: 1,
           ),
         ],
       ),
@@ -458,26 +458,30 @@ class _DashboardScreenState extends State<DashboardScreen> {
     required int value,
     required String label,
     required Color color,
+    required int tab,
   }) {
     return Expanded(
-      child: Column(
-        children: [
-          CountUp(
-            value,
-            style: AppTheme.display(21,
-                weight: FontWeight.w700, color: color),
-          ),
-          const SizedBox(height: 2),
-          Text(
-            label.toUpperCase(),
-            style: const TextStyle(
-              fontSize: 10,
-              letterSpacing: 0.9,
-              color: AppTheme.textFaint,
-              fontWeight: FontWeight.w700,
+      child: InkWell(
+        onTap: widget.onNavigate == null
+            ? null
+            : () {
+                HapticFeedback.selectionClick();
+                widget.onNavigate!(tab);
+              },
+        child: Column(
+          children: [
+            CountUp(
+              value,
+              style: AppTheme.display(21,
+                  weight: FontWeight.w700, color: color),
             ),
-          ),
-        ],
+            const SizedBox(height: 2),
+            Text(
+              label.toUpperCase(),
+              style: AppTheme.micro(),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -503,7 +507,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
         const Spacer(),
         if (tab != null && widget.onNavigate != null)
           InkWell(
-            onTap: () => widget.onNavigate!(tab),
+            onTap: () {
+              HapticFeedback.selectionClick();
+              widget.onNavigate!(tab);
+            },
             borderRadius: BorderRadius.circular(999),
             child: const Padding(
               padding: EdgeInsets.symmetric(
@@ -536,7 +543,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     if (_recentScans.isEmpty) {
       return EmptyState(
         inCard: true,
-        icon: Icons.document_scanner_outlined,
+        icon: Icons.document_scanner_rounded,
         title: 'No scans yet',
         message:
             'Grade your first OMR sheet — it takes under a minute.',
@@ -565,99 +572,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  Widget _scanRow(Map<String, dynamic> scan) {
-    final score =
-        double.tryParse(scan['score']?.toString() ?? '0') ?? 0;
-    final needsReview =
-        scan['needs_review'] == 1 || scan['needs_review'] == true;
-    final accent = needsReview ? AppTheme.warning : AppTheme.success;
-    final tint = needsReview ? AppTheme.tintAmber : AppTheme.tintGreen;
-
-    return InkWell(
-      onTap: () => _openScanDetail(scan),
-      borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
-        child: Row(
-          children: [
-            Container(
-              width: 40,
-              height: 40,
-              decoration: BoxDecoration(
-                color: tint,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Icon(
-                needsReview
-                    ? Icons.flag_outlined
-                    : Icons.check_circle_outline,
-                size: 19,
-                color: accent,
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    scan['student_name']?.toString() ?? 'Unknown',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                      color: AppTheme.textDark,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    '${scan['exam_title'] ?? ''} • ${_formatDate(scan['scanned_at']?.toString())}',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      fontSize: 12,
-                      color: AppTheme.textMuted,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(width: 10),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                Text(
-                  '${score.toStringAsFixed(0)}%',
-                  style: AppTheme.display(16,
-                      weight: FontWeight.w700,
-                      color: accent,
-                      letterSpacing: -0.3),
-                ),
-                Text(
-                  '${scan['correct_count'] ?? 0}/${scan['total_items'] ?? 0}',
-                  style: const TextStyle(
-                    fontSize: 11.5,
-                    color: AppTheme.textFaint,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(width: 2),
-            const Icon(Icons.chevron_right_rounded,
-                size: 18, color: AppTheme.textFaint),
-          ],
-        ),
-      ),
-    );
-  }
+  Widget _scanRow(Map<String, dynamic> scan) =>
+      ScanRow(scan: scan, onTap: () => _openScanDetail(scan));
 
   Widget _buildExamsCard() {
     if (_exams.isEmpty) {
       return const EmptyState(
         inCard: true,
-        icon: Icons.assignment_outlined,
+        icon: Icons.assignment_rounded,
         title: 'No exams yet',
         message: 'Create exams on the web platform — they appear here.',
       );
@@ -684,86 +606,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  Widget _examRow(ExamSummary exam) {
-    final published = exam.status.toLowerCase() == 'published';
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
-      child: Row(
-        children: [
-          Container(
-            width: 40,
-            height: 40,
-            decoration: BoxDecoration(
-              color: AppTheme.tintBlue,
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: const Icon(
-              Icons.description_outlined,
-              size: 19,
-              color: AppTheme.primary,
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  exam.title,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                    color: AppTheme.textDark,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  '${exam.subjectName} • ${exam.questionCount} questions',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    fontSize: 12,
-                    color: AppTheme.textMuted,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 10),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
-            decoration: BoxDecoration(
-              color: published ? AppTheme.tintGreen : AppTheme.surfaceAlt,
-              borderRadius: BorderRadius.circular(999),
-            ),
-            child: Text(
-              exam.status,
-              style: TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.w700,
-                color: published ? AppTheme.success : AppTheme.textMuted,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+  Widget _examRow(ExamSummary exam) => ExamRow(exam: exam);
 
   Widget _buildError() =>
       ErrorState(message: _error!, onRetry: _loadData);
-
-  String _formatDate(String? dateStr) {
-    if (dateStr == null || dateStr.isEmpty) return '';
-    try {
-      final dt = DateTime.parse(dateStr);
-      return '${dt.month}/${dt.day} ${dt.hour}:${dt.minute.toString().padLeft(2, '0')}';
-    } catch (_) {
-      return '';
-    }
-  }
 }
 
 /// Watermark card art — the OMR scan-frame corner brackets at low

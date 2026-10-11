@@ -124,8 +124,9 @@
 .card-title-icon { vertical-align: -2px; margin-right: 0.3rem; }
 
 .insight-list {
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.3rem 1.4rem;
   padding: 0.35rem 1rem 0.85rem;
 }
 
@@ -136,7 +137,10 @@
   padding: 0.45rem 0;
 }
 
-.insight-row + .insight-row { border-top: 1px solid var(--line, #E4E2EC); }
+@media (max-width: 768px) {
+  .insight-list { grid-template-columns: 1fr; }
+  .insight-row + .insight-row { border-top: 1px solid var(--line, #E4E2EC); }
+}
 
 .insight-icon {
   flex: none;

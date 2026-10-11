@@ -13,7 +13,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useToast } from '../components/Toast.jsx';
 import api from '../lib/api.js';
 import AppShell from '../components/AppShell.jsx';
-import { PageLoader } from '../components/Loaders.jsx';
+import { CardsSkeleton } from '../components/Loaders.jsx';
 import { ExamDetail } from './AnalyticsPage.jsx';
 
 export default function ExamAnalyticsPage() {
@@ -39,7 +39,7 @@ export default function ExamAnalyticsPage() {
     <AppShell pageClass="analytics" activeNav="analytics" pageTitle="Analytics" wide>
       {detail?.examId === examId
         ? <ExamDetail examId={examId} detail={detail} onBack={() => navigate('/analytics')} />
-        : <PageLoader label="Loading exam analytics…" />}
+        : <CardsSkeleton tiles={4} />}
     </AppShell>
   );
 }

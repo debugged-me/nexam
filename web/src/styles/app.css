@@ -39,6 +39,36 @@ button:focus:not(:focus-visible) { outline: none; }
 
 .tnum, .stat-value, .kpi-num, .data-table td { font-variant-numeric: tabular-nums; }
 
+/* Route entrance — the keyed wrapper in AppLayout replays this on every
+   navigation. No fill mode: the transform must release so position:fixed
+   descendants keep the viewport as containing block afterwards. */
+@keyframes page-enter {
+  from { opacity: 0; transform: translateY(10px); }
+}
+.page-enter {
+  min-height: 100%;
+  animation: page-enter .28s cubic-bezier(.22, 1, .36, 1);
+}
+@media (prefers-reduced-motion: reduce) {
+  .page-enter { animation: none; }
+}
+
+/* Theme ripple — startViewTransition snapshots: the new theme reveals as a
+   circle expanding from the toggle's click point (vars set in theme.js). */
+::view-transition-old(root),
+::view-transition-new(root) { animation-duration: 0s; mix-blend-mode: normal; }
+::view-transition-old(root) { animation: none; }
+::view-transition-new(root) {
+  clip-path: circle(0px at var(--vt-x, 50vw) var(--vt-y, 50vh));
+  animation: vt-theme-reveal .55s cubic-bezier(.22, 1, .36, 1) forwards;
+}
+@keyframes vt-theme-reveal {
+  to { clip-path: circle(150% at var(--vt-x, 50vw) var(--vt-y, 50vh)); }
+}
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-new(root) { animation: none; clip-path: none; }
+}
+
 /* Workspace iconography — lighter strokes on every Lucide glyph. */
 svg.lucide { stroke-width: 1.5; }
 
@@ -153,6 +183,18 @@ svg.lucide { stroke-width: 1.5; }
 .nav-item:focus { outline: none; }
 .nav-item:focus-visible { outline: 2px solid var(--action-600); outline-offset: -2px; }
 .nav-item.active svg { opacity: 1; color: var(--action-600); }
+/* Active-pill — the layoutId element that glides between nav items. It
+   carries the active background so the item itself can stay transparent
+   while the pill travels. */
+.nav-pill {
+  position: absolute;
+  inset: 0;
+  border-radius: 8px;
+  background: var(--sb-active);
+  pointer-events: none;
+}
+.nav-item.active:has(.nav-pill) { background: transparent; }
+.nav-item > :not(.nav-pill) { position: relative; z-index: 1; }
 .nav-item--featured { margin: 0 0 6px; border: 1px solid transparent; background: var(--action-600); font-weight: 550; color: #fff; box-shadow: 0 2px 8px rgba(45, 147, 232, .35), inset 0 1px 0 rgba(255,255,255,.16); }
 .nav-item--featured svg { color: #fff; opacity: 1; }
 .nav-item--featured:hover { background: var(--action-700); color: #fff; }

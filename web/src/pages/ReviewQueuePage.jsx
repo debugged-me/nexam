@@ -28,7 +28,7 @@ import Modal from '../components/Modal.jsx';
 import api, { ApiError } from '../lib/api.js';
 import useJobs, { isActiveJob } from '../lib/useJobs.js';
 import AppShell from '../components/AppShell.jsx';
-import { PageLoader } from '../components/Loaders.jsx';
+import { CardsSkeleton } from '../components/Loaders.jsx';
 import { JobsActivityPanel } from '../components/JobsList.jsx';
 
 const BLOOM_LABELS = { remember: 'Remember', understand: 'Understand', apply: 'Apply', analyze: 'Analyze', evaluate: 'Evaluate', create: 'Create' };
@@ -650,7 +650,7 @@ export default function ReviewQueuePage() {
       )}
 
       {queue === null ? (
-        <PageLoader label="Loading the review queue…" />
+        <CardsSkeleton tiles={3} />
       ) : queue.length === 0 ? (
         activeCount > 0 ? (
           <JobsActivityPanel

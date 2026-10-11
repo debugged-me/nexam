@@ -177,14 +177,17 @@ export default function ExamsPage() {
     ]);
   }
 
-  function ExamRow({ e }) {
+  // Render function (not a nested component) — a component type re-created
+  // every render would force React to remount every row, re-triggering the
+  // auto-animate on each state change (e.g. opening the context menu).
+  function renderExamRow(e) {
     const count = e.question_count || 0;
     const print = e.format === 'print';
     const meta = [];
     if (e.duration_minutes) meta.push(`${e.duration_minutes} min`);
     meta.push(`${count} ${count === 1 ? 'item' : 'items'}`);
     return (
-      <tr className="b-row" data-id={e.id} onContextMenu={(ev) => examMenu(ev, e)}>
+      <tr key={e.id} className="b-row" data-id={e.id} onContextMenu={(ev) => examMenu(ev, e)}>
         <td>
           <span className="g-primary">
             <Link to={`/exams/${e.id}`} className="g-title">{e.title}</Link>
@@ -347,7 +350,7 @@ export default function ExamsPage() {
                         onToggle={() => toggleGroup(g.key)}
                       />
                     )}
-                    {g.rows.map((e) => <ExamRow key={e.id} e={e} />)}
+                    {g.rows.map(renderExamRow)}
                     {!grouped && <BoardGhostRows count={LEDGER_MIN - g.rows.length} colSpan={COL_SPAN} />}
                     {grouped && groupBy === 'subject' && (
                       <BoardAddRow

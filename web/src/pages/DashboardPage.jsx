@@ -24,9 +24,10 @@ import AppShell from '../components/AppShell.jsx';
 import AnimatedNumber from '../components/AnimatedNumber.jsx';
 import Sparkline from '../components/Sparkline.jsx';
 import ActivityHeatmap from '../components/ActivityHeatmap.jsx';
-import { PageLoader } from '../components/Loaders.jsx';
+import { CardsSkeleton } from '../components/Loaders.jsx';
 import { StatusPill } from '../components/Board.jsx';
 import api, { ApiError } from '../lib/api.js';
+import { prefersReducedMotion } from '../lib/gsapSetup.js';
 import '../styles/dashboard.css';
 
 function count(value) {
@@ -65,6 +66,25 @@ function deltaChip(d) {
   return { cls: 'is-up', text: `+${d.current}`, icon: 'up', title };
 }
 
+/** Pointer-tracked tilt + sheen on KPI tiles — writes --rx/--ry/--mx/--my
+ *  for the perspective transform and radial highlight in dashboard.css. */
+const kpiTilt = prefersReducedMotion() ? {} : {
+  onMouseMove(e) {
+    const el = e.currentTarget;
+    const r = el.getBoundingClientRect();
+    const px = (e.clientX - r.left) / r.width - 0.5;
+    const py = (e.clientY - r.top) / r.height - 0.5;
+    el.style.setProperty('--rx', `${(-py * 5).toFixed(2)}deg`);
+    el.style.setProperty('--ry', `${(px * 6).toFixed(2)}deg`);
+    el.style.setProperty('--mx', `${((px + 0.5) * 100).toFixed(1)}%`);
+    el.style.setProperty('--my', `${((py + 0.5) * 100).toFixed(1)}%`);
+  },
+  onMouseLeave(e) {
+    e.currentTarget.style.removeProperty('--rx');
+    e.currentTarget.style.removeProperty('--ry');
+  },
+};
+
 export default function DashboardPage() {
   const { logout } = useAuth();
   const [data, setData] = useState(() => api.peek('/dashboard') ?? null);
@@ -101,7 +121,7 @@ export default function DashboardPage() {
   if (!data)
     return (
       <AppShell activeNav="dashboard" pageTitle="Overview" pageClass="dashboard">
-        <PageLoader label="Loading your workspace…" />
+        <CardsSkeleton tiles={4} />
       </AppShell>
     );
 
@@ -359,7 +379,7 @@ export default function DashboardPage() {
           {metrics.map((metric, i) => {
             const Icon = metric.icon;
             return (
-              <Link className={`dash-kpi ${metric.hero ? 'is-hero' : ''}`} to={metric.to} key={metric.label} style={{ '--i': i }}>
+              <Link className={`dash-kpi ${metric.hero ? 'is-hero' : ''}`} to={metric.to} key={metric.label} style={{ '--i': i }} {...kpiTilt}>
                 <span className="dash-kpi-top">
                   <span className={`dash-kpi-icon tint-${metric.tint}`}>
                     <Icon size={16} aria-hidden="true" />

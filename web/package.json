@@ -20,6 +20,7 @@
     "@tanstack/react-query": "^5.102.8",
     "@tanstack/react-table": "^8.21.3",
     "@tanstack/react-virtual": "^3.14.15",
+    "canvas-confetti": "^1.9.4",
     "chart.js": "^4.5.1",
     "cmdk": "^1.1.1",
     "driver.js": "^1.9.0",

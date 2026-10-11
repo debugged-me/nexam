@@ -18,7 +18,9 @@ import Modal from '../components/Modal.jsx';
 import api, { ApiError } from '../lib/api.js';
 import useJobs, { isActiveJob, jobPayload } from '../lib/useJobs.js';
 import AppShell from '../components/AppShell.jsx';
-import { PageLoader } from '../components/Loaders.jsx';
+import { CardsSkeleton } from '../components/Loaders.jsx';
+import Reveal from '../components/Reveal.jsx';
+import celebrate from '../lib/celebrate.js';
 
 const BLOOM_LABELS = { remember: 'Remember', understand: 'Understand', apply: 'Apply', analyze: 'Analyze', evaluate: 'Evaluate', create: 'Create' };
 const BLOOM_ORDER = ['remember', 'understand', 'apply', 'analyze', 'evaluate', 'create'];
@@ -391,6 +393,7 @@ export default function TosDetailPage() {
     try {
       await api.post(`/tos/${id}/finalize`);
       toast.success('TOS finalized. Its structure is now locked and question generation is enabled.');
+      celebrate();
       await load();
     } catch (err) {
       toast.error(err instanceof ApiError ? err.message : 'Could not finalize this TOS.');
@@ -485,7 +488,7 @@ export default function TosDetailPage() {
     [data]
   );
 
-  if (!data) return <AppShell pageClass="blueprint-detail" activeNav="tos" pageTitle="Blueprint"><PageLoader label="Loading blueprint…" /></AppShell>;
+  if (!data) return <AppShell pageClass="blueprint-detail" activeNav="tos" pageTitle="Blueprint"><CardsSkeleton tiles={3} /></AppShell>;
   const { tos, topics, coverage = {} } = data;
   const finalized = tos.status === 'finalized';
   const totalHours = topics.reduce((s, t) => s + (Number(t.instructional_hours) || 0), 0);
@@ -627,7 +630,7 @@ export default function TosDetailPage() {
       </div>
 
       {matrix && matrix.rows.length > 0 && (
-        <div className="card mb-2" data-tour="tos-matrix">
+        <Reveal className="card mb-2" data-tour="tos-matrix">
           <div className="card-header">
             <div>
               <span className="card-title">Specification Matrix</span>
@@ -693,7 +696,7 @@ export default function TosDetailPage() {
               </tfoot>
             </table>
           </div>
-        </div>
+        </Reveal>
       )}
 
       <div className="card" data-tour="tos-topics">

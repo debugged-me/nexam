@@ -23,7 +23,8 @@ import { downloadCsv, downloadXlsx } from '../lib/exports.js';
 import AppShell from '../components/AppShell.jsx';
 import AnimatedNumber from '../components/AnimatedNumber.jsx';
 import Sparkline from '../components/Sparkline.jsx';
-import { PageLoader } from '../components/Loaders.jsx';
+import Reveal from '../components/Reveal.jsx';
+import { CardsSkeleton } from '../components/Loaders.jsx';
 import {
   MasteryBarChart, BloomRadarChart, TrendLineChart, DistBarChart, PassDoughnut,
 } from '../components/AnalyticsCharts.jsx';
@@ -157,7 +158,7 @@ export default function AnalyticsPage() {
   if (!overview) {
     return (
       <AppShell pageClass="analytics" activeNav="analytics" pageTitle="Analytics" wide>
-        <PageLoader label="Loading results…" />
+        <CardsSkeleton tiles={5} />
       </AppShell>
     );
   }
@@ -375,22 +376,22 @@ export default function AnalyticsPage() {
         </motion.div>
       </div>
 
-      <div className="print-skip"><InsightsCard insights={insights} tour="analytics-insights" /></div>
+      <Reveal className="print-skip"><InsightsCard insights={insights} tour="analytics-insights" /></Reveal>
 
       {(themeRows.length > 0 || blooms.length > 0) && (
-        <div className="detail-grid-2 mb-3 print-skip">
+        <Reveal className="detail-grid-2 mb-3 print-skip" delay={0.05}>
           {themeRows.length > 0 && (
             <MasteryCard title="Mastery by topic" rows={themeRows} tour="analytics-topics" />
           )}
           {blooms.length > 0 && (
             <BloomRadarCard blooms={blooms} tour="analytics-bloom" />
           )}
-        </div>
+        </Reveal>
       )}
 
-      {trend.length > 0 && <div className="print-skip mb-3"><TrendCard trend={trend} tour="analytics-trend" /></div>}
+      {trend.length > 0 && <Reveal className="print-skip mb-3"><TrendCard trend={trend} tour="analytics-trend" /></Reveal>}
 
-      <div className="detail-grid-2 mb-3 print-skip">
+      <Reveal className="detail-grid-2 mb-3 print-skip" delay={0.05}>
         {/* Exam Averages */}
         <div className="card" data-tour="analytics-averages">
           <div className="card-header">
@@ -474,7 +475,7 @@ export default function AnalyticsPage() {
             </div>
           )}
         </div>
-      </div>
+      </Reveal>
     </AppShell>
   );
 }
@@ -486,7 +487,7 @@ export default function AnalyticsPage() {
 export function ExamDetail({ examId, detail, onBack }) {
   const [page, setPage] = useState(0);
   if (!detail) {
-    return <PageLoader label="Loading exam analytics…" />;
+    return <CardsSkeleton tiles={4} />;
   }
 
   const { exam, stats, distribution, students, setComparison, themes, bloomLevels } = detail;

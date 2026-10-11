@@ -16,7 +16,7 @@ import {
 import { useToast } from '../components/Toast.jsx';
 import api from '../lib/api.js';
 import AppShell from '../components/AppShell.jsx';
-import { PageLoader } from '../components/Loaders.jsx';
+import { TableSkeleton } from '../components/Loaders.jsx';
 import { animateRows } from '../lib/animRows.js';
 import { BLOOM_LABELS } from '../lib/insights.js';
 
@@ -111,7 +111,7 @@ export default function AttentionPage() {
         </div>
       )}
 
-      {!data ? <PageLoader label="Loading weak items…" /> : (
+      {!data ? <TableSkeleton /> : (
         <div className="card print-skip">
           <div className="card-header attn-header">
             <span className="card-title">

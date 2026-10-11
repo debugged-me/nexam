@@ -61,6 +61,41 @@ export function TableSkeleton({ rows = 6 }) {
 }
 
 /**
+ * CardsSkeleton — shimmer placeholder shaped like a stats/detail page while
+ * data loads: a KPI tile strip over one card panel. Decorative only.
+ */
+export function CardsSkeleton({ tiles = 4 }) {
+  return (
+    <div className="sk-cards" aria-hidden="true">
+      <div className="sk-kpis">
+        {Array.from({ length: tiles }, (_, i) => (
+          <div className="sk-kpi" key={i}>
+            <span className="sk" style={{ width: 34, height: 34, borderRadius: 9 }} />
+            <span className="sk" style={{ width: '55%', height: 16 }} />
+            <span className="sk" style={{ width: '40%', height: 10 }} />
+          </div>
+        ))}
+      </div>
+      <div className="sk-card">
+        <div className="sk-head">
+          <span className="sk" style={{ width: '30%' }} />
+          <span className="sk sk-end" style={{ width: '12%' }} />
+        </div>
+        <div className="sk-table">
+          {Array.from({ length: 4 }, (_, i) => (
+            <div className="sk-row" key={i} style={{ '--i': i }}>
+              <span className="sk" style={{ width: `${34 + ((i * 19) % 26)}%`, height: 14 }} />
+              <span className="sk" style={{ width: 64, height: 14 }} />
+              <span className="sk sk-end" style={{ width: 44, height: 14 }} />
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/**
  * AuthSplash — the brand moment shown briefly before the login page.
  *
  * Mirrors TheraLink's BrandMoment: a brand-gradient wash, a logo tile that

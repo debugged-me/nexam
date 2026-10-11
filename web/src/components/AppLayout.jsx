@@ -24,6 +24,7 @@ import { useAuth } from '../features/auth/AuthContext.jsx';
 import { useConfirm } from './ConfirmDialog.jsx';
 import { useToast } from './Toast.jsx';
 import { useTheme } from '../lib/theme.js';
+import { motion } from 'motion/react';
 import api from '../lib/api.js';
 import useNetworkBusy from '../lib/useNetworkBusy.js';
 import { startGuidedTour, stopGuidedTour, GUIDE_AVATAR_SVG } from '../help/guide.js';
@@ -255,6 +256,14 @@ export default function AppLayout() {
                     onPointerEnter={() => prefetchAll(item.prefetch)}
                     onFocus={() => prefetchAll(item.prefetch)}
                   >
+                    {activeKey === item.key && (
+                      <motion.span
+                        layoutId="nav-pill"
+                        className="nav-pill"
+                        aria-hidden="true"
+                        transition={{ type: 'spring', stiffness: 420, damping: 34 }}
+                      />
+                    )}
                     <Icon size={17} aria-hidden="true" />
                     <span className="nav-item-label">{item.label}</span>
                   </SidebarLink>
@@ -423,7 +432,7 @@ export default function AppLayout() {
                         key={key}
                         type="button"
                         className={`theme-seg-item${mode === key ? ' is-active' : ''}`}
-                        onClick={() => setThemeMode(key)}
+                        onClick={(e) => setThemeMode(key, { x: e.clientX, y: e.clientY })}
                         aria-pressed={mode === key}
                       >
                         <Icon size={15} />
@@ -468,7 +477,9 @@ export default function AppLayout() {
         >
           <ShellMetaContext.Provider value={updateMeta}>
             <Suspense fallback={<PageLoader label="Opening workspace…" />}>
-              <Outlet />
+              <div key={location.pathname} className="page-enter">
+                <Outlet />
+              </div>
             </Suspense>
           </ShellMetaContext.Provider>
         </div>

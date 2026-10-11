@@ -18,9 +18,11 @@ import Modal from '../components/Modal.jsx';
 import ExamPaper from '../components/ExamPaper.jsx';
 import api, { ApiError, getToken } from '../lib/api.js';
 import AppShell from '../components/AppShell.jsx';
-import { PageLoader } from '../components/Loaders.jsx';
+import { CardsSkeleton } from '../components/Loaders.jsx';
 import { StatusPill, GroupChip, groupColor } from '../components/Board.jsx';
 import { PassDoughnut, DistBarChart } from '../components/AnalyticsCharts.jsx';
+import Reveal from '../components/Reveal.jsx';
+import celebrate from '../lib/celebrate.js';
 
 const BLOOM_LABELS = { remember: 'Remember', understand: 'Understand', apply: 'Apply', analyze: 'Analyze', evaluate: 'Evaluate', create: 'Create' };
 const TYPE_LABELS = { mcq: 'MCQ', true_false: 'T/F', matching: 'Match', identification: 'Ident' };
@@ -154,6 +156,7 @@ export default function ExamDetailPage() {
       const result = await api.post(`/exams/${id}/generate-sets`, { setCount: data.exam.set_count });
       toast.success(`Generated ${result.sets.length} set(s).`);
       setDownloadsVisible(true);
+      celebrate();
       load();
     } catch (err) {
       toast.error(err instanceof ApiError ? err.message : 'Generation failed.');
@@ -187,7 +190,7 @@ export default function ExamDetailPage() {
     return `${base}/exams/${id}/export/${format}?${params.toString()}`;
   }
 
-  if (!data) return <AppShell pageClass="exam-detail" activeNav="exams" pageTitle="Exam"><PageLoader label="Loading exam…" /></AppShell>;
+  if (!data) return <AppShell pageClass="exam-detail" activeNav="exams" pageTitle="Exam"><CardsSkeleton tiles={3} /></AppShell>;
   const { exam, questions, tos, sets } = data;
   const published = exam.status === 'published';
   const print = exam.format === 'print';
@@ -277,7 +280,7 @@ export default function ExamDetailPage() {
           )}
 
           {parseInt(results?.stats?.total_scans || 0, 10) > 0 && (
-            <div className="card" data-tour="exam-results">
+            <Reveal className="card" data-tour="exam-results">
               <div className="card-header">
                 <span className="card-title">Results at a glance</span>
                 <Link className="btn btn-outline btn-sm" to={`/analytics/exam/${exam.id}`}>Full analysis</Link>
@@ -306,7 +309,7 @@ export default function ExamDetailPage() {
                 </div>
               )}
               {itemStats.length > 0 && <ItemHeatStrip items={itemStats} />}
-            </div>
+            </Reveal>
           )}
 
           <div className="card" data-tour="exam-questions">

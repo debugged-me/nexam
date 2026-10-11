@@ -1,10 +1,15 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Command } from 'cmdk';
-import { Search, ArrowUp, ArrowDown, CornerDownLeft, X } from 'lucide-react';
+import {
+  Search, ArrowUp, ArrowDown, CornerDownLeft, X,
+  FileText, ClipboardList, BookOpen, Plus, Upload, CheckCircle,
+} from 'lucide-react';
 import { COMMAND_ITEMS } from './navigation.js';
+import api from '../lib/api.js';
 
-/** Local navigation search (cmdk). It never fetches or indexes instructor content. */
+/** Command palette — page navigation, real create actions (deep links), and
+ *  fuzzy search over the instructor's own exams / blueprints / subjects. */
 
 const GROUP_LABELS = {
   home: 'Home',
@@ -23,10 +28,29 @@ const GROUPED = (() => {
   return [...map.entries()].filter(([, items]) => items.length);
 })();
 
+// Create/action items — every `to` is a real deep link the target page
+// already honors (?new=1 opens the create modal, ?upload=1 the uploader,
+// ?status= the filter).
+const ACTIONS = [
+  { key: 'act-question', label: 'New question', description: 'Open the question editor', icon: Plus, to: '/questions?new=1' },
+  { key: 'act-blueprint', label: 'New blueprint', description: 'Start a table of specifications', icon: Plus, to: '/tos?new=1' },
+  { key: 'act-subject', label: 'New subject', description: 'Create a subject', icon: Plus, to: '/subjects?new=1' },
+  { key: 'act-exam', label: 'New exam', description: 'Assemble an exam manually', icon: Plus, to: '/exams/new' },
+  { key: 'act-upload', label: 'Upload material', description: 'Add a reference file', icon: Upload, to: '/materials?upload=1' },
+  { key: 'act-drafts', label: 'Review drafts', description: 'Questions waiting for approval', icon: CheckCircle, to: '/questions?status=draft' },
+];
+
 export default function CommandMenu({ open, onClose }) {
   const dialogRef = useRef(null);
   const inputRef = useRef(null);
   const [query, setQuery] = useState('');
+  // The menu mounts when opened, so api.peek is already warm when the lists
+  // were visited this session — seed from cache, then fill gaps lazily.
+  const [work, setWork] = useState(() => ({
+    exams: api.peek('/exams')?.exams,
+    tos: api.peek('/tos')?.tos,
+    subjects: api.peek('/subjects')?.subjects,
+  }));
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -43,10 +67,40 @@ export default function CommandMenu({ open, onClose }) {
     }
   }, [open]);
 
+  // Own-content search — fetch whichever lists weren't already cached.
+  const needsFetch = !work.exams || !work.tos || !work.subjects;
+  useEffect(() => {
+    if (!open || !needsFetch) return;
+    Promise.allSettled([api.get('/exams'), api.get('/tos'), api.get('/subjects')])
+      .then(([e, t, s]) => setWork((cur) => ({
+        exams: e.status === 'fulfilled' ? e.value?.exams : (cur.exams || []),
+        tos: t.status === 'fulfilled' ? t.value?.tos : (cur.tos || []),
+        subjects: s.status === 'fulfilled' ? s.value?.subjects : (cur.subjects || []),
+      })));
+  }, [open, needsFetch]);
+
   function choose(item) {
     onClose();
     navigate(item.to);
   }
+
+  // Content results only surface once the user is actually searching — the
+  // resting palette stays a page navigator.
+  const searching = query.trim().length >= 1;
+  const workItems = searching && work ? [
+    ...(work.exams || []).slice(0, 8).map((e) => ({
+      key: `exam-${e.id}`, label: e.title, description: `Exam · ${e.subject_name || e.subject || ''}`.replace(/ · $/, ''),
+      icon: FileText, to: `/exams/${e.id}`, keywords: ['exam', e.subject_name || e.subject || ''],
+    })),
+    ...(work.tos || []).slice(0, 6).map((t) => ({
+      key: `tos-${t.id}`, label: t.title, description: `Blueprint · ${t.subject_name || t.subject || ''}`.replace(/ · $/, ''),
+      icon: ClipboardList, to: `/tos/${t.id}`, keywords: ['blueprint', 'tos', t.subject_name || t.subject || ''],
+    })),
+    ...(work.subjects || []).slice(0, 6).map((s) => ({
+      key: `subject-${s.id}`, label: s.name, description: 'Subject — open its question bank',
+      icon: BookOpen, to: `/questions?subject_id=${s.id}`, keywords: ['subject', s.code || ''],
+    })),
+  ] : [];
 
   return (
     <dialog
@@ -65,8 +119,8 @@ export default function CommandMenu({ open, onClose }) {
             ref={inputRef}
             value={query}
             onValueChange={setQuery}
-            placeholder="Where would you like to go?"
-            aria-label="Search pages"
+            placeholder="Jump to a page, action, exam, blueprint…"
+            aria-label="Search pages, actions, and your work"
           />
           <button
             type="button"
@@ -79,8 +133,56 @@ export default function CommandMenu({ open, onClose }) {
         </div>
         <Command.List id="command-results" className="command-results" aria-label="Pages">
           <Command.Empty className="command-empty">
-            No pages match “{query}”. Try “subjects” or “exams”.
+            Nothing matches “{query}”. Try a page, action, exam, or subject.
           </Command.Empty>
+          {workItems.length > 0 && (
+            <Command.Group heading="Your work">
+              {workItems.map((item) => {
+                const Icon = item.icon;
+                return (
+                  <Command.Item
+                    key={item.key}
+                    value={item.label}
+                    keywords={item.keywords}
+                    onSelect={() => choose(item)}
+                    className="command-option"
+                  >
+                    <span className="command-icon">
+                      <Icon size={18} />
+                    </span>
+                    <span>
+                      <strong>{item.label}</strong>
+                      <small>{item.description}</small>
+                    </span>
+                    <CornerDownLeft size={15} className="command-enter" aria-hidden="true" />
+                  </Command.Item>
+                );
+              })}
+            </Command.Group>
+          )}
+          <Command.Group heading="Actions">
+              {ACTIONS.map((item) => {
+                const Icon = item.icon;
+                return (
+                  <Command.Item
+                    key={item.key}
+                    value={item.label}
+                    keywords={[item.description]}
+                    onSelect={() => choose(item)}
+                    className="command-option"
+                  >
+                    <span className="command-icon">
+                      <Icon size={18} />
+                    </span>
+                    <span>
+                      <strong>{item.label}</strong>
+                      <small>{item.description}</small>
+                    </span>
+                    <CornerDownLeft size={15} className="command-enter" aria-hidden="true" />
+                  </Command.Item>
+                );
+              })}
+          </Command.Group>
           {GROUPED.map(([group, items]) => (
             <Command.Group
               key={group}

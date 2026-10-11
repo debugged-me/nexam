@@ -12,7 +12,7 @@ import { useToast } from '../components/Toast.jsx';
 import api from '../lib/api.js';
 import { downloadCsv, downloadXlsx } from '../lib/exports.js';
 import AppShell from '../components/AppShell.jsx';
-import { PageLoader } from '../components/Loaders.jsx';
+import { TableSkeleton } from '../components/Loaders.jsx';
 import Modal from '../components/Modal.jsx';
 import { ItemScatterChart } from '../components/AnalyticsCharts.jsx';
 import { BLOOM_LABELS } from '../lib/insights.js';
@@ -113,7 +113,7 @@ export default function ItemAnalysisPage() {
       )}
 
       {items === null ? (
-        <PageLoader label="Loading item analysis…" />
+        <TableSkeleton rows={10} />
       ) : items.length === 0 ? (
         <div className="empty-state">
           <ListChecks size={32} aria-hidden="true" />

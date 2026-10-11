@@ -262,6 +262,30 @@
 .sk-row .sk-end { margin-left: auto; }
 .sk-pill { height: 22px; border-radius: 999px; }
 
+/* Card-shaped skeletons — KPI strip + one panel, for stats/detail pages. */
+.sk-cards { display: flex; flex-direction: column; gap: 14px; }
+.sk-kpis {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 12px;
+}
+.sk-kpi {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+}
+.sk-card {
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  padding: 16px 18px 4px;
+}
+.sk-card .sk-table { padding: 12px 0 16px; }
+
 @media (prefers-reduced-motion: reduce) {
   .sk { animation: none; }
   .page-enter,

@@ -90,12 +90,21 @@ function persist() {
   } catch { /* private mode — keep it in memory only */ }
 }
 
-export function setThemeMode(next) {
+export function setThemeMode(next, origin) {
   if (!THEME_MODES.includes(next) || next === mode) return;
   mode = next;
   persist();
-  apply();
-  notify();
+  const mutate = () => { apply(); notify(); };
+  const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+  if (!reduce && document.startViewTransition) {
+    // Circular ripple-reveal from the toggle — coordinates land on CSS vars
+    // the ::view-transition-new clip-path animation reads (see app.css).
+    document.documentElement.style.setProperty('--vt-x', `${Math.round(origin?.x ?? window.innerWidth / 2)}px`);
+    document.documentElement.style.setProperty('--vt-y', `${Math.round(origin?.y ?? window.innerHeight / 2)}px`);
+    document.startViewTransition(mutate);
+  } else {
+    mutate();
+  }
   if (boundUserId) {
     import('./api.js')
       .then(({ default: api }) => api.put('/auth/theme', { theme: next }))

@@ -439,7 +439,7 @@ tr:hover .g-entity-mark { background: color-mix(in srgb, var(--gc, var(--surface
     background: var(--surface);
     border: 1px solid var(--line);
     border-radius: 12px;
-    box-shadow: var(--shadow-xs);
+    box-shadow: var(--shadow-md);  /* table containers sit on the raised tier */
 }
 
 .dataset[data-density="compact"] {

@@ -28,7 +28,9 @@ import Modal from '../components/Modal.jsx';
 import DetailsModal from '../components/DetailsModal.jsx';
 import api, { ApiError, getToken } from '../lib/api.js';
 import AppShell from '../components/AppShell.jsx';
-import { PageLoader } from '../components/Loaders.jsx';
+import { TableSkeleton } from '../components/Loaders.jsx';
+import { animateRows } from '../lib/animRows.js';
+import EmptyStateArt from '../components/EmptyStateArt.jsx';
 import { StatusPill, groupColor } from '../components/Board.jsx';
 
 const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:3000/api';
@@ -451,10 +453,10 @@ export default function MaterialsPage() {
           )}
 
           {materials === null ? (
-            <PageLoader label="Loading materials…" />
+            <TableSkeleton />
           ) : materials.length === 0 ? (
             <div className="empty-state">
-              <FileStack size={40} style={{ color: 'var(--ink-faint)', marginBottom: 12 }} />
+              <EmptyStateArt />
               <h3>No materials yet</h3>
               <p>Upload PDFs, DOCX, PPTX, URLs, or YouTube transcripts to ground RAG question generation. You can also drag files straight onto this page.</p>
               <button className="btn btn-primary" onClick={() => { setUploadMode('file'); setUploadOpen(true); }} data-tour="materials-upload">
@@ -462,7 +464,7 @@ export default function MaterialsPage() {
               </button>
             </div>
           ) : (
-            <div className="mat-list" data-tour="materials-list">
+            <div className="mat-list" ref={animateRows} data-tour="materials-list">
               {materials.map((m, i) => {
                 const Icon = SOURCE_ICONS[m.source_type] || FileText;
                 const matSubject = matSubjectOf(m);

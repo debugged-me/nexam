@@ -4,7 +4,7 @@ import { useWindowVirtualizer } from '@tanstack/react-virtual';
 import { Copy, Library, Rows3, Search, StretchHorizontal } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import AppShell from '../components/AppShell.jsx';
-import { PageLoader } from '../components/Loaders.jsx';
+import { TableSkeleton } from '../components/Loaders.jsx';
 import Modal from '../components/Modal.jsx';
 import { useToast } from '../components/Toast.jsx';
 import { groupColor } from '../components/Board.jsx';
@@ -141,7 +141,7 @@ export default function InstitutionBankPage() {
       </section>
 
       {questions === null ? (
-        <PageLoader label="Loading approved questions…" />
+        <TableSkeleton />
       ) : filtered.length === 0 ? (
         <div className="institution-empty">
           <Library size={28} />

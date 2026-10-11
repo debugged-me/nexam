@@ -1202,6 +1202,8 @@ select.form-control:not([multiple]) {
 .empty-state-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: var(--space-2); }
 .empty-state-actions .btn { margin: 0; }
 .empty-state .btn { margin: 0 4px; }
+.empty-state .empty-art { margin: 0 auto 10px; }
+.empty-state .empty-art svg { display: block; width: 100%; height: auto; }
 .card > .empty-state,
 .card-body > .empty-state { border: 0; padding: 36px 18px; }
 

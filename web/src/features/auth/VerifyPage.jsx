@@ -15,6 +15,8 @@ import { AlertCircle, RotateCw, Mail, ArrowRight } from 'lucide-react';
 import api, { ApiError } from '../../lib/api.js';
 import { useAuth } from './AuthContext.jsx';
 import { useAuthEntrance } from './authEntrance.js';
+import AuthGlow from './AuthGlow.jsx';
+import CodeInput from './CodeInput.jsx';
 
 export default function VerifyPage() {
   const navigate = useNavigate();
@@ -72,8 +74,7 @@ export default function VerifyPage() {
     })();
   }, [verifyToken, unverified, email, navigate]);
 
-  async function handleSubmit(e) {
-    e.preventDefault();
+  async function verify(finalCode) {
     setError('');
     if (!verifyToken) {
       setError('No verification session. Please request a new code below.');
@@ -81,7 +82,7 @@ export default function VerifyPage() {
     }
     setLoading(true);
     try {
-      await api.post('/auth/verify', { verifyToken, code });
+      await api.post('/auth/verify', { verifyToken, code: finalCode });
       // Drop any stale session — if another account was logged in while this
       // one registered/verified, its token must not survive into the next.
       logout();
@@ -91,6 +92,11 @@ export default function VerifyPage() {
     } finally {
       setLoading(false);
     }
+  }
+
+  function handleSubmit(e) {
+    e.preventDefault();
+    verify(code);
   }
 
   /** A resend cooldown means a code was already sent recently — surface it
@@ -143,6 +149,7 @@ export default function VerifyPage() {
 
   return (
     <div className="auth-page auth-page-verify page--auth-verify" ref={pageRef}>
+      <AuthGlow />
       <a href="#verify-form" className="skip-link">Skip to verification form</a>
 
       <div className="auth-shell">
@@ -219,13 +226,10 @@ export default function VerifyPage() {
 
             <div className="form-group anim-in">
               <label className="form-label" htmlFor="code">Verification Code <span className="req">*</span></label>
-              <div className="input-wrap">
-                <input
-                  id="code" ref={inputRef} type="text" inputMode="text" pattern="[0-9A-Za-z]{6}"
-                  className="form-input code-input" placeholder="••••••" maxLength={6}
-                  value={code} onChange={(e) => setCode(e.target.value.replace(/[^0-9a-z]/gi, '').toUpperCase().slice(0, 6))} required
-                />
-              </div>
+              <CodeInput
+                id="code" inputRef={inputRef} value={code} onChange={setCode}
+                onComplete={verify} disabled={loading}
+              />
             </div>
 
             <div className="anim-in">

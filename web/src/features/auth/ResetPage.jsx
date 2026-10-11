@@ -14,6 +14,8 @@ import { useNavigate, useLocation, useSearchParams, Link } from 'react-router-do
 import { Lock, Eye, EyeOff, AlertCircle, Mail, ArrowRight } from 'lucide-react';
 import api, { ApiError } from '../../lib/api.js';
 import { useAuthEntrance } from './authEntrance.js';
+import AuthGlow from './AuthGlow.jsx';
+import CodeInput from './CodeInput.jsx';
 
 export default function ResetPage() {
   const navigate = useNavigate();
@@ -51,18 +53,22 @@ export default function ResetPage() {
   }, [step]);
 
   /** Step 1 — confirm the code is valid before revealing the password form. */
-  async function handleCheck(e) {
-    e.preventDefault();
+  async function check(finalCode) {
     setError('');
     setChecking(true);
     try {
-      await api.post('/auth/reset/check', { resetToken, code });
+      await api.post('/auth/reset/check', { resetToken, code: finalCode });
       setStep('password');
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Invalid or expired verification code.');
     } finally {
       setChecking(false);
     }
+  }
+
+  function handleCheck(e) {
+    e.preventDefault();
+    check(code);
   }
 
   /** Step 2 — set the new password (server re-verifies + consumes the code). */
@@ -96,6 +102,7 @@ export default function ResetPage() {
 
   return (
     <div className="auth-page auth-page-reset page--auth-reset" ref={pageRef}>
+      <AuthGlow />
       <a href="#reset-form" className="skip-link">Skip to reset form</a>
 
       <div className="auth-shell">
@@ -172,11 +179,10 @@ export default function ResetPage() {
               <div className="step-in" key="code">
                 <div className="form-group anim-in">
                   <label className="form-label" htmlFor="code">Reset Code <span className="req">*</span></label>
-                  <div className="input-wrap">
-                    <input id="code" ref={codeRef} type="text" inputMode="text" pattern="[0-9A-Za-z]{6}"
-                      className="form-input code-input" placeholder="••••••" maxLength={6}
-                      value={code} onChange={(e) => setCode(e.target.value.replace(/[^0-9a-z]/gi, '').toUpperCase().slice(0, 6))} required />
-                  </div>
+                  <CodeInput
+                    id="code" inputRef={codeRef} value={code} onChange={setCode}
+                    onComplete={check} disabled={checking}
+                  />
                 </div>
 
                 <div className="anim-in">

@@ -10,6 +10,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { Mail, AlertCircle, ArrowRight } from 'lucide-react';
 import api, { ApiError } from '../../lib/api.js';
 import { useAuthEntrance } from './authEntrance.js';
+import AuthGlow from './AuthGlow.jsx';
 
 export default function ForgotPage() {
   const navigate = useNavigate();
@@ -43,6 +44,7 @@ export default function ForgotPage() {
 
   return (
     <div className="auth-page auth-page-forgot page--auth-forgot" ref={pageRef}>
+      <AuthGlow />
       <a href="#forgot-form" className="skip-link">Skip to reset form</a>
 
       <div className="auth-shell">

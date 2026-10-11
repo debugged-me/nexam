@@ -16,6 +16,7 @@ import { Mail, Lock, Eye, EyeOff, AlertCircle, ArrowRight } from 'lucide-react';
 import { useAuth } from './AuthContext.jsx';
 import api, { ApiError } from '../../lib/api.js';
 import { useAuthEntrance } from './authEntrance.js';
+import AuthGlow from './AuthGlow.jsx';
 
 export default function LoginPage() {
   const { login } = useAuth();
@@ -54,6 +55,7 @@ export default function LoginPage() {
 
   return (
     <div className="auth-page auth-page-login page--auth-login" ref={pageRef}>
+      <AuthGlow />
       <a href="#login-form" className="skip-link">
         Skip to login form
       </a>

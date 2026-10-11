@@ -15,7 +15,8 @@ import Modal from '../components/Modal.jsx';
 import DetailsModal from '../components/DetailsModal.jsx';
 import api, { ApiError } from '../lib/api.js';
 import AppShell from '../components/AppShell.jsx';
-import { PageLoader } from '../components/Loaders.jsx';
+import { TableSkeleton } from '../components/Loaders.jsx';
+import EmptyStateArt from '../components/EmptyStateArt.jsx';
 import {
   StatusPill, BoardGroupHead, BoardGhostRows,
   GroupChip, groupColor, statusOf, statusMeta, STATUS_ORDER,
@@ -252,9 +253,10 @@ export default function TosPage() {
       </header>
 
       {tosList === null ? (
-        <PageLoader label="Loading blueprints…" />
+        <TableSkeleton />
       ) : tosList.length === 0 ? (
         <div className="empty-state">
+          <EmptyStateArt />
           <h4>No blueprints yet</h4>
           <p>Upload a syllabus and click "Auto-generate Blueprint" to create one automatically, or create one manually and set the item count and Bloom weights yourself.</p>
           <div className="empty-state-actions">

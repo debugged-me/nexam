@@ -7,7 +7,7 @@ import '../styles/subjects.css';
 import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import {
-  Plus, Pencil, Trash2, Search, CheckSquare, BookOpen,
+  Plus, Pencil, Trash2, Search, CheckSquare,
   Eye, Check, Copy, Ellipsis, Info,
   ChevronUp, ChevronDown, ChevronFirst, ChevronLeft, ChevronRight, ChevronLast,
 } from 'lucide-react';
@@ -23,7 +23,9 @@ import DetailsModal from '../components/DetailsModal.jsx';
 import Tooltip from '../components/Tooltip.jsx';
 import api, { ApiError } from '../lib/api.js';
 import AppShell from '../components/AppShell.jsx';
-import { PageLoader } from '../components/Loaders.jsx';
+import { TableSkeleton } from '../components/Loaders.jsx';
+import { animateRows } from '../lib/animRows.js';
+import EmptyStateArt from '../components/EmptyStateArt.jsx';
 import { groupColor, BoardGhostRows } from '../components/Board.jsx';
 
 const PAGE_SIZE = 25;
@@ -275,10 +277,10 @@ export default function SubjectsPage() {
       </header>
 
       {subjects === null ? (
-        <PageLoader label="Loading subjects…" />
+        <TableSkeleton />
       ) : subjects.length === 0 ? (
         <div className="empty-state">
-          <span className="empty-icon"><BookOpen size={20} /></span>
+          <EmptyStateArt />
           <h4>No subjects yet</h4>
           <p>A subject is the container for everything else — create one and the question bank, blueprints and exams follow.</p>
           <button type="button" className="btn btn-primary" onClick={openNew} data-tour="subjects-new">
@@ -354,7 +356,7 @@ export default function SubjectsPage() {
                   <th className="col-actions">Actions</th>
                 </tr>
               </thead>
-              <tbody>
+              <tbody ref={animateRows}>
                 {pageRows.length === 0 ? (
                   <tr>
                     <td className="ds-noresults" colSpan={selectMode ? 8 : 7}>

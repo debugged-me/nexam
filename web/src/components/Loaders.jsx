@@ -28,6 +28,39 @@ export function BootScreen() {
 }
 
 /**
+ * TableSkeleton — shimmer placeholder shaped like a `.dataset` card while a
+ * list page's data loads. Decorative only (aria-hidden); the shimmer freezes
+ * under prefers-reduced-motion via loading.css.
+ */
+export function TableSkeleton({ rows = 6 }) {
+  return (
+    <section className="dataset sk-dataset" aria-hidden="true">
+      <div className="dataset-bar sk-bar-row">
+        <span className="sk" style={{ width: 'min(260px, 45%)', height: 36 }} />
+        <span className="sk" style={{ width: 92, height: 36 }} />
+        <span className="sk" style={{ width: 92, height: 36 }} />
+      </div>
+      <div className="sk-table">
+        <div className="sk-head">
+          <span className="sk" style={{ width: '52%' }} />
+          <span className="sk" style={{ width: '14%' }} />
+          <span className="sk" style={{ width: '18%' }} />
+          <span className="sk sk-end" style={{ width: '8%' }} />
+        </div>
+        {Array.from({ length: rows }, (_, i) => (
+          <div className="sk-row" key={i} style={{ '--i': i }}>
+            <span className="sk" style={{ width: `${40 + ((i * 17) % 24)}%`, height: 14 }} />
+            <span className="sk" style={{ width: 60, height: 14 }} />
+            <span className="sk sk-pill" style={{ width: 70 }} />
+            <span className="sk sk-end" style={{ width: 30, height: 14 }} />
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+/**
  * AuthSplash — the brand moment shown briefly before the login page.
  *
  * Mirrors TheraLink's BrandMoment: a brand-gradient wash, a logo tile that

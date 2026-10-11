@@ -19,7 +19,9 @@ import { useConfirm } from '../components/ConfirmDialog.jsx';
 import api, { ApiError } from '../lib/api.js';
 import DetailsModal from '../components/DetailsModal.jsx';
 import AppShell from '../components/AppShell.jsx';
-import { PageLoader } from '../components/Loaders.jsx';
+import { TableSkeleton } from '../components/Loaders.jsx';
+import { animateRows } from '../lib/animRows.js';
+import EmptyStateArt from '../components/EmptyStateArt.jsx';
 import {
   StatusPill, BoardGroupHead, BoardGhostRows,
   BoardAddRow, GroupChip, groupColor, statusOf, statusMeta, STATUS_LABELS, STATUS_ORDER,
@@ -251,9 +253,10 @@ export default function ExamsPage() {
       </header>
 
       {exams === null ? (
-        <PageLoader label="Loading exams…" />
+        <TableSkeleton />
       ) : exams.length === 0 ? (
         <div className="empty-state">
+          <EmptyStateArt />
           <h4>No exams yet</h4>
           <p>Start from a blank paper, or generate one from a blueprint so the Bloom spread is decided for you.</p>
           <button className="btn btn-primary" data-tour="exams-new" onClick={() => navigate('/exams/new')}>
@@ -314,7 +317,7 @@ export default function ExamsPage() {
                 </tr>
               </thead>
               {groups.length === 0 ? (
-                <tbody>
+                <tbody ref={animateRows}>
                   <tr>
                     <td className="ds-noresults" colSpan={COL_SPAN}>
                       <span className="ds-noresults-title">No exams found</span>
@@ -329,7 +332,7 @@ export default function ExamsPage() {
                 const counts = statusCounts(g.rows);
                 const itemTotal = g.rows.reduce((n, e) => n + (e.question_count || 0), 0);
                 return (
-                  <tbody key={g.key} className={`b-group${isCollapsed ? ' is-collapsed' : ''}`} style={{ '--gc': g.color }}>
+                  <tbody key={g.key} ref={animateRows} className={`b-group${isCollapsed ? ' is-collapsed' : ''}`} style={{ '--gc': g.color }}>
                     {grouped && (
                       <BoardGroupHead
                         color={g.color}

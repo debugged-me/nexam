@@ -14,6 +14,7 @@ import {
 import api, { ApiError } from '../../lib/api.js';
 import Recaptcha from '../../components/Recaptcha.jsx';
 import { useAuthEntrance } from './authEntrance.js';
+import AuthGlow from './AuthGlow.jsx';
 
 export default function RegisterPage() {
   const navigate = useNavigate();
@@ -82,6 +83,7 @@ export default function RegisterPage() {
 
   return (
     <div className="auth-page auth-page-register page--auth-register" ref={pageRef}>
+      <AuthGlow />
       <a href="#register-form" className="skip-link">Skip to registration form</a>
 
       <div className="auth-shell">

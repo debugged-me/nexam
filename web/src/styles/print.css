@@ -34,6 +34,7 @@
   .action-icon,
   .ctx-trigger,
   .empty-state .btn,
+  .empty-state .empty-art,
   .no-print,
   /* Pages that print a standalone document wrap their app UI in .print-skip
      so only the .print-only document reaches the paper. */

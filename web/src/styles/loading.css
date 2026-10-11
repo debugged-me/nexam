@@ -220,7 +220,50 @@
 
 @keyframes page-in { from { opacity: 0; } }
 
+/* ---- Skeletons (dataset-shaped placeholders while lists load) ----
+   `.sk` is the shimmer chip: a soft surface-tone band sweeping left to
+   right. Rows stagger their phase via --i so the sweep reads organic
+   rather than a wall pulsing in lockstep. */
+.sk {
+  display: block;
+  flex-shrink: 0;
+  border-radius: var(--radius-xs);
+  background: linear-gradient(
+    90deg,
+    var(--surface-3) 25%,
+    var(--surface-2) 48%,
+    var(--surface-3) 70%
+  );
+  background-size: 220% 100%;
+  animation: sk-sweep 1.35s linear infinite;
+}
+@keyframes sk-sweep {
+  from { background-position: 180% 0; }
+  to   { background-position: -40% 0; }
+}
+.sk-bar-row { display: flex; align-items: center; gap: var(--space-2, 8px); }
+.sk-bar-row .sk + .sk { margin-left: auto; }
+.sk-bar-row .sk + .sk + .sk { margin-left: 0; }
+.sk-table {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 14px 18px 20px;
+}
+.sk-head {
+  display: flex;
+  gap: 28px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--line);
+}
+.sk-head .sk { height: 9px; opacity: .75; }
+.sk-row { display: flex; align-items: center; gap: 28px; }
+.sk-row .sk { animation-delay: calc(var(--i, 0) * .07s); }
+.sk-row .sk-end { margin-left: auto; }
+.sk-pill { height: 22px; border-radius: 999px; }
+
 @media (prefers-reduced-motion: reduce) {
+  .sk { animation: none; }
   .page-enter,
   .page-loader,
   .boot-screen,

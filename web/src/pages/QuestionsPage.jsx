@@ -25,7 +25,9 @@ import DetailsModal from '../components/DetailsModal.jsx';
 import api, { ApiError } from '../lib/api.js';
 import useJobs, { isActiveJob } from '../lib/useJobs.js';
 import AppShell from '../components/AppShell.jsx';
-import { PageLoader } from '../components/Loaders.jsx';
+import { TableSkeleton } from '../components/Loaders.jsx';
+import { animateRows } from '../lib/animRows.js';
+import EmptyStateArt from '../components/EmptyStateArt.jsx';
 import { JobsActivityPanel } from '../components/JobsList.jsx';
 import {
   StatusPill, BoardGroupHead, BoardGhostRows,
@@ -784,7 +786,7 @@ export default function QuestionsPage() {
     }
     if (!qGroups) {
       return (
-        <tbody>
+        <tbody ref={animateRows}>
           {pageRows.map((q, i) => renderQuestionRow(q, safePage * PAGE_SIZE + i))}
           <BoardGhostRows count={LEDGER_MIN - pageRows.length} colSpan={COLS} />
         </tbody>
@@ -798,7 +800,7 @@ export default function QuestionsPage() {
         counts[tone] = (counts[tone] || 0) + 1;
       }
       return (
-        <tbody key={g.key} className={`b-group${isCollapsed ? ' is-collapsed' : ''}`} style={{ '--gc': g.color }}>
+        <tbody key={g.key} ref={animateRows} className={`b-group${isCollapsed ? ' is-collapsed' : ''}`} style={{ '--gc': g.color }}>
           <BoardGroupHead
             color={g.color}
             title={g.title}
@@ -848,7 +850,7 @@ export default function QuestionsPage() {
       </header>
 
       {filteredQuestions === null ? (
-        <PageLoader label="Loading questions…" />
+        <TableSkeleton />
       ) : filteredQuestions.length === 0 && !activeFilterCount && !search ? (
         activeCount > 0 ? (
           <JobsActivityPanel
@@ -866,6 +868,7 @@ export default function QuestionsPage() {
           </JobsActivityPanel>
         ) : (
           <div className="empty-state">
+            <EmptyStateArt />
             <h4>Your question bank is empty</h4>
             <p>Add a question manually, import from GIFT/XML, or auto-generate from a blueprint (TOS) using your uploaded materials.</p>
             <div className="empty-state-actions">

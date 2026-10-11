@@ -53,6 +53,7 @@
   border: 1px solid var(--line);
   border-radius: var(--radius-lg);
   background: var(--surface);
+  box-shadow: var(--shadow-md);
 }
 .print-pack::before { content: ''; position: absolute; inset: 0 0 auto 0; height: 1px; background: var(--line); }
 .print-pack-head {

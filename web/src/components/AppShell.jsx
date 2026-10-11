@@ -7,15 +7,20 @@
  * the page body fades in instead of the whole screen reloading.
  */
 import { useContext, useLayoutEffect } from 'react';
-import { ShellMetaContext } from './shellMeta.js';
+import { ShellMetaContext, PageScopeContext } from './shellMeta.js';
 
 export default function AppShell({ activeNav, pageTitle, pageClass, wide = false, children }) {
   const setMeta = useContext(ShellMetaContext);
+  const scopeClass = `page--${pageClass || activeNav}`;
 
   // Layout effect so the topbar title updates in the same frame as the page.
   useLayoutEffect(() => {
     setMeta({ activeNav, pageTitle, wide: Boolean(wide) });
   }, [setMeta, activeNav, pageTitle, wide]);
 
-  return <div className={`page-enter page--${pageClass || activeNav}`}>{children}</div>;
+  return (
+    <PageScopeContext.Provider value={scopeClass}>
+      <div className={`page-enter ${scopeClass}`}>{children}</div>
+    </PageScopeContext.Provider>
+  );
 }

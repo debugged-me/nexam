@@ -3,11 +3,15 @@
  * Renders a centered overlay with a card, title, body, and action buttons.
  * Closes on backdrop click or Escape.
  */
-import { useEffect } from 'react';
+import { useContext, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
+import { PageScopeContext } from './shellMeta.js';
 
 export default function Modal({ open, title, subtitle, onClose, children, footer, size = 'md' }) {
+  // The overlay lives at document.body — carry the page's @scope class so
+  // page-scoped styles keep matching the modal's contents.
+  const scope = useContext(PageScopeContext);
   useEffect(() => {
     if (!open) return;
     const onKey = (e) => { if (e.key === 'Escape') onClose?.(); };
@@ -24,7 +28,7 @@ export default function Modal({ open, title, subtitle, onClose, children, footer
   // Render at document.body — inside a page panel the fixed overlay gets
   // clipped by overflow/containing-block ancestors.
   return createPortal(
-    <div className="modal-overlay" onClick={(e) => { if (e.target === e.currentTarget) onClose?.(); }}>
+    <div className={`modal-overlay${scope ? ` ${scope}` : ''}`} onClick={(e) => { if (e.target === e.currentTarget) onClose?.(); }}>
       <div className={`modal-card modal-${size}`} role="dialog" aria-modal="true" aria-label={title}>
         <div className="modal-header">
           <div>

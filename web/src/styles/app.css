@@ -504,7 +504,7 @@ a[class]:hover, button[class]:hover { transition-timing-function: ease-out; }
   border: 1px solid var(--line);
   border-radius: var(--radius-lg);
   overflow: hidden;
-  box-shadow: none;
+  box-shadow: var(--shadow-md);
 }
 .card-header {
   padding: 14px 18px;
@@ -551,9 +551,19 @@ a[class]:hover, button[class]:hover { transition-timing-function: ease-out; }
   border: 1px solid var(--line);
   border-radius: var(--radius-lg);
   background: var(--surface);
-  box-shadow: var(--shadow-xs);
+  box-shadow: var(--shadow-md);
   transition: border-color .18s ease, box-shadow .18s ease, transform .18s ease;
 }
+/* Colored KPI identity — each card takes a wash of its icon color so the
+   stats read distinctly from the page and from each other. The icon tile
+   flips to a surface chip so it stays visible on the tinted card. */
+.stat-card:has(.stat-icon) .stat-icon { --tile-bg: var(--surface); }
+.stat-card:has(.stat-icon.blue)   { background: color-mix(in srgb, var(--blue-50) 72%, var(--surface));   border-color: var(--blue-100); }
+.stat-card:has(.stat-icon.green)  { background: color-mix(in srgb, var(--green-50) 72%, var(--surface));  border-color: var(--green-100); }
+.stat-card:has(.stat-icon.amber)  { background: color-mix(in srgb, var(--amber-50) 72%, var(--surface));  border-color: var(--amber-100); }
+.stat-card:has(.stat-icon.red)    { background: color-mix(in srgb, var(--red-50) 72%, var(--surface));    border-color: var(--red-100); }
+.stat-card:has(.stat-icon.purple) { background: color-mix(in srgb, var(--purple-50) 72%, var(--surface)); border-color: color-mix(in srgb, var(--purple-50) 70%, var(--purple-600)); }
+.stat-card:has(.stat-icon.cyan)   { background: color-mix(in srgb, var(--teal-50) 72%, var(--surface));   border-color: color-mix(in srgb, var(--teal-50) 70%, var(--teal-600)); }
 .stat-card:hover { border-color: var(--line-strong); box-shadow: var(--shadow-card-hover); transform: translateY(-1px); }
 .stat-icon {
   position: absolute;
@@ -577,6 +587,7 @@ a[class]:hover, button[class]:hover { transition-timing-function: ease-out; }
 .stat-icon.green  { --tile-bg: var(--green-50);   --tile-ink: var(--green-700); }
 .stat-icon.amber  { --tile-bg: var(--amber-50);   --tile-ink: var(--amber-700); }
 .stat-icon.cyan   { --tile-bg: var(--teal-50);    --tile-ink: var(--teal-600); }
+.stat-icon.red    { --tile-bg: var(--red-50);     --tile-ink: var(--red-700); }
 .stat-info { display: flex; flex-direction: column-reverse; min-width: 0; }
 .stat-value {
   padding-right: 40px;

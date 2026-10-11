@@ -48,11 +48,10 @@
    ========================================================================== */
 
 .dataset {
-  --grid-x: 16px;
-  --grid-row: 48px;
+  --grid-x: 12px;
+  --grid-row: 44px;
   --grid-title: .9rem;
   --grid-meta: .75rem;
-  --sort-gutter: 17px;
 
   position: relative;
   display: flex;
@@ -61,7 +60,7 @@
   background: var(--surface);
   border: 1px solid var(--line);
   border-radius: var(--radius-xl);
-  box-shadow: var(--shadow-xs);
+  box-shadow: var(--shadow-md);
 }
 
 /* ==========================================================================
@@ -209,10 +208,11 @@
 /* Positioned so .sr-only labels inside the table resolve against this box.
    flex: 1 makes the table area absorb spare height so the card never stubs
    out when there are only a few rows. */
-.dataset-scroll { position: relative; overflow: visible; flex: 1; }
+.dataset-scroll { position: relative; overflow-x: auto; overflow-y: visible; flex: 1; }
 
 table.grid {
   width: 100%;
+  min-width: 716px;
   border-collapse: separate;
   border-spacing: 0;
   table-layout: fixed;
@@ -223,7 +223,7 @@ table.grid {
 
 table.grid thead > tr > th {
   position: sticky;
-  top: var(--topbar-height);
+  top: 0; /* .dataset-scroll is the scrollport — stick to its top edge */
   z-index: 3;
   height: 40px;
   padding: 0 var(--grid-x);
@@ -234,7 +234,7 @@ table.grid thead > tr > th {
   letter-spacing: .045em;
   text-transform: uppercase;
   text-align: left;
-  white-space: nowrap;
+  white-space: normal;
   user-select: none;
   transition: background-color .12s ease, color .12s ease;
 }
@@ -304,6 +304,9 @@ table.grid tbody tr.is-selected:hover > td { background: var(--action-100); }
    the same with the group colour on each item row. Painted as an inset
    shadow so it never shifts the cell layout. */
 table.grid tbody td:first-child { box-shadow: inset 3px 0 0 var(--gc, transparent); }
+.dataset[data-selecting="false"] table.grid tbody td.col-primary {
+  box-shadow: inset 3px 0 0 var(--gc, transparent);
+}
 
 /* Rows rise in on mount — staggered via --i set in the row's style. */
 table.grid tbody tr {
@@ -315,24 +318,25 @@ table.grid tbody tr {
   to   { opacity: 1; transform: translateY(0); }
 }
 
-/* Faint ledger rows absorb the card's spare height. */
-table.grid tbody tr.g-ghost { animation: none; pointer-events: none; }
-table.grid tbody tr.g-ghost > td { box-shadow: none; }
-
-/* Centered counts; the gutter cancels on both sides so they stay centered. */
+/* Use the same padding as the headers to keep counts centered. */
 table.grid tbody td.is-num {
-  padding-left: calc(var(--grid-x) + var(--sort-gutter));
+  padding-inline: var(--grid-x);
   text-align: center;
   font-variant-numeric: tabular-nums;
 }
 
-/* ---- Column widths: percentages on every column, summing to 100 --------- */
+/* Reserve space for compact fields and Actions; Subject takes the remainder.
+   Percentage widths made the Actions heading overflow its narrow cell. */
+table.grid th.col-select { width: 44px; }
+table.grid th.col-primary { width: auto; }
+table.grid th.col-code { width: clamp(88px, 12%, 144px); }
+table.grid th.col-questions { width: 104px; }
+table.grid th.col-blueprints { width: 108px; }
+table.grid th.col-exams { width: 72px; }
+table.grid th.col-created { width: 132px; }
+table.grid th.col-actions { width: 88px; }
 
-.wp-4  { width: 4%; }
-.wp-5  { width: 5%; }
-.wp-10 { width: 10%; }
-.wp-12 { width: 12%; }
-.wp-33 { width: 33%; }
+.dataset[data-selecting="false"] .col-select { display: none; }
 
 /* ---- Selection column ---------------------------------------------------- */
 
@@ -439,55 +443,37 @@ a.g-title:focus-visible { outline: 2px solid var(--action-600); outline-offset: 
 a.g-count:hover { color: var(--action-600); text-decoration: underline; text-underline-offset: 3px; }
 
 /* ==========================================================================
-   Row actions — revealed on hover, reachable by keyboard, always on touch
+   Row actions — always reachable at the right edge
    ========================================================================== */
 
 table.grid th.col-actions,
 table.grid td.col-actions {
-  width: 118px;
-  padding-right: 10px;
+  padding-right: var(--grid-x);
+  position: sticky;
+  right: 0;
   text-align: right;
   overflow: visible;
+  white-space: nowrap;
 }
+table.grid th.col-actions { text-transform: uppercase; }
+table.grid td.col-actions { background: var(--surface); z-index: 1; }
 
-/* Inline row actions — always-visible ghost icon buttons with tooltips. */
-.g-actions { display: inline-flex; gap: 2px; }
-.g-act {
-  position: relative;
-  display: inline-grid;
-  place-items: center;
-  width: 30px;
-  height: 30px;
+.g-menu {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
   border: 0;
-  border-radius: 8px;
+  border-radius: 7px;
   background: transparent;
   color: var(--ink-faint);
   cursor: pointer;
-  transition: background-color .12s ease, color .12s ease;
 }
-.g-act svg { width: 15px !important; height: 15px !important; display: block; }
-.g-act:hover { background: var(--surface-3); color: var(--ink-2); }
-.g-act:focus-visible { outline: 2px solid var(--action-600); outline-offset: 1px; }
-.g-act.is-danger:hover { background: var(--red-50); color: var(--red-700); }
-.g-act:disabled { opacity: .4; }
-.g-act[data-tip]::after {
-  content: attr(data-tip);
-  position: absolute;
-  top: calc(100% + 6px);
-  left: 50%;
-  transform: translateX(-50%);
-  padding: 4px 8px;
-  border-radius: 6px;
-  background: var(--ink);
-  color: #fff;
-  font: 500 .65rem/1.2 var(--font-body, "Inter", sans-serif);
-  white-space: nowrap;
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity .1s ease;
-  z-index: 60;
-}
-.g-act:hover[data-tip]::after, .g-act:focus-visible[data-tip]::after { opacity: 1; }
+.g-menu svg { width: 15px !important; height: 15px !important; display: block; }
+.g-menu:hover { background: var(--surface-3); color: var(--ink); }
+.g-menu:focus-visible { outline: 2px solid var(--action-600); outline-offset: 1px; }
 
 /* ==========================================================================
    Footer — range + pagination
@@ -646,17 +632,11 @@ table.grid td.col-actions {
    Responsive
    ========================================================================== */
 
-/* Below the table's natural width the grid scrolls sideways rather than
-   dropping columns; the sticky header is released inside the scroller. */
-@media (max-width: 1100px) {
-  .dataset-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
-  table.grid { min-width: 880px; }
-  table.grid thead > tr > th { position: static; }
-}
-
 @media (max-width: 991px) {
-  .ds-search input, .ds-btn, .ds-page, .g-act { min-height: 44px; }
-  .ds-page, .g-act { min-width: 44px; }
+  .ds-search input, .ds-btn, .ds-page, .g-menu { min-height: 44px; }
+  .ds-page, .g-menu { min-width: 44px; }
+  .ds-check { width: 44px; height: 44px; }
+  table.grid th.col-select { width: 56px; }
   .dataset-bar-lead, .dataset-bar-trail { flex-wrap: wrap; }
 }
 
@@ -669,7 +649,6 @@ table.grid td.col-actions {
   .dataset-foot { flex-direction: column; align-items: stretch; gap: 8px; }
   .ds-range { justify-content: space-between; }
   .ds-pager { justify-content: center; }
-  .ds-check { width: 40px; height: 40px; }
 }
 
 @media (max-width: 599px) {
@@ -681,13 +660,12 @@ table.grid td.col-actions {
 }
 
 @media (hover: none) {
-  .g-act { width: 40px; height: 40px; }
-  .g-act[data-tip]::after { display: none; }
+  .g-menu { width: 44px; height: 44px; }
 }
 
 @media (prefers-reduced-motion: reduce) {
   table.grid tbody tr { animation: none; }
-  .ds-btn, .ds-page, .g-act, .ds-sort, .ds-check span, .ds-search input {
+  .ds-btn, .ds-page, .g-menu, .ds-sort, .ds-check span, .ds-search input {
     transition: none;
   }
 }

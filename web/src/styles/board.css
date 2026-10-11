@@ -420,7 +420,7 @@ tr:hover .g-entity-mark { background: color-mix(in srgb, var(--gc, var(--surface
    Board card — standalone grouped board (dashboard, non-table surfaces)
    ========================================================================== */
 
-.b-card { overflow: hidden; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); box-shadow: var(--shadow-sm); }
+.b-card { overflow: hidden; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); box-shadow: var(--shadow-md); }
 
 /* Mini board rows inside a panel (dashboard "Recent exams") */
 .b-rowline {

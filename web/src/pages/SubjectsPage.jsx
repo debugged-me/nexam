@@ -8,7 +8,7 @@ import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import {
   Plus, Pencil, Trash2, Search, CheckSquare, BookOpen,
-  Eye, Check, Copy,
+  Eye, Check, Copy, Ellipsis,
   ChevronUp, ChevronDown, ChevronFirst, ChevronLeft, ChevronRight, ChevronLast,
 } from 'lucide-react';
 import { useToast } from '../components/Toast.jsx';
@@ -322,7 +322,7 @@ export default function SubjectsPage() {
               <caption className="sr-only">Subjects in your workspace</caption>
               <thead>
                 <tr>
-                  <th className="col-select wp-4">
+                  <th className="col-select">
                     {selectMode && (
                       <label className="ds-check">
                         <input type="checkbox" checked={allChecked} ref={(el) => { if (el) el.indeterminate = someChecked; }} onChange={toggleAll} />
@@ -331,21 +331,21 @@ export default function SubjectsPage() {
                       </label>
                     )}
                   </th>
-                  <th className={`col-primary wp-33 ${sortClass('subject')}`} onClick={() => toggleSort('subject')} data-name="Subject" data-locked>
+                  <th className={`col-primary ${sortClass('subject')}`} onClick={() => toggleSort('subject')} data-name="Subject" data-locked>
                     Subject{renderSortArrow('subject')}
                   </th>
-                  <th className={`wp-12 ${sortClass('code')}`} onClick={() => toggleSort('code')} data-name="Code">Code{renderSortArrow('code')}</th>
-                  <th className={`is-num wp-12 ${sortClass('questions')}`} onClick={() => toggleSort('questions')} data-name="Questions">Questions{renderSortArrow('questions')}</th>
-                  <th className={`is-num wp-12 ${sortClass('blueprints')}`} onClick={() => toggleSort('blueprints')} data-name="Blueprints">Blueprints{renderSortArrow('blueprints')}</th>
-                  <th className={`is-num wp-10 ${sortClass('exams')}`} onClick={() => toggleSort('exams')} data-name="Exams">Exams{renderSortArrow('exams')}</th>
-                  <th className={`wp-12 ${sortClass('created')}`} onClick={() => toggleSort('created')} data-name="Created">Created{renderSortArrow('created')}</th>
-                  <th className="col-actions"><span className="sr-only">Actions</span></th>
+                  <th className={`col-code ${sortClass('code')}`} onClick={() => toggleSort('code')} data-name="Code">Code{renderSortArrow('code')}</th>
+                  <th className={`col-questions is-num ${sortClass('questions')}`} onClick={() => toggleSort('questions')} data-name="Questions">Questions{renderSortArrow('questions')}</th>
+                  <th className={`col-blueprints is-num ${sortClass('blueprints')}`} onClick={() => toggleSort('blueprints')} data-name="Blueprints">Blueprints{renderSortArrow('blueprints')}</th>
+                  <th className={`col-exams is-num ${sortClass('exams')}`} onClick={() => toggleSort('exams')} data-name="Exams">Exams{renderSortArrow('exams')}</th>
+                  <th className={`col-created ${sortClass('created')}`} onClick={() => toggleSort('created')} data-name="Created">Created{renderSortArrow('created')}</th>
+                  <th className="col-actions">Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {pageRows.length === 0 ? (
                   <tr>
-                    <td className="ds-noresults" colSpan={8}>
+                    <td className="ds-noresults" colSpan={selectMode ? 8 : 7}>
                       <span className="ds-noresults-title">No subjects found</span>
                       <span className="ds-noresults-sub">
                         {query ? <>Try a different search or <button onClick={() => setQuery('')}>clear it</button>.</> : 'No subjects match.'}
@@ -369,17 +369,17 @@ export default function SubjectsPage() {
                           </label>
                         )}
                       </td>
-                      <td>
+                      <td className="col-primary">
                         <span className="g-entity">
                           <span className="g-primary">
-                            <Link to={`/subjects/${encodeURIComponent(s.id)}`} className="g-title">{s.name}</Link>
+                            <Link to={`/subjects/${encodeURIComponent(s.id)}`} className="g-title" title={s.name}>{s.name}</Link>
                             <span className="g-meta" title={descTitle}>{desc}</span>
                           </span>
                         </span>
                       </td>
                       <td>
                         {s.code
-                          ? <span className="g-code">{s.code}</span>
+                          ? <span className="g-code" title={s.code}>{s.code}</span>
                           : <span className="g-mute">—</span>}
                       </td>
                       <td className="is-num" data-order={q}>
@@ -397,20 +397,19 @@ export default function SubjectsPage() {
                       </td>
                       <td className="g-mute" data-order={s.created_at}>{fmtDate(s.created_at)}</td>
                       <td className="col-actions">
-                        <span className="g-actions">
-                          <Link className="g-act" to={`/subjects/${encodeURIComponent(s.id)}`} data-tip="Open" aria-label={`Open ${s.name}`}><Eye size={15} /></Link>
-                          <button type="button" className="g-act" onClick={() => setEditing(s)} data-tip="Edit" aria-label={`Edit ${s.name}`}><Pencil size={15} /></button>
-                          <button type="button" className="g-act is-danger" onClick={() => handleDelete(s)} disabled={deleting?.id === s.id} data-tip="Delete" aria-label={`Delete ${s.name}`}><Trash2 size={15} /></button>
-                        </span>
+                        <button
+                          type="button"
+                          className="g-menu"
+                          onClick={(e) => subjectMenu(e, s)}
+                          title="Actions"
+                          aria-label={`Actions for ${s.name}`}
+                        >
+                          <Ellipsis size={15} />
+                        </button>
                       </td>
                     </tr>
                   );
                 })}
-                {pageRows.length > 0 && Array.from({ length: Math.max(0, 12 - pageRows.length) }).map((_, gi) => (
-                  <tr key={`ghost-${gi}`} className="g-ghost" aria-hidden="true">
-                    <td colSpan={8} />
-                  </tr>
-                ))}
               </tbody>
             </table>
           </div>

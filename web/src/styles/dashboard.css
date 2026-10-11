@@ -11,7 +11,15 @@
 
   /* ---- KPI cards ------------------------------------------------------------ */
   .dash-kpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
-  .dash-kpi { display: flex; flex-direction: column; min-width: 0; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-lg); padding: 14px 16px; box-shadow: var(--shadow-xs); transition: border-color .16s, box-shadow .16s, transform .16s; }
+  .dash-kpi { display: flex; flex-direction: column; min-width: 0; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-lg); padding: 14px 16px; box-shadow: var(--shadow-md); transition: border-color .16s, box-shadow .16s, transform .16s; }
+  /* Colored KPI washes — same treatment as .stat-card: each card takes a
+     tint of its accent so the metrics read distinctly. Icon flips to a
+     surface chip so it stays visible on the tinted card. */
+  .dash-kpi:has(.tint-1) { background: color-mix(in srgb, var(--gc-1) 12%, var(--surface)); border-color: color-mix(in srgb, var(--gc-1) 28%, var(--line)); }
+  .dash-kpi:has(.tint-2) { background: color-mix(in srgb, var(--gc-2) 12%, var(--surface)); border-color: color-mix(in srgb, var(--gc-2) 28%, var(--line)); }
+  .dash-kpi:has(.tint-3) { background: color-mix(in srgb, var(--gc-3) 12%, var(--surface)); border-color: color-mix(in srgb, var(--gc-3) 28%, var(--line)); }
+  .dash-kpi:has(.tint-4) { background: color-mix(in srgb, var(--gc-4) 13%, var(--surface)); border-color: color-mix(in srgb, var(--gc-4) 28%, var(--line)); }
+  .dash-kpi:not(.is-hero):has(.dash-kpi-icon) .dash-kpi-icon { background: var(--surface); }
   .dash-kpi:hover { border-color: var(--line-strong); box-shadow: var(--shadow-sm); transform: translateY(-1px); }
   .dash-kpi.is-hero { background: linear-gradient(135deg, #1B6EC2 0%, var(--action-600) 55%, #47BFFF 130%); border-color: transparent; color: #fff; box-shadow: 0 8px 22px -8px rgba(35, 131, 226, .5); }
   .dash-kpi.is-hero:hover { border-color: transparent; box-shadow: 0 10px 26px -8px rgba(35, 131, 226, .6); }
@@ -35,7 +43,7 @@
   .dash-delta.is-flat { color: var(--ink-faint); }
 
   /* ---- Cards ----------------------------------------------------------------- */
-  .dash-card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-xl); box-shadow: var(--shadow-xs); overflow: hidden; }
+  .dash-card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-xl); box-shadow: var(--shadow-md); overflow: hidden; }
   .dash-card-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 16px 18px 13px; }
   .dash-card-head h2 { font: 600 .88rem var(--font-display); letter-spacing: -.01em; }
   .dash-chart-range { font-size: .72rem; color: var(--ink-faint); }
@@ -131,7 +139,7 @@
   .dash-bloom-dots i.is-on { background: var(--st-green); }
 
   /* ---- Getting-started guide ------------------------------------------------------------ */
-  .dash-guide { border: 1px solid var(--line); border-radius: var(--radius-xl); background: var(--surface); box-shadow: var(--shadow-xs); overflow: hidden; }
+  .dash-guide { border: 1px solid var(--line); border-radius: var(--radius-xl); background: var(--surface); box-shadow: var(--shadow-md); overflow: hidden; }
   .dash-guide summary { display: flex; align-items: center; gap: 13px; padding: 15px 18px; cursor: pointer; list-style: none; }
   .dash-guide summary::-webkit-details-marker { display: none; }
   .dash-guide summary > span:nth-child(2) { flex: 1; }

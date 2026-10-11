@@ -23,6 +23,7 @@
   background: var(--surface);
   border: 1px solid var(--line);
   border-radius: var(--radius, 10px);
+  box-shadow: var(--shadow-md);
   overflow: hidden;
 }
 .adm-toolbar {
@@ -168,6 +169,7 @@
   background: var(--surface);
   border: 1px solid var(--line);
   border-radius: var(--radius, 10px);
+  box-shadow: var(--shadow-md);
   padding: 18px 20px 20px;
   margin-bottom: 16px;
 }
@@ -252,14 +254,13 @@ select.adm-input { cursor: pointer; }
 /* ── Dashboard ── */
 .adm-dash { background: none; border: none; overflow: visible; }
 .adm-kpis { margin-bottom: 16px; }
-.admin-page .stat-icon.red { --tile-bg: var(--red-50); --tile-ink: var(--red-700); }
-
 .adm-statsbar {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   background: var(--surface);
   border: 1px solid var(--line);
   border-radius: var(--radius, 10px);
+  box-shadow: var(--shadow-md);
   overflow: hidden;
   margin-bottom: 16px;
 }

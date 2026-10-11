@@ -6,12 +6,13 @@ import '../../styles/auth-register.css';
  * We navigate to /verify carrying both, so the verify page can call
  * /auth/verify without a session.
  */
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import {
   Mail, Lock, Eye, EyeOff, AlertCircle, User,
 } from 'lucide-react';
 import api, { ApiError } from '../../lib/api.js';
+import Recaptcha from '../../components/Recaptcha.jsx';
 
 export default function RegisterPage() {
   const navigate = useNavigate();
@@ -23,6 +24,15 @@ export default function RegisterPage() {
   const [showPw, setShowPw] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [captchaSiteKey, setCaptchaSiteKey] = useState(null);
+  const [captchaToken, setCaptchaToken] = useState('');
+  const captchaRef = useRef(null);
+
+  useEffect(() => {
+    api.get('/auth/captcha')
+      .then((d) => setCaptchaSiteKey(d.siteKey || null))
+      .catch(() => setCaptchaSiteKey(null));
+  }, []);
 
   function set(k) { return (e) => setForm((f) => ({ ...f, [k]: e.target.value })); }
 
@@ -38,6 +48,10 @@ export default function RegisterPage() {
       setError('Password must be at least 8 characters.');
       return;
     }
+    if (captchaSiteKey && !captchaToken) {
+      setError('Please complete the reCAPTCHA check.');
+      return;
+    }
 
     setLoading(true);
     try {
@@ -48,11 +62,15 @@ export default function RegisterPage() {
         name_ext: form.name_ext || undefined,
         email: form.email,
         password: form.password,
+        client: 'web',
+        captchaToken: captchaToken || undefined,
       });
       navigate('/verify', {
         state: { verifyToken: data.verifyToken, email: data.email },
       });
     } catch (err) {
+      captchaRef.current?.reset();
+      setCaptchaToken('');
       setError(err instanceof ApiError ? err.message : 'Registration failed. Please try again.');
     } finally {
       setLoading(false);
@@ -182,6 +200,10 @@ export default function RegisterPage() {
                 </div>
               </div>
             </div>
+
+            {captchaSiteKey && (
+              <Recaptcha ref={captchaRef} siteKey={captchaSiteKey} onChange={setCaptchaToken} />
+            )}
 
             <div className="btn-row-stacked">
               <button type="submit" className={`btn-login ${loading ? 'is-loading' : ''}`} disabled={loading}>

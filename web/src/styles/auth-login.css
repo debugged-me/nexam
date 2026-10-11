@@ -436,6 +436,17 @@ a { color: inherit; text-decoration: none; }
 .form-links--legal a { color: var(--ink-3); font-weight: 400; }
 .form-links--legal a:hover { color: var(--action-600); }
 
+/* reCAPTCHA v2 widget — centered above the submit row */
+.recaptcha-box {
+  display: flex;
+  justify-content: center;
+  min-height: 78px;
+  margin: 6px 0 14px;
+}
+@media (max-width: 400px) {
+  .recaptcha-box { transform: scale(.92); transform-origin: center; margin-bottom: 4px; }
+}
+
 /* ── Responsive ── */
 @media (max-width: 860px) {
   :scope {

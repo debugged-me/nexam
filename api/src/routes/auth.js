@@ -24,6 +24,7 @@ import env from '../config/env.js';
 import pool from '../config/db.js';
 import { requireAuth } from '../middleware/auth.js';
 import { sendOtpEmail } from '../services/emailService.js';
+import { getCaptchaSiteKey, verifyCaptcha } from '../services/captcha.js';
 
 const router = Router();
 
@@ -53,6 +54,42 @@ function rateRecord(key, windowSeconds) {
 
 function rateClear(key) {
   rateBuckets.delete(key);
+}
+
+/** Seconds until the oldest recorded attempt in the window expires. */
+function rateRetryAfter(key, windowSeconds) {
+  const now = Date.now();
+  const cutoff = now - windowSeconds * 1000;
+  const attempts = (rateBuckets.get(key) || []).filter((t) => t >= cutoff);
+  if (!attempts.length) return 0;
+  return Math.ceil(windowSeconds - (now - Math.min(...attempts)) / 1000);
+}
+
+// ── Login throttle: escalating delay between failed attempts ──
+// Key: `login|${email}|${ip}` → { fails, lastAt }. First 3 failures are
+// unthrottled; each failure after that must wait progressively longer
+// (15s → 30s → 60s → … → 900s max). Cleared on successful sign-in.
+const loginStreaks = new Map();
+const LOGIN_DELAYS_S = [0, 0, 0, 15, 30, 60, 120, 300, 600, 900];
+
+function loginWaitSeconds(key) {
+  const s = loginStreaks.get(key);
+  if (!s) return 0;
+  if (Date.now() - s.lastAt > 900_000) {
+    loginStreaks.delete(key);
+    return 0;
+  }
+  const wait = LOGIN_DELAYS_S[Math.min(s.fails, LOGIN_DELAYS_S.length - 1)];
+  return Math.max(0, Math.ceil(wait - (Date.now() - s.lastAt) / 1000));
+}
+
+function loginRecord(key) {
+  const s = loginStreaks.get(key);
+  loginStreaks.set(key, { fails: (s?.fails || 0) + 1, lastAt: Date.now() });
+}
+
+function loginClear(key) {
+  loginStreaks.delete(key);
 }
 
 // ── Helpers ───────────────────────────────────────────
@@ -101,8 +138,33 @@ async function verifyOtp(userId, code) {
 // ── Routes ────────────────────────────────────────────
 
 /**
+ * GET /api/auth/captcha
+ * Returns the public reCAPTCHA site key so the web client can render the
+ * widget. The secret key is never exposed.
+ */
+router.get('/captcha', async (req, res, next) => {
+  try {
+    res.json({ siteKey: await getCaptchaSiteKey() });
+  } catch (err) {
+    next(err);
+  }
+});
+
+/**
+ * Enforce reCAPTCHA on requests marked client: 'web' (the React app sends
+ * this marker; Flutter clients do not, so mobile auth is unaffected).
+ */
+async function requireWebCaptcha(req, res) {
+  if (req.body?.client !== 'web') return true;
+  if (await verifyCaptcha(req.body.captchaToken, req.ip)) return true;
+  res.status(400).json({ error: 'reCAPTCHA verification failed. Please try again.' });
+  return false;
+}
+
+/**
  * POST /api/auth/login
  * Body: { email, password }
+ * Throttled: failures after the 3rd must wait an escalating delay.
  */
 router.post('/login', async (req, res, next) => {
   try {
@@ -116,8 +178,13 @@ router.post('/login', async (req, res, next) => {
 
     const ip = req.ip;
     const key = rateKey('login', email, ip);
-    if (rateExceeded(key, 5, 900)) {
-      return res.status(429).json({ error: 'Too many failed sign-in attempts. Please wait 15 minutes and try again.' });
+    const wait = loginWaitSeconds(key);
+    if (wait > 0) {
+      res.set('Retry-After', String(wait));
+      return res.status(429).json({
+        error: `Too many failed attempts. Please wait ${wait} seconds and try again.`,
+        retryAfter: wait,
+      });
     }
 
     const [rows] = await pool.query(
@@ -134,7 +201,7 @@ router.post('/login', async (req, res, next) => {
       : await bcrypt.compare(password, dummyHash);
 
     if (!user || !ok) {
-      rateRecord(key, 900);
+      loginRecord(key);
       return res.status(401).json({ error: 'Invalid email or password.' });
     }
 
@@ -150,7 +217,7 @@ router.post('/login', async (req, res, next) => {
       return res.status(403).json({ error: 'Nexam is restricted to faculty/instructor accounts.' });
     }
 
-    rateClear(key);
+    loginClear(key);
 
     const token = jwt.sign(
       { id: user.id, email: user.email, role: user.role },
@@ -194,6 +261,7 @@ router.post('/register', async (req, res, next) => {
     if (String(password).length < 8 || String(password).length > 128) {
       return res.status(400).json({ error: 'Password must be between 8 and 128 characters.' });
     }
+    if (!(await requireWebCaptcha(req, res))) return;
 
     const ip = req.ip;
     const key = rateKey('register', email, ip);
@@ -369,6 +437,20 @@ router.post('/forgot', async (req, res, next) => {
     }
 
     const ip = req.ip;
+
+    // Per-request cooldown: one reset request every 2 minutes per email+IP,
+    // regardless of whether the account exists (keeps timing uniform).
+    const cdKey = rateKey('forgot_cd', email, ip);
+    if (rateExceeded(cdKey, 1, 120)) {
+      const retryAfter = rateRetryAfter(cdKey, 120);
+      res.set('Retry-After', String(retryAfter));
+      return res.status(429).json({
+        error: `Please wait ${retryAfter} seconds before requesting another reset code.`,
+        retryAfter,
+      });
+    }
+    rateRecord(cdKey, 120);
+
     const key = rateKey('forgot', email, ip);
     if (rateExceeded(key, 3, 3600)) {
       return res.status(429).json({ error: 'Too many reset requests. Please try again later.' });

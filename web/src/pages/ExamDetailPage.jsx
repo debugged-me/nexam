@@ -73,6 +73,7 @@ export default function ExamDetailPage() {
   }
 
   async function handleRemoveQ(qid) {
+    if (!(await confirm('Remove this question from the exam?', { title: 'Remove question', confirmText: 'Remove' }))) return;
     try {
       await api.del(`/exams/${id}/questions/${qid}`);
       toast.success('Question removed.');

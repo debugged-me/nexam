@@ -228,7 +228,7 @@ table.grid thead > tr > th {
   height: 40px;
   padding: 0 var(--grid-x);
   border-bottom: 1px solid var(--line);
-  background: #FAFBFC;
+  background: var(--surface-2);
   color: var(--ink-3);
   font: 550 .71875rem/1 var(--font-body, "Inter", sans-serif);
   letter-spacing: .045em;
@@ -635,7 +635,7 @@ table.grid td.col-actions {
   margin: 24px -22px -20px;
   padding: 12px 22px;
   border-top: 1px solid var(--line);
-  background: rgba(255, 255, 255, .96);
+  background: color-mix(in srgb, var(--surface) 96%, transparent);
   backdrop-filter: blur(8px);
 }
 

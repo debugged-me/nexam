@@ -186,6 +186,8 @@
   background: var(--red-50);
   color: var(--red-600);
 }
+.confirm-icon--neutral { background: var(--surface-3); color: var(--ink-2); }
+.confirm-icon--accent { background: var(--action-50); color: var(--action-600); }
 .confirm-message {
   margin: 0;
   padding-top: 8px;

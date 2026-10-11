@@ -204,7 +204,7 @@ svg.lucide { stroke-width: 1.5; }
 
 .topbar {
   height: var(--topbar-height);
-  background: rgba(255, 255, 255, .86);
+  background: color-mix(in srgb, var(--canvas) 86%, transparent);
   -webkit-backdrop-filter: blur(10px) saturate(1.4);
   backdrop-filter: blur(10px) saturate(1.4);
   border-bottom: 1px solid var(--line);
@@ -399,6 +399,42 @@ img.avatar { object-fit: cover; display: block; }
 .user-dropdown-item.danger svg { color: var(--red-600); }
 .user-dropdown-item.danger:hover { background: var(--red-50); color: var(--red-700); }
 .user-dropdown-sep { height: 1px; background: var(--line); margin: 4px 0; }
+
+/* Theme segmented control — light / dark / system */
+.user-dropdown-theme {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 3px;
+  margin: 4px 8px;
+  padding: 3px;
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+.theme-seg-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  padding: 7px 2px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--ink-3);
+  font-family: var(--font-body);
+  font-size: 10px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color .14s ease, color .14s ease, box-shadow .14s ease;
+}
+.theme-seg-item svg { display: block; }
+.theme-seg-item:hover { color: var(--ink-2); }
+.theme-seg-item.is-active {
+  background: var(--surface);
+  color: var(--ink);
+  box-shadow: var(--shadow-sm);
+}
+.theme-seg-item:focus-visible { outline: 2px solid var(--action-600); outline-offset: 1px; }
 
 /* ==========================================================================
    Page scaffolding
@@ -653,7 +689,7 @@ a[class]:hover, button[class]:hover { transition-timing-function: ease-out; }
   height: 34px;
   padding: 0 14px;
   border-bottom: 1px solid var(--line);
-  background: #FAFBFC;
+  background: var(--surface-2);
   color: var(--ink-3);
   font-family: var(--font-body, "Inter", sans-serif);
   font-size: .6875rem;

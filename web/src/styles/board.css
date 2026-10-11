@@ -433,7 +433,7 @@ tr:hover .g-entity-mark { background: color-mix(in srgb, var(--gc, var(--surface
   border-top: 1px solid var(--line);
   transition: background-color .13s ease;
 }
-.b-rowline:hover { background: color-mix(in srgb, var(--gc, var(--line)) 4%, #f9f9fc); }
+.b-rowline:hover { background: color-mix(in srgb, var(--gc, var(--line)) 4%, var(--surface-2)); }
 .b-rowline:focus-visible { outline: 2px solid var(--brand-accent); outline-offset: -2px; }
 .b-rowline-main { display: flex; align-items: center; gap: 12px; min-width: 0; }
 .b-rowline-title { display: block; min-width: 0; overflow: hidden; color: var(--ink); font: 500 .875rem/1.4 var(--font-display); text-overflow: ellipsis; white-space: nowrap; }
@@ -905,7 +905,7 @@ table.grid thead > tr > th {
     height: 40px;
     padding: 0 var(--grid-x);
     border-bottom: 1px solid var(--line);
-    background: #FAFBFC;
+    background: var(--surface-2);
     color: var(--ink-3);
     font: 550 .71875rem/1 var(--font-body, "Inter", sans-serif);
     letter-spacing: .035em;

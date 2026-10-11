@@ -102,7 +102,7 @@
 .wizard-drop:hover { border-color: var(--ink-3); background: var(--surface-2); }
 .wizard-drop:focus-visible { outline: 2px solid var(--brand-accent); outline-offset: 2px; }
 .wizard-drop-icon { display: flex; width: 36px; height: 36px; flex: 0 0 auto; align-items: center; justify-content: center; border-radius: 9px; background: var(--surface); color: var(--ink-3); }
-.wizard-drop:hover .wizard-drop-icon { background: #fff; }
+.wizard-drop:hover .wizard-drop-icon { background: var(--surface); }
 .wizard-drop-copy { display: flex; min-width: 0; flex-direction: column; gap: 2px; }
 .wizard-drop-copy strong { font-family: var(--font-display); font-size: .84rem; font-weight: 650; color: var(--ink); }
 .wizard-drop-copy small { color: var(--ink-faint); font-size: .72rem; }

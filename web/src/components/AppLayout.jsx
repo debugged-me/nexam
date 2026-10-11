@@ -7,6 +7,10 @@ import {
   ChevronDown,
   ChevronRight,
   LogOut,
+  Moon,
+  Monitor,
+  Palette,
+  Sun,
   User,
   X,
   Search,
@@ -15,6 +19,8 @@ import {
   Settings2,
 } from 'lucide-react';
 import { useAuth } from '../features/auth/AuthContext.jsx';
+import { useConfirm } from './ConfirmDialog.jsx';
+import { useTheme } from '../lib/theme.js';
 import api from '../lib/api.js';
 import useNetworkBusy from '../lib/useNetworkBusy.js';
 import { ShellMetaContext } from './shellMeta.js';
@@ -35,8 +41,16 @@ function prefetchAll(paths) {
   paths?.forEach((path) => api.prefetch(path));
 }
 
+const THEME_CHOICES = [
+  { key: 'light', label: 'Light', Icon: Sun },
+  { key: 'dark', label: 'Dark', Icon: Moon },
+  { key: 'system', label: 'System', Icon: Monitor },
+];
+
 export default function AppLayout() {
   const { user, logout, refreshUser } = useAuth();
+  const confirm = useConfirm();
+  const { mode, setThemeMode } = useTheme();
   const location = useLocation();
   const navigate = useNavigate();
   const busy = useNetworkBusy();
@@ -299,10 +313,35 @@ export default function AppLayout() {
                     <Camera size={16} /> Change photo
                   </button>
                   <div className="user-dropdown-sep" />
+                  <div className="user-dropdown-theme" role="group" aria-label="Appearance">
+                    {THEME_CHOICES.map(({ key, label, Icon }) => (
+                      <button
+                        key={key}
+                        type="button"
+                        className={`theme-seg-item${mode === key ? ' is-active' : ''}`}
+                        onClick={() => setThemeMode(key)}
+                        aria-pressed={mode === key}
+                      >
+                        <Icon size={15} />
+                        <span>{label}</span>
+                      </button>
+                    ))}
+                  </div>
                   <button
-                    className="user-dropdown-item danger"
+                    className="user-dropdown-item"
                     onClick={() => {
                       setUserMenuOpen(false);
+                      navigate('/appearance');
+                    }}
+                  >
+                    <Palette size={16} /> Appearance settings
+                  </button>
+                  <div className="user-dropdown-sep" />
+                  <button
+                    className="user-dropdown-item danger"
+                    onClick={async () => {
+                      setUserMenuOpen(false);
+                      if (!(await confirm('You will need to sign in again to continue working.', { title: 'Log out of nexam?', confirmText: 'Log out', danger: false, icon: LogOut }))) return;
                       logout();
                       navigate('/login');
                     }}

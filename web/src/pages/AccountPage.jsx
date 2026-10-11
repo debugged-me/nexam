@@ -4,6 +4,7 @@ import '../styles/account.css';
  * Uses the PHP design system classes (card, form-group, form-control, etc.)
  */
 import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useToast } from '../components/Toast.jsx';
 import api, { ApiError } from '../lib/api.js';
 import AppShell from '../components/AppShell.jsx';
@@ -11,7 +12,7 @@ import { PageLoader } from '../components/Loaders.jsx';
 import { useAuth } from '../features/auth/AuthContext.jsx';
 import UserAvatar from '../components/UserAvatar.jsx';
 import AvatarPickerModal from '../components/AvatarPickerModal.jsx';
-import { User, Lock, Mail, Calendar, Check, Save, Eye, EyeOff, Camera, Trash2 } from 'lucide-react';
+import { User, Lock, Mail, Calendar, Check, Save, Eye, EyeOff, Camera, Trash2, Palette } from 'lucide-react';
 
 function nameFormFrom(user) {
   return {
@@ -113,6 +114,9 @@ export default function AccountPage() {
           <h1>Account</h1>
           <p className="page-sub">Manage your profile and password.</p>
         </div>
+        <Link to="/appearance" className="btn btn-outline btn-sm">
+          <Palette size={15} /> Appearance
+        </Link>
       </div>
 
       {/* Profile summary stats */}

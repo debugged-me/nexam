@@ -112,7 +112,7 @@
   border-radius: 999px;
   text-transform: capitalize;
 }
-.adm-pill-pending { background: #FFF3D6; color: #8A6A1F; }
+.adm-pill-pending { background: var(--amber-50); color: var(--amber-700); }
 .adm-pill-active { background: #DFF3E4; color: #256B3E; }
 .adm-pill-rejected { background: #FBE3E1; color: #A93B32; }
 .adm-tag {

@@ -200,6 +200,100 @@
   --shadow: var(--shadow-md);
 }
 
+/* ==========================================================================
+   Dark theme — applied when <html data-theme="dark">. Only semantic tokens
+   flip; the saturated status/brand ramps stay (they read fine on dark).
+   ========================================================================== */
+:root[data-theme="dark"] {
+  color-scheme: dark;
+
+  /* Actions — brightened so fills read on dark surfaces; hover goes lighter */
+  --action-50:  #152740;
+  --action-100: #1E3B5E;
+  --action-300: #2D62A8;
+  --action-400: #3F8BEB;
+  --action-600: #4A9FEF;
+  --action-700: #7FB9F0;
+
+  --blue-50:  #152740;
+  --blue-100: #1E3B5E;
+  --blue-600: #4E8DEB;
+  --blue-700: #7FAEF0;
+
+  /* Bloom ramp keeps its 1→6 progression, re-based for dark */
+  --bloom-1: #16233B;
+  --bloom-2: #1D3A5E;
+  --bloom-3: #2B5290;
+  --bloom-4: #3E72BE;
+  --bloom-5: #5B94DB;
+  --bloom-6: #8DB8EC;
+
+  /* Status tints become dark washes; accents brighten for legibility */
+  --green-50:  #132A1F;
+  --green-100: #1C402F;
+  --green-600: #3FB97A;
+  --green-700: #62CF97;
+
+  --amber-50:  #2F2510;
+  --amber-100: #4A3716;
+  --amber-600: #E0A83F;
+  --amber-700: #F0C46A;
+
+  --red-50:  #2F1718;
+  --red-100: #4A2222;
+  --red-600: #E85D5E;
+  --red-700: #F08384;
+
+  --purple-50:  #221C36;
+  --purple-600: #9D80E8;
+  --purple-700: #B49CEF;
+
+  --teal-50:  #122831;
+  --teal-600: #43B8D4;
+
+  /* Focus and wash */
+  --ring:        rgba(74, 159, 239, .32);
+  --ring-soft:   rgba(74, 159, 239, .16);
+  --accent-wash: rgba(74, 159, 239, .13);
+  --accent-line: rgba(74, 159, 239, .38);
+
+  /* Ink — inverted slate */
+  --ink:       #E5E7EA;
+  --ink-2:     #BFC5CC;
+  --ink-3:     #9AA0A8;
+  --ink-faint: #707781;
+
+  /* Surfaces — deep slate canvas, lifted panels */
+  --canvas:    #14161A;
+  --surface:   #1B1E23;
+  --surface-2: #22262C;
+  --surface-3: #2A2F36;
+  --line:        #2C3138;
+  --line-strong: #3A4048;
+
+  /* Elevation — deeper, heavier shadows */
+  --shadow-xs: 0 1px 2px rgba(0, 0, 0, .30);
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, .35), 0 1px 2px rgba(0, 0, 0, .30);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, .40), 0 1px 3px rgba(0, 0, 0, .30);
+  --shadow-lg: 0 8px 24px rgba(0, 0, 0, .45), 0 2px 6px rgba(0, 0, 0, .30);
+  --shadow-card-hover: 0 2px 6px rgba(0, 0, 0, .35), 0 12px 32px rgba(0, 0, 0, .45);
+
+  /* Nav rail */
+  --sb-bg: #17191D;
+  --sb-bg-deep: #14161A;
+  --sb-text: #9AA0A8;
+  --sb-text-hover: #E5E7EA;
+  --sb-text-active: #7FB9F0;
+  --sb-title: #666D77;
+  --sb-divider: #262B31;
+  --sb-hover: #22262C;
+  --sb-active: rgba(74, 159, 239, .14);
+  --sb-active-ink: #7FB9F0;
+  --sb-active-line: #4A9FEF;
+  --sb-field: #22262C;
+  --sb-field-line: #3A4048;
+}
+
 /* Status and subject colors; no page layout rules. */
 :root {
   /* Status block tones — solid monday-style cell colors, white-text safe */

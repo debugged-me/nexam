@@ -12,6 +12,7 @@ import {
   ChevronUp, ChevronDown, ChevronFirst, ChevronLeft, ChevronRight, ChevronLast,
 } from 'lucide-react';
 import { useToast } from '../components/Toast.jsx';
+import { useConfirm } from '../components/ConfirmDialog.jsx';
 import { useContextMenu, useCopyText } from '../components/ContextMenu.jsx';
 import Modal from '../components/Modal.jsx';
 import api, { ApiError } from '../lib/api.js';
@@ -40,6 +41,7 @@ function fmtDate(iso) {
 
 export default function SubjectsPage() {
   const toast = useToast();
+  const confirm = useConfirm();
   const navigate = useNavigate();
   const { menuEl, openMenu } = useContextMenu();
   const copyText = useCopyText();
@@ -197,6 +199,7 @@ export default function SubjectsPage() {
   }
 
   async function handleDelete(subject) {
+    if (!(await confirm(`Delete "${subject.name}"? Its blueprints, questions, and materials links will be removed.`, { title: 'Delete subject' }))) return;
     setDeleting(subject);
     try {
       await api.del(`/subjects/${subject.id}`);

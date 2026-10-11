@@ -37,6 +37,7 @@ const AnalyticsPage = lazy(() => import('./pages/AnalyticsPage.jsx'));
 const ItemAnalysisPage = lazy(() => import('./pages/ItemAnalysisPage.jsx'));
 const AiEvalPage = lazy(() => import('./pages/AiEvalPage.jsx'));
 const AccountPage = lazy(() => import('./pages/AccountPage.jsx'));
+const AppearancePage = lazy(() => import('./pages/AppearancePage.jsx'));
 const WizardPage = lazy(() => import('./pages/WizardPage.jsx'));
 const InstitutionBankPage = lazy(() => import('./pages/InstitutionBankPage.jsx'));
 const LegalPage = lazy(() => import('./pages/LegalPage.jsx'));
@@ -86,6 +87,15 @@ function RequireInstructor({ children }) {
   return children;
 }
 
+/** Shared screens — any authenticated user (instructor or superadmin). */
+function RequireAnyAuth({ children }) {
+  const { user, loading } = useAuth();
+  const location = useLocation();
+  if (loading) return <BootScreen />;
+  if (!user) return <Navigate to="/login" state={{ from: location }} replace />;
+  return children;
+}
+
 /** Reads a `toast` from router state and shows it once on mount. */
 function ToastOnMount() {
   const location = useLocation();
@@ -128,6 +138,7 @@ const PAGE_TITLES = [
   ['/analytics/ai-eval', 'AI evaluation'],
   ['/analytics', 'Results & insights'],
   ['/account', 'Account'],
+  ['/appearance', 'Appearance'],
 ];
 
 /** Keeps the browser tab title in sync with the current page. */
@@ -211,6 +222,18 @@ export default function App() {
                     </RedirectIfAuthed>
                   }
                 />
+
+                {/* Shared (protected, both roles) — keep ahead of the role
+                    groups so /appearance isn't swallowed by a role guard. */}
+                <Route
+                  element={
+                    <RequireAnyAuth>
+                      <AppLayout />
+                    </RequireAnyAuth>
+                  }
+                >
+                  <Route path="/appearance" element={<AppearancePage />} />
+                </Route>
 
                 {/* App (protected) */}
                 <Route

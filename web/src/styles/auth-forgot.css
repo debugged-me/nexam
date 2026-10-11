@@ -42,7 +42,7 @@ a { color: inherit; text-decoration: none; }
   z-index: 100000;
   padding: 10px 14px;
   border-radius: var(--radius-sm);
-  background: var(--ink);
+  background: var(--brand);
   color: #fff;
   font-family: var(--font-display);
   font-weight: 600;
@@ -70,7 +70,7 @@ a { color: inherit; text-decoration: none; }
 .auth-panel {
   position: relative;
   /* Near-black panel — flat ink, not a gradient. */
-  background: var(--ink);
+  background: var(--brand);
   color: #fff;
   padding: 34px 32px;
   display: flex;
@@ -369,7 +369,7 @@ a { color: inherit; text-decoration: none; }
   border: none;
   border-radius: 10px;
   background: var(--ink);
-  color: #fff;
+  color: var(--canvas);
   font-family: var(--font-display, "Google Sans", sans-serif);
   font-size: .85rem;
   font-weight: 500;
@@ -380,7 +380,7 @@ a { color: inherit; text-decoration: none; }
   gap: 9px;
   transition: background-color .15s ease, transform .1s ease;
 }
-.btn-login:hover { background: #2B2A33; }
+.btn-login:hover { background: var(--ink-2); }
 .btn-login:active { transform: translateY(1px); }
 .btn-login:focus-visible { outline: 2px solid var(--brand-accent); outline-offset: 2px; }
 .btn-login.is-loading { pointer-events: none; filter: saturate(.6) brightness(.95); }

@@ -8,9 +8,10 @@
  *   const confirm = useConfirm();
  *   if (!(await confirm('Delete this question?'))) return;
  *
- * Options: { title, confirmText, danger }. danger defaults to true (red
- * button); pass danger: false for non-destructive confirmations such as
- * publishing.
+ * Options: { title, confirmText, danger, icon, tone }. danger defaults to true
+ * (red button + red icon tile); pass danger: false for non-destructive
+ * confirmations — pair it with `icon` (a Lucide component) and `tone`
+ * ('neutral' | 'accent') so the dialog keeps the icon treatment.
  */
 import { createContext, useContext, useState, useCallback, useRef } from 'react';
 import { AlertTriangle } from 'lucide-react';
@@ -37,6 +38,8 @@ export function ConfirmProvider({ children }) {
         message,
         confirmText: options.confirmText || 'Delete',
         danger: options.danger !== false,
+        icon: options.icon || null,
+        tone: options.tone || 'neutral',
       });
     });
   }, []);
@@ -64,11 +67,15 @@ export function ConfirmProvider({ children }) {
         )}
       >
         <div className="confirm-body">
-          {state?.danger && (
-            <span className="confirm-icon" aria-hidden="true">
-              <AlertTriangle size={18} />
-            </span>
-          )}
+          {(() => {
+            const Icon = state?.danger ? (state.icon || AlertTriangle) : state?.icon;
+            if (!Icon) return null;
+            return (
+              <span className={`confirm-icon${state?.danger ? '' : ` confirm-icon--${state?.tone}`}`} aria-hidden="true">
+                <Icon size={18} />
+              </span>
+            );
+          })()}
           <p className="confirm-message">{state?.message}</p>
         </div>
       </Modal>

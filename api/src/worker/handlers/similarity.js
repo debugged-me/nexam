@@ -75,7 +75,7 @@ export default async function similarityHandler(job) {
     embedText
   );
   const threshold = searchedProvider === 'local'
-    ? await getNumber('similarity_threshold_local', 0.70)
+    ? await getNumber('similarity_threshold_local', 0.85)
     : geminiThreshold;
 
   // SQL-filter: candidates must be real, active institution-bank questions.

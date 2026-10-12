@@ -11,14 +11,14 @@ import pool from '../config/db.js';
  * counts sum exactly to tos.total_items). Runs after any topic
  * add/update/delete or total_items change.
  */
-export async function recalcTopicItemCounts(tosId) {
-  const [tosRows] = await pool.query(
+export async function recalcTopicItemCounts(tosId, db = pool) {
+  const [tosRows] = await db.query(
     `SELECT total_items FROM tos WHERE id = :id`, { id: tosId }
   );
   if (!tosRows.length) return;
   const totalItems = Number(tosRows[0].total_items) || 0;
 
-  const [topics] = await pool.query(
+  const [topics] = await db.query(
     `SELECT id, instructional_hours FROM tos_topics WHERE tos_id = :id ORDER BY sort_order ASC`,
     { id: tosId }
   );
@@ -48,7 +48,7 @@ export async function recalcTopicItemCounts(tosId) {
   }
 
   for (const t of topics) {
-    await pool.query(
+    await db.query(
       `UPDATE tos_topics SET item_count = :n WHERE id = :id`,
       { n: counts[t.id], id: t.id }
     );

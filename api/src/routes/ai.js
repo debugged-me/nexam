@@ -12,6 +12,8 @@
  * token from /api/auth/login.
  */
 import { Router } from 'express';
+import { parseTimeFrame } from '../services/assessmentScope.js';
+import { loadScopeChunks } from '../services/assessmentScopeStore.js';
 import aiProvider from '../services/aiProvider.js';
 import jobs from '../services/jobs.js';
 import pool from '../config/db.js';
@@ -249,6 +251,9 @@ router.post('/jobs/:id/cancel', requireAuth, async (req, res, next) => {
 router.post('/syllabus-tos', requireAuth, rateLimit({ name: 'ai-syllabus', max: 6, windowSec: 300 }), async (req, res, next) => {
   try {
     let { materialId, tosId } = req.body;
+    let assessmentScope;
+    try { assessmentScope = req.body.assessmentScope ? parseTimeFrame(req.body.assessmentScope) : null; }
+    catch (err) { return res.status(422).json({ error: err.message }); }
 
     // When tosId is given, extracted topics fill that draft blueprint instead
     // of creating a new one. Verify ownership + draft state + same subject.
@@ -294,7 +299,7 @@ router.post('/syllabus-tos', requireAuth, rateLimit({ name: 'ai-syllabus', max: 
 
     const jobId = await jobs.enqueue({
       type: 'syllabus_tos',
-      payload: { materialId, userId: req.user.id, tosId: tos?.id || null },
+      payload: { materialId, userId: req.user.id, tosId: tos?.id || null, assessmentScope },
       userId: req.user.id,
       subjectId: m.subject_id,
     });
@@ -313,7 +318,7 @@ router.post('/generate-questions', requireAuth, rateLimit({ name: 'ai-generate',
 
     // Ownership check — the TOS must belong to a subject owned by the user.
     const [rows] = await pool.query(
-      `SELECT t.id, t.subject_id, t.status
+      `SELECT t.id, t.subject_id, t.status, t.assessment_scope, t.scope_key
        FROM tos t
        JOIN subjects s ON s.id = t.subject_id
        WHERE t.id = :tosId AND s.instructor_id = :userId`,
@@ -325,6 +330,8 @@ router.post('/generate-questions', requireAuth, rateLimit({ name: 'ai-generate',
         error: 'Finalize the TOS after reviewing its topics, hours, outcomes, and Bloom distribution before generating questions.',
       });
     }
+    try { await loadScopeChunks(rows[0], req.user.id); }
+    catch (err) { return res.status(422).json({ error: err.message }); }
 
     // A second run for the same blueprint only makes a parallel batch of
     // duplicates. Generating a different blueprint at the same time is fine —

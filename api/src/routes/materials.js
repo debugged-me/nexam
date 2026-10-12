@@ -11,6 +11,7 @@
  * created_by for ownership and IDOR protection.
  */
 import { Router } from 'express';
+import { syllabusPeriods } from '../services/assessmentScope.js';
 import multer from 'multer';
 import fs from 'fs/promises';
 import path from 'path';
@@ -186,6 +187,7 @@ router.get('/:id', requireAuth, async (req, res, next) => {
     );
     if (!rows.length) return res.status(404).json({ error: 'Material not found.' });
     const m = rows[0];
+    if (m.is_syllabus) m.periods = syllabusPeriods(m.content).map(({ index, ...period }) => period);
     // Truncate content in list view; full content only on explicit request.
     if (m.content && m.content.length > 5000 && req.query.full !== '1') {
       m.content = m.content.slice(0, 5000) + '\n...[truncated]';

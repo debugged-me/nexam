@@ -247,12 +247,12 @@ async function dualWrite(dirs, docs) {
  * Vector-search one index dir. Returns null when the dir has no index file —
  * distinct from [], so callers can try the other provider space.
  */
-async function searchDir(dir, vector, provider, topK, excludeId, mapDoc) {
+async function searchDir(dir, vector, provider, topK, excludeId, mapDoc, filter) {
   if (!(await dirExists(dir))) return null;
   return withIndexLock(dir, async () => {
     const store = await HNSWLib.load(dir, await embeddingsFor(provider), { space: 'cosine' });
     const fetchCount = excludeId ? topK + 5 : topK;
-    const results = await store.similaritySearchVectorWithScore(vector, fetchCount);
+    const results = await store.similaritySearchVectorWithScore(vector, fetchCount, filter);
     return results
       .filter(([doc]) => doc.metadata.id !== excludeId)
       .slice(0, topK)
@@ -265,18 +265,18 @@ async function searchDir(dir, vector, provider, topK, excludeId, mapDoc) {
  * chain, search that provider's index, and when that index doesn't exist try
  * the other space (re-embeds — the rare cold-mirror case).
  */
-async function searchWithFallback(dirs, query, topK, mapDoc) {
+async function searchWithFallback(dirs, query, topK, mapDoc, filter) {
   const first = await embedWithFallback(query);
   let hit = null;
   try {
-    hit = await searchDir(dirs[first.provider], first.vector, first.provider, topK, null, mapDoc);
+    hit = await searchDir(dirs[first.provider], first.vector, first.provider, topK, null, mapDoc, filter);
   } catch (err) {
     console.warn(`[vectorStore] ${first.provider} index search failed (${err.message}) — trying mirror.`);
   }
   if (hit !== null) return hit;
   const other = first.provider === 'gemini' ? 'local' : 'gemini';
   const vec = await embedWithProvider(query, other);
-  const hit2 = await searchDir(dirs[other], vec, other, topK, null, mapDoc);
+  const hit2 = await searchDir(dirs[other], vec, other, topK, null, mapDoc, filter);
   return hit2 ?? [];
 }
 
@@ -358,10 +358,12 @@ export async function addChunks(subjectId, chunks) {
  * @returns {Promise<Array<{id, materialId, ordinal, text, score}>>}
  *   score is cosine similarity (0..1, higher = more similar)
  */
-export async function searchChunks(subjectId, query, topK = 5) {
+export async function searchChunks(subjectId, query, topK = 5, allowedIds = null) {
+  const allowed = allowedIds ? new Set(allowedIds) : null;
+  if (allowed && !allowed.size) return [];
   return searchWithFallback(
     { gemini: chunksDir(subjectId), local: chunksDir(subjectId, 'local') },
-    query, topK, mapChunk
+    query, allowed ? Math.min(topK, allowed.size) : topK, mapChunk, allowed ? (doc) => allowed.has(doc.metadata.id) : undefined
   );
 }
 

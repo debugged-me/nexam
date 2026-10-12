@@ -18,6 +18,8 @@
  * All routes are scoped by created_by = req.user.id (IDOR protection).
  */
 import { Router } from 'express';
+import { questionFitsScope } from '../services/assessmentScope.js';
+import { loadScopeChunks } from '../services/assessmentScopeStore.js';
 import { v4 as uuid } from 'uuid';
 import pool from '../config/db.js';
 import { requireAuth } from '../middleware/auth.js';
@@ -51,6 +53,14 @@ async function getOwned(id, userId) {
 // ignoreSimilarityFailure is the explicit instructor override for provider
 // outages — see similarityGate() for what it does and does not lift.
 async function approvalBlockReason(question, { ignoreSimilarityFailure = false } = {}) {
+  if (question.tos_id) {
+    const [[tos]] = await pool.query(`SELECT * FROM tos WHERE id = :id`, { id: question.tos_id });
+    if (tos?.assessment_scope) {
+      if (!questionFitsScope(question, tos)) return 'This question has not been generated for the confirmed assessment coverage. Generate it from this blueprint before approval.';
+      try { await loadScopeChunks(tos, question.created_by); }
+      catch (err) { return err.message; }
+    }
+  }
   if (!QUESTION_TYPES.includes(question.type)) return 'Unsupported question type.';
   if (question.source === 'ai') {
     let meta;

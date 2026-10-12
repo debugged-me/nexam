@@ -9,6 +9,7 @@
  */
 import pool from '../config/db.js';
 import { buildTosMatrix, slotGap } from './tosAlignment.js';
+import { questionScopeSql } from './assessmentScope.js';
 
 const parseWeights = (w) => (typeof w === 'string' ? JSON.parse(w || '{}') : w || {});
 
@@ -45,6 +46,7 @@ export async function blueprintCoverage(userId, tosList) {
      WHERE q.created_by = :uid AND q.subject_id = t.subject_id
        AND q.status <> 'rejected'
        AND (q.similarity_flag IS NULL OR q.similarity_flag <> 'rejected')
+       AND ${questionScopeSql('links.tos_id')}
      GROUP BY links.tos_id, q.topic, q.bloom`,
     { uid: userId, ids }
   );

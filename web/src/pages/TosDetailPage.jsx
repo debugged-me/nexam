@@ -1,4 +1,5 @@
 import '../styles/blueprint-detail.css';
+import '../styles/assessment-scope.css';
 /**
  * TosDetailPage — TOS builder with topic management.
  *
@@ -29,6 +30,9 @@ import Reveal from '../components/Reveal.jsx';
 import StageRail from '../components/StageRail.jsx';
 import GenerationStream from '../components/GenerationStream.jsx';
 import celebrate from '../lib/celebrate.js';
+import AssessmentCoverage from '../components/AssessmentCoverage.jsx';
+import { parseScope, timeFrameLabel } from '../lib/assessmentScope.js';
+import AssessmentTimeFrame from '../components/AssessmentTimeFrame.jsx';
 
 const BLOOM_LABELS = { remember: 'Remember', understand: 'Understand', apply: 'Apply', analyze: 'Analyze', evaluate: 'Evaluate', create: 'Create' };
 const BLOOM_ORDER = ['remember', 'understand', 'apply', 'analyze', 'evaluate', 'create'];
@@ -210,6 +214,7 @@ export default function TosDetailPage() {
   const [selTopics, setSelTopics] = useState(() => new Set());
   const [deriveOpen, setDeriveOpen] = useState(false);
   const [deriveTitle, setDeriveTitle] = useState('');
+  const [deriveFrame, setDeriveFrame] = useState({ label: '', weekStart: '', weekEnd: '' });
   const [deriving, setDeriving] = useState(false);
   const [removingSel, setRemovingSel] = useState(false);
   const [generating, setGenerating] = useState(false);
@@ -499,7 +504,7 @@ export default function TosDetailPage() {
     if (!title || !selTopics.size) return;
     setDeriving(true);
     try {
-      const { tos: created } = await api.post(`/tos/${id}/derive`, { title, topicIds: [...selTopics] });
+      const { tos: created } = await api.post(`/tos/${id}/derive`, { title, topicIds: [...selTopics], assessmentScope: { ...deriveFrame, label: deriveFrame.label || title } });
       toast.success('New blueprint created from the selected topics.');
       setDeriveOpen(false);
       navigate(`/tos/${created.id}`);
@@ -646,7 +651,7 @@ export default function TosDetailPage() {
         </div>
         <div className="header-actions" data-tour="tos-detail-actions">
           {!finalized && (
-            <button type="button" className="btn btn-outline btn-sm" onClick={handleFinalize} disabled={finalizing}>
+            <button type="button" className="btn btn-outline btn-sm" onClick={handleFinalize} disabled={finalizing || Boolean(tos.assessment_scope && !tos.scope_key)}>
               {finalizing ? <span className="btn-spinner" /> : <Lock size={14} />} Finalize TOS
             </button>
           )}
@@ -676,6 +681,8 @@ export default function TosDetailPage() {
       <div data-tour="tos-workflow">
         <StageRail steps={railSteps} />
       </div>
+
+      <AssessmentCoverage key={tos.id} tos={tos} topics={topics} onSaved={load} />
 
       {streamJobId && (
         <GenerationStream
@@ -805,7 +812,7 @@ export default function TosDetailPage() {
           {selTopicCount > 0 ? (
             <div className="tos-selbar">
               <span className="tos-selbar-count">{selTopicCount} selected</span>
-              <button type="button" className="btn btn-primary btn-xs" onClick={() => { setDeriveTitle(''); setDeriveOpen(true); }}>
+              <button type="button" className="btn btn-primary btn-xs" onClick={() => { setDeriveTitle(''); setDeriveFrame({ label: '', weekStart: '', weekEnd: '' }); setDeriveOpen(true); }}>
                 <Copy size={13} /> New blueprint
               </button>
               {!finalized && (
@@ -927,7 +934,7 @@ export default function TosDetailPage() {
                             onKeyDown={(e) => onEditKeyDown(e, tp.id)}
                             onChange={(e) => setEditDraft({ ...editDraft, title: e.target.value })} />
                         ) : (
-                          <span className="cell-primary">{tp.title}</span>
+                          <><span className="cell-primary">{tp.title}</span>{parseScope(tp.schedule) && <small className="text-muted assessment-topic-schedule">{timeFrameLabel(parseScope(tp.schedule))}</small>}</>
                         )}
                       </td>
                       <td>
@@ -1133,6 +1140,8 @@ export default function TosDetailPage() {
           <p className="form-hint">
             The new blueprint keeps this one's subject, item total, and Bloom weights — item counts are re-shared across the selected topics.
           </p>
+          <AssessmentTimeFrame value={deriveFrame} onChange={setDeriveFrame} />
+          <p className="form-hint">Review supporting lesson passages in the new blueprint before finalizing.</p>
         </form>
       </Modal>
 

@@ -21,6 +21,8 @@ import { publishJobEvent } from '../../services/jobEvents.js';
 import { getNumber } from '../../services/settings.js';
 import { buildTosMatrix } from '../../services/tosAlignment.js';
 import { isValidGeneratedQuestion } from '../../services/generationValidation.js';
+import { questionScopeSql } from '../../services/assessmentScope.js';
+import { loadScopeChunks } from '../../services/assessmentScopeStore.js';
 
 /** Bloom level descriptions for the LLM prompt. */
 const BLOOM_DESCRIPTIONS = {
@@ -50,6 +52,7 @@ export default async function generateHandler(job) {
   if (tos.status !== 'finalized') {
     throw new Error('TOS must be finalized by the instructor before question generation.');
   }
+  const scopedChunks = await loadScopeChunks(tos, userId);
 
   // ── Load topics ─────────────────────────────────────
   const [topics] = await pool.query(
@@ -101,6 +104,7 @@ export default async function generateHandler(job) {
          AND q.status <> 'rejected'
          AND (q.similarity_flag IS NULL OR q.similarity_flag <> 'rejected')
          AND q.topic = :topic AND q.bloom = :bloom
+         AND ${questionScopeSql()}
          AND (q.tos_id = :tosId OR EXISTS (
            SELECT 1 FROM question_tos qt WHERE qt.question_id = q.id AND qt.tos_id = :tosId
          ))`,
@@ -120,6 +124,7 @@ export default async function generateHandler(job) {
          AND q.status <> 'rejected'
          AND (q.similarity_flag IS NULL OR q.similarity_flag <> 'rejected')
          AND q.topic = :topic AND q.bloom = :bloom
+         AND ${questionScopeSql()}
          AND NOT (q.tos_id = :tosId OR EXISTS (
            SELECT 1 FROM question_tos qt WHERE qt.question_id = q.id AND qt.tos_id = :tosId
          ))
@@ -138,7 +143,7 @@ export default async function generateHandler(job) {
     if (needed <= 0) { skippedCells += 1; continue; }
 
     const topic = topics.find((candidate) => candidate.title === slot.topic);
-    const result = await generateForSlot(tos, topic, slot.bloom, needed);
+    const result = await generateForSlot(tos, topic, slot.bloom, needed, scopedChunks);
     if (result.dropped) droppedInvalid += result.dropped;
 
     // Persist this slot's questions right away.
@@ -148,10 +153,10 @@ export default async function generateHandler(job) {
       await pool.query(
         `INSERT INTO questions
            (id, subject_id, tos_id, topic, bloom, ai_predicted_bloom, type, stem, options, answer,
-            explanation, status, source, generation_meta, created_by)
+            explanation, status, source, generation_meta, created_by, scope_key)
          VALUES
            (:id, :subjectId, :tosId, :topic, :bloom, :aiPredictedBloom, :type, :stem, :options, :answer,
-            :explanation, 'draft', 'ai', :meta, :createdBy)`,
+            :explanation, 'draft', 'ai', :meta, :createdBy, :scopeKey)`,
         {
           id: questionId,
           subjectId: tos.subject_id,
@@ -166,6 +171,7 @@ export default async function generateHandler(job) {
           explanation: q.explanation || null,
           meta: JSON.stringify(q.meta),
           createdBy: userId,
+          scopeKey: tos.scope_key || null,
         }
       );
 
@@ -220,7 +226,7 @@ export default async function generateHandler(job) {
 /**
  * Generate questions for a single (topic, bloom, count) slot using RAG.
  */
-async function generateForSlot(tos, topic, bloom, count) {
+async function generateForSlot(tos, topic, bloom, count, scopedChunks) {
   // Build the retrieval query
   const topicText = topic ? topic.title : '';
   const outcomesText = topic && topic.learning_outcomes
@@ -230,7 +236,7 @@ async function generateForSlot(tos, topic, bloom, count) {
 
   // Retrieve top-k chunks scoped to this subject (top-k is tunable via the
   // `retrieval_top_k` settings key — defaults to 5).
-  const retrieved = await retrieve(query, tos.subject_id, await getNumber('retrieval_top_k', 5));
+  const retrieved = await retrieve(query, tos.subject_id, await getNumber('retrieval_top_k', 5), scopedChunks);
 
   if (retrieved.length === 0) {
     return { questions: [], failed: true, reason: 'No source material found for this topic. Upload instructional materials for this subject first.' };
@@ -323,6 +329,7 @@ ${context}
     topic: topic ? topic.title : null,
     promptHash: Buffer.from(userPrompt).toString('base64').slice(0, 16),
     usage: result.usage,
+    scopeKey: tos.scope_key || null,
   };
 
   const validQuestions = [];

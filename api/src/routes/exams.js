@@ -21,6 +21,8 @@ import { toGIFT, toCanvasXML } from '../services/lmsExport.js';
 import { generateOMRSheet } from '../services/omrService.js';
 import { buildTosMatrix, validateAlignedQuestions } from '../services/tosAlignment.js';
 import { logAudit } from '../services/audit.js';
+import { questionScopeSql, questionFitsScope } from '../services/assessmentScope.js';
+import { loadScopeChunks } from '../services/assessmentScopeStore.js';
 
 const router = Router();
 
@@ -42,6 +44,7 @@ const ELIGIBLE_FOR_CELL = `
   AND q.similarity_checked_at IS NOT NULL AND q.similarity_error IS NULL
   AND q.similarity_flag = 'none'
   AND q.topic = :topic AND q.bloom = :bloom
+  AND ${questionScopeSql()}
   AND (q.tos_id = :tosId OR EXISTS (
     SELECT 1 FROM question_tos qt WHERE qt.question_id = q.id AND qt.tos_id = :tosId
   ))`;
@@ -58,6 +61,7 @@ async function tosSlots(tos) {
 }
 
 async function planQuestionsForTos(tos, userId) {
+  await loadScopeChunks(tos, userId);
   const { topics, weights, slots } = await tosSlots(tos);
   const questions = [];
   const shortages = [];
@@ -81,6 +85,7 @@ async function planQuestionsForTos(tos, userId) {
 
 /** Per-cell availability without picking anything — what assembly would hit. */
 async function checkTosReadiness(tos, userId) {
+  await loadScopeChunks(tos, userId);
   const { slots } = await tosSlots(tos);
   const shortages = [];
   for (const slot of slots) {
@@ -125,9 +130,12 @@ async function validateExamAlignment(exam, questions) {
   const [tosRows] = await pool.query(`SELECT * FROM tos WHERE id = :id`, { id: exam.tos_id });
   const tos = tosRows[0];
   if (!tos || tos.status !== 'finalized') return { error: 'The linked TOS must be finalized.' };
+  try { await loadScopeChunks(tos, exam.created_by); }
+  catch (err) { return { error: err.message }; }
 
   const invalid = questions.flatMap((question) => {
     const reason = circulationError(question)
+      || (!questionFitsScope(question, tos) ? 'falls outside the confirmed assessment coverage' : null)
       || (!question.linked_to_tos && question.tos_id !== exam.tos_id
         ? 'is not linked to this exam TOS' : null);
     return reason ? [{ id: question.id, reason }] : [];
@@ -536,7 +544,7 @@ router.post('/:id/questions', requireAuth, async (req, res, next) => {
     const tosClause = exam.tos_id
       ? `AND (q.tos_id = :tosId OR EXISTS (
            SELECT 1 FROM question_tos qt WHERE qt.question_id = q.id AND qt.tos_id = :tosId
-         ))`
+         )) AND ${questionScopeSql()}`
       : '';
     const [ownedRows] = await pool.query(
       `SELECT q.id FROM questions q

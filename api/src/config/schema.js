@@ -213,6 +213,11 @@ const DDL = [
   `ALTER TABLE tos_topics ADD INDEX IF NOT EXISTS tos_id (tos_id)`,
   `ALTER TABLE tos_topics ADD FOREIGN KEY IF NOT EXISTS tos_topics_ibfk_1 (tos_id) REFERENCES tos (id) ON DELETE CASCADE`,
 
+  // Assessment coverage stays optional for existing blueprints.
+  `ALTER TABLE tos ADD COLUMN IF NOT EXISTS assessment_scope LONGTEXT NULL`,
+  `ALTER TABLE tos ADD COLUMN IF NOT EXISTS scope_key VARCHAR(64) NULL`,
+  `ALTER TABLE tos_topics ADD COLUMN IF NOT EXISTS schedule LONGTEXT NULL`,
+
   // questions
   `CREATE TABLE IF NOT EXISTS questions (
   id char(36) NOT NULL,
@@ -580,6 +585,8 @@ const DDL = [
   `ALTER TABLE ai_evaluations ADD COLUMN IF NOT EXISTS created_at TIMESTAMP NOT NULL DEFAULT current_timestamp()`,
   `ALTER TABLE ai_evaluations ADD INDEX IF NOT EXISTS idx_eval_component (component)`,
   `ALTER TABLE ai_evaluations ADD INDEX IF NOT EXISTS idx_ai_eval_created_by (created_by)`,
+
+  `ALTER TABLE questions ADD COLUMN IF NOT EXISTS scope_key VARCHAR(64) NULL`,
 
   // settings
   `CREATE TABLE IF NOT EXISTS settings (

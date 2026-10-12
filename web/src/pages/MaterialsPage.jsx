@@ -1,4 +1,5 @@
 import '../styles/materials.css';
+import '../styles/assessment-scope.css';
 /**
  * MaterialsPage — upload and manage instructor source materials.
  *
@@ -35,6 +36,7 @@ import EmptyStateArt from '../components/EmptyStateArt.jsx';
 import { StatusPill, StatCard, groupColor } from '../components/Board.jsx';
 import Select from '../components/Select.jsx';
 import Tooltip from '../components/Tooltip.jsx';
+import AssessmentTimeFrame from '../components/AssessmentTimeFrame.jsx';
 
 const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:3000/api';
 
@@ -114,6 +116,9 @@ export default function MaterialsPage() {
   const [viewing, setViewing] = useState(null);
   const [viewContent, setViewContent] = useState(null);
   const [reader, setReader] = useState(null);
+  const [blueprintDraft, setBlueprintDraft] = useState(null);
+  const [blueprintFrame, setBlueprintFrame] = useState({ label: 'Whole course', weekStart: '', weekEnd: '' });
+  const [queuingBlueprint, setQueuingBlueprint] = useState(false);
   const [query, setQuery] = useState('');
   const [subjectFilter, setSubjectFilter] = useState(ALL);
   const [statusFilter, setStatusFilter] = useState(ALL);
@@ -412,11 +417,22 @@ export default function MaterialsPage() {
     } catch { /* if the check fails, still let the user generate */ }
 
     try {
-      await api.post('/ai/syllabus-tos', { materialId: mat.id });
-      toast.success('TOS generation queued. Check the Blueprints (TOS) page shortly.');
+      const { material } = await api.get(`/materials/${mat.id}`);
+      setBlueprintFrame({ label: 'Whole course', weekStart: '', weekEnd: '' });
+      setBlueprintDraft({ material: mat, periods: material.periods || [] });
+    } catch (err) { toast.error(err.message || 'Could not read syllabus coverage.'); }
+  }
+
+  async function queueBlueprint(e) {
+    e.preventDefault();
+    setQueuingBlueprint(true);
+    try {
+      await api.post('/ai/syllabus-tos', { materialId: blueprintDraft.material.id, assessmentScope: blueprintFrame });
+      toast.success('Blueprint scan queued. Review its topics and supporting passages on the Blueprints page when it finishes.');
+      setBlueprintDraft(null);
     } catch (err) {
       toast.error(err instanceof ApiError ? err.message : 'TOS generation failed.');
-    }
+    } finally { setQueuingBlueprint(false); }
   }
 
   function openView(m) {
@@ -916,6 +932,16 @@ export default function MaterialsPage() {
             <p>This file type can't be previewed here — download it to view the original.</p>
           </div>
         )}
+      </Modal>
+      <Modal open={!!blueprintDraft} title="Generate blueprint" onClose={() => !queuingBlueprint && setBlueprintDraft(null)}
+        subtitle={blueprintDraft?.material.title}
+        footer={<><button type="button" className="btn btn-secondary" disabled={queuingBlueprint} onClick={() => setBlueprintDraft(null)}>Cancel</button>
+          <button type="submit" form="material-blueprint-form" className="btn btn-primary" disabled={queuingBlueprint || !blueprintFrame.label.trim()}>{queuingBlueprint ? 'Queuing…' : 'Scan syllabus'}</button></>}>
+        <form id="material-blueprint-form" className="assessment-editor" onSubmit={queueBlueprint}>
+          <AssessmentTimeFrame value={blueprintFrame} onChange={setBlueprintFrame} />
+          {!!blueprintDraft?.periods.length && <div className="assessment-periods"><span>Time frames found in this syllabus:</span>{blueprintDraft.periods.map((p, i) => <button type="button" className="btn btn-outline btn-sm" key={i} onClick={() => setBlueprintFrame(p)}>{p.label}{p.weekStart ? ` · Weeks ${p.weekStart}–${p.weekEnd}` : ''}</button>)}</div>}
+          <p className="form-hint">The scan preserves all outline topics for review. In the new draft, confirm the topics for this time frame and select the lesson passages that questions may use. Missing weeks are left blank.</p>
+        </form>
       </Modal>
       {menuEl}
     </AppShell>

@@ -20,13 +20,17 @@ import { searchChunks } from './vectorStore.js';
  * @param {number} topK — number of chunks to return (default 5)
  * @returns {Promise<Array<{id, text, score, ordinal, materialId}>>}
  */
-export async function retrieve(query, subjectId, topK = 5) {
+export async function retrieve(query, subjectId, topK = 5, scopedChunks = null) {
   if (!query || !subjectId) return [];
 
-  const results = await searchChunks(subjectId, query, topK);
+  const results = await searchChunks(subjectId, query, topK, scopedChunks?.map((c) => c.id));
+  // Only instructor-confirmed excerpts enter the prompt, including when the
+  // indexed chunk spans two teaching periods. No unscoped fallback is allowed.
+  const excerpts = scopedChunks ? new Map(scopedChunks.map((c) => [c.id, c.text])) : null;
+  const scoped = excerpts ? results.filter((c) => excerpts.has(c.id)).map((c) => ({ ...c, text: excerpts.get(c.id) })) : results;
 
   // Sort by score descending (highest similarity first)
-  return results.sort((a, b) => b.score - a.score);
+  return scoped.sort((a, b) => b.score - a.score);
 }
 
 /**

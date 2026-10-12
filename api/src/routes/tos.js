@@ -21,6 +21,8 @@ import { recalcTopicItemCounts } from '../services/tosTopics.js';
 import { buildTosMatrix } from '../services/tosAlignment.js';
 import { blueprintCoverage } from '../services/tosCoverage.js';
 import { logAudit } from '../services/audit.js';
+import { parseTimeFrame, validateSources, scopeKey, questionScopeSql } from '../services/assessmentScope.js';
+import { loadScopeChunks, ownedChunks } from '../services/assessmentScopeStore.js';
 
 const router = Router();
 router.use(requireAuth);
@@ -214,6 +216,7 @@ router.get('/:id', async (req, res, next) => {
        WHERE q.subject_id = :subjectId AND q.created_by = :userId
          AND q.status <> 'rejected'
          AND (q.similarity_flag IS NULL OR q.similarity_flag <> 'rejected')
+         AND ${questionScopeSql()}
          AND (q.tos_id = :tosId OR EXISTS (
            SELECT 1 FROM question_tos qt WHERE qt.question_id = q.id AND qt.tos_id = :tosId
          ))
@@ -252,6 +255,72 @@ router.get('/:id', async (req, res, next) => {
 
     res.json({ tos, topics, coverage, usage, plan });
   } catch (err) { next(err); }
+});
+
+// Source text is private: both the blueprint and every material are owned.
+router.get('/:id/scope-materials', async (req, res, next) => {
+  try {
+    const tos = await getOwned(req.params.id, req.user.id);
+    if (!tos) return res.status(404).json({ error: 'TOS not found.' });
+    const [materials] = await pool.query(
+      `SELECT m.id, m.title, m.is_syllabus, m.chunk_count FROM materials m
+       WHERE m.subject_id = :sid AND m.created_by = :uid AND m.status = 'processed'
+       ORDER BY m.is_syllabus ASC, m.title ASC`,
+      { sid: tos.subject_id, uid: req.user.id }
+    );
+    const materialId = req.query.materialId;
+    let chunks = [];
+    if (materialId) {
+      if (!materials.some((m) => m.id === materialId)) return res.status(404).json({ error: 'Material not found.' });
+      [chunks] = await pool.query(
+        `SELECT id, ordinal, text FROM material_chunks
+         WHERE material_id = :mid AND subject_id = :sid ORDER BY ordinal`,
+        { mid: materialId, sid: tos.subject_id }
+      );
+    }
+    res.json({ materials, chunks });
+  } catch (err) { next(err); }
+});
+
+router.put('/:id/assessment-scope', async (req, res, next) => {
+  let conn;
+  try {
+    conn = await pool.getConnection();
+    await conn.beginTransaction();
+    const [[tos]] = await conn.query(
+      `SELECT t.* FROM tos t JOIN subjects s ON s.id = t.subject_id
+       WHERE t.id = :id AND s.instructor_id = :uid FOR UPDATE`,
+      { id: req.params.id, uid: req.user.id }
+    );
+    if (!tos) { await conn.rollback(); return res.status(404).json({ error: 'TOS not found.' }); }
+    if (tos.status !== 'draft') { await conn.rollback(); return res.status(409).json({ error: 'Finalized coverage is locked. Create a new blueprint to change it.' }); }
+    const scope = parseTimeFrame(req.body);
+    if (!scope.label) throw new Error('Name the assessment, for example Prelim or Selected units.');
+    if (req.body.confirmed !== true) throw new Error('Confirm the selected topics and passages belong to this assessment.');
+    const [topics] = await conn.query(`SELECT id FROM tos_topics WHERE tos_id = :id`, { id: tos.id });
+    const selected = req.body.topicIds;
+    if (!Array.isArray(selected) || !selected.length || new Set(selected).size !== selected.length
+      || selected.some((id) => !topics.some((t) => t.id === id))) throw new Error('Select topics from this blueprint.');
+    const sources = req.body.sources;
+    if (!Array.isArray(sources) || sources.length > 100) throw new Error('Select up to 100 supporting passages.');
+    const chunks = await ownedChunks(tos.subject_id, req.user.id, sources.map((s) => s?.chunkId).filter(Boolean), conn);
+    scope.sources = validateSources(sources, chunks);
+    scope.confirmed = true;
+    scope.confirmedBy = req.user.id;
+    scope.confirmedAt = new Date().toISOString();
+    await conn.query(`DELETE FROM tos_topics WHERE tos_id = :id AND id NOT IN (:selected)`, { id: tos.id, selected });
+    await conn.query(
+      `UPDATE tos SET assessment_scope = :scope, scope_key = :key, updated_at = NOW() WHERE id = :id`,
+      { scope: JSON.stringify(scope), key: scopeKey(scope), id: tos.id }
+    );
+    await recalcTopicItemCounts(tos.id, conn);
+    await conn.commit();
+    res.json({ message: 'Assessment coverage saved.' });
+  } catch (err) {
+    if (conn) await conn.rollback();
+    if (!err.code) return res.status(422).json({ error: err.message });
+    next(err);
+  } finally { conn?.release(); }
 });
 
 // ── Topic suggestions ────────────────────────────────
@@ -329,6 +398,7 @@ router.put('/:id', async (req, res, next) => {
 
     // If subject_id changed, verify ownership of the new subject
     if (req.body.subject_id && req.body.subject_id !== tos.subject_id) {
+      if (tos.assessment_scope) return res.status(409).json({ error: 'Create a new blueprint to change the subject of an assessment with selected sources.' });
       const [subjRows] = await pool.query(
         `SELECT id FROM subjects WHERE id = :id AND instructor_id = :uid`,
         { id: req.body.subject_id, uid: req.user.id }
@@ -371,6 +441,9 @@ router.post('/:id/finalize', async (req, res, next) => {
     if (!tos) return res.status(404).json({ error: 'TOS not found.' });
     if (tos.status === 'finalized') return res.json({ tos, message: 'TOS is already finalized.' });
 
+    try { await loadScopeChunks(tos, req.user.id); }
+    catch (err) { return res.status(422).json({ error: err.message }); }
+
     await recalcTopicItemCounts(tos.id);
     const [topics] = await pool.query(
       `SELECT id, title, instructional_hours, learning_outcomes, item_count
@@ -396,12 +469,13 @@ router.post('/:id/finalize', async (req, res, next) => {
       return res.status(422).json({ error: 'Bloom taxonomy weights must total exactly 100%.' });
     }
 
-    await pool.query(
+    const [finalized] = await pool.query(
       `UPDATE tos SET status = 'finalized', finalized_by = :uid,
                       finalized_at = NOW(), updated_at = NOW()
-       WHERE id = :id`,
-      { id: tos.id, uid: req.user.id }
+       WHERE id = :id AND status = 'draft' AND scope_key <=> :scopeKey`,
+      { id: tos.id, uid: req.user.id, scopeKey: tos.scope_key || null }
     );
+    if (!finalized.affectedRows) return res.status(409).json({ error: 'Blueprint coverage changed. Reload and review it before finalizing.' });
     const [rows] = await pool.query(`SELECT * FROM tos WHERE id = :id`, { id: tos.id });
     rows[0].bloom_weights = JSON.parse(rows[0].bloom_weights || '{}');
     logAudit({
@@ -424,7 +498,7 @@ router.post('/:id/derive', async (req, res, next) => {
     if (!topicIds.length) return res.status(422).json({ error: 'Select at least one topic.' });
 
     const [topics] = await pool.query(
-      `SELECT id, title, instructional_hours, learning_outcomes, sort_order
+      `SELECT id, title, instructional_hours, learning_outcomes, sort_order, schedule
        FROM tos_topics WHERE tos_id = :id AND id IN (:topicIds) ORDER BY sort_order ASC`,
       { id: tos.id, topicIds }
     );
@@ -434,12 +508,17 @@ router.post('/:id/derive', async (req, res, next) => {
     if (!title) return res.status(422).json({ error: 'A title is required for the new blueprint.' });
     if (title.length > 255) return res.status(422).json({ error: 'Title is too long.' });
 
+    let frame;
+    try { frame = parseTimeFrame(req.body.assessmentScope || { label: title.slice(0, 100) }); }
+    catch (err) { return res.status(422).json({ error: err.message }); }
+
     const newId = uuid();
     await pool.query(
-      `INSERT INTO tos (id, subject_id, title, total_items, bloom_weights, created_at, updated_at)
-       VALUES (:id, :subjectId, :title, :totalItems, :weights, NOW(), NOW())`,
+      `INSERT INTO tos (id, subject_id, title, total_items, bloom_weights, assessment_scope, created_at, updated_at)
+       VALUES (:id, :subjectId, :title, :totalItems, :weights, :scope, NOW(), NOW())`,
       {
         id: newId,
+        scope: JSON.stringify({ ...frame, sources: [], confirmed: false }),
         subjectId: tos.subject_id,
         title,
         totalItems: Number(tos.total_items),
@@ -451,10 +530,10 @@ router.post('/:id/derive', async (req, res, next) => {
     for (const topic of topics) {
       order += 1;
       await pool.query(
-        `INSERT INTO tos_topics (id, tos_id, title, instructional_hours, learning_outcomes, item_count, sort_order)
-         VALUES (:id, :tosId, :title, :hours, :outcomes, 0, :order)`,
+        `INSERT INTO tos_topics (id, tos_id, title, instructional_hours, learning_outcomes, item_count, sort_order, schedule)
+         VALUES (:id, :tosId, :title, :hours, :outcomes, 0, :order, :schedule)`,
         {
-          id: uuid(), tosId: newId,
+          id: uuid(), tosId: newId, schedule: topic.schedule || null,
           title: topic.title,
           hours: Number(topic.instructional_hours) || 0,
           outcomes: typeof topic.learning_outcomes === 'string'
@@ -592,6 +671,8 @@ router.post('/:id/topics', async (req, res, next) => {
       }
     );
 
+    await pool.query(`UPDATE tos SET scope_key = NULL WHERE id = :id AND assessment_scope IS NOT NULL`, { id: tos.id });
+
     // Any item_count sent by the client is only a seed — counts are derived from
     // instructional hours, so re-read the row after the recalc normalizes it.
     await recalcTopicItemCounts(tos.id);
@@ -682,6 +763,8 @@ router.put('/:id/topics/:topicId', async (req, res, next) => {
       `UPDATE tos_topics SET ${sets.join(', ')} WHERE id = :topicId AND tos_id = :tosId`,
       params
     );
+
+    await pool.query(`UPDATE tos SET scope_key = NULL WHERE id = :id AND assessment_scope IS NOT NULL`, { id: tos.id });
 
     // Hours drive the proportional split — re-derive every sibling's item_count.
     if (hoursChanged) await recalcTopicItemCounts(tos.id);

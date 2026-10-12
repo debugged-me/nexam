@@ -32,6 +32,7 @@ const DDL = [
   avatar_v int(10) unsigned NOT NULL DEFAULT 0,
   theme varchar(10) DEFAULT NULL,
   font varchar(20) DEFAULT NULL,
+  text_size varchar(20) DEFAULT NULL,
   PRIMARY KEY (id),
   UNIQUE KEY email (email)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci`,
@@ -54,6 +55,7 @@ const DDL = [
   `ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_v INT(10) UNSIGNED NOT NULL DEFAULT 0`,
   `ALTER TABLE users ADD COLUMN IF NOT EXISTS theme VARCHAR(10) NULL DEFAULT NULL`,
   `ALTER TABLE users ADD COLUMN IF NOT EXISTS font VARCHAR(20) NULL DEFAULT NULL`,
+  `ALTER TABLE users ADD COLUMN IF NOT EXISTS text_size VARCHAR(20) NULL DEFAULT NULL`,
   `ALTER TABLE users ADD UNIQUE KEY IF NOT EXISTS email (email)`,
 
   // subjects

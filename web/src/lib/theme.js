@@ -16,12 +16,15 @@ import { useSyncExternalStore } from 'react';
 
 export const THEME_MODES = ['light', 'dark', 'system'];
 export const FONTS = ['system', 'sora', 'googlesans', 'inter'];
+export const TEXT_SIZES = ['compact', 'default', 'large'];
 
 const GLOBAL_KEY = 'nexam.theme';        // last applied mode — boot cache
 const LAST_UID_KEY = 'nexam.theme.uid';  // account the boot cache belongs to
 const userKey = (id) => `nexam.theme.${id}`;
 const FONT_KEY = 'nexam.font';
 const fontUserKey = (id) => `nexam.font.${id}`;
+const SIZE_KEY = 'nexam.size';
+const sizeUserKey = (id) => `nexam.size.${id}`;
 
 /** Paths that always render light — no account is bound there. */
 const GUEST_PATHS = ['/login', '/register', '/forgot', '/reset', '/verify', '/privacy', '/terms'];
@@ -46,6 +49,15 @@ function readFontKey(k) {
   }
 }
 
+function readSizeKey(k) {
+  try {
+    const v = k ? localStorage.getItem(k) : null;
+    return TEXT_SIZES.includes(v) ? v : null;
+  } catch {
+    return null;
+  }
+}
+
 /** Boot mode: the last signed-in account's cached preference, else system. */
 function readInitial() {
   try {
@@ -59,14 +71,24 @@ function readInitial() {
 function readInitialFont() {
   try {
     const uid = localStorage.getItem(LAST_UID_KEY);
-    return readFontKey(uid && fontUserKey(uid)) || readFontKey(FONT_KEY) || 'system';
+    return readFontKey(uid && fontUserKey(uid)) || readFontKey(FONT_KEY) || 'sora';
   } catch {
-    return 'system';
+    return 'sora';
+  }
+}
+
+function readInitialSize() {
+  try {
+    const uid = localStorage.getItem(LAST_UID_KEY);
+    return readSizeKey(uid && sizeUserKey(uid)) || readSizeKey(SIZE_KEY) || 'compact';
+  } catch {
+    return 'compact';
   }
 }
 
 let mode = readInitial();
 let font = readInitialFont();
+let textSize = readInitialSize();
 let boundUserId = null;
 let forcedTheme = null; // resolved palette override while a guest page mounts
 
@@ -79,6 +101,7 @@ function apply() {
   const resolved = forcedTheme || resolveTheme();
   document.documentElement.dataset.theme = resolved;
   document.documentElement.dataset.font = font;
+  document.documentElement.dataset.textSize = textSize;
   document.documentElement.style.colorScheme = resolved;
 }
 
@@ -108,10 +131,12 @@ function persist() {
     if (boundUserId) {
       localStorage.setItem(userKey(boundUserId), mode);
       localStorage.setItem(fontUserKey(boundUserId), font);
+      localStorage.setItem(sizeUserKey(boundUserId), textSize);
       localStorage.setItem(LAST_UID_KEY, boundUserId);
     }
     localStorage.setItem(GLOBAL_KEY, mode);
     localStorage.setItem(FONT_KEY, font);
+    localStorage.setItem(SIZE_KEY, textSize);
   } catch { /* private mode — keep it in memory only */ }
 }
 
@@ -151,6 +176,20 @@ export function setFont(next) {
   }
 }
 
+/** Text-size preference — applied instantly as data-text-size on <html>. */
+export function setTextSize(next) {
+  if (!TEXT_SIZES.includes(next) || next === textSize) return;
+  textSize = next;
+  persist();
+  apply();
+  notify();
+  if (boundUserId) {
+    import('./api.js')
+      .then(({ default: api }) => api.put('/auth/appearance', { text_size: next }))
+      .catch(() => { /* offline — the per-user cache still has it */ });
+  }
+}
+
 /**
  * Bind the theme to an account — call when /auth/me or login resolves.
  * Priority: the server-saved preference → this browser's per-user cache → system.
@@ -162,7 +201,10 @@ export function applyUserTheme(user) {
     : readKey(userKey(boundUserId)) || 'system';
   font = FONTS.includes(user?.font)
     ? user.font
-    : readFontKey(fontUserKey(boundUserId)) || 'system';
+    : readFontKey(fontUserKey(boundUserId)) || 'sora';
+  textSize = TEXT_SIZES.includes(user?.text_size)
+    ? user.text_size
+    : readSizeKey(sizeUserKey(boundUserId)) || 'compact';
   persist();
   apply();
   notify();
@@ -172,7 +214,8 @@ export function applyUserTheme(user) {
 export function clearUserTheme() {
   boundUserId = null;
   mode = 'system';
-  font = 'system';
+  font = 'sora';
+  textSize = 'compact';
   try {
     localStorage.removeItem(LAST_UID_KEY);
     localStorage.removeItem(GLOBAL_KEY);
@@ -186,11 +229,12 @@ function subscribe(fn) {
   return () => listeners.delete(fn);
 }
 
-/** React binding: { mode, resolved, setThemeMode, font, setFont } — re-renders on change. */
+/** React binding: { mode, resolved, setThemeMode, font, setFont, textSize, setTextSize } — re-renders on change. */
 export function useTheme() {
   const current = useSyncExternalStore(subscribe, getThemeMode);
   const currentFont = useSyncExternalStore(subscribe, () => font);
-  return { mode: current, resolved: forcedTheme || resolveTheme(current), setThemeMode, font: currentFont, setFont };
+  const currentSize = useSyncExternalStore(subscribe, () => textSize);
+  return { mode: current, resolved: forcedTheme || resolveTheme(current), setThemeMode, font: currentFont, setFont, textSize: currentSize, setTextSize };
 }
 
 // Follow the OS live while the mode is "system".
@@ -203,5 +247,5 @@ if (window.matchMedia) {
 }
 
 // Apply before first render — and never flash an account theme on guest pages.
-if (GUEST_PATHS.includes(window.location.pathname)) { forcedTheme = 'light'; font = 'system'; }
+if (GUEST_PATHS.includes(window.location.pathname)) { forcedTheme = 'light'; font = 'sora'; textSize = 'compact'; }
 apply();

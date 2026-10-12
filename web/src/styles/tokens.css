@@ -312,6 +312,13 @@
   --font-body: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
 
+/* ---- Text size — account preference via data-text-size on <html>.
+   Scales the root font-size: every rem value (text, spacing, controls)
+   grows or shrinks together, so density stays proportional.
+   "default" is the unstyled 16px baseline. ---- */
+:root[data-text-size='compact'] { font-size: 15px; }
+:root[data-text-size='large'] { font-size: 17.5px; }
+
 /* ==========================================================================
    Dark theme — applied when <html data-theme="dark">. Only semantic tokens
    flip; the saturated status/brand ramps stay (they read fine on dark).

@@ -219,7 +219,7 @@ router.post('/login', async (req, res, next) => {
     }
 
     const [rows] = await pool.query(
-      `SELECT id, full_name, email, password_hash, role, email_verified, status, avatar_path, avatar_v, theme, font FROM users WHERE email = :email LIMIT 1`,
+      `SELECT id, full_name, email, password_hash, role, email_verified, status, avatar_path, avatar_v, theme, font, text_size FROM users WHERE email = :email LIMIT 1`,
       { email }
     );
     const user = rows[0];
@@ -285,6 +285,7 @@ router.post('/login', async (req, res, next) => {
         avatar_v: user.avatar_v,
         theme: user.theme,
         font: user.font,
+        text_size: user.text_size,
       },
     });
   } catch (err) {
@@ -761,7 +762,7 @@ router.post('/reset-link', async (req, res, next) => {
 router.get('/me', requireAnyAuth, async (req, res, next) => {
   try {
     const [rows] = await pool.query(
-      `SELECT id, first_name, middle_name, last_name, name_ext, full_name, email, role, email_verified, status, avatar_path, avatar_v, theme, font, created_at,
+      `SELECT id, first_name, middle_name, last_name, name_ext, full_name, email, role, email_verified, status, avatar_path, avatar_v, theme, font, text_size, created_at,
         (avatar_path IS NOT NULL) AS has_avatar FROM users WHERE id = :id LIMIT 1`,
       { id: req.user.id }
     );
@@ -789,7 +790,7 @@ router.put('/me', requireAnyAuth, async (req, res, next) => {
     );
 
     const [rows] = await pool.query(
-      `SELECT id, first_name, middle_name, last_name, name_ext, full_name, email, role, email_verified, avatar_v, theme, font,
+      `SELECT id, first_name, middle_name, last_name, name_ext, full_name, email, role, email_verified, avatar_v, theme, font, text_size,
         (avatar_path IS NOT NULL) AS has_avatar, created_at FROM users WHERE id = :id`,
       { id: req.user.id }
     );
@@ -801,28 +802,35 @@ router.put('/me', requireAnyAuth, async (req, res, next) => {
 
 /**
  * PUT /api/auth/appearance — persist the account's appearance prefs
- * (theme: light | dark | system; font: system | sora | googlesans | inter).
- * Either field may be sent alone. Applied client-side on every login/me load
+ * (theme: light | dark | system; font: system | sora | googlesans | inter;
+ * text_size: compact | default | large).
+ * Fields may be sent alone. Applied client-side on every login/me load
  * so the preference follows the account across browsers and devices.
  */
 const APPEARANCE_FONTS = ['system', 'sora', 'googlesans', 'inter'];
+const APPEARANCE_SIZES = ['compact', 'default', 'large'];
 router.put('/appearance', requireAnyAuth, async (req, res, next) => {
   try {
     const theme = req.body?.theme !== undefined ? String(req.body.theme) : undefined;
     const font = req.body?.font !== undefined ? String(req.body.font) : undefined;
+    const textSize = req.body?.text_size !== undefined ? String(req.body.text_size) : undefined;
     if (theme !== undefined && !['light', 'dark', 'system'].includes(theme)) {
       return res.status(422).json({ error: 'Invalid theme.' });
     }
     if (font !== undefined && !APPEARANCE_FONTS.includes(font)) {
       return res.status(422).json({ error: 'Invalid font.' });
     }
+    if (textSize !== undefined && !APPEARANCE_SIZES.includes(textSize)) {
+      return res.status(422).json({ error: 'Invalid text size.' });
+    }
     const sets = [];
     const params = { id: req.user.id };
     if (theme !== undefined) { sets.push('theme = :theme'); params.theme = theme; }
     if (font !== undefined) { sets.push('font = :font'); params.font = font; }
+    if (textSize !== undefined) { sets.push('text_size = :text_size'); params.text_size = textSize; }
     if (!sets.length) return res.status(422).json({ error: 'Nothing to update.' });
     await pool.query(`UPDATE users SET ${sets.join(', ')} WHERE id = :id`, params);
-    res.json({ theme, font });
+    res.json({ theme, font, text_size: textSize });
   } catch (err) {
     next(err);
   }

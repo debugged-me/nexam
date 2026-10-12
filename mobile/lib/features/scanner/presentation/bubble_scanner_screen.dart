@@ -45,6 +45,11 @@ class _BubbleScannerScreenState extends State<BubbleScannerScreen>
   String? _cameraError;
   final _scanApi = ScanApi();
 
+  /// Receipt for the sheet just submitted — shown as a banner while the
+  /// camera stays live for the next one (every sheet of a set shares the
+  /// same QR, so one decode covers the whole pile).
+  _ScanOutcome? _lastSaved;
+
   final _nameController = TextEditingController();
   final _numberController = TextEditingController();
 
@@ -168,7 +173,7 @@ class _BubbleScannerScreenState extends State<BubbleScannerScreen>
       }
 
       if (!mounted) return;
-      Navigator.of(context).push(
+      final outcome = await Navigator.of(context).push<_ScanOutcome>(
         MaterialPageRoute(
           builder: (_) => ScanReviewScreen(
             detections: output.detections,
@@ -183,6 +188,17 @@ class _BubbleScannerScreenState extends State<BubbleScannerScreen>
           ),
         ),
       );
+
+      // Saved (or queued) — clear the student fields so the next sheet can
+      // never inherit a name, and flash the receipt while the camera stays
+      // live. Backing out manually ends the burst.
+      if (outcome != null && mounted) {
+        setState(() {
+          _lastSaved = outcome;
+          _nameController.clear();
+          _numberController.clear();
+        });
+      }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -253,6 +269,24 @@ class _BubbleScannerScreenState extends State<BubbleScannerScreen>
 
           // Sheet framing guide.
           if (_cameraReady) const _SheetGuide(),
+
+          // Last-sheet receipt — proof the previous submission landed
+          // while framing the next one.
+          if (_lastSaved != null && _cameraReady)
+            Positioned(
+              left: 16,
+              right: 16,
+              top: 0,
+              child: SafeArea(
+                child: Padding(
+                  padding: const EdgeInsets.only(top: 56),
+                  child: _SavedBanner(
+                    outcome: _lastSaved!,
+                    onDismiss: () => setState(() => _lastSaved = null),
+                  ),
+                ),
+              ),
+            ),
 
           // Bottom stack: student card + shutter row.
           if (_cameraReady)
@@ -466,6 +500,68 @@ class _BubbleScannerScreenState extends State<BubbleScannerScreen>
   }
 }
 
+/// What the review screen reports back after a submit — enough to render
+/// the "saved" receipt on the camera screen.
+class _ScanOutcome {
+  const _ScanOutcome({required this.label, required this.queued});
+  final String label;
+  final bool queued;
+}
+
+/// Small glass pill pinned under the app bar — confirms the sheet just
+/// submitted (score, or "queued for sync") and dismisses on tap.
+class _SavedBanner extends StatelessWidget {
+  const _SavedBanner({required this.outcome, required this.onDismiss});
+  final _ScanOutcome outcome;
+  final VoidCallback onDismiss;
+
+  @override
+  Widget build(BuildContext context) {
+    final accent = outcome.queued ? AppTheme.warning : AppTheme.success;
+    return GestureDetector(
+      onTap: onDismiss,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+        decoration: BoxDecoration(
+          color: Colors.black.withValues(alpha: 0.62),
+          borderRadius: BorderRadius.circular(999),
+          border: Border.all(color: accent.withValues(alpha: 0.55)),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              outcome.queued
+                  ? Icons.cloud_off_rounded
+                  : Icons.check_circle_rounded,
+              size: 15,
+              color: accent,
+            ),
+            const SizedBox(width: 7),
+            Flexible(
+              child: Text(
+                outcome.label,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+            const SizedBox(width: 7),
+            Icon(
+              Icons.close_rounded,
+              size: 14,
+              color: Colors.white.withValues(alpha: 0.5),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 /// A4 sheet framing guide — the four corner marks should sit inside the
 /// accent boxes.
 class _SheetGuide extends StatelessWidget {
@@ -584,7 +680,9 @@ class _ScanReviewScreenState extends State<ScanReviewScreen> {
   late List<String> _answers;
   late List<List<String>> _subAnswers;
   late List<bool> _ambiguous;
+  late List<GlobalKey> _itemKeys;
   bool _submitting = false;
+  int _flagCursor = -1;
 
   /// Idempotency key for this sheet — minted once when the review screen
   /// opens, so every retry of THIS submission carries the same id and the
@@ -602,6 +700,27 @@ class _ScanReviewScreenState extends State<ScanReviewScreen> {
         .map((d) => List<String>.from(d.subAnswers))
         .toList();
     _ambiguous = widget.detections.map((d) => d.ambiguous).toList();
+    _itemKeys = List.generate(_answers.length, (_) => GlobalKey());
+  }
+
+  /// Cycles the flagged chip: each tap scrolls the next ambiguous item
+  /// into view instead of the instructor hunting a long list by eye.
+  void _jumpToNextFlagged() {
+    final flagged = [
+      for (var i = 0; i < _ambiguous.length; i++)
+        if (_ambiguous[i]) i,
+    ];
+    if (flagged.isEmpty) return;
+    _flagCursor = (_flagCursor + 1) % flagged.length;
+    final ctx = _itemKeys[flagged[_flagCursor]].currentContext;
+    if (ctx != null) {
+      Scrollable.ensureVisible(
+        ctx,
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeOut,
+        alignment: 0.15,
+      );
+    }
   }
 
   Future<void> _submit() async {
@@ -632,20 +751,17 @@ class _ScanReviewScreenState extends State<ScanReviewScreen> {
 
       if (!mounted) return;
 
-      Navigator.of(context)
-        ..pop() // review screen
-        ..pop() // scanner screen
-        ..pop(); // qr scanner screen
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            'Score: ${result.score}% (${result.correctCount}/${result.totalItems})'
-            '${result.needsReview ? ' — needs review' : ''}',
-          ),
-          backgroundColor:
-              result.needsReview ? AppTheme.warning : AppTheme.success,
-          duration: const Duration(seconds: 4),
+      // Back to the live camera for the next sheet — the outcome becomes
+      // the receipt banner there. Exiting the camera ends the burst.
+      final who = widget.studentName.isEmpty
+          ? 'Sheet'
+          : widget.studentName;
+      Navigator.of(context).pop(
+        _ScanOutcome(
+          label: '$who — ${result.score}% '
+              '(${result.correctCount}/${result.totalItems})'
+              '${result.needsReview ? ' · needs review' : ''}',
+          queued: false,
         ),
       );
     } on ApiException catch (e) {
@@ -667,16 +783,12 @@ class _ScanReviewScreenState extends State<ScanReviewScreen> {
             answers: scannedAnswers,
           ));
           if (!mounted) return;
-          Navigator.of(context)
-            ..pop() // review screen
-            ..pop() // scanner screen
-            ..pop(); // qr scanner screen
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text(
-                  'No connection — scan saved and will sync automatically when you are back online.'),
-              backgroundColor: AppTheme.warning,
-              duration: Duration(seconds: 4),
+          Navigator.of(context).pop(
+            _ScanOutcome(
+              label: widget.studentName.isEmpty
+                  ? 'Saved offline — syncs when back online'
+                  : '${widget.studentName} saved offline — syncs when back online',
+              queued: true,
             ),
           );
         } catch (_) {
@@ -788,31 +900,37 @@ class _ScanReviewScreenState extends State<ScanReviewScreen> {
             ),
           ),
           if (_ambiguousCount > 0)
-            Container(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-              decoration: BoxDecoration(
-                color: AppTheme.warning.withValues(alpha: 0.18),
-                borderRadius: BorderRadius.circular(999),
-                border: Border.all(
-                  color: AppTheme.warning.withValues(alpha: 0.45),
-                ),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Icon(Icons.flag_rounded,
-                      size: 13, color: AppTheme.warning),
-                  const SizedBox(width: 4),
-                  Text(
-                    '$_ambiguousCount',
-                    style: const TextStyle(
-                      color: AppTheme.warning,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w800,
-                    ),
+            GestureDetector(
+              onTap: _jumpToNextFlagged,
+              child: Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                decoration: BoxDecoration(
+                  color: AppTheme.warning.withValues(alpha: 0.18),
+                  borderRadius: BorderRadius.circular(999),
+                  border: Border.all(
+                    color: AppTheme.warning.withValues(alpha: 0.45),
                   ),
-                ],
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.flag_rounded,
+                        size: 13, color: AppTheme.warning),
+                    const SizedBox(width: 4),
+                    Text(
+                      '$_ambiguousCount',
+                      style: const TextStyle(
+                        color: AppTheme.warning,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    const SizedBox(width: 3),
+                    const Icon(Icons.keyboard_arrow_down_rounded,
+                        size: 13, color: AppTheme.warning),
+                  ],
+                ),
               ),
             ),
         ],
@@ -825,6 +943,7 @@ class _ScanReviewScreenState extends State<ScanReviewScreen> {
     final isAmbiguous = _ambiguous[index];
 
     return Container(
+      key: _itemKeys[index],
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: Colors.white,

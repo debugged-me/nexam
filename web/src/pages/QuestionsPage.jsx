@@ -565,9 +565,24 @@ export default function QuestionsPage() {
     }
   }
 
-  async function handleApprove(q) {
-    try { await api.post(`/questions/${q.id}/approve`); toast.success('Question approved.'); load(); }
-    catch (err) { toast.error(err.message || 'Approve failed.'); }
+  async function handleApprove(q, bypass = false) {
+    try {
+      await api.post(`/questions/${q.id}/approve`, bypass ? { allowSimilarityFailure: true } : undefined);
+      toast.success(bypass ? 'Question approved without duplicate check.' : 'Question approved.');
+      load();
+    } catch (err) {
+      // A failed duplicate check is the only overridable block — offer the
+      // explicit bypass instead of leaving the draft stuck during an outage.
+      if (!bypass && q.similarity_error && /similarity check failed/i.test(err?.message || '')) {
+        const ok = await confirm(
+          `Duplicate checking failed (${q.similarity_error}). Approve anyway? The question joins your bank ` +
+          'unverified and stays out of the shared institution bank until a successful check — the bypass is audit-logged.',
+          { title: 'Approve without duplicate check?' }
+        );
+        if (ok) return handleApprove(q, true);
+      }
+      toast.error(err.message || 'Approve failed.');
+    }
   }
   async function handleReject(q) {
     try { await api.post(`/questions/${q.id}/reject`); toast.success('Question rejected.'); load(); }
@@ -615,7 +630,30 @@ export default function QuestionsPage() {
     if (!ids.length) return;
     setBulkBusy('approve');
     try {
-      const data = await api.post('/questions/bulk-approve', { ids });
+      let data = await api.post('/questions/bulk-approve', { ids });
+      // Every remaining blocker is a failed duplicate check (provider outage)
+      // — offer the explicit bypass for just those ids rather than leaving
+      // the selection stuck.
+      const onlyFailures = (data?.reasons?.similarity_error || 0) > 0
+        && Object.entries(data.reasons).every(([k, v]) => ['firstMessage', 'similarity_error'].includes(k) || !v);
+      if ((data?.approved || 0) < ids.length && onlyFailures) {
+        const approvedSet = new Set(data.approvedIds || []);
+        const remaining = ids.filter((id) => !approvedSet.has(id));
+        const ok = await confirm(
+          `${remaining.length} question${remaining.length === 1 ? '' : 's'} couldn't be checked for duplicates ` +
+          '(the similarity service is unreachable). Approve anyway? They join your bank unverified and stay out ' +
+          'of the shared institution bank until a successful check — the bypass is audit-logged.',
+          { title: 'Approve without duplicate check?' }
+        );
+        if (ok) {
+          const retry = await api.post('/questions/bulk-approve', { ids: remaining, allowSimilarityFailure: true });
+          data = {
+            ...retry,
+            approved: (data.approved || 0) + (retry?.approved || 0),
+            approvedIds: [...(data.approvedIds || []), ...(retry?.approvedIds || [])],
+          };
+        }
+      }
       reportBulk(data?.approved || 0, ids.length, 'approved', blockSummary(data?.reasons) || 'approving only affects drafts.');
       clearSelection();
       load();

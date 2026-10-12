@@ -177,6 +177,8 @@ export default function ReviewQueuePage() {
   const [busy, setBusy] = useState(false);
   const [confirmBulk, setConfirmBulk] = useState(false);
   const [confirmClear, setConfirmClear] = useState(false);
+  const [confirmBypass, setConfirmBypass] = useState(false);
+  const [includeFailed, setIncludeFailed] = useState(false);
 
   const reload = useCallback(() => setReloadTick((t) => t + 1), []);
 
@@ -278,6 +280,13 @@ export default function ReviewQueuePage() {
     [queue, decisions]
   );
 
+  // Drafts whose duplicate check failed — approvable only through the explicit
+  // outage bypass, since a failure carries no information about duplication.
+  const failedCheckIds = useMemo(
+    () => (queue || []).filter((q) => !decisions[q.id] && q.similarity_error).map((q) => q.id),
+    [queue, decisions]
+  );
+
   const total = queue?.length || 0;
   const decidedCount = total - tally.remaining;
   const progressPct = total ? Math.round((decidedCount / total) * 100) : 0;
@@ -288,9 +297,9 @@ export default function ReviewQueuePage() {
 
   // ── Decisions ──────────────────────────────────────
 
-  const decide = useCallback(async (action) => {
+  const decide = useCallback(async (action, opts = {}) => {
     if (!current || busy) return;
-    if (action === 'approved' && !similarityReady) {
+    if (action === 'approved' && !similarityReady && !opts.allowSimilarityFailure) {
       toastRef.current.warning('Wait for duplicate checking, or resolve the similarity warning, before approval.');
       return;
     }
@@ -298,10 +307,19 @@ export default function ReviewQueuePage() {
     const at = cursor;
     setBusy(true);
     try {
-      await api.post(`/questions/${item.id}/${action === 'approved' ? 'approve' : 'reject'}`);
+      await api.post(
+        `/questions/${item.id}/${action === 'approved' ? 'approve' : 'reject'}`,
+        action === 'approved' && opts.allowSimilarityFailure ? { allowSimilarityFailure: true } : undefined
+      );
+      const bypassed = action === 'approved' && opts.allowSimilarityFailure === true;
       const next = { ...decisions, [item.id]: action };
       setDecisions(next);
-      setLastAction({ id: item.id, index: at, action, snapshot: item });
+      setLastAction({ id: item.id, index: at, action, snapshot: item, bypassed });
+      if (bypassed) {
+        toastRef.current.success(
+          'Approved without duplicate check — it joins your bank unverified and stays out of the shared institution bank until a check succeeds.'
+        );
+      }
       const n = findNext(queue, next, at);
       if (n >= 0) setCursor(n);
     } catch (err) {
@@ -459,15 +477,16 @@ export default function ReviewQueuePage() {
 
   async function approveAll() {
     setConfirmBulk(false);
-    if (approvableIds.length === 0) return;
+    const ids = includeFailed ? [...approvableIds, ...failedCheckIds] : approvableIds;
+    if (ids.length === 0) return;
     setBusy(true);
     try {
-      const res = await api.post('/questions/bulk-approve', { ids: approvableIds });
-      const count = typeof res?.approved === 'number' ? res.approved : approvableIds.length;
+      const res = await api.post('/questions/bulk-approve', { ids, allowSimilarityFailure: includeFailed });
+      const count = typeof res?.approved === 'number' ? res.approved : ids.length;
       // Only mark ids the server actually approved — when it returns none
       // (all were already active), blindly marking the whole set is what made
       // the banner claim "14 approved" on a no-op click.
-      const approvedIds = Array.isArray(res?.approvedIds) ? res.approvedIds : (count > 0 ? approvableIds : []);
+      const approvedIds = Array.isArray(res?.approvedIds) ? res.approvedIds : (count > 0 ? ids : []);
       setDecisions((d) => {
         const next = { ...d };
         for (const id of approvedIds) next[id] = 'approved';
@@ -483,7 +502,12 @@ export default function ReviewQueuePage() {
         toastRef.current.info('Already approved — nothing left to do.');
         reload();
       } else {
-        toastRef.current.success(`${count} question${count === 1 ? '' : 's'} approved.`);
+        const failedSet = new Set(failedCheckIds);
+        const bypassedCount = approvedIds.filter((id) => failedSet.has(id)).length;
+        toastRef.current.success(
+          `${count} question${count === 1 ? '' : 's'} approved` +
+          `${bypassedCount ? ` — ${bypassedCount} without duplicate check` : ''}.`
+        );
       }
     } catch (err) {
       toastRef.current.error(err instanceof ApiError ? err.message : 'Could not approve the remaining drafts.');
@@ -572,6 +596,7 @@ export default function ReviewQueuePage() {
       </span>
       <span className="rv-undo-text">
         {lastAction.action === 'approved' ? 'Approved' : 'Rejected'}
+        {lastAction.bypassed ? ' — without duplicate check' : ''}
         <span className="rv-undo-stem">“{shorten(lastAction.snapshot.stem)}”</span>
       </span>
       {canUndo ? (
@@ -608,8 +633,8 @@ export default function ReviewQueuePage() {
       <button
         type="button"
         className="btn btn-outline btn-sm"
-        onClick={() => setConfirmBulk(true)}
-        disabled={busy || approvableIds.length === 0}
+        onClick={() => { setIncludeFailed(approvableIds.length === 0); setConfirmBulk(true); }}
+        disabled={busy || (approvableIds.length === 0 && failedCheckIds.length === 0)}
         title="Approve every draft still waiting in this queue"
       >
         <CheckCheck size={16} /> Approve all remaining
@@ -633,7 +658,7 @@ export default function ReviewQueuePage() {
           <span className="eyebrow">Question bank</span>
           <h1 className="rv-head-title">Review queue</h1>
           <p className="rv-head-sub">
-            Every AI-drafted question needs your decision before it joins the bank. One item at a time, in full.
+            Every draft — AI-drafted, imported, or written by hand — needs your decision before it joins the bank. One item at a time, in full.
           </p>
         </div>
         {!queue?.length && queueActions}
@@ -811,6 +836,9 @@ export default function ReviewQueuePage() {
                     <button type="button" className="btn btn-outline btn-sm" onClick={retrySimilarity} disabled={busy}>
                       <RefreshCw size={15} /> Retry
                     </button>
+                    <button type="button" className="btn btn-outline btn-sm" onClick={() => setConfirmBypass(true)} disabled={busy}>
+                      <Check size={15} /> Approve anyway
+                    </button>
                   </div>
                 )}
 
@@ -910,23 +938,70 @@ export default function ReviewQueuePage() {
 
       <Modal
         open={confirmBulk}
-        title={`Approve ${approvableIds.length} checked draft${approvableIds.length === 1 ? '' : 's'}?`}
+        title={`Approve ${includeFailed ? approvableIds.length + failedCheckIds.length : approvableIds.length} draft${(includeFailed ? approvableIds.length + failedCheckIds.length : approvableIds.length) === 1 ? '' : 's'}?`}
         subtitle="This skips the per-item read that this screen exists for."
         onClose={() => setConfirmBulk(false)}
         footer={
           <>
             <button className="btn btn-outline" onClick={() => setConfirmBulk(false)}>Cancel</button>
-            <button className="btn btn-primary" onClick={approveAll} disabled={busy}>
+            <button
+              className="btn btn-primary"
+              onClick={approveAll}
+              disabled={busy || (includeFailed ? approvableIds.length + failedCheckIds.length : approvableIds.length) === 0}
+            >
               {busy && <span className="btn-spinner" />}
-              <CheckCheck size={16} /> Approve {approvableIds.length}
+              <CheckCheck size={16} /> Approve {includeFailed ? approvableIds.length + failedCheckIds.length : approvableIds.length}
             </button>
           </>
         }
       >
         <p className="rv-modal-text">
-          All {approvableIds.length} question{approvableIds.length === 1 ? '' : 's'} that passed duplicate checking will become
-          active and enter the duplicate-check index immediately. There is no one-step undo for a bulk approval —
-          you would have to reject them individually.
+          {approvableIds.length > 0
+            ? `${approvableIds.length} question${approvableIds.length === 1 ? '' : 's'} that passed duplicate checking will become
+          active and enter the duplicate-check index immediately.`
+            : 'No drafts in this queue passed duplicate checking.'}
+          {' '}There is no one-step undo for a bulk approval — you would have to reject them individually.
+        </p>
+        {failedCheckIds.length > 0 && (
+          <label className="rv-checkline">
+            <input
+              type="checkbox"
+              checked={includeFailed}
+              onChange={(e) => setIncludeFailed(e.target.checked)}
+            />
+            <span>
+              Also approve {failedCheckIds.length} draft{failedCheckIds.length === 1 ? '' : 's'} whose duplicate check
+              {' '}<b>failed</b> — the similarity service is unreachable, so they join your bank
+              unverified and stay out of the shared institution bank until a check succeeds.
+              The bypass is audit-logged.
+            </span>
+          </label>
+        )}
+      </Modal>
+
+      <Modal
+        open={confirmBypass}
+        title="Approve without duplicate check?"
+        subtitle="The similarity service is unreachable — a failed check carries no information."
+        onClose={() => setConfirmBypass(false)}
+        footer={
+          <>
+            <button className="btn btn-outline" onClick={() => setConfirmBypass(false)}>Cancel</button>
+            <button
+              className="btn btn-primary"
+              onClick={() => { setConfirmBypass(false); decide('approved', { allowSimilarityFailure: true }); }}
+              disabled={busy}
+            >
+              {busy && <span className="btn-spinner" />}
+              <Check size={16} /> Approve anyway
+            </button>
+          </>
+        }
+      >
+        <p className="rv-modal-text">
+          The question becomes active in your bank and can be attached to exams, but it stays out of the
+          shared institution bank until a successful check verifies it. Pending checks and flagged
+          duplicates still block — this only bypasses the outage. The override is audit-logged.
         </p>
       </Modal>
 

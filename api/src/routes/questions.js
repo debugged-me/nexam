@@ -27,6 +27,7 @@ import { indexQuestionIfActive, indexQuestionsIfActive, removeQuestionFromIndex 
 import { answerOptionIndex } from '../services/scoring.js';
 import { rateLimit } from '../middleware/rateLimit.js';
 import { logAudit } from '../services/audit.js';
+import { similarityGate } from '../services/questionApproval.js';
 
 const router = Router();
 router.use(requireAuth);
@@ -47,7 +48,9 @@ async function getOwned(id, userId) {
   return rows[0] || null;
 }
 
-async function approvalBlockReason(question) {
+// ignoreSimilarityFailure is the explicit instructor override for provider
+// outages — see similarityGate() for what it does and does not lift.
+async function approvalBlockReason(question, { ignoreSimilarityFailure = false } = {}) {
   if (!QUESTION_TYPES.includes(question.type)) return 'Unsupported question type.';
   if (question.source === 'ai') {
     let meta;
@@ -75,11 +78,7 @@ async function approvalBlockReason(question) {
       return 'The AI evidence span cannot be found in its cited source chunks. Regenerate this draft.';
     }
   }
-  if (question.similarity_error) return `Similarity check failed: ${question.similarity_error}`;
-  if (!question.similarity_checked_at) return 'Similarity check is still pending. Wait for it to complete before approval.';
-  if (question.similarity_flag === 'flagged') return 'Review and decide the similarity match before approval.';
-  if (question.similarity_flag === 'rejected' || question.status === 'rejected') return 'Rejected questions cannot be approved.';
-  return null;
+  return similarityGate(question, { ignoreSimilarityFailure });
 }
 
 /** Validate question fields. Returns { error } or { data }. */
@@ -430,7 +429,7 @@ router.put('/:id', async (req, res, next) => {
     if (contentChanged && newStatus === 'active') newStatus = 'draft';
     const approving = q.status !== 'active' && newStatus === 'active';
     if (approving) {
-      const blocked = await approvalBlockReason(q);
+      const blocked = await approvalBlockReason(q, { ignoreSimilarityFailure: req.body?.allowSimilarityFailure === true });
       if (blocked) return res.status(409).json({ error: blocked });
     }
 
@@ -523,7 +522,8 @@ router.post('/:id/approve', async (req, res, next) => {
     const q = await getOwned(req.params.id, req.user.id);
     if (!q) return res.status(404).json({ error: 'Question not found.' });
     if (q.status === 'active') return res.json({ message: 'Already approved.' });
-    const blocked = await approvalBlockReason(q);
+    const bypassed = req.body?.allowSimilarityFailure === true;
+    const blocked = await approvalBlockReason(q, { ignoreSimilarityFailure: bypassed });
     if (blocked) return res.status(409).json({ error: blocked });
 
     await pool.query(
@@ -538,6 +538,7 @@ router.post('/:id/approve', async (req, res, next) => {
     logAudit({
       actorId: req.user.id, actorEmail: req.user.email,
       action: 'question.approve', targetType: 'question', targetId: q.id, ip: req.ip,
+      detail: bypassed && q.similarity_error ? { similarityBypassed: true } : undefined,
     });
     res.json({ message: 'Question approved.', status: 'active' });
   } catch (err) { next(err); }
@@ -584,11 +585,18 @@ router.post('/bulk-approve', async (req, res, next) => {
     const reasons = {};
     const bump = (key) => { reasons[key] = (reasons[key] || 0) + 1; };
     if (validIds.length > selected.length) bump('not_owned');
+    // Explicit instructor override for provider outages only — pending checks
+    // and flagged matches still triage out below.
+    const bypassed = req.body?.allowSimilarityFailure === true;
     const candidates = [];
     for (const q of selected) {
       if (q.status !== 'draft') bump('not_draft');
       else if (!QUESTION_TYPES.includes(q.type)) bump('unsupported_type');
-      else if (q.similarity_error) bump('similarity_error');
+      else if (q.similarity_error) {
+        // Under the bypass the row continues to the full gate — a stale
+        // 'flagged' still blocks there. Without it, count it and move on.
+        if (bypassed) candidates.push(q); else bump('similarity_error');
+      }
       else if (!q.similarity_checked_at) bump('similarity_pending');
       else if (q.similarity_flag === 'flagged') bump('similarity_flagged');
       else if (q.similarity_flag === 'rejected') bump('not_draft');
@@ -597,7 +605,7 @@ router.post('/bulk-approve', async (req, res, next) => {
 
     const eligibleIds = [];
     for (const question of candidates) {
-      const block = await approvalBlockReason(question);
+      const block = await approvalBlockReason(question, { ignoreSimilarityFailure: bypassed });
       if (block) {
         bump('other');
         if (!reasons.firstMessage) reasons.firstMessage = block;
@@ -628,7 +636,7 @@ router.post('/bulk-approve', async (req, res, next) => {
       logAudit({
         actorId: req.user.id, actorEmail: req.user.email,
         action: 'question.bulk_approve', targetType: 'question',
-        detail: { approved: result.affectedRows, requested: validIds.length }, ip: req.ip,
+        detail: { approved: result.affectedRows, requested: validIds.length, similarityBypassed: bypassed || undefined }, ip: req.ip,
       });
     }
     res.json({

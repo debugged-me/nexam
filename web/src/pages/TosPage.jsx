@@ -64,7 +64,12 @@ export default function TosPage() {
 
   // Grouped by subject the Subject column only repeats the band title — drop
   // it and let every other column take the width (same trick as Questions).
-  const showSubject = groupBy !== 'subject';
+  // A single-subject list reads the same value on every row, so it hides too.
+  const singleSubject = useMemo(() => {
+    if (!tosList?.length) return false;
+    return new Set(tosList.map((t) => t.subject_id || 'none')).size === 1;
+  }, [tosList]);
+  const showSubject = groupBy !== 'subject' && !singleSubject;
 
   // KPI row — blueprint counts plus overall banked coverage across the list.
   const tosStats = useMemo(() => (tosList || []).reduce(

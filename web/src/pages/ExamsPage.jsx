@@ -153,7 +153,12 @@ export default function ExamsPage() {
   const grouped = groupBy !== 'none';
   // Grouped by subject the Subject column only repeats the band title — drop
   // it and let every other column take the width (same trick as Questions).
-  const showSubject = groupBy !== 'subject';
+  // A single-subject list reads the same value on every row, so it hides too.
+  const singleSubject = useMemo(() => {
+    if (!exams?.length) return false;
+    return new Set(exams.map((e) => e.subject_id || 'none')).size === 1;
+  }, [exams]);
+  const showSubject = groupBy !== 'subject' && !singleSubject;
   const colSpan = showSubject ? FULL_SPAN : FULL_SPAN - 1;
 
   function toggleGroup(key) {

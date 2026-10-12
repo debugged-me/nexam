@@ -369,8 +369,13 @@ export default function QuestionsPage() {
 
   // When the list is filtered to one subject — or grouped by subject, where
   // the band already says it — the column only repeats that subject; drop it
-  // and let every other column take the width.
-  const showSubject = !filters.subject_id && groupBy !== 'subject';
+  // and let every other column take the width. Same when the whole bank only
+  // holds one subject: the column would read the same value on every row.
+  const singleSubject = useMemo(() => {
+    if (!questions?.length) return false;
+    return new Set(questions.map((q) => q.subject_id || 'none')).size === 1;
+  }, [questions]);
+  const showSubject = !filters.subject_id && groupBy !== 'subject' && !singleSubject;
   const COLS = showSubject ? 8 : 7;
 
   const clearFilters = useCallback(() => {
@@ -769,15 +774,17 @@ export default function QuestionsPage() {
                 <FileText size={12} /> Similar
               </Link>
             )}
-            <span className="g-meta">
-              {q.topic || 'No topic'}
-              {stem.length > 70 && (
-                <>
-                  {' · '}
-                  <button type="button" className="g-more" onClick={() => setViewing(q)}>Read more</button>
-                </>
-              )}
-            </span>
+            {(q.topic || stem.length > 70) && (
+              <span className="g-meta">
+                {q.topic}
+                {stem.length > 70 && (
+                  <>
+                    {q.topic ? ' · ' : ''}
+                    <button type="button" className="g-more" onClick={() => setViewing(q)}>Read more</button>
+                  </>
+                )}
+              </span>
+            )}
           </span>
         </td>
         {showSubject && (

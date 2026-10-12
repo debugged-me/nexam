@@ -367,9 +367,10 @@ export default function QuestionsPage() {
 
   const activeFilterCount = [filters.subject_id, filters.bloom, filters.type, filters.status, filters.tos_id, filters.topic].filter(Boolean).length;
 
-  // When the list is already filtered to one subject the column only repeats
-  // that subject — drop it and let every other column take the width.
-  const showSubject = !filters.subject_id;
+  // When the list is filtered to one subject — or grouped by subject, where
+  // the band already says it — the column only repeats that subject; drop it
+  // and let every other column take the width.
+  const showSubject = !filters.subject_id && groupBy !== 'subject';
   const COLS = showSubject ? 8 : 7;
 
   const clearFilters = useCallback(() => {

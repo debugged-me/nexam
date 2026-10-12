@@ -29,7 +29,7 @@ import {
 } from '../components/Board.jsx';
 import { useGridTable } from '../components/DataTable.jsx';
 
-const COL_SPAN = 7;
+const FULL_SPAN = 7;
 const EXAM_STATUSES = STATUS_ORDER.exam;
 
 // Sort accessors — id matches the column the header toggles.
@@ -139,6 +139,10 @@ export default function ExamsPage() {
   }, [filtered, groupBy]);
 
   const grouped = groupBy !== 'none';
+  // Grouped by subject the Subject column only repeats the band title — drop
+  // it and let every other column take the width (same trick as Questions).
+  const showSubject = groupBy !== 'subject';
+  const colSpan = showSubject ? FULL_SPAN : FULL_SPAN - 1;
 
   function toggleGroup(key) {
     setCollapsed((prev) => {
@@ -202,11 +206,13 @@ export default function ExamsPage() {
             </span>
           </span>
         </td>
-        <td data-order={e.subject_name || ''}>
-          {e.subject_name
-            ? <GroupChip color={groupColor(e.subject_id || e.subject_name)}>{e.subject_name}</GroupChip>
-            : <span className="g-mute">—</span>}
-        </td>
+        {showSubject && (
+          <td data-order={e.subject_name || ''}>
+            {e.subject_name
+              ? <GroupChip color={groupColor(e.subject_id || e.subject_name)}>{e.subject_name}</GroupChip>
+              : <span className="g-mute">—</span>}
+          </td>
+        )}
         <td>
           <span className="g-inline">
             {print ? <Printer size={14} /> : <MonitorSmartphone size={14} />}
@@ -297,7 +303,7 @@ export default function ExamsPage() {
               <thead>
                 <tr>
                   <th className={`col-primary wp-31 ${sortClass('exam')}`} onClick={sortHandler('exam')} data-name="Exam" data-locked>Exam{renderSortArrow('exam')}</th>
-                  <th className={`wp-16 ${sortClass('subject')}`} onClick={sortHandler('subject')} data-name="Subject">Subject{renderSortArrow('subject')}</th>
+                  {showSubject && <th className={`wp-16 ${sortClass('subject')}`} onClick={sortHandler('subject')} data-name="Subject">Subject{renderSortArrow('subject')}</th>}
                   <th className="wp-10" data-name="Format">Format</th>
                   <th className={`wp-12 ${sortClass('status')}`} onClick={sortHandler('status')} data-name="Status">Status{renderSortArrow('status')}</th>
                   <th className={`is-num wp-9 ${sortClass('items')}`} onClick={sortHandler('items')} data-name="Items">Items{renderSortArrow('items')}</th>
@@ -308,7 +314,7 @@ export default function ExamsPage() {
               {groups.length === 0 ? (
                 <tbody ref={animateRows}>
                   <tr>
-                    <td className="ds-noresults" colSpan={COL_SPAN}>
+                    <td className="ds-noresults" colSpan={colSpan}>
                       <span className="ds-noresults-title">No exams found</span>
                       <span className="ds-noresults-sub">
                         Try a different search or <button type="button" onClick={() => setQuery('')}>clear it</button>.
@@ -331,7 +337,7 @@ export default function ExamsPage() {
                           groupBy !== 'status' ? statusMeta(counts, EXAM_STATUSES) : '',
                           itemTotal ? `${itemTotal} item${itemTotal === 1 ? '' : 's'}` : '',
                         ].filter(Boolean).join(' · ') || undefined}
-                        colSpan={COL_SPAN}
+                        colSpan={colSpan}
                         collapsed={isCollapsed}
                         onToggle={() => toggleGroup(g.key)}
                       />
@@ -339,7 +345,7 @@ export default function ExamsPage() {
                     {g.rows.map(renderExamRow)}
                     {grouped && groupBy === 'subject' && (
                       <BoardAddRow
-                        colSpan={COL_SPAN}
+                        colSpan={colSpan}
                         label="New exam"
                         href={g.rows[0]?.subject_id ? `/exams/new?subject_id=${encodeURIComponent(g.rows[0].subject_id)}` : '/exams/new'}
                         as={Link}

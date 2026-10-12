@@ -62,6 +62,10 @@ export default function TosPage() {
     return [...map.values()].sort((a, b) => a.title.localeCompare(b.title));
   }, [tosList, groupBy]);
 
+  // Grouped by subject the Subject column only repeats the band title — drop
+  // it and let every other column take the width (same trick as Questions).
+  const showSubject = groupBy !== 'subject';
+
   function toggleGroup(key) {
     setCollapsed((prev) => {
       const next = new Set(prev);
@@ -203,13 +207,15 @@ export default function TosPage() {
             </span>
           </span>
         </td>
-        <td>
-          {t.subject_name ? (
-            <GroupChip color={groupColor(t.subject_id || t.subject_name)}>{t.subject_name}</GroupChip>
-          ) : (
-            <span className="g-mute">—</span>
-          )}
-        </td>
+        {showSubject && (
+          <td>
+            {t.subject_name ? (
+              <GroupChip color={groupColor(t.subject_id || t.subject_name)}>{t.subject_name}</GroupChip>
+            ) : (
+              <span className="g-mute">—</span>
+            )}
+          </td>
+        )}
         <td data-order={statusOf(t.status)}><StatusPill status={t.status} /></td>
         <td className="is-num">
           <span className={`g-count${topics ? '' : ' is-zero'}`}>{topics || '—'}</span>
@@ -280,7 +286,7 @@ export default function TosPage() {
           <thead>
             <tr>
               <th className="col-primary wp-33">Blueprint</th>
-              <th className="wp-14">Subject</th>
+              {showSubject && <th className="wp-14">Subject</th>}
               <th className="wp-12">Status</th>
               <th className="is-num wp-10">Topics</th>
               <th className="is-num wp-9">Items</th>
@@ -294,7 +300,7 @@ export default function TosPage() {
             for (const t of g.rows) { const k = statusOf(t.status); counts[k] = (counts[k] || 0) + 1; }
             return (
               <tbody key={g.key} ref={animateRows} className={`b-group${isCollapsed ? ' is-collapsed' : ''}`} style={{ '--gc': g.color }}>
-                <BoardGroupHead color={g.color} title={g.title} count={g.rows.length} meta={statusMeta(counts, STATUS_ORDER.tos) || undefined} colSpan={7} collapsed={isCollapsed} onToggle={() => toggleGroup(g.key)} />
+                <BoardGroupHead color={g.color} title={g.title} count={g.rows.length} meta={statusMeta(counts, STATUS_ORDER.tos) || undefined} colSpan={6} collapsed={isCollapsed} onToggle={() => toggleGroup(g.key)} />
                 {g.rows.map(renderTosRow)}
               </tbody>
             );

@@ -11,10 +11,13 @@ import { useNavigate } from 'react-router-dom';
 import {
   ArrowLeft, Sparkles, CheckCircle, CopyCheck, FileSearch,
   Target, Crosshair, Search, GitMerge, Layers, CircleHelp, Grid3x3,
+  Cpu,
 } from 'lucide-react';
 import { useToast } from '../components/Toast.jsx';
 import api from '../lib/api.js';
 import AppShell from '../components/AppShell.jsx';
+import KpiCard from '../components/KpiCard.jsx';
+import { CountsBarChart, ShareDoughnut } from '../components/AnalyticsCharts.jsx';
 import { PageLoader } from '../components/Loaders.jsx';
 
 const BLOOM_LEVEL = { remember: 1, understand: 2, apply: 3, analyze: 4, evaluate: 5, create: 6 };
@@ -50,8 +53,23 @@ export default function AiEvalPage() {
   const ext = data.extraction || {};
   const bloomDist = data.bloomDistribution || [];
   const typeDist = data.typeDistribution || [];
+  const providers = data.providers || [];
   const cm = data.confusionMatrix || {};
   const classes = cm.classes || [];
+
+  const cap = (s) => (s ? s[0].toUpperCase() + s.slice(1) : '—');
+  const bloomRows = bloomDist.map((b) => ({ name: cap(b.bloom), n: b.count, var: `--bloom-${BLOOM_LEVEL[b.bloom] || 3}` }));
+  const typeRows = typeDist.map((t, i) => ({ name: TYPE_LABELS[t.type] || t.type, n: t.count, var: `--gc-${(i % 8) + 1}` }));
+  const providerRows = providers.map((pr) => ({
+    name: `${pr.provider || 'unknown'}${pr.model ? ` · ${pr.model}` : ''}`,
+    n: pr.count,
+  }));
+  const outcomeSlices = [
+    { label: 'Approved', value: gen.approved || 0, var: '--green-600' },
+    { label: 'Rejected', value: gen.rejected || 0, var: '--red-600' },
+    { label: 'Pending review', value: gen.pending || 0, var: '--amber-600' },
+  ];
+  const genTotal = (gen.approved || 0) + (gen.rejected || 0) + (gen.pending || 0);
 
   return (
     <AppShell pageClass="ai-eval" activeNav="analytics" pageTitle="AI Evaluation" wide>
@@ -63,26 +81,16 @@ export default function AiEvalPage() {
         </div>
       </div>
 
-      <div className="stats-grid mb-3" data-tour="aieval-stats">
-        <div className="stat-card">
-          <div className="stat-icon green"><Sparkles size={18} /></div>
-          <div className="stat-info"><div className="stat-value">{pct(gen.precision)}%</div><div className="stat-label">Generation Precision</div></div>
-          <div className="stat-context"><b>{gen.approved || 0}</b> approved of {(gen.approved || 0) + (gen.rejected || 0)} decided</div>
-        </div>
-        <div className="stat-card">
-          <div className="stat-icon blue"><CheckCircle size={18} /></div>
-          <div className="stat-info"><div className="stat-value">{pct(gen.approvalRate)}%</div><div className="stat-label">Approval Rate</div></div>
-          <div className="stat-context">{gen.pending || 0} still pending review</div>
-        </div>
-        <div className="stat-card">
-          <div className="stat-icon amber"><CopyCheck size={18} /></div>
-          <div className="stat-info"><div className="stat-value">{pct(sim.flagRate)}%</div><div className="stat-label">Similarity Flag Rate</div></div>
-          <div className="stat-context">of {gen.totalGenerated || 0} generated drafts</div>
-        </div>
-        <div className="stat-card">
-          <div className="stat-icon purple"><FileSearch size={18} /></div>
-          <div className="stat-info"><div className="stat-value">{pct(ext.accuracy)}%</div><div className="stat-label">Extraction Accuracy</div></div>
-        </div>
+      <div className="dash-kpis mb-3" data-tour="aieval-stats">
+        <KpiCard i={0} icon={Sparkles} tint={3} value={Number(pct(gen.precision))} decimals={1} suffix="%"
+          label="Generation Precision"
+          hint={<><b>{gen.approved || 0}</b> approved of {(gen.approved || 0) + (gen.rejected || 0)} decided</>} />
+        <KpiCard i={1} icon={CheckCircle} tint={2} value={Number(pct(gen.approvalRate))} decimals={1} suffix="%"
+          label="Approval Rate" hint={`${gen.pending || 0} still pending review`} />
+        <KpiCard i={2} icon={CopyCheck} tint={4} value={Number(pct(sim.flagRate))} decimals={1} suffix="%"
+          label="Similarity Flag Rate" hint={`of ${gen.totalGenerated || 0} generated drafts`} />
+        <KpiCard i={3} icon={FileSearch} tint={1} value={Number(pct(ext.accuracy))} decimals={1} suffix="%"
+          label="Extraction Accuracy" hint={`${ext.processed || 0} of ${ext.totalMaterials || 0} materials processed`} />
       </div>
 
       <div className="detail-grid-2 mb-3" data-tour="aieval-cards">
@@ -121,43 +129,52 @@ export default function AiEvalPage() {
 
       <div className="detail-grid-2 mb-3">
         <div className="card">
+          <div className="card-header"><span className="card-title">Generation Outcome</span></div>
+          <div className="card-body">
+            {genTotal === 0 ? (
+              <div className="empty-state empty-state-md"><Sparkles size={24} aria-hidden="true" /><p>No AI generations yet.</p></div>
+            ) : (
+              <ShareDoughnut
+                slices={outcomeSlices}
+                centerText={`${pct(gen.approvalRate)}%`}
+                centerSub="approval rate"
+                label="Generation outcome — share of drafts approved, rejected, and pending"
+              />
+            )}
+          </div>
+        </div>
+
+        <div className="card">
+          <div className="card-header"><span className="card-title">AI Provider Usage</span></div>
+          <div className="card-body">
+            {providerRows.length === 0 ? (
+              <div className="empty-state empty-state-md"><Cpu size={24} aria-hidden="true" /><p>No generation calls recorded yet.</p></div>
+            ) : (
+              <CountsBarChart rows={providerRows} />
+            )}
+          </div>
+        </div>
+      </div>
+
+      <div className="detail-grid-2 mb-3">
+        <div className="card">
           <div className="card-header"><span className="card-title">Bloom Level Distribution (AI-generated)</span></div>
-          {bloomDist.length === 0 ? (
+          {bloomRows.length === 0 ? (
             <div className="empty-state empty-state-md"><Layers size={24} aria-hidden="true" /><p>No AI-generated questions yet.</p></div>
           ) : (
-            <div className="table-wrap table-bare">
-              <table className="data-table">
-                <thead><tr><th>Bloom Level</th><th>Count</th></tr></thead>
-                <tbody>
-                  {bloomDist.map((b) => (
-                    <tr key={b.bloom}>
-                      <td><span className="g-bloom" data-level={BLOOM_LEVEL[b.bloom] || 0}>{b.bloom ? b.bloom[0].toUpperCase() + b.bloom.slice(1) : '—'}</span></td>
-                      <td className="text-muted">{b.count}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+            <div className="card-body">
+              <CountsBarChart rows={bloomRows} />
             </div>
           )}
         </div>
 
         <div className="card">
           <div className="card-header"><span className="card-title">Question Type Distribution</span></div>
-          {typeDist.length === 0 ? (
+          {typeRows.length === 0 ? (
             <div className="empty-state empty-state-md"><CircleHelp size={24} aria-hidden="true" /><p>No AI-generated questions yet.</p></div>
           ) : (
-            <div className="table-wrap table-bare">
-              <table className="data-table">
-                <thead><tr><th>Type</th><th>Count</th></tr></thead>
-                <tbody>
-                  {typeDist.map((t) => (
-                    <tr key={t.type}>
-                      <td>{TYPE_LABELS[t.type] || t.type}</td>
-                      <td className="text-muted">{t.count}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+            <div className="card-body">
+              <CountsBarChart rows={typeRows} />
             </div>
           )}
         </div>
@@ -171,23 +188,11 @@ export default function AiEvalPage() {
         <div className="card-body">
           {cm.sampleSize > 0 ? (
             <>
-              <div className="stats-grid mb-3">
-                <div className="stat-card">
-                  <div className="stat-icon green"><Target size={18} /></div>
-                  <div className="stat-info"><div className="stat-value">{pct(cm.overall?.accuracy)}%</div><div className="stat-label">Accuracy</div></div>
-                </div>
-                <div className="stat-card">
-                  <div className="stat-icon blue"><Crosshair size={18} /></div>
-                  <div className="stat-info"><div className="stat-value">{pct(cm.overall?.precision)}%</div><div className="stat-label">Precision</div></div>
-                </div>
-                <div className="stat-card">
-                  <div className="stat-icon amber"><Search size={18} /></div>
-                  <div className="stat-info"><div className="stat-value">{pct(cm.overall?.recall)}%</div><div className="stat-label">Recall</div></div>
-                </div>
-                <div className="stat-card">
-                  <div className="stat-icon purple"><GitMerge size={18} /></div>
-                  <div className="stat-info"><div className="stat-value">{pct(cm.overall?.f1)}%</div><div className="stat-label">F1-Score</div></div>
-                </div>
+              <div className="dash-kpis mb-3">
+                <KpiCard i={0} icon={Target} tint={3} value={Number(pct(cm.overall?.accuracy))} decimals={1} suffix="%" label="Accuracy" />
+                <KpiCard i={1} icon={Crosshair} tint={2} value={Number(pct(cm.overall?.precision))} decimals={1} suffix="%" label="Precision" />
+                <KpiCard i={2} icon={Search} tint={4} value={Number(pct(cm.overall?.recall))} decimals={1} suffix="%" label="Recall" />
+                <KpiCard i={3} icon={GitMerge} tint={1} value={Number(pct(cm.overall?.f1))} decimals={1} suffix="%" label="F1-Score" />
               </div>
 
               <p className="text-muted meta-sm mb-2">

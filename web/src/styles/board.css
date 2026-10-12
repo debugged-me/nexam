@@ -871,7 +871,9 @@ table.grid thead th.sorting_desc::after {
 }
 
 .ds-sort svg { width: 13px !important; height: 13px !important; display: block; }
+th .ds-sort-idle { opacity: .3; }
 th.sorting:hover .ds-sort { opacity: .55; }
+th.sorting:hover .ds-sort-idle { opacity: .7; }
 th.sorting_asc .ds-sort,
 th.sorting_desc .ds-sort { opacity: 1; color: var(--ink); }
 
@@ -1274,6 +1276,16 @@ table.grid td.col-actions {
 
 .dataset-foot[hidden] { display: none; }
 
+/* Left cluster inside the footer — keeps the range and the per-page select
+   together while the pager hugs the right edge. */
+.ds-foot-lead {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    flex-wrap: wrap;
+    min-width: 0;
+}
+
 .ds-range {
     display: flex;
     align-items: center;
@@ -1329,17 +1341,18 @@ table.grid td.col-actions {
 }
 
 .ds-page svg { width: 15px !important; height: 15px !important; display: block; }
-.ds-page:hover { background: var(--surface-2); color: var(--ink); }
+.ds-page:hover:not([aria-current="page"]):not(:disabled) { background: var(--surface-2); color: var(--ink); }
+.ds-page[aria-current="page"]:hover { background: var(--action-600); color: #fff; }
 .ds-page:focus-visible { outline: 2px solid var(--brand-accent); outline-offset: 1px; }
 
 .ds-page[aria-current="page"] {
-    background: var(--surface-3);
-    color: var(--ink);
+    background: var(--action-600);
+    color: #fff;
     font-weight: 600;
     cursor: default;
 }
 
-.ds-page:disabled { opacity: .35; cursor: default; background: transparent; }
+.ds-page:disabled:not([aria-current="page"]) { opacity: .35; cursor: default; background: transparent; }
 
 .ds-gap {
     display: inline-flex;

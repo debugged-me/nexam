@@ -11,7 +11,7 @@ import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import {
   Plus, Pencil, Trash2, Info, Eye, Ellipsis, Search, FileCheck,
-  Layers, Printer, MonitorSmartphone, Copy,
+  Layers, Printer, MonitorSmartphone, Copy, FileText, PenLine, ListChecks,
 } from 'lucide-react';
 import { useToast } from '../components/Toast.jsx';
 import { useContextMenu, useCopyText } from '../components/ContextMenu.jsx';
@@ -25,7 +25,7 @@ import { animateRows } from '../lib/animRows.js';
 import EmptyStateArt from '../components/EmptyStateArt.jsx';
 import {
   StatusPill, BoardGroupHead,
-  BoardAddRow, GroupChip, groupColor, statusOf, statusMeta, STATUS_LABELS, STATUS_ORDER,
+  BoardAddRow, GroupChip, groupColor, statusOf, statusMeta, STATUS_LABELS, STATUS_ORDER, StatCard,
 } from '../components/Board.jsx';
 import { useGridTable } from '../components/DataTable.jsx';
 
@@ -107,6 +107,18 @@ export default function ExamsPage() {
     },
   });
   const { pageRows: filtered, sortClass, sortHandler, renderSortArrow } = grid;
+
+  // KPI row — exam counts by status plus total questions assembled.
+  const examStats = useMemo(() => (exams || []).reduce(
+    (acc, e) => {
+      const tone = statusOf(e.status);
+      if (tone === 'live' || tone === 'published') acc.ready += 1;
+      else if (tone === 'draft') acc.drafts += 1;
+      acc.questions += Number(e.question_count) || 0;
+      return acc;
+    },
+    { ready: 0, drafts: 0, questions: 0 },
+  ), [exams]);
 
   /** Ordered groups for the current group-by; 'none' collapses to one group. */
   const groups = useMemo(() => {
@@ -259,6 +271,13 @@ export default function ExamsPage() {
           </button>
         </div>
       ) : (
+        <>
+        <div className="stats-grid">
+          <StatCard icon={FileText} tint="blue" value={exams.length} label="Exams" />
+          <StatCard icon={FileCheck} tint="green" value={examStats.ready} label="Live & published" />
+          <StatCard icon={PenLine} tint="amber" value={examStats.drafts} label="Drafts" />
+          <StatCard icon={ListChecks} tint="cyan" value={examStats.questions} label="Questions assembled" />
+        </div>
         <section className="dataset" data-density="comfortable">
           <div className="dataset-bar" data-tour="exams-toolbar">
             <div className="dataset-bar-lead">
@@ -357,6 +376,7 @@ export default function ExamsPage() {
             </table>
           </div>
         </section>
+        </>
       )}
       <DetailsModal
         open={!!viewing}

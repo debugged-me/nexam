@@ -286,6 +286,67 @@ export function TrendLineChart({ trend }) {
   );
 }
 
+/**
+ * Daily scan-volume bars — the "volume" half of a finance-style pair, meant
+ * to sit beside TrendLineChart (average = price, scans = volume).
+ */
+export function VolumeBarChart({ trend }) {
+  const p = palette();
+  const labels = trend.map((t) => {
+    const d = new Date(t.day);
+    return `${d.getMonth() + 1}/${d.getDate()}`;
+  });
+  const counts = trend.map((t) => Number(t.scans || 0));
+  const peak = Math.max(0, ...counts);
+  const data = {
+    labels,
+    datasets: [{
+      data: counts,
+      backgroundColor: counts.map((c) => (c === peak && peak > 0 ? p.blue : `${p.blue}66`)),
+      borderRadius: 4,
+      barPercentage: 0.72,
+      categoryPercentage: 0.78,
+    }],
+  };
+  const options = {
+    maintainAspectRatio: false,
+    animation: { ...ANIM, duration: 650, delay: (ctx) => ctx.dataIndex * 45 },
+    scales: {
+      y: {
+        beginAtZero: true,
+        grid: { color: p.grid },
+        border: { display: false },
+        ticks: { color: p.ink, font: { size: 10 }, precision: 0 },
+      },
+      x: {
+        grid: { display: false },
+        border: { display: false },
+        ticks: { color: p.ink, font: { size: 10 }, maxRotation: 0, autoSkip: true, maxTicksLimit: 8 },
+      },
+    },
+    plugins: {
+      legend: { display: false },
+      tooltip: {
+        ...tooltipBase(p),
+        callbacks: {
+          title: (items) => `Scans on ${items[0].label}`,
+          label: (ctx) => ` ${ctx.raw} sheet${ctx.raw === 1 ? '' : 's'} scanned · ${Number(trend[ctx.dataIndex].avg_score || 0).toFixed(1)}% avg`,
+        },
+      },
+    },
+  };
+  return (
+    <ChartFigure
+      label="Scan volume — sheets scanned per day"
+      columns={['Day', 'Scans', 'Class average']}
+      rows={trend.map((t, i) => [labels[i], t.scans, `${Number(t.avg_score || 0).toFixed(1)}%`])}
+      height={210}
+    >
+      <Bar data={data} options={options} />
+    </ChartFigure>
+  );
+}
+
 /** Score distribution histogram — bins tinted by the pass mark. */
 export function DistBarChart({ distMap, bins }) {
   const p = palette();
@@ -608,6 +669,55 @@ export function PassDoughnut({ passing, failing }) {
       columns={['Outcome', 'Students']}
       rows={[['Passed', passing], ['Below pass', failing]]}
       height={240}
+    >
+      <Doughnut data={data} options={options} plugins={[centerTextPlugin]} />
+    </ChartFigure>
+  );
+}
+
+/**
+ * Multi-slice share doughnut — generic "parts of a whole" breakdown for
+ * review outcomes, provider share, distribution summaries. `slices`:
+ * [{ label, value, color|var }]. The center prints `centerText`/`centerSub`
+ * (usually the share of the first slice).
+ */
+export function ShareDoughnut({ slices, centerText, centerSub = '', label = 'Share breakdown', height = 240 }) {
+  const p = palette();
+  const total = slices.reduce((n, s) => n + (Number(s.value) || 0), 0);
+  const fallback = [p.green, p.amber, p.blue, p.red, cssVar('--purple-600', '#7C5CD6'), cssVar('--teal-600', '#2FA3BD')];
+  const data = {
+    labels: slices.map((s) => s.label),
+    datasets: [{
+      data: slices.map((s) => Number(s.value) || 0),
+      backgroundColor: slices.map((s, i) => s.color || (s.var ? cssVar(s.var, fallback[i % 6]) : fallback[i % 6])),
+      borderWidth: 0,
+      hoverOffset: 6,
+    }],
+  };
+  const options = {
+    maintainAspectRatio: false,
+    cutout: '72%',
+    animation: { animateRotate: true, animateScale: true, duration: 1300, easing: 'easeOutQuart' },
+    plugins: {
+      legend: {
+        position: 'bottom',
+        labels: { color: p.ink, font: { size: 11, weight: '500' }, boxWidth: 10, boxHeight: 10, padding: 14 },
+      },
+      tooltip: {
+        ...tooltipBase(p),
+        callbacks: {
+          label: (ctx) => ` ${ctx.raw} of ${total} · ${total ? Math.round((ctx.raw / total) * 100) : 0}%`,
+        },
+      },
+      centerText: { text: centerText, subtext: centerSub, color: p.ink2, subColor: p.ink },
+    },
+  };
+  return (
+    <ChartFigure
+      label={label}
+      columns={['Slice', 'Count', 'Share']}
+      rows={slices.map((s) => [s.label, s.value, `${total ? Math.round((s.value / total) * 100) : 0}%`])}
+      height={height}
     >
       <Doughnut data={data} options={options} plugins={[centerTextPlugin]} />
     </ChartFigure>

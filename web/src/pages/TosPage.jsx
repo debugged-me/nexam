@@ -7,7 +7,7 @@ import '../styles/tos.css';
  */
 import { useEffect, useState, useCallback, useMemo } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { Plus, Pencil, Trash2, Info, Eye, Ellipsis, FilePlus2, Upload, Check, Layers, Copy } from 'lucide-react';
+import { Plus, Pencil, Trash2, Info, Eye, Ellipsis, FilePlus2, Upload, Check, Layers, Copy, PanelsTopLeft, FileCheck, PenLine, Database } from 'lucide-react';
 import { useToast } from '../components/Toast.jsx';
 import { useContextMenu, useCopyText } from '../components/ContextMenu.jsx';
 import { useConfirm } from '../components/ConfirmDialog.jsx';
@@ -20,7 +20,7 @@ import EmptyStateArt from '../components/EmptyStateArt.jsx';
 import { animateRows } from '../lib/animRows.js';
 import {
   StatusPill, BoardGroupHead,
-  GroupChip, groupColor, statusOf, statusMeta, STATUS_ORDER,
+  GroupChip, groupColor, statusOf, statusMeta, STATUS_ORDER, StatCard,
 } from '../components/Board.jsx';
 
 const BLOOM_LABELS = { remember: 'Remember', understand: 'Understand', apply: 'Apply', analyze: 'Analyze', evaluate: 'Evaluate', create: 'Create' };
@@ -65,6 +65,18 @@ export default function TosPage() {
   // Grouped by subject the Subject column only repeats the band title — drop
   // it and let every other column take the width (same trick as Questions).
   const showSubject = groupBy !== 'subject';
+
+  // KPI row — blueprint counts plus overall banked coverage across the list.
+  const tosStats = useMemo(() => (tosList || []).reduce(
+    (acc, t) => {
+      if (statusOf(t.status) === 'finalized') acc.finalized += 1;
+      else acc.drafts += 1;
+      acc.banked += Number(t.banked) || 0;
+      acc.items += Number(t.total_items) || 0;
+      return acc;
+    },
+    { finalized: 0, drafts: 0, banked: 0, items: 0 },
+  ), [tosList]);
 
   function toggleGroup(key) {
     setCollapsed((prev) => {
@@ -258,6 +270,13 @@ export default function TosPage() {
           </div>
         </div>
       ) : (
+        <>
+        <div className="stats-grid">
+          <StatCard icon={PanelsTopLeft} tint="blue" value={tosList.length} label="Blueprints" />
+          <StatCard icon={FileCheck} tint="green" value={tosStats.finalized} label="Finalized" />
+          <StatCard icon={PenLine} tint="amber" value={tosStats.drafts} label="Drafts" />
+          <StatCard icon={Database} tint="cyan" value={tosStats.items ? `${tosStats.banked} / ${tosStats.items}` : '—'} label="Items banked" />
+        </div>
         <div className="dataset">
           <div className="dataset-bar">
             <div className="dataset-bar-lead">
@@ -312,6 +331,7 @@ export default function TosPage() {
         </table>
           </div>
         </div>
+        </>
       )}
 
       <Modal open={!!editing} title={editing?.id ? 'Edit TOS Blueprint' : 'New TOS Blueprint'}

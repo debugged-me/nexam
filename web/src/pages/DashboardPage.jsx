@@ -15,20 +15,15 @@ import {
   PanelsTopLeft,
   ArrowUpRight,
   CircleCheck,
-  Minus,
-  TrendingDown,
-  TrendingUp,
 } from 'lucide-react';
 import { useAuth } from '../features/auth/AuthContext.jsx';
 import AppShell from '../components/AppShell.jsx';
-import AnimatedNumber from '../components/AnimatedNumber.jsx';
-import Sparkline from '../components/Sparkline.jsx';
+import KpiCard from '../components/KpiCard.jsx';
 import ActivityHeatmap from '../components/ActivityHeatmap.jsx';
 import { CardsSkeleton } from '../components/Loaders.jsx';
 import { StatusPill } from '../components/Board.jsx';
 import api, { ApiError } from '../lib/api.js';
 import { vtNavigate } from '../lib/viewTransitions.js';
-import { prefersReducedMotion } from '../lib/gsapSetup.js';
 import '../styles/dashboard.css';
 
 function count(value) {
@@ -66,25 +61,6 @@ function deltaChip(d) {
   if (d.previous === 0) return { cls: 'is-new', text: `+${d.current} new`, title };
   return { cls: 'is-up', text: `+${d.current}`, icon: 'up', title };
 }
-
-/** Pointer-tracked tilt + sheen on KPI tiles — writes --rx/--ry/--mx/--my
- *  for the perspective transform and radial highlight in dashboard.css. */
-const kpiTilt = prefersReducedMotion() ? {} : {
-  onMouseMove(e) {
-    const el = e.currentTarget;
-    const r = el.getBoundingClientRect();
-    const px = (e.clientX - r.left) / r.width - 0.5;
-    const py = (e.clientY - r.top) / r.height - 0.5;
-    el.style.setProperty('--rx', `${(-py * 5).toFixed(2)}deg`);
-    el.style.setProperty('--ry', `${(px * 6).toFixed(2)}deg`);
-    el.style.setProperty('--mx', `${((px + 0.5) * 100).toFixed(1)}%`);
-    el.style.setProperty('--my', `${((py + 0.5) * 100).toFixed(1)}%`);
-  },
-  onMouseLeave(e) {
-    e.currentTarget.style.removeProperty('--rx');
-    e.currentTarget.style.removeProperty('--ry');
-  },
-};
 
 export default function DashboardPage() {
   const { logout } = useAuth();
@@ -378,41 +354,22 @@ export default function DashboardPage() {
     <AppShell activeNav="dashboard" pageTitle="Overview" pageClass="dashboard">
       <div className="dash-home">
         <div className="dash-kpis" data-tour="dash-kpis">
-          {metrics.map((metric, i) => {
-            const Icon = metric.icon;
-            return (
-              <Link className={`dash-kpi ${metric.hero ? 'is-hero' : ''}`} to={metric.to} key={metric.label} style={{ '--i': i }} {...kpiTilt}>
-                <span className="dash-kpi-top">
-                  <span className={`dash-kpi-icon tint-${metric.tint}`}>
-                    <Icon size={16} aria-hidden="true" />
-                  </span>
-                  <ArrowUpRight size={15} className="dash-kpi-arrow" />
-                </span>
-                <span className="dash-kpi-num">
-                  <strong><AnimatedNumber value={metric.value} /></strong>
-                  {metric.delta && (
-                    <span
-                      className={`dash-delta ${metric.delta.cls}`}
-                      title={metric.delta.title}
-                    >
-                      {metric.delta.icon === 'up' && <TrendingUp size={11} />}
-                      {metric.delta.icon === 'down' && <TrendingDown size={11} />}
-                      {metric.delta.icon === 'flat' && <Minus size={11} />}
-                      {metric.delta.text}
-                    </span>
-                  )}
-                </span>
-                <span className="dash-kpi-label">{metric.label}</span>
-                <small>{metric.hint}</small>
-                {metric.spark?.length > 0 && (
-                  <Sparkline
-                    points={metric.spark}
-                    color={metric.hero ? 'rgba(255,255,255,.9)' : `var(--gc-${metric.tint})`}
-                  />
-                )}
-              </Link>
-            );
-          })}
+          {metrics.map((metric, i) => (
+            <KpiCard
+              key={metric.label}
+              to={metric.to}
+              i={i}
+              icon={metric.icon}
+              tint={metric.tint}
+              hero={metric.hero}
+              value={metric.value}
+              label={metric.label}
+              hint={metric.hint}
+              delta={metric.delta}
+              spark={metric.spark}
+              sparkColor={metric.hero ? 'rgba(255,255,255,.9)' : `var(--gc-${metric.tint})`}
+            />
+          ))}
         </div>
 
         <div className="dash-main">

@@ -2,6 +2,7 @@
  * Board — Monday-style board primitives layered on the shared .dataset grid.
  *
  *   <StatusPill status="live" />          tinted status pill for a grid cell
+ *   <StatCard icon tint value label />    KPI card for .stats-grid rows
  *   <BoardGroupHead />                    collapsible coloured group band (tr)
  *   <BoardAddRow />                       "+ Add" affordance row (tr)
  *   groupColor(key)                       deterministic accent per entity
@@ -73,6 +74,22 @@ export function StatusPill({ status, label, small = false, inline = false }) {
 export function GroupChip({ color, children, ...rest }) {
   return (
     <span className="b-chip" style={{ '--gc': color }} {...rest}><span>{children}</span></span>
+  );
+}
+
+/**
+ * KPI stat card — the shared app.css `.stat-card` anatomy: tinted icon chip
+ * pinned top-right, big tabular number, label. Render inside .stats-grid.
+ */
+export function StatCard({ icon: Icon, tint = 'blue', value, label }) {
+  return (
+    <div className="stat-card">
+      <div className={`stat-icon ${tint}`}><Icon size={18} aria-hidden="true" /></div>
+      <div className="stat-info">
+        <div className="stat-value">{value}</div>
+        <div className="stat-label">{label}</div>
+      </div>
+    </div>
   );
 }
 

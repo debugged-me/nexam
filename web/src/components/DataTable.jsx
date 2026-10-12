@@ -4,9 +4,9 @@
  * useGridTable wraps @tanstack/react-table and hands back everything a
  * page needs: the instance, the current page's rows, sort helpers that
  * match the .sorting_asc/.sorting_desc header classes, range math, and a
- * pager object for <DsPager> / <DatasetFoot>. Pages keep their own markup
- * (columns, cells, board groups) — this only owns the state wiring that
- * used to be re-rolled per page.
+ * pager object for <DsPager> / <DsPageSize> / <DatasetFoot>. Pages keep
+ * their own markup (columns, cells, board groups) — this only owns the
+ * state wiring that used to be re-rolled per page.
  *
  *   const grid = useGridTable({ data, columns, pageSize: 15,
  *                               initialSorting: [{ id: 'created', desc: true }],
@@ -16,7 +16,7 @@
  *     Name{grid.renderSortArrow('name')}
  *   </th>
  *   {grid.pageRows.map((row) => <tr key={row.id}>…</tr>)}
- *   <DatasetFoot grid={grid} />
+ *   <DatasetFoot grid={grid} pageSizeOptions={[15, 25, 50]} />
  *
  * Pagination notes:
  * - The page resets to 1 when `globalFilter` or `resetKey` changes — pass a
@@ -34,12 +34,12 @@ import {
   getFilteredRowModel,
   getSortedRowModel,
 } from '@tanstack/react-table';
-import { ChevronDown, ChevronFirst, ChevronLast, ChevronLeft, ChevronRight, ChevronUp } from 'lucide-react';
+import { ChevronDown, ChevronLeft, ChevronRight, ChevronsUpDown, ChevronUp } from 'lucide-react';
 
 export function useGridTable({
   data = [],
   columns,
-  pageSize = 15,
+  pageSize: initialPageSize = 15,
   initialSorting = [],
   globalFilter = '',
   globalFilterFn,
@@ -47,7 +47,8 @@ export function useGridTable({
   paginate = true,
 }) {
   const [sorting, setSorting] = useState(initialSorting);
-  const [pagination, setPagination] = useState({ pageIndex: 0, pageSize });
+  const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: initialPageSize });
+  const pageSize = pagination.pageSize;
 
   // Reset to the first page when the visible set changes via filters the
   // hook owns (globalFilter) or ones the page owns (resetKey) — replaces the
@@ -95,17 +96,21 @@ export function useGridTable({
   const sortHandler = (col) => table.getColumn(col)?.getToggleSortingHandler();
   const renderSortArrow = (col) => {
     const dir = table.getColumn(col)?.getIsSorted();
-    if (!dir) return null;
+    // Unsorted sortable columns still show a faded ⇅ — signals the header is
+    // clickable before the user ever interacts with it.
+    if (!dir) return <span className="ds-sort ds-sort-idle"><ChevronsUpDown size={13} /></span>;
     return <span className="ds-sort">{dir === 'asc' ? <ChevronUp size={13} /> : <ChevronDown size={13} />}</span>;
   };
 
   // Absolute targets derived from the clamped page — relative prev/next on
   // the raw state could land on an out-of-range index after data shrinks.
   const pager = {
+    goTo: (i) => setPagination((p) => ({ ...p, pageIndex: Math.max(0, Math.min(pageCount - 1, i)) })),
     first: () => setPagination((p) => ({ ...p, pageIndex: 0 })),
     prev: () => setPagination((p) => ({ ...p, pageIndex: Math.max(0, safePage - 1) })),
     next: () => setPagination((p) => ({ ...p, pageIndex: Math.min(pageCount - 1, safePage + 1) })),
     last: () => setPagination((p) => ({ ...p, pageIndex: pageCount - 1 })),
+    setPageSize: (size) => setPagination({ pageIndex: 0, pageSize: size }),
     canPrev: safePage > 0,
     canNext: safePage < pageCount - 1,
   };
@@ -116,38 +121,76 @@ export function useGridTable({
   };
 }
 
-/** The 4-button pager — first / prev / current-of-total / next / last. */
+/** Page window for the numbered pager: first, last, current ±1, "…" gaps. */
+function pageWindow(current, count) {
+  const want = new Set([0, count - 1, current - 1, current, current + 1]);
+  const list = [...want].filter((n) => n >= 0 && n < count).sort((a, b) => a - b);
+  const out = [];
+  for (let i = 0; i < list.length; i++) {
+    if (i > 0 && list[i] - list[i - 1] > 1) out.push('…');
+    out.push(list[i]);
+  }
+  return out;
+}
+
+/** Numbered pager — ‹ 1 2 [3] 4 … 16 › — shared by every table footer. */
 export function DsPager({ grid }) {
   const { pageCount, safePage, pager } = grid;
   return (
     <div className="ds-pager">
-      <button type="button" className="ds-page" onClick={pager.first} disabled={!pager.canPrev} aria-label="First page">
-        <ChevronFirst size={15} />
-      </button>
       <button type="button" className="ds-page" onClick={pager.prev} disabled={!pager.canPrev} aria-label="Previous page">
         <ChevronLeft size={15} />
       </button>
-      <span className="ds-page" aria-current="page">{safePage + 1}</span>
-      <span className="ds-gap">/</span>
-      <span className="ds-page">{pageCount}</span>
+      {pageWindow(safePage, pageCount).map((n, i) => n === '…' ? (
+        <span key={`gap-${i}`} className="ds-gap">…</span>
+      ) : (
+        <button
+          key={n}
+          type="button"
+          className="ds-page"
+          onClick={() => pager.goTo(n)}
+          disabled={n === safePage}
+          aria-current={n === safePage ? 'page' : undefined}
+          aria-label={`Page ${n + 1}`}
+        >
+          {n + 1}
+        </button>
+      ))}
       <button type="button" className="ds-page" onClick={pager.next} disabled={!pager.canNext} aria-label="Next page">
         <ChevronRight size={15} />
-      </button>
-      <button type="button" className="ds-page" onClick={pager.last} disabled={!pager.canNext} aria-label="Last page">
-        <ChevronLast size={15} />
       </button>
     </div>
   );
 }
 
-/** Standard dataset footer: "start–end of total" range plus the pager. */
-export function DatasetFoot({ grid }) {
+/** "Show N per page" selector — resets to page 1 when the size changes. */
+export function DsPageSize({ grid, options = [10, 25, 50] }) {
+  return (
+    <label className="ds-perpage">
+      Show
+      <select
+        value={grid.pageSize}
+        onChange={(e) => grid.pager.setPageSize(Number(e.target.value))}
+        aria-label="Rows per page"
+      >
+        {options.map((n) => <option key={n} value={n}>{n}</option>)}
+      </select>
+      per page
+    </label>
+  );
+}
+
+/** Standard dataset footer: "start–end of total" + optional per-page + pager. */
+export function DatasetFoot({ grid, pageSizeOptions }) {
   return (
     <div className="dataset-foot">
-      <div className="ds-range">
-        <b>{grid.start}</b>–<b>{grid.end}</b> of <b>{grid.filteredCount}</b>
+      <div className="ds-foot-lead">
+        <div className="ds-range">
+          <b>{grid.start}</b>–<b>{grid.end}</b> of <b>{grid.filteredCount}</b>
+        </div>
+        {pageSizeOptions && <DsPageSize grid={grid} options={pageSizeOptions} />}
       </div>
-      <DsPager grid={grid} />
+      {grid.pageCount > 1 && <DsPager grid={grid} />}
     </div>
   );
 }

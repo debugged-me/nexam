@@ -8,7 +8,7 @@ import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import {
   Plus, Pencil, Trash2, Search, CheckSquare, BookOpen,
-  Eye, Check, Copy, Ellipsis, Info,
+  Eye, Check, Copy, Ellipsis, Info, CircleHelp, PanelsTopLeft, FileText,
 } from 'lucide-react';
 import { useToast } from '../components/Toast.jsx';
 import { useConfirm } from '../components/ConfirmDialog.jsx';
@@ -22,7 +22,7 @@ import AppShell from '../components/AppShell.jsx';
 import { TableSkeleton } from '../components/Loaders.jsx';
 import { animateRows } from '../lib/animRows.js';
 import EmptyStateArt from '../components/EmptyStateArt.jsx';
-import { groupColor } from '../components/Board.jsx';
+import { groupColor, StatCard } from '../components/Board.jsx';
 
 const PAGE_SIZE = 25;
 
@@ -115,6 +115,16 @@ export default function SubjectsPage() {
         .includes(String(value).toLowerCase()),
   });
   const { pageRows, sortClass, sortHandler, renderSortArrow } = grid;
+
+  // KPI row — totals across every subject, mirroring the dashboard metrics.
+  const subjStats = useMemo(() => (subjects || []).reduce(
+    (acc, s) => ({
+      questions: acc.questions + (Number(s.question_count) || 0),
+      blueprints: acc.blueprints + (Number(s.tos_count) || 0),
+      exams: acc.exams + (Number(s.exam_count) || 0),
+    }),
+    { questions: 0, blueprints: 0, exams: 0 },
+  ), [subjects]);
 
   function toggleSelectMode() {
     setSelectMode((v) => {
@@ -236,6 +246,13 @@ export default function SubjectsPage() {
           </button>
         </div>
       ) : (
+        <>
+        <div className="stats-grid">
+          <StatCard icon={BookOpen} tint="blue" value={subjects.length} label="Subjects" />
+          <StatCard icon={CircleHelp} tint="green" value={subjStats.questions} label="Questions" />
+          <StatCard icon={PanelsTopLeft} tint="purple" value={subjStats.blueprints} label="Blueprints" />
+          <StatCard icon={FileText} tint="cyan" value={subjStats.exams} label="Exams" />
+        </div>
         <section className="dataset" data-dataset data-select-mode="true" data-selecting={selectMode ? 'true' : 'false'}>
 
           {/* Toolbar */}
@@ -386,8 +403,9 @@ export default function SubjectsPage() {
           </div>
 
           {/* Footer — range + pagination */}
-          <DatasetFoot grid={grid} />
+          <DatasetFoot grid={grid} pageSizeOptions={[15, 25, 50, 100]} />
         </section>
+        </>
       )}
 
       <DetailsModal

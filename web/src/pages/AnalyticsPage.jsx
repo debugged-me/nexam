@@ -10,8 +10,6 @@ import '../styles/analytics.css';
  */
 import { useEffect, useState, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { motion } from 'motion/react';
-import { EASE_ENTER } from '../lib/motion.js';
 import {
   FileText, ScanLine, Users, AlertCircle, BarChart3,
   TrendingUp, TrendingDown, Sparkles, ListChecks, ArrowLeft,
@@ -22,13 +20,13 @@ import { useToast } from '../components/Toast.jsx';
 import api from '../lib/api.js';
 import { downloadCsv, downloadXlsx } from '../lib/exports.js';
 import AppShell from '../components/AppShell.jsx';
-import { useGridTable, DsPager } from '../components/DataTable.jsx';
-import AnimatedNumber from '../components/AnimatedNumber.jsx';
-import Sparkline from '../components/Sparkline.jsx';
+import { useGridTable, DsPager, DsPageSize } from '../components/DataTable.jsx';
+import KpiCard from '../components/KpiCard.jsx';
 import Reveal from '../components/Reveal.jsx';
 import { CardsSkeleton } from '../components/Loaders.jsx';
 import {
   MasteryBarChart, BloomRadarChart, TrendLineChart, DistBarChart, PassDoughnut,
+  VolumeBarChart,
 } from '../components/AnalyticsCharts.jsx';
 import { BLOOM_LABELS, BLOOM_ORDER, PASS_MARK, buildInsights } from '../lib/insights.js';
 
@@ -69,13 +67,6 @@ const BINS = Array.from({ length: 10 }, (_, i) => i * 10);
 const STUDENTS_PER_PAGE = 25;
 // Student rows arrive in API order — the table only paginates.
 const STUDENT_PAGER_COLUMNS = [{ id: 'row', enableSorting: false }];
-
-/** Shared stat-card entrance — a gentle rise, staggered by index. */
-const statCardAnim = (i) => ({
-  initial: { opacity: 0, y: 10 },
-  animate: { opacity: 1, y: 0 },
-  transition: { duration: 0.35, delay: i * 0.06, ease: EASE_ENTER },
-});
 
 /** Narrative insight card — icon-tagged findings derived from the data. */
 function InsightsCard({ insights, tour }) {
@@ -358,26 +349,37 @@ export default function AnalyticsPage() {
       </div>
 
       {/* ── Interactive UI (hidden on paper) ── */}
-      <div className="stats-grid mb-3 print-skip" data-tour="analytics-stats">
-        <motion.div className="stat-card" {...statCardAnim(0)}>
-          <div className="stat-icon blue"><FileText size={18} /></div>
-          <div className="stat-info"><div className="stat-value"><AnimatedNumber value={parseInt(o.total_exams || 0, 10)} /></div><div className="stat-label">Exams</div></div>
-        </motion.div>
-        <motion.div className="stat-card" {...statCardAnim(1)}>
-          <div className="stat-icon green"><ScanLine size={18} /></div>
-          <div className="stat-info"><div className="stat-value"><AnimatedNumber value={parseInt(o.total_scans || 0, 10)} /></div><div className="stat-label">Scanned Sheets</div></div>
-          <div className="stat-context">across {parseInt(o.total_exams || 0, 10)} {parseInt(o.total_exams || 0, 10) === 1 ? 'exam' : 'exams'}</div>
-          {trend.length > 1 && <Sparkline points={trend.map((t) => parseInt(t.scans || 0, 10))} color="var(--green-600)" />}
-        </motion.div>
-        <motion.div className="stat-card" {...statCardAnim(2)}>
-          <div className="stat-icon purple"><Users size={18} /></div>
-          <div className="stat-info"><div className="stat-value"><AnimatedNumber value={parseInt(o.total_students || 0, 10)} /></div><div className="stat-label">Students</div></div>
-        </motion.div>
-        <motion.div className="stat-card" {...statCardAnim(3)}>
-          <div className="stat-icon amber"><AlertCircle size={18} /></div>
-          <div className="stat-info"><div className="stat-value"><AnimatedNumber value={parseInt(o.needs_review || 0, 10)} /></div><div className="stat-label">Need Review</div></div>
-          <div className="stat-context">{parseInt(o.total_scans || 0, 10) > 0 ? `${Math.round((parseInt(o.needs_review || 0, 10) / parseInt(o.total_scans, 10)) * 100)}% of scans flagged` : 'no scans yet'}</div>
-        </motion.div>
+      <div className="dash-kpis mb-3 print-skip" data-tour="analytics-stats">
+        <KpiCard i={0} icon={FileText} tint={2} value={parseInt(o.total_exams || 0, 10)} label="Exams" />
+        <KpiCard i={1} icon={ScanLine} tint={3} value={parseInt(o.total_scans || 0, 10)}
+          label="Scanned Sheets"
+          hint={`across ${parseInt(o.total_exams || 0, 10)} ${parseInt(o.total_exams || 0, 10) === 1 ? 'exam' : 'exams'}`}
+          spark={trend.map((t) => parseInt(t.scans || 0, 10))}
+          sparkColor="var(--gc-3)" />
+        <KpiCard i={2} icon={Users} tint={1} value={parseInt(o.total_students || 0, 10)} label="Students" />
+        <KpiCard i={3} icon={AlertCircle} tint={4} value={parseInt(o.needs_review || 0, 10)}
+          label="Need Review"
+          hint={parseInt(o.total_scans || 0, 10) > 0 ? `${Math.round((parseInt(o.needs_review || 0, 10) / parseInt(o.total_scans, 10)) * 100)}% of scans flagged` : 'no scans yet'} />
+        {trend.length > 0 && (() => {
+          const latest = trend[trend.length - 1];
+          const prev = trend.length > 1 ? trend[trend.length - 2] : null;
+          const avg = Number(latest.avg_score || 0);
+          const diff = prev ? avg - Number(prev.avg_score || 0) : null;
+          return (
+            <KpiCard i={4} icon={TrendingUp} tint={6} value={avg} decimals={1} suffix="%"
+              label="Class Average"
+              hint={latest.day ? `latest scan day ${new Date(latest.day).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}` : undefined}
+              delta={diff !== null && Math.abs(diff) >= 0.05 ? {
+                cls: diff >= 0 ? 'is-up' : 'is-down',
+                icon: diff >= 0 ? 'up' : 'down',
+                text: `${diff >= 0 ? '+' : ''}${diff.toFixed(1)} pts`,
+                title: 'vs the previous scan day',
+              } : undefined}
+              spark={trend.map((t) => Number(t.avg_score || 0))}
+              sparkColor="var(--gc-6)"
+              cumulative={false} />
+          );
+        })()}
       </div>
 
       <Reveal className="print-skip"><InsightsCard insights={insights} tour="analytics-insights" /></Reveal>
@@ -393,7 +395,20 @@ export default function AnalyticsPage() {
         </Reveal>
       )}
 
-      {trend.length > 0 && <Reveal className="print-skip mb-3"><TrendCard trend={trend} tour="analytics-trend" /></Reveal>}
+      {trend.length > 0 && (
+        <Reveal className="detail-grid-2 mb-3 print-skip">
+          <TrendCard trend={trend} tour="analytics-trend" />
+          <div className="card">
+            <div className="card-header">
+              <span className="card-title">Scan volume</span>
+              <span className="text-muted meta-sm">sheets per day</span>
+            </div>
+            <div className="card-body">
+              <VolumeBarChart trend={trend} />
+            </div>
+          </div>
+        </Reveal>
+      )}
 
       <Reveal className="detail-grid-2 mb-3 print-skip" delay={0.05}>
         {/* Exam Averages */}
@@ -498,7 +513,7 @@ export function ExamDetail({ examId, detail, onBack }) {
   const s = stats || {};
   const dist = distribution || [];
   const studs = students || [];
-  const { pageRows: pageStuds, pageCount, safePage } = grid;
+  const { pageRows: pageStuds } = grid;
   const themeRows = (themes || []).map((t) => ({ ...t, name: t.topic }));
   const blooms = bloomLevels || [];
   const insights = buildInsights({
@@ -675,31 +690,25 @@ export function ExamDetail({ examId, detail, onBack }) {
       </div>
 
       {/* ── Interactive UI (hidden on paper) ── */}
-      <div className="stats-grid mb-3 print-skip" data-tour="exam-stats">
-        <motion.div className="stat-card" {...statCardAnim(0)}>
-          <div className="stat-icon blue"><Users size={18} /></div>
-          <div className="stat-info"><div className="stat-value"><AnimatedNumber value={parseInt(s.total_scans || 0, 10)} /></div><div className="stat-label">Students</div></div>
-        </motion.div>
-        <motion.div className="stat-card" {...statCardAnim(1)}>
-          <div className="stat-icon green"><TrendingUp size={18} /></div>
-          <div className="stat-info"><div className="stat-value"><AnimatedNumber value={Number(s.avg_score ?? 0)} decimals={1} suffix="%" /></div><div className="stat-label">Class Average</div></div>
-          {studs.length > 1 && <Sparkline points={studs.map((st) => Number(st.score || 0))} color="var(--green-600)" cumulative={false} />}
-        </motion.div>
-        <motion.div className="stat-card" {...statCardAnim(2)}>
-          <div className="stat-icon amber"><TrendingDown size={18} /></div>
-          <div className="stat-info"><div className="stat-value"><AnimatedNumber value={Number(s.min_score ?? 0)} suffix="%" /></div><div className="stat-label">Lowest</div></div>
-        </motion.div>
-        <motion.div className="stat-card" {...statCardAnim(3)}>
-          <div className="stat-icon purple"><TrendingUp size={18} /></div>
-          <div className="stat-info"><div className="stat-value"><AnimatedNumber value={Number(s.max_score ?? 0)} suffix="%" /></div><div className="stat-label">Highest</div></div>
-        </motion.div>
-        <motion.div className="stat-card" {...statCardAnim(4)}>
-          <div className="stat-icon green"><CheckCircle size={18} /></div>
-          <div className="stat-info">
-            <div className="stat-value"><AnimatedNumber value={parseInt(s.passing_count || 0, 10)} />/{parseInt(s.total_scans || 0, 10)}</div>
-            <div className="stat-label">Passed (≥{PASS_MARK}%)</div>
-          </div>
-        </motion.div>
+      <div className="dash-kpis mb-3 print-skip" data-tour="exam-stats">
+        <KpiCard i={0} icon={Users} tint={1} value={parseInt(s.total_scans || 0, 10)} label="Students" />
+        <KpiCard i={1} icon={TrendingUp} tint={3} value={Number(s.avg_score ?? 0)} decimals={1} suffix="%"
+          label="Class Average"
+          delta={s.avg_score != null ? {
+            cls: Number(s.avg_score) >= PASS_MARK ? 'is-up' : 'is-down',
+            icon: Number(s.avg_score) >= PASS_MARK ? 'up' : 'down',
+            text: `${Number(s.avg_score) >= PASS_MARK ? '+' : ''}${(Number(s.avg_score) - PASS_MARK).toFixed(1)} pts`,
+            title: `vs the ${PASS_MARK}% passing mark`,
+          } : undefined}
+          spark={studs.length > 1 ? studs.map((st) => Number(st.score || 0)) : undefined}
+          sparkColor="var(--gc-3)"
+          cumulative={false} />
+        <KpiCard i={2} icon={TrendingDown} tint={5} value={Number(s.min_score ?? 0)} suffix="%" label="Lowest" />
+        <KpiCard i={3} icon={TrendingUp} tint={6} value={Number(s.max_score ?? 0)} suffix="%" label="Highest" />
+        <KpiCard i={4} icon={CheckCircle} tint={2}
+          raw={<>{parseInt(s.passing_count || 0, 10)}<span style={{ opacity: .45, fontWeight: 500 }}>/{parseInt(s.total_scans || 0, 10)}</span></>}
+          label={`Passed (≥${PASS_MARK}%)`}
+          hint={parseInt(s.total_scans || 0, 10) > 0 ? `${Math.round((parseInt(s.passing_count || 0, 10) / parseInt(s.total_scans, 10)) * 100)}% pass rate` : undefined} />
       </div>
 
       <div className="print-skip"><InsightsCard insights={insights} tour="analytics-insights" /></div>
@@ -751,7 +760,7 @@ export function ExamDetail({ examId, detail, onBack }) {
                   const score = Number(st.score || 0);
                   return (
                     <tr key={st.scan_id || i}>
-                      <td className="text-muted">{safePage * STUDENTS_PER_PAGE + i + 1}</td>
+                      <td className="text-muted">{grid.start + i}</td>
                       <td><strong>{st.student_name || 'Unknown'}</strong></td>
                       <td><span className="badge badge-gray">{st.set_label || '—'}</span></td>
                       <td>
@@ -775,12 +784,15 @@ export function ExamDetail({ examId, detail, onBack }) {
             </table>
           </div>
         )}
-        {pageCount > 1 && (
+        {studs.length > STUDENTS_PER_PAGE && (
           <div className="dataset-foot no-print">
-            <span className="text-muted meta-sm">
-              {grid.start}–{grid.end} of {studs.length} students
-            </span>
-            <DsPager grid={grid} />
+            <div className="ds-foot-lead">
+              <span className="text-muted meta-sm">
+                {grid.start}–{grid.end} of {studs.length} students
+              </span>
+              <DsPageSize grid={grid} options={[25, 50, 100]} />
+            </div>
+            {grid.pageCount > 1 && <DsPager grid={grid} />}
           </div>
         )}
       </div>

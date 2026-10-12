@@ -11,10 +11,12 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import {
   AlertTriangle, ListChecks, ArrowLeft, Printer, Copy,
+  FileText, Target, ScanLine,
 } from 'lucide-react';
 import { useToast } from '../components/Toast.jsx';
 import { useContextMenu, useCopyText } from '../components/ContextMenu.jsx';
-import { useGridTable, DsPager } from '../components/DataTable.jsx';
+import { useGridTable, DsPager, DsPageSize } from '../components/DataTable.jsx';
+import KpiCard from '../components/KpiCard.jsx';
 import api from '../lib/api.js';
 import AppShell from '../components/AppShell.jsx';
 import { TableSkeleton } from '../components/Loaders.jsx';
@@ -53,9 +55,21 @@ export default function AttentionPage() {
   const exams = useMemo(() => data?.exams || [], [data]);
 
   const grid = useGridTable({ data: items, columns: PAGER_COLUMNS, pageSize: PAGE_SIZE, resetKey: examFilter });
-  const { pageRows: pageItems, pageCount } = grid;
+  const { pageRows: pageItems } = grid;
 
   const worst = items.length ? Number(items[0].correctRate) : null;
+
+  // KPI rollup — how wide the problem spreads and how deep it runs.
+  const attn = useMemo(() => {
+    const affected = new Set(items.map((w) => w.exam_id)).size;
+    const responses = items.reduce((n, w) => n + (Number(w.responses) || 0), 0);
+    const weighted = items.reduce((n, w) => n + (Number(w.correctRate) || 0) * (Number(w.responses) || 0), 0);
+    return {
+      affected,
+      responses,
+      avgCorrect: responses ? weighted / responses : null,
+    };
+  }, [items]);
 
   return (
     <AppShell pageClass="attention" activeNav="attention" pageTitle="Needs attention" wide>
@@ -115,6 +129,19 @@ export default function AttentionPage() {
       )}
 
       {!data ? <TableSkeleton /> : (
+        <>
+        {items.length > 0 && (
+          <div className="dash-kpis mb-3 print-skip" data-tour="attn-stats">
+            <KpiCard i={0} icon={AlertTriangle} tint={5} value={items.length}
+              label="Items below threshold" hint="lowest correct first · 3+ responses" />
+            <KpiCard i={1} icon={FileText} tint={2} value={attn.affected}
+              label="Exams affected" hint={`of ${exams.length} scanned`} />
+            <KpiCard i={2} icon={Target} tint={4} value={attn.avgCorrect ?? 0} decimals={1} suffix="%"
+              label="Avg correct rate" hint={worst !== null ? `worst item ${worst.toFixed(0)}%` : undefined} />
+            <KpiCard i={3} icon={ScanLine} tint={3} value={attn.responses}
+              label="Responses analyzed" />
+          </div>
+        )}
         <div className="card print-skip">
           <div className="card-header attn-header">
             <span className="card-title">
@@ -209,17 +236,21 @@ export default function AttentionPage() {
                 </table>
               </div>
 
-              {pageCount > 1 && (
+              {items.length > PAGE_SIZE && (
                 <div className="attn-pager">
-                  <span className="text-muted meta-sm">
-                    {grid.start}–{grid.end} of {items.length}
-                  </span>
-                  <DsPager grid={grid} />
+                  <div className="ds-foot-lead">
+                    <span className="text-muted meta-sm">
+                      {grid.start}–{grid.end} of {items.length}
+                    </span>
+                    <DsPageSize grid={grid} options={[20, 50, 100]} />
+                  </div>
+                  {grid.pageCount > 1 && <DsPager grid={grid} />}
                 </div>
               )}
             </>
           )}
         </div>
+        </>
       )}
       {menuEl}
     </AppShell>

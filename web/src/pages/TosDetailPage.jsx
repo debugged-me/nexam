@@ -23,7 +23,7 @@ import api, { ApiError } from '../lib/api.js';
 import useJobs, { isActiveJob, jobPayload } from '../lib/useJobs.js';
 import AppShell from '../components/AppShell.jsx';
 import { CardsSkeleton } from '../components/Loaders.jsx';
-import { useGridTable, DsPager } from '../components/DataTable.jsx';
+import { useGridTable, DsPager, DsPageSize } from '../components/DataTable.jsx';
 import Reveal from '../components/Reveal.jsx';
 import celebrate from '../lib/celebrate.js';
 
@@ -837,7 +837,7 @@ export default function TosDetailPage() {
               </thead>
               <tbody>
                 {pageTopics.map((tp, i) => {
-                  const absI = safeTopicPage * TOPIC_PAGE_SIZE + i;
+                  const absI = safeTopicPage * topicGrid.pageSize + i;
                   const editing = editingId === tp.id;
                   const outcomes = parseOutcomes(tp.learning_outcomes);
                   const open = expanded.has(tp.id);
@@ -961,10 +961,13 @@ export default function TosDetailPage() {
 
         {!reordering && topics.length > TOPIC_PAGE_SIZE && (
           <div className="dataset-foot">
-            <div className="ds-range">
-              <b>{topicStart}</b>–<b>{topicEnd}</b> of <b>{topics.length}</b>
+            <div className="ds-foot-lead">
+              <div className="ds-range">
+                <b>{topicStart}</b>–<b>{topicEnd}</b> of <b>{topics.length}</b>
+              </div>
+              <DsPageSize grid={topicGrid} options={[10, 20, 50]} />
             </div>
-            <DsPager grid={topicGrid} />
+            {topicGrid.pageCount > 1 && <DsPager grid={topicGrid} />}
           </div>
         )}
 

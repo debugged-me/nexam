@@ -3,69 +3,9 @@
   .dash-home { display: grid; gap: 20px; }
   .dash-home > *, .dash-main > *, .dash-col > * { min-width: 0; }
 
-  /* ---- Shared icon tints --------------------------------------------------- */
-  .tint-1 { color: var(--gc-1); background: color-mix(in srgb, var(--gc-1) 12%, var(--surface)); }
-  .tint-2 { color: var(--gc-2); background: color-mix(in srgb, var(--gc-2) 12%, var(--surface)); }
-  .tint-3 { color: var(--gc-3); background: color-mix(in srgb, var(--gc-3) 13%, var(--surface)); }
-  .tint-4 { color: var(--gc-4); background: color-mix(in srgb, var(--gc-4) 15%, var(--surface)); }
+  /* KPI tiles (.dash-kpi, .tint-N, dash-card-in) live in app.css — shared. */
 
-  /* ---- KPI cards ------------------------------------------------------------ */
-  .dash-kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(220px, 100%), 1fr)); gap: 12px; }
-  .dash-kpi { position: relative; display: flex; flex-direction: column; min-width: 0; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-lg); padding: 14px 16px; box-shadow: var(--shadow-md); overflow: hidden; transform: perspective(720px) rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg)); transition: border-color .16s, box-shadow .16s, transform .18s ease-out; }
-  /* Colored KPI washes — same treatment as .stat-card: each card takes a
-     tint of its accent so the metrics read distinctly. Icon flips to a
-     surface chip so it stays visible on the tinted card. */
-  .dash-kpi:has(.tint-1) { background: color-mix(in srgb, var(--gc-1) 12%, var(--surface)); border-color: color-mix(in srgb, var(--gc-1) 28%, var(--line)); }
-  .dash-kpi:has(.tint-2) { background: color-mix(in srgb, var(--gc-2) 12%, var(--surface)); border-color: color-mix(in srgb, var(--gc-2) 28%, var(--line)); }
-  .dash-kpi:has(.tint-3) { background: color-mix(in srgb, var(--gc-3) 12%, var(--surface)); border-color: color-mix(in srgb, var(--gc-3) 28%, var(--line)); }
-  .dash-kpi:has(.tint-4) { background: color-mix(in srgb, var(--gc-4) 13%, var(--surface)); border-color: color-mix(in srgb, var(--gc-4) 28%, var(--line)); }
-  .dash-kpi:not(.is-hero):has(.dash-kpi-icon) .dash-kpi-icon { background: var(--surface); }
-  .dash-kpi:hover { border-color: var(--line-strong); box-shadow: var(--shadow-sm); transform: perspective(720px) rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg)) translateY(-1px); }
-  /* Pointer-tracked sheen — follows the cursor across the tile. */
-  .dash-kpi::after {
-    content: '';
-    position: absolute; inset: 0;
-    background: radial-gradient(260px circle at var(--mx, 50%) var(--my, 50%), rgba(255, 255, 255, .16), transparent 65%);
-    opacity: 0;
-    transition: opacity .25s;
-    pointer-events: none;
-  }
-  .dash-kpi:hover::after { opacity: 1; }
-  @media (prefers-reduced-motion: reduce) { .dash-kpi, .dash-kpi:hover { transform: none; } }
-  .dash-kpi.is-hero { background: linear-gradient(135deg, #1B6EC2 0%, var(--action-600) 55%, #47BFFF 130%); border-color: transparent; color: #fff; box-shadow: 0 8px 22px -8px rgba(35, 131, 226, .5); }
-  .dash-kpi.is-hero:hover { border-color: transparent; box-shadow: 0 10px 26px -8px rgba(35, 131, 226, .6); }
-  .dash-kpi.is-hero .dash-kpi-icon { color: #fff; background: rgba(255, 255, 255, .18); }
-  .dash-kpi.is-hero .dash-kpi-num strong, .dash-kpi.is-hero .dash-kpi-label { color: #fff; }
-  .dash-kpi.is-hero .dash-kpi-arrow { color: rgba(255, 255, 255, .7); }
-  .dash-kpi.is-hero > small { color: rgba(255, 255, 255, .72); }
-  .dash-kpi.is-hero .dash-delta { color: #fff; }
-  .dash-kpi-top { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 13px; }
-  .dash-kpi-icon { display: grid; place-items: center; width: 32px; height: 32px; border-radius: 9px; }
-  .dash-kpi-arrow { color: var(--ink-faint); opacity: 0; transition: opacity .15s; }
-  .dash-kpi:hover .dash-kpi-arrow { opacity: 1; }
-  .dash-kpi-num { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
-  .dash-kpi-num strong { font: 700 1.55rem/1.15 var(--font-display); letter-spacing: -.03em; font-variant-numeric: tabular-nums; }
-  .dash-kpi-label { font-size: .68rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--ink-faint); margin-top: 7px; }
-  .dash-kpi > small { font-size: .72rem; color: var(--ink-faint); margin-top: 3px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .dash-delta { display: inline-flex; align-items: center; gap: 3px; font-size: .68rem; font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; }
-  .dash-delta.is-up { color: var(--green-700); }
-  .dash-delta.is-down { color: var(--red-700); }
-  .dash-delta.is-new { color: var(--action-700); }
-  .dash-delta.is-flat { color: var(--ink-faint); }
-
-  /* Sparkline — cumulative mini-chart bleeding to the tile's bottom edge. */
-  .dash-kpi .sparkline {
-    position: absolute;
-    left: 0; right: 0; bottom: 0;
-    width: 100%;
-    height: 30px;
-    opacity: .55;
-    pointer-events: none;
-  }
-  .dash-kpi:has(.sparkline) { padding-bottom: 34px; }
-
-  /* ---- Entrance stagger — cards cascade instead of appearing at once ------- */
-  .dash-kpi { animation: dash-card-in .45s var(--ease, ease) backwards; animation-delay: calc(var(--i, 0) * .055s); }
+  /* ---- Entrance stagger ----------------------------------------------------- */
   .dash-card { animation: dash-card-in .5s var(--ease, ease) backwards; }
   .dash-col:nth-of-type(1) .dash-card:nth-of-type(1) { animation-delay: .16s; }
   .dash-col:nth-of-type(1) .dash-card:nth-of-type(2) { animation-delay: .22s; }
@@ -73,9 +13,6 @@
   .dash-col:nth-of-type(2) .dash-card:nth-of-type(1) { animation-delay: .20s; }
   .dash-col:nth-of-type(2) .dash-card:nth-of-type(2) { animation-delay: .26s; }
   .dash-col:nth-of-type(2) .dash-card:nth-of-type(3) { animation-delay: .32s; }
-  @keyframes dash-card-in {
-    from { opacity: 0; transform: translateY(10px); }
-  }
 
   /* ---- Cards ----------------------------------------------------------------- */
   .dash-card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-xl); box-shadow: var(--shadow-md); overflow: hidden; }

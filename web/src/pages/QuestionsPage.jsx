@@ -32,7 +32,7 @@ import {
   StatusPill, BoardGroupHead,
   BoardAddRow, GroupChip, groupColor, statusOf, statusMeta, STATUS_ORDER,
 } from '../components/Board.jsx';
-import { useGridTable, DsPager } from '../components/DataTable.jsx';
+import { useGridTable, DsPager, DsPageSize } from '../components/DataTable.jsx';
 
 const BLOOM_LABELS = { remember: 'Remember', understand: 'Understand', apply: 'Apply', analyze: 'Analyze', evaluate: 'Evaluate', create: 'Create' };
 const BLOOM_ORDER = ['remember', 'understand', 'apply', 'analyze', 'evaluate', 'create'];
@@ -414,7 +414,7 @@ export default function QuestionsPage() {
     if (groupBy === 'none' || !pageRows.length) return null;
     const map = new Map();
     pageRows.forEach((q, i) => {
-      const index = safePage * PAGE_SIZE + i;
+      const index = safePage * grid.pageSize + i;
       let key, title, color, orderKey;
       if (groupBy === 'subject') {
         key = q.subject_id || q.subject_name || 'none';
@@ -438,7 +438,7 @@ export default function QuestionsPage() {
       map.get(key).rows.push({ q, index });
     });
     return [...map.values()].sort((a, b) => a.orderKey.localeCompare(b.orderKey));
-  }, [pageRows, groupBy, safePage]);
+  }, [pageRows, groupBy, safePage, grid.pageSize]);
 
   function toggleGroup(key) {
     setCollapsed((prev) => {
@@ -841,7 +841,7 @@ export default function QuestionsPage() {
     if (!qGroups) {
       return (
         <tbody ref={animateRows}>
-          {pageRows.map((q, i) => renderQuestionRow(q, safePage * PAGE_SIZE + i))}
+          {pageRows.map((q, i) => renderQuestionRow(q, safePage * grid.pageSize + i))}
         </tbody>
       );
     }
@@ -1046,11 +1046,14 @@ export default function QuestionsPage() {
 
           {/* Footer */}
           <div className="dataset-foot">
-            <div className="ds-range">
-              <b>{grid.start}</b>–<b>{grid.end}</b> of <b>{rows.length}</b> question{rows.length !== 1 ? 's' : ''}
-              {selecting && <span className="q-foot-note"> · {selectionCount} selected</span>}
+            <div className="ds-foot-lead">
+              <div className="ds-range">
+                <b>{grid.start}</b>–<b>{grid.end}</b> of <b>{rows.length}</b> question{rows.length !== 1 ? 's' : ''}
+                {selecting && <span className="q-foot-note"> · {selectionCount} selected</span>}
+              </div>
+              <DsPageSize grid={grid} options={[25, 50, 100]} />
             </div>
-            {rows.length > PAGE_SIZE && <DsPager grid={grid} />}
+            {grid.pageCount > 1 && <DsPager grid={grid} />}
           </div>
         </section>
       )}

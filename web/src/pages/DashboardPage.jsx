@@ -1,6 +1,6 @@
 /** Instructor overview. All counts and recent work come from the scoped API. */
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import {
   ArrowRight,
   BookOpen,
@@ -27,6 +27,7 @@ import ActivityHeatmap from '../components/ActivityHeatmap.jsx';
 import { CardsSkeleton } from '../components/Loaders.jsx';
 import { StatusPill } from '../components/Board.jsx';
 import api, { ApiError } from '../lib/api.js';
+import { vtNavigate } from '../lib/viewTransitions.js';
 import { prefersReducedMotion } from '../lib/gsapSetup.js';
 import '../styles/dashboard.css';
 
@@ -87,6 +88,7 @@ const kpiTilt = prefersReducedMotion() ? {} : {
 
 export default function DashboardPage() {
   const { logout } = useAuth();
+  const navigate = useNavigate();
   const [data, setData] = useState(() => api.peek('/dashboard') ?? null);
   const [error, setError] = useState('');
   const [examFilter, setExamFilter] = useState('all');
@@ -471,7 +473,17 @@ export default function DashboardPage() {
                   <ul className="dash-exam-list">
                     {shownExams.map((exam) => (
                       <li key={exam.id}>
-                        <Link to={`/exams/${exam.id}`} className="dash-exam-row">
+                        <Link
+                          to={`/exams/${exam.id}`}
+                          className="dash-exam-row"
+                          onClick={(ev) => {
+                            if (ev.metaKey || ev.ctrlKey || ev.shiftKey || ev.altKey || ev.button !== 0) return;
+                            ev.preventDefault();
+                            vtNavigate(navigate, `/exams/${exam.id}`, {
+                              sharedEl: ev.currentTarget.querySelector('.dash-exam-name strong'),
+                            });
+                          }}
+                        >
                           <span className="dash-exam-name">
                             <span className="dash-doc">
                               <FileText size={18} />

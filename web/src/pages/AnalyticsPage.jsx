@@ -681,16 +681,16 @@ export function ExamDetail({ examId, detail, onBack }) {
         </motion.div>
         <motion.div className="stat-card" {...statCardAnim(1)}>
           <div className="stat-icon green"><TrendingUp size={18} /></div>
-          <div className="stat-info"><div className="stat-value"><AnimatedNumber value={Number(s.avg_score ?? 0)} format={(v) => `${v.toFixed(1)}%`} /></div><div className="stat-label">Class Average</div></div>
+          <div className="stat-info"><div className="stat-value"><AnimatedNumber value={Number(s.avg_score ?? 0)} decimals={1} suffix="%" /></div><div className="stat-label">Class Average</div></div>
           {studs.length > 1 && <Sparkline points={studs.map((st) => Number(st.score || 0))} color="var(--green-600)" cumulative={false} />}
         </motion.div>
         <motion.div className="stat-card" {...statCardAnim(2)}>
           <div className="stat-icon amber"><TrendingDown size={18} /></div>
-          <div className="stat-info"><div className="stat-value"><AnimatedNumber value={Number(s.min_score ?? 0)} format={(v) => `${Math.round(v)}%`} /></div><div className="stat-label">Lowest</div></div>
+          <div className="stat-info"><div className="stat-value"><AnimatedNumber value={Number(s.min_score ?? 0)} suffix="%" /></div><div className="stat-label">Lowest</div></div>
         </motion.div>
         <motion.div className="stat-card" {...statCardAnim(3)}>
           <div className="stat-icon purple"><TrendingUp size={18} /></div>
-          <div className="stat-info"><div className="stat-value"><AnimatedNumber value={Number(s.max_score ?? 0)} format={(v) => `${Math.round(v)}%`} /></div><div className="stat-label">Highest</div></div>
+          <div className="stat-info"><div className="stat-value"><AnimatedNumber value={Number(s.max_score ?? 0)} suffix="%" /></div><div className="stat-label">Highest</div></div>
         </motion.div>
         <motion.div className="stat-card" {...statCardAnim(4)}>
           <div className="stat-icon green"><CheckCircle size={18} /></div>

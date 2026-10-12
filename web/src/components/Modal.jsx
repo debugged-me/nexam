@@ -6,7 +6,7 @@
 import { useContext, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
-import { EASE_ENTER, EASE_STANDARD, DUR } from '../lib/motion.js';
+import { EASE_STANDARD, SPRING_SNAPPY, DUR } from '../lib/motion.js';
 import { X } from 'lucide-react';
 import { PageScopeContext } from './shellMeta.js';
 
@@ -86,7 +86,7 @@ export default function Modal({ open, title, subtitle, onClose, children, footer
               : { opacity: 0, scale: 0.97, y: 4 }}
             transition={side
               ? { duration: DUR.med, ease: EASE_STANDARD }
-              : { duration: 0.2, ease: EASE_ENTER }}
+              : SPRING_SNAPPY}
           >
             <div className="modal-header">
               <div className="modal-headline">

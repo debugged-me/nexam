@@ -846,6 +846,16 @@ tr:hover .g-entity-mark { background: color-mix(in srgb, var(--gc, var(--surface
    the horizontal scroll clip below, and drag the whole document sideways. */
 .dataset-scroll { position: relative; overflow: visible; }
 
+/* Skeleton → content: when TableSkeleton unmounts and the real grid lands,
+   the payload rises softly instead of hard-swapping under the shimmer. */
+.dataset-scroll { animation: nx-content-in .3s ease both; }
+@keyframes nx-content-in {
+    from { opacity: 0; transform: translateY(5px); }
+}
+@media (prefers-reduced-motion: reduce) {
+    .dataset-scroll { animation: none; }
+}
+
 table.grid {
     width: 100%;
     border-collapse: separate;   /* keeps sticky header borders painted */
@@ -890,6 +900,13 @@ table.grid.dataTable thead > tr > th.sorting_desc_disabled {
     position: sticky;
     top: var(--topbar-height);
     padding: 0 var(--grid-x);
+}
+
+/* Scroll-state shadow — lib/scrollShadow.js flips .is-stuck once the pinned
+   header meets the topbar; the 1px rule alone can't carry the separation. */
+table.grid thead > tr > th { transition: box-shadow .2s ease; }
+.dataset-scroll.is-stuck thead > tr > th {
+    box-shadow: 0 10px 14px -10px rgba(15, 18, 24, .18);
 }
 
 /* DataTables marks sortable headers; the arrow is an affordance, not decor,

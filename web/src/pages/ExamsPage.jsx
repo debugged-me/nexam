@@ -17,6 +17,7 @@ import { useToast } from '../components/Toast.jsx';
 import { useContextMenu, useCopyText } from '../components/ContextMenu.jsx';
 import { useConfirm } from '../components/ConfirmDialog.jsx';
 import api, { ApiError } from '../lib/api.js';
+import { vtNavigate } from '../lib/viewTransitions.js';
 import DetailsModal from '../components/DetailsModal.jsx';
 import AppShell from '../components/AppShell.jsx';
 import { TableSkeleton } from '../components/Loaders.jsx';
@@ -190,7 +191,18 @@ export default function ExamsPage() {
       <tr key={e.id} className="b-row" data-id={e.id} onContextMenu={(ev) => examMenu(ev, e)}>
         <td>
           <span className="g-primary">
-            <Link to={`/exams/${e.id}`} className="g-title">{e.title}</Link>
+            <Link
+              to={`/exams/${e.id}`}
+              className="g-title"
+              onClick={(ev) => {
+                // Let new-tab clicks (cmd/ctrl/middle) behave like a plain link.
+                if (ev.metaKey || ev.ctrlKey || ev.shiftKey || ev.altKey || ev.button !== 0) return;
+                ev.preventDefault();
+                vtNavigate(navigate, `/exams/${e.id}`, { sharedEl: ev.currentTarget });
+              }}
+            >
+              {e.title}
+            </Link>
             <span className="g-meta">
               {meta.join(' · ')}
               {e.title && e.title.length > 45 && (

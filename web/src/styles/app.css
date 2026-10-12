@@ -58,6 +58,55 @@ button:focus:not(:focus-visible) { outline: none; }
   ::view-transition-new(root) { animation: none; clip-path: none; }
 }
 
+/* Route transitions — html.vt-nav is set by lib/viewTransitions.js during a
+   vtNavigate() call: a soft crossfade carries the page swap while the named
+   shared element (exam list title → detail h1) morphs across the change. */
+html.vt-nav ::view-transition-old(root) { animation: vt-page-out .14s ease-out forwards; }
+html.vt-nav ::view-transition-new(root) { animation: vt-page-in .24s ease-out forwards; clip-path: none; }
+html.vt-nav ::view-transition-group(vt-shared-entity) {
+  animation-duration: .4s;
+  animation-timing-function: cubic-bezier(.22, 1, .36, 1);
+}
+html.vt-nav ::view-transition-image-pair(vt-shared-entity) { isolation: auto; }
+@keyframes vt-page-out { to { opacity: 0; } }
+@keyframes vt-page-in { from { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) {
+  html.vt-nav ::view-transition-old(root),
+  html.vt-nav ::view-transition-new(root) { animation: none; }
+}
+
+/* Mobile action sheet (vaul) — context menus become bottom sheets under
+   768px; the desktop popover keeps its floating look. */
+.ctx-sheet-overlay {
+  position: fixed; inset: 0;
+  background: rgba(15, 18, 24, .38);
+  z-index: 100001;
+}
+.ctx-sheet {
+  position: fixed; left: 0; right: 0; bottom: 0;
+  z-index: 100002;
+  display: flex; flex-direction: column;
+  background: var(--surface);
+  border-radius: 16px 16px 0 0;
+  box-shadow: var(--shadow-lg);
+  padding: 8px 12px calc(14px + env(safe-area-inset-bottom, 0px));
+  outline: none;
+}
+.ctx-sheet-handle {
+  align-self: center;
+  width: 36px; height: 4px;
+  margin: 4px 0 8px;
+  border-radius: 999px;
+  background: var(--line-strong);
+}
+.ctx-sheet-items { display: flex; flex-direction: column; gap: 2px; }
+.ctx-menu__item--sheet {
+  min-height: 46px;
+  font-size: .9rem;
+  border-radius: 10px;
+}
+.ctx-menu__item--sheet:active { background: var(--surface-3); }
+
 /* Workspace iconography — lighter strokes on every Lucide glyph. */
 svg.lucide { stroke-width: 1.5; }
 
@@ -521,8 +570,8 @@ img.avatar { object-fit: cover; display: block; }
 .page-content > *:nth-child(n+6) { animation-delay: .16s; }
 
 /* Buttons and interactive rows get a tactile press + quiet lift. */
-.btn:not(:disabled) { transition: background-color .15s ease, border-color .15s ease, color .15s ease, box-shadow .15s ease, transform .1s ease; }
-.btn:not(:disabled):active { transform: scale(.97); }
+.btn:not(:disabled) { transition: background-color .15s ease, border-color .15s ease, color .15s ease, box-shadow .15s ease, transform .16s var(--ease-spring, ease); }
+.btn:not(:disabled):active { transform: scale(.96); }
 a[class]:hover, button[class]:hover { transition-timing-function: ease-out; }
 
 /* Cards and list rows that respond to pointer hover lift a hair. */

@@ -10,7 +10,7 @@
   .tint-4 { color: var(--gc-4); background: color-mix(in srgb, var(--gc-4) 15%, var(--surface)); }
 
   /* ---- KPI cards ------------------------------------------------------------ */
-  .dash-kpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+  .dash-kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(220px, 100%), 1fr)); gap: 12px; }
   .dash-kpi { position: relative; display: flex; flex-direction: column; min-width: 0; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-lg); padding: 14px 16px; box-shadow: var(--shadow-md); overflow: hidden; transform: perspective(720px) rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg)); transition: border-color .16s, box-shadow .16s, transform .18s ease-out; }
   /* Colored KPI washes — same treatment as .stat-card: each card takes a
      tint of its accent so the metrics read distinctly. Icon flips to a
@@ -88,7 +88,7 @@
   .dash-card-foot:hover { color: var(--action-700); background: var(--surface-2); }
 
   /* ---- Activity chart ---------------------------------------------------------- */
-  .dash-bars { display: flex; align-items: flex-end; gap: 8px; height: 168px; padding: 4px 18px 14px; }
+  .dash-bars { display: flex; align-items: flex-end; gap: 8px; height: 184px; padding: 4px 18px 14px; }
   .dash-bar-col { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; gap: 9px; min-width: 0; height: 100%; }
   .dash-bar { width: 100%; max-width: 48px; border-radius: 8px 8px 5px 5px; background: color-mix(in srgb, var(--action-600) 26%, var(--surface)); transition: background .15s; }
   .dash-bar.is-current { background: linear-gradient(180deg, #47BFFF, var(--action-600)); }
@@ -130,9 +130,14 @@
   .heatmap-legend .heat-cell { width: 9px; flex: none; }
   .heatmap-legend span:not(.heat-cell) { margin: 0 4px; }
 
-  /* ---- Main grid ---------------------------------------------------------------- */
-  .dash-main { display: grid; grid-template-columns: minmax(0, 1.65fr) minmax(280px, 1fr); gap: 16px; align-items: start; }
-  .dash-col { display: grid; gap: 16px; align-content: start; }
+  /* ---- Main grid — bento: a wide content column against a utility rail ---- */
+  .dash-main { display: grid; grid-template-columns: minmax(0, 1.72fr) minmax(300px, 1fr); gap: 18px; align-items: start; }
+  .dash-col { display: grid; gap: 18px; align-content: start; }
+
+  /* The "Next up" card anchors the rail — the one place a brand edge earns
+     its tint, since everything in it funnels into the primary CTA. */
+  .dash-card:has(.dash-focus-body) { border-color: color-mix(in srgb, var(--action-600) 20%, var(--line)); }
+  .dash-card:has(.dash-focus-body) .dash-card-head { border-bottom: 1px solid color-mix(in srgb, var(--action-600) 12%, var(--line)); background: color-mix(in srgb, var(--action-600) 5%, var(--surface)); }
 
   /* ---- Rows ----------------------------------------------------------------------- */
   .dash-row { display: flex; align-items: center; gap: 14px; padding: 12px 18px; border-bottom: 1px solid var(--line); transition: background .15s; }

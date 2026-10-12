@@ -13,7 +13,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { AnimatePresence, motion } from 'motion/react';
-import { EASE_ENTER, DUR } from '../lib/motion.js';
+import { Drawer } from 'vaul';
+import { SPRING_SNAPPY } from '../lib/motion.js';
+import { useMediaQuery } from '../lib/useMediaQuery.js';
 import { useToast } from './Toast.jsx';
 
 const MENU_MIN_W = 220;
@@ -58,10 +60,45 @@ export function useContextMenu() {
   return { menuEl, openMenu, closeMenu };
 }
 
+/** Shared item renderer — same buttons drive the desktop popover and the
+ *  mobile bottom sheet, so labels/icons/danger stay in sync. A plain render
+ *  helper (not a component) keeps this file's export shape unchanged. */
+function renderMenuItems(items, onClose, sheet) {
+  return items.map((item, i) =>
+    item === 'sep' ? (
+      <div key={i} className="ctx-menu__sep" role="separator" />
+    ) : (
+      <button
+        key={i}
+        type="button"
+        role="menuitem"
+        className={`ctx-menu__item${item.danger ? ' ctx-menu__item--danger' : ''}${sheet ? ' ctx-menu__item--sheet' : ''}`}
+        disabled={item.disabled}
+        onClick={() => { onClose(); item.onClick?.(); }}
+      >
+        {item.icon ? <item.icon size={sheet ? 16 : 14} /> : null}
+        <span>{item.label}</span>
+      </button>
+    )
+  );
+}
+
 function ContextMenuPanel({ x, y, items, onClose }) {
   const ref = useRef(null);
+  const isMobile = useMediaQuery('(max-width: 767px)');
+  const [sheetOpen, setSheetOpen] = useState(true);
+  // Let vaul finish its slide-down before the portal unmounts, or the sheet
+  // snaps away mid-animation.
+  const closeSheet = useCallback(() => {
+    setSheetOpen(false);
+    setTimeout(onClose, 300);
+  }, [onClose]);
 
   useEffect(() => {
+    // On mobile vaul owns focus trap, Escape, and overlay dismissal — running
+    // the desktop handlers too would double-close and skip the sheet's
+    // slide-down animation.
+    if (isMobile) return undefined;
     const previouslyFocused = document.activeElement;
 
     function itemButtons() {
@@ -109,16 +146,36 @@ function ContextMenuPanel({ x, y, items, onClose }) {
       window.removeEventListener('resize', onScrollOrResize);
       previouslyFocused?.focus?.();
     };
-  }, [onClose]);
+  }, [onClose, isMobile]);
 
   // Clamp to the real rendered size once mounted.
   useEffect(() => {
     const el = ref.current;
-    if (!el) return;
+    if (!el || isMobile) return;
     const r = el.getBoundingClientRect();
     if (r.right > window.innerWidth - 8) el.style.left = `${Math.max(8, window.innerWidth - r.width - 8)}px`;
     if (r.bottom > window.innerHeight - 8) el.style.top = `${Math.max(8, window.innerHeight - r.height - 8)}px`;
-  }, []);
+  }, [isMobile]);
+
+  // Mobile: finger-sized bottom sheet (vaul handles drag-to-dismiss, focus
+  // trap, and the overlay) — a floating popover is unusable at phone widths.
+  if (isMobile) {
+    return createPortal(
+      <Drawer.Root open={sheetOpen} onOpenChange={(o) => { if (!o) closeSheet(); }}>
+        <Drawer.Portal>
+          <Drawer.Overlay className="ctx-sheet-overlay" />
+          <Drawer.Content className="ctx-sheet" aria-label="Actions">
+            <Drawer.Title className="sr-only">Actions</Drawer.Title>
+            <div className="ctx-sheet-handle" aria-hidden="true" />
+            <div className="ctx-sheet-items" ref={ref} role="menu">
+              {renderMenuItems(items, closeSheet, true)}
+            </div>
+          </Drawer.Content>
+        </Drawer.Portal>
+      </Drawer.Root>,
+      document.body
+    );
+  }
 
   return createPortal(
     <motion.div
@@ -129,25 +186,9 @@ function ContextMenuPanel({ x, y, items, onClose }) {
       initial={{ opacity: 0, scale: 0.96, y: -4 }}
       animate={{ opacity: 1, scale: 1, y: 0 }}
       exit={{ opacity: 0, scale: 0.97, transition: { duration: 0.1 } }}
-      transition={{ duration: DUR.fast, ease: EASE_ENTER }}
+      transition={SPRING_SNAPPY}
     >
-      {items.map((item, i) =>
-        item === 'sep' ? (
-          <div key={i} className="ctx-menu__sep" role="separator" />
-        ) : (
-          <button
-            key={i}
-            type="button"
-            role="menuitem"
-            className={`ctx-menu__item${item.danger ? ' ctx-menu__item--danger' : ''}`}
-            disabled={item.disabled}
-            onClick={() => { onClose(); item.onClick?.(); }}
-          >
-            {item.icon ? <item.icon size={14} /> : null}
-            <span>{item.label}</span>
-          </button>
-        )
-      )}
+      {renderMenuItems(items, onClose, false)}
     </motion.div>,
     document.body
   );

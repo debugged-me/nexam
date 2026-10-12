@@ -226,7 +226,7 @@ export default function ExamDetailPage() {
       <div className="print-skip">
       <div className="page-header">
         <div>
-          <h1>{exam.title}</h1>
+          <h1 style={{ viewTransitionName: 'vt-shared-entity' }}>{exam.title}</h1>
           <div className="exam-meta">
             {exam.subject_name && <GroupChip color={accent}>{exam.subject_name}</GroupChip>}
             <StatusPill status={exam.status} small inline />

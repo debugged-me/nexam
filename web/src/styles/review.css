@@ -24,7 +24,9 @@
     border-bottom: 1px solid var(--line);
 }
 
-.rv-head-main { min-width: 0; }
+/* Pin the title block left even when a sibling (actions) shares the row —
+   space-between alone leaves the position sibling-dependent. */
+.rv-head-main { min-width: 0; margin-right: auto; text-align: left; }
 
 .rv-head-title {
     font-family: var(--font-display, "Google Sans", sans-serif);
@@ -463,7 +465,19 @@
     color: var(--ink-2);
     white-space: pre-wrap;
     overflow-wrap: anywhere;
+    /* Long spans clamp — full text behind the toggle so the card stays
+       compact instead of sliding under the sticky decision bar. */
+    display: -webkit-box;
+    -webkit-line-clamp: 4;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
 }
+.rv-evidence blockquote.is-open {
+    display: block;
+    -webkit-line-clamp: unset;
+    overflow: visible;
+}
+.rv-evidence-toggle { margin-top: 6px; font-size: var(--text-xs); }
 .rv-evidence-meta {
     display: block;
     margin-top: 6px;
@@ -500,7 +514,19 @@
     z-index: 20;
     margin-top: var(--space-4);
     padding: var(--space-3) 0 var(--space-4);
-    background: linear-gradient(to bottom, rgba(247, 247, 250, 0), var(--canvas) 28%);
+    /* Solid backdrop — card content slides fully under the bar instead of
+       bleeding through. ::before keeps the soft fade hint above it. */
+    background: var(--canvas);
+}
+.rv-actions::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: -14px;
+    height: 14px;
+    pointer-events: none;
+    background: linear-gradient(to bottom, transparent, var(--canvas));
 }
 
 .rv-actions-main {

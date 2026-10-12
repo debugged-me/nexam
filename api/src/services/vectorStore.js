@@ -168,33 +168,47 @@ export async function deleteChunksIndex(subjectId) {
 // ── Questions (similarity checking) ────────────────────────
 
 /**
- * Add a question's embedding to the subject's question vector index.
+ * Add questions' embeddings to a question vector index in one pass — a single
+ * lock, one index load, batched embedding calls, one save. Bulk approvals
+ * route through this; per-question indexing would re-load and re-save the
+ * whole index for every row and outlive the request timeout.
  * @param {string} subjectId
- * @param {string} questionId
- * @param {string} text — stem + options + answer (the text to embed)
+ * @param {Array<{id: string, text: string}>} items
  */
-export async function addQuestion(subjectId, questionId, text) {
+export async function addQuestions(subjectId, items) {
+  if (!items.length) return;
+
   const dir = questionsDir(subjectId);
-  const doc = new Document({
-    pageContent: text,
-    metadata: { id: questionId },
-  });
+  const docs = items.map((item) => new Document({
+    pageContent: item.text,
+    metadata: { id: item.id },
+  }));
 
   await withIndexLock(dir, async () => {
     const embeddings = await getEmbeddings();
     const exists = await dirExists(dir);
     if (exists) {
       const store = await HNSWLib.load(dir, embeddings, { space: 'cosine' });
-      await store.addDocuments([doc]);
+      await store.addDocuments(docs);
       await store.save(dir);
     } else {
       await fs.mkdir(dir, { recursive: true });
-      const store = await HNSWLib.fromDocuments([doc], embeddings, {
+      const store = await HNSWLib.fromDocuments(docs, embeddings, {
         space: 'cosine', directory: dir,
       });
       await store.save(dir);
     }
   });
+}
+
+/**
+ * Add a question's embedding to the subject's question vector index.
+ * @param {string} subjectId
+ * @param {string} questionId
+ * @param {string} text — stem + options + answer (the text to embed)
+ */
+export async function addQuestion(subjectId, questionId, text) {
+  return addQuestions(subjectId, [{ id: questionId, text }]);
 }
 
 /**
@@ -330,6 +344,7 @@ export default {
   searchChunks,
   deleteChunksIndex,
   addQuestion,
+  addQuestions,
   searchQuestions,
   deleteQuestionsIndex,
   embedQuery,

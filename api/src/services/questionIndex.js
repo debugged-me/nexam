@@ -8,7 +8,7 @@
  * routing aid, never a reason for a CRUD request to fail.
  */
 import pool from '../config/db.js';
-import { addQuestion, removeQuestion } from './vectorStore.js';
+import { addQuestion, addQuestions, removeQuestion } from './vectorStore.js';
 
 export const INSTITUTION_QUESTION_INDEX = '_institution';
 
@@ -42,6 +42,25 @@ export async function indexQuestionIfActive(question) {
 }
 
 /**
+ * Index many questions in one pass (bulk approve / reindex) — one index
+ * load + save + batched embedding calls instead of a full round-trip per
+ * row. Same contract as indexQuestionIfActive: failures are swallowed.
+ */
+export async function indexQuestionsIfActive(questions) {
+  try {
+    const items = (questions || [])
+      .filter((q) => q && q.status === 'active')
+      .map((q) => ({ id: q.id, text: embedTextFor(q) }));
+    if (!items.length) return 0;
+    await addQuestions(INSTITUTION_QUESTION_INDEX, items);
+    return items.length;
+  } catch (err) {
+    console.warn(`[questionIndex] bulk index failed: ${err.message}`);
+    return 0;
+  }
+}
+
+/**
  * Remove a question from the index (delete/reject paths). Best-effort —
  * stale vectors can't produce matches because similarity candidates are
  * SQL-filtered to active questions.
@@ -64,11 +83,7 @@ export async function reindexInstitution() {
      WHERE status = 'active'
        AND type IN ('mcq','true_false','matching','identification')`
   );
-  let indexed = 0;
-  for (const q of rows) {
-    if (await indexQuestionIfActive(q)) indexed++;
-  }
-  return indexed;
+  return indexQuestionsIfActive(rows);
 }
 
-export default { embedTextFor, indexQuestionIfActive, removeQuestionFromIndex, reindexInstitution };
+export default { embedTextFor, indexQuestionIfActive, indexQuestionsIfActive, removeQuestionFromIndex, reindexInstitution };

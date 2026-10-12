@@ -23,7 +23,7 @@ import pool from '../config/db.js';
 import { requireAuth } from '../middleware/auth.js';
 import { parseGIFT, parseCanvasXML, parseMoodleXML, normalizeImportItem } from '../services/lmsExport.js';
 import { enqueue } from '../services/jobs.js';
-import { indexQuestionIfActive, removeQuestionFromIndex } from '../services/questionIndex.js';
+import { indexQuestionIfActive, indexQuestionsIfActive, removeQuestionFromIndex } from '../services/questionIndex.js';
 import { answerOptionIndex } from '../services/scoring.js';
 import { rateLimit } from '../middleware/rateLimit.js';
 import { logAudit } from '../services/audit.js';
@@ -621,7 +621,7 @@ router.post('/bulk-approve', async (req, res, next) => {
         `SELECT * FROM questions WHERE id IN (:ids) AND created_by = :uid AND status = 'active'`,
         { ids: eligibleIds, uid: req.user.id }
       );
-      for (const q of active) await indexQuestionIfActive(q);
+      await indexQuestionsIfActive(active);
     }
 
     if (result.affectedRows > 0) {

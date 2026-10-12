@@ -26,9 +26,9 @@
   color: var(--ink);
 }
 .page-header .page-sub { font-size: .875rem; color: var(--ink-3); margin-top: 3px; }
-/* Headers carry only an action row once the title block is dropped — keep it right-aligned. */
+/* Headers carry only an action row once the title block is dropped — keep it right-aligned.
+   (.rv-head is excluded: its only child can be the title block itself.) */
 .page-header > :only-child,
-.rv-head > :only-child,
 .institution-head > :only-child { margin-left: auto; }
 .page-header-actions { display: flex; align-items: center; gap: .5rem; flex-wrap: wrap; }
 

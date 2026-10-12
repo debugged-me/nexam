@@ -59,8 +59,10 @@ class SheetRow {
 
 /// Assign grid rows exactly like omrService.assignRows(): fill column 0
 /// top-to-bottom, then column 1; multi-row (matching) items never split
-/// across a column boundary.
-List<SheetRow> computeSheetRows(List<OmrItemLayout> items) {
+/// across a column boundary. [rowsPerCol] comes from the sheet's QR `ly`
+/// block on v:2 sheets — auto-fit grows it beyond 25 when the pitch shrank.
+List<SheetRow> computeSheetRows(List<OmrItemLayout> items,
+    {int rowsPerCol = kRowsPerCol}) {
   final rows = <SheetRow>[];
   var col = 0;
   var row = 0;
@@ -68,7 +70,7 @@ List<SheetRow> computeSheetRows(List<OmrItemLayout> items) {
   for (var i = 0; i < items.length; i++) {
     final item = items[i];
     final need = item.rows;
-    if (row + need > kRowsPerCol) {
+    if (row + need > rowsPerCol) {
       col++;
       row = 0;
       if (col >= kCols) break; // sheet overflow — item not rendered
@@ -88,9 +90,11 @@ List<SheetRow> computeSheetRows(List<OmrItemLayout> items) {
 }
 
 /// Design-space center of bubble [bubbleIndex] in the given grid row.
-List<double> bubbleCenter(int col, int row, int bubbleIndex) {
+/// [gridY]/[rowH] come from the QR `ly` block on v:2 sheets.
+List<double> bubbleCenter(int col, int row, int bubbleIndex,
+    {double gridY = kGridY, double rowH = kRowH}) {
   final x = kColX[col] + kNumW + bubbleIndex * kBubblePitch + kBubble / 2;
-  final y = kGridY + row * kRowH + kBubble / 2;
+  final y = gridY + row * rowH + kBubble / 2;
   return [x, y];
 }
 

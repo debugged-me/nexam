@@ -37,6 +37,9 @@ void main() {
   Uint8List renderSheet({
     required Map<String, List<String>> types,
     required Map<int, List<int>> marks, // itemNumber → bubble indices per sub-row
+    double gridY = kGridY,
+    double rowH = kRowH,
+    int rowsPerCol = kRowsPerCol,
   }) {
     final image = img.Image(width: kPageW.round(), height: kPageH.round());
     img.fill(image, color: img.ColorRgb8(255, 255, 255));
@@ -57,10 +60,11 @@ void main() {
     final items = types['types']!
         .map((c) => OmrItemLayout.fromCode(c))
         .toList();
-    final rows = computeSheetRows(items);
+    final rows = computeSheetRows(items, rowsPerCol: rowsPerCol);
     for (final row in rows) {
       for (var c = 0; c < row.choices.length; c++) {
-        final center = bubbleCenter(row.col, row.row, c);
+        final center =
+            bubbleCenter(row.col, row.row, c, gridY: gridY, rowH: rowH);
         // Outline ring (thin dark circle).
         for (var t = 0.0; t < 2 * math.pi; t += 0.05) {
           final px = (center[0] + (kBubble / 2) * math.cos(t)).round();
@@ -80,13 +84,14 @@ void main() {
     return Uint8List.fromList(img.encodePng(image));
   }
 
-  OmrQrPayload payloadFor(List<String> codes) {
+  OmrQrPayload payloadFor(List<String> codes, {Map<String, dynamic>? ly}) {
     return OmrQrPayload.fromJson({
       'examId': 'exam-1',
       'setId': 'set-1',
       'set': 'A',
       'count': codes.length,
       'types': codes,
+      if (ly != null) 'ly': ly,
     });
   }
 
@@ -163,6 +168,34 @@ void main() {
 
     expect(out.detections[25].detectedAnswer, 'C');
     expect(out.detections[29].detectedAnswer, 'A');
+  });
+
+  test('v:2 auto-fit sheet — shrunken pitch reads correctly from the ly block', () {
+    // Dense exam: 50 items incl. a 5-premise matching → 54 grid rows, so the
+    // generator packs 27/col at a 27px pitch and ships that geometry in `ly`.
+    const rowH = 27.0;
+    const rowsPerCol = 27;
+    final codes = <String>[
+      ...List<String>.filled(8, 'm4'),
+      'M5',
+      ...List<String>.filled(41, 'm4'),
+    ];
+    final bytes = renderSheet(
+      types: {'types': codes},
+      rowH: rowH,
+      rowsPerCol: rowsPerCol,
+      marks: {
+        9: [2, 4, 0, 1, 3], // matching → all five premises
+        50: [1],            // last item — the row v:1 sheets dropped
+      },
+    );
+    final out = OmrScanner().detect(
+      imageBytes: bytes,
+      payload: payloadFor(codes, ly: {'gy': kGridY, 'rh': rowH, 'rpc': rowsPerCol}),
+    );
+
+    expect(out.detections[8].subAnswers, ['C', 'E', 'A', 'B', 'D']);
+    expect(out.detections[49].detectedAnswer, 'B');
   });
 
   test('matching item never splits across the column boundary', () {

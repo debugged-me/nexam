@@ -151,6 +151,29 @@
 .print-pack-file strong { font: 500 .8125rem/1.3 var(--font-display, "Google Sans", sans-serif); color: var(--ink); }
 .print-pack-file small { color: var(--ink-faint); font-size: .6875rem; }
 @media (hover: none) { .print-pack-file > svg:last-child { opacity: 1; } }
+/* File-row rendered as a <button> (OMR preview) — strip the UA chrome. */
+button.print-pack-file {
+  width: 100%;
+  border: 0;
+  background: transparent;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+button.print-pack-file > span { text-align: left; }
+
+/* OMR preview — the served PDF fills the modal body like a paper sheet. */
+.omr-preview-frame {
+  display: block;
+  width: 100%;
+  height: min(72vh, 860px);
+  border: 0;
+  border-radius: 6px;
+  background: var(--surface-2);
+}
+.modal-footer .is-spinning,
+.modal-footer svg.is-spinning { animation: exd-spin .9s linear infinite; }
+@keyframes exd-spin { to { transform: rotate(360deg); } }
 
 /* Export card reuses the file-row language */
 .dl-body { display: flex; flex-direction: column; gap: 2px; padding: 6px; }

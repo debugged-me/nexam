@@ -131,6 +131,9 @@ class OmrQrPayload {
     required this.set,
     required this.count,
     required this.items,
+    this.gridY,
+    this.rowH,
+    this.rowsPerCol,
   });
 
   final int version;
@@ -150,6 +153,14 @@ class OmrQrPayload {
   /// Per-item bubble layout decoded from the `types` codes.
   final List<OmrItemLayout> items;
 
+  /// Rendered grid geometry from the QR `ly` block (v:2 sheets). Dense
+  /// exams shrink the row pitch to fit — when present, the scanner reads
+  /// bubbles at these coordinates; when absent, the compiled constants in
+  /// omr_layout.dart apply (they equal the v:1 fixed layout).
+  final double? gridY;
+  final double? rowH;
+  final int? rowsPerCol;
+
   factory OmrQrPayload.fromJson(Map<String, dynamic> json) {
     final codes = (json['types'] as List?)?.cast<String>() ?? const <String>[];
     final count = int.tryParse(json['count']?.toString() ?? '') ?? codes.length;
@@ -159,6 +170,7 @@ class OmrQrPayload {
           ? OmrItemLayout.fromCode(codes[i])
           : OmrItemLayout.fromCode('m4'),
     );
+    final ly = json['ly'] is Map ? json['ly'] as Map : const <String, dynamic>{};
     return OmrQrPayload(
       version: int.tryParse(json['v']?.toString() ?? '') ?? 1,
       examId: json['examId']?.toString() ?? '',
@@ -167,6 +179,9 @@ class OmrQrPayload {
       set: json['set']?.toString() ?? '',
       count: count,
       items: items,
+      gridY: (ly['gy'] as num?)?.toDouble(),
+      rowH: (ly['rh'] as num?)?.toDouble(),
+      rowsPerCol: (ly['rpc'] as num?)?.toInt(),
     );
   }
 
@@ -177,5 +192,7 @@ class OmrQrPayload {
         'sv': setVersion,
         'set': set,
         'count': count,
+        if (gridY != null || rowH != null || rowsPerCol != null)
+          'ly': {'gy': gridY, 'rh': rowH, 'rpc': rowsPerCol},
       };
 }

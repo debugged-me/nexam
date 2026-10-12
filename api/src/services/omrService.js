@@ -25,6 +25,12 @@
  * column 1. An item occupies 1 row (mcq/true_false/identification) or N rows
  * (matching, one per premise). A matching item never splits across columns —
  * if it doesn't fit in the remaining rows it starts the next column.
+ *
+ * Auto-fit (v:2 sheets): when the item list needs more than 25 rows/column,
+ * the grid grows rows and shrinks pitch (down to BUBBLE+6) until everything
+ * fits. The rendered geometry is embedded in the QR `ly` block
+ * `{gy, rh, rpc}` — the scanner (v>=2 payloads) reads bubbles at those
+ * coordinates; older payloads fall back to the constants above.
  */
 import QRCode from 'qrcode';
 import fs from 'fs';
@@ -50,10 +56,17 @@ const ROWS_PER_COL = 25;
 const COL_X = [64, 424];
 const GRID_Y = 310;
 const ROW_H = 30;
+// Auto-fit bounds: rows render from GRID_Y down to GRID_BOTTOM (clear of the
+// bottom anchors + footer). When an exam needs more than 25 rows/column the
+// pitch shrinks toward ROW_H_MIN rather than dropping items off the sheet;
+// the chosen geometry travels in the QR `ly` block so the scanner reads the
+// same coordinates it was rendered with.
+const GRID_BOTTOM = 1060;
 const NUM_W = 34;
 const BUBBLE = 18;
 const BUBBLE_GAP = 8;
 const BUBBLE_PITCH = BUBBLE + BUBBLE_GAP; // 26
+const ROW_H_MIN = BUBBLE + 6; // tightest pitch that keeps 18px bubbles legible
 
 /** Escape text for safe HTML rendering. */
 function esc(text) {
@@ -119,14 +132,14 @@ function rowsFor(question) {
  * never splits across a column boundary.
  * @returns {Array<{item:number, sub:number, col:number, row:number}>}
  */
-function assignRows(questions) {
+function assignRows(questions, rowsPerCol = ROWS_PER_COL) {
   const rows = [];
   let col = 0;
   let row = 0;
 
   for (let i = 0; i < questions.length; i++) {
     const need = rowsFor(questions[i]);
-    if (row + need > ROWS_PER_COL) {
+    if (row + need > rowsPerCol) {
       col++;
       row = 0;
       if (col >= COLS) break; // overflow — extra items not renderable
@@ -137,6 +150,33 @@ function assignRows(questions) {
     row += need;
   }
   return rows;
+}
+
+/**
+ * Compute the sheet's grid geometry for a question set. The default grid is
+ * 25 rows/column at 30px pitch; a denser set (matching items consume one row
+ * per premise) grows the row count until every item renders, shrinking the
+ * pitch to keep the grid inside GRID_BOTTOM. Returns the pitch actually used
+ * plus the row assignments — both must reach the scanner via the QR `ly`
+ * block so it reads bubbles at the rendered coordinates.
+ */
+function layoutFor(questions) {
+  const usableH = GRID_BOTTOM - GRID_Y;
+  const maxRows = Math.floor(usableH / ROW_H_MIN);
+  const rendered = (rows) => new Set(rows.map((r) => r.item)).size;
+
+  let rowsPerCol = ROWS_PER_COL;
+  let assignments = assignRows(questions, rowsPerCol);
+  while (rendered(assignments) < questions.length && rowsPerCol < maxRows) {
+    rowsPerCol += 1;
+    assignments = assignRows(questions, rowsPerCol);
+  }
+
+  return {
+    rowsPerCol,
+    rowH: Math.min(ROW_H, Math.floor(usableH / rowsPerCol)),
+    assignments,
+  };
 }
 
 /** Row label shown next to the bubbles ("7." or "7a", "7b" for matching). */
@@ -159,19 +199,24 @@ function rowLabel(item, sub, isMulti) {
  */
 export async function generateOMRSheet(opts) {
   const filePath = path.join(STORAGE_DIR, opts.filename);
+  const layout = layoutFor(opts.questions);
 
   // Self-describing QR payload: exam + set id (no server lookup needed) and
   // the per-item layout so the scanner reconstructs the grid exactly. `sv`
   // records which print run the sheet belongs to — a sheet from an archived
   // run still resolves its own set id, never the current run's same label.
   const qrPayload = JSON.stringify({
-    v: 1,
+    v: 2,
     examId: opts.examId,
     setId: opts.examSetId || null,
     sv: opts.setVersion ?? 1,
     set: opts.setLabel,
     count: opts.questions.length,
     types: opts.questions.map(typeCode),
+    // Rendered grid geometry — v:2 sheets may shrink the row pitch to fit
+    // dense exams, so the scanner must read bubbles at these coordinates
+    // instead of the compiled-in defaults.
+    ly: { gy: GRID_Y, rh: layout.rowH, rpc: layout.rowsPerCol },
   });
   const qrDataUrl = await QRCode.toDataURL(qrPayload, {
     width: 220,
@@ -180,12 +225,11 @@ export async function generateOMRSheet(opts) {
   });
 
   // ── Bubble rows (absolutely positioned — deterministic geometry) ──
-  const assignments = assignRows(opts.questions);
-  const rowsHtml = assignments.map(({ item, sub, col, row }) => {
+  const rowsHtml = layout.assignments.map(({ item, sub, col, row }) => {
     const q = opts.questions[item - 1];
     const multi = rowsFor(q) > 1;
     const choices = rowChoices(q, sub);
-    const top = GRID_Y + row * ROW_H;
+    const top = GRID_Y + row * layout.rowH;
     const left = COL_X[col];
 
     const bubbles = choices.map((choice, c) => {
@@ -196,8 +240,8 @@ export async function generateOMRSheet(opts) {
     return `<div class="num" style="left:${left}px;top:${top}px">${esc(rowLabel(item, sub, multi))}</div>${bubbles}`;
   }).join('\n');
 
-  // Items that didn't fit (sheet capacity = 2 × 25 rows)
-  const renderedItems = new Set(assignments.map((a) => a.item));
+  // Items that still didn't fit after auto-fit (extreme densities only)
+  const renderedItems = new Set(layout.assignments.map((a) => a.item));
   const overflow = opts.questions.length - renderedItems.size;
   const overflowHtml = overflow > 0
     ? `<div class="overflow">⚠ ${overflow} item(s) exceed sheet capacity — print a second sheet.</div>`
@@ -252,7 +296,7 @@ export async function generateOMRSheet(opts) {
       text-align: center;
     }
     .overflow {
-      position: absolute; left: 70px; top: ${GRID_Y + ROWS_PER_COL * ROW_H + 12}px;
+      position: absolute; left: 70px; top: ${GRID_Y - 24}px;
       font-size: 9pt; color: #B91C1C; font-weight: bold;
     }
     .footer {
@@ -309,4 +353,4 @@ export async function generateOMRSheet(opts) {
   return filePath;
 }
 
-export { STORAGE_DIR };
+export { STORAGE_DIR, layoutFor };

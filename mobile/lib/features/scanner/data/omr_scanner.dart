@@ -103,10 +103,17 @@ class OmrScanner {
       toImage = _fallbackMapper(gray);
     }
 
+    // Sheet-specific geometry — v:2 payloads carry the rendered grid in `ly`
+    // (auto-fit shrinks the pitch on dense exams); older sheets use the
+    // compiled constants, which equal the v:1 fixed layout.
+    final gridY = payload.gridY ?? kGridY;
+    final rowH = payload.rowH ?? kRowH;
+    final rowsPerCol = payload.rowsPerCol ?? kRowsPerCol;
+
     // Approximate pixel size of a bubble in the photo (for patch sampling).
     // Euclidean distance — survives skew, where a pure Δx read would not.
-    final center1 = toImage(kColX[0] + kNumW, kGridY);
-    final center2 = toImage(kColX[0] + kNumW + kBubblePitch, kGridY);
+    final center1 = toImage(kColX[0] + kNumW, gridY);
+    final center2 = toImage(kColX[0] + kNumW + kBubblePitch, gridY);
     final pitchPx = math.sqrt(
       math.pow(center2.x - center1.x, 2) +
           math.pow(center2.y - center1.y, 2),
@@ -115,13 +122,15 @@ class OmrScanner {
         (pitchPx / kBubblePitch * kBubble).clamp(6.0, 60.0);
 
     // ── Read every sheet row ──────────────────────────
-    final sheetRows = computeSheetRows(payload.items);
+    final sheetRows =
+        computeSheetRows(payload.items, rowsPerCol: rowsPerCol);
     final itemAnswers = <int, _ItemRead>{};
 
     for (final sheetRow in sheetRows) {
       final ratios = <double>[];
       for (var c = 0; c < sheetRow.choices.length; c++) {
-        final design = bubbleCenter(sheetRow.col, sheetRow.row, c);
+        final design =
+            bubbleCenter(sheetRow.col, sheetRow.row, c, gridY: gridY, rowH: rowH);
         final pt = toImage(design[0], design[1]);
         ratios.add(_fillRatio(gray, pt.x, pt.y, pxPerBubble * 0.45));
       }

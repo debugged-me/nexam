@@ -11,6 +11,7 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import {
   Plus, Trash2, FileText, FileCheck, Download, Send, Printer,
   Pencil, Clock, Monitor, QrCode, ScanLine, Sparkles, Copy,
+  Eye, RefreshCw,
 } from 'lucide-react';
 import { useToast } from '../components/Toast.jsx';
 import EmptyStateArt from '../components/EmptyStateArt.jsx';
@@ -75,6 +76,10 @@ export default function ExamDetailPage() {
   const [downloadsVisible, setDownloadsVisible] = useState(false);
   const [printCfg, setPrintCfg] = useState({ open: false, set: 'A', includeKey: false });
   const [printReady, setPrintReady] = useState(false);
+  const [omrPreview, setOmrPreview] = useState(null); // 'A' | 'B' | null
+  const [omrNonce, setOmrNonce] = useState(0);      // bumps the iframe after a re-render
+  const [omrBusy, setOmrBusy] = useState(false);
+  const omrFrameRef = useRef(null);
   const [results, setResults] = useState(null);
   const [itemStats, setItemStats] = useState([]);
   const { menuEl, openMenu } = useContextMenu();
@@ -225,6 +230,33 @@ export default function ExamDetailPage() {
     return `${base}/exams/${id}/download/${type}?${params.toString()}`;
   }
 
+  // Inline-served PDF for the preview iframe — the nonce cache-busts after a
+  // re-render so the frame actually reloads the new file.
+  function previewUrl(type, set) {
+    const base = import.meta.env.VITE_API_BASE || '/api';
+    const params = new URLSearchParams();
+    if (set) params.set('set', set);
+    params.set('inline', '1');
+    params.set('cb', String(omrNonce));
+    params.set('token', getToken());
+    return `${base}/exams/${id}/download/${type}?${params.toString()}`;
+  }
+
+  // Re-render the stored OMR PDF with the latest layout code — same setId and
+  // question order, so sheets already printed still scan.
+  async function refreshOmr(setLabel) {
+    setOmrBusy(true);
+    try {
+      await api.post(`/exams/${id}/omr/refresh?set=${setLabel}`);
+      setOmrNonce((n) => n + 1);
+      toast.success(`Set ${setLabel} OMR sheet re-rendered with the latest layout.`);
+    } catch (err) {
+      toast.error(err.message || 'Could not re-render the OMR sheet.');
+    } finally {
+      setOmrBusy(false);
+    }
+  }
+
   function exportUrl(format) {
     const base = import.meta.env.VITE_API_BASE || '/api';
     const params = new URLSearchParams({ token: getToken() });
@@ -323,9 +355,9 @@ export default function ExamDetailPage() {
                     <a className="print-pack-file" href={downloadUrl('answerkey', label)} target="_blank" rel="noreferrer">
                       <FileCheck size={16} aria-hidden="true" /><span><strong>Answer key</strong><small>PDF</small></span><Download size={14} aria-hidden="true" />
                     </a>
-                    <a className="print-pack-file" href={downloadUrl('omr', label)} target="_blank" rel="noreferrer">
-                      <ScanLine size={16} aria-hidden="true" /><span><strong>OMR sheet</strong><small>QR-linked · PDF</small></span><Download size={14} aria-hidden="true" />
-                    </a>
+                    <button type="button" className="print-pack-file is-btn" onClick={() => setOmrPreview(label)}>
+                      <ScanLine size={16} aria-hidden="true" /><span><strong>OMR sheet</strong><small>Preview · QR-linked</small></span><Eye size={14} aria-hidden="true" />
+                    </button>
                   </div>
                 </article>
               ))}
@@ -556,6 +588,48 @@ export default function ExamDetailPage() {
             onChange={(e) => setPrintCfg((c) => ({ ...c, includeKey: e.target.checked }))} />
           <span>Append answer key on a separate page (instructor copy)</span>
         </label>
+      </Modal>
+
+      {/* OMR sheet preview — the exact PDF students fill, with re-render and
+          print built in so nothing goes to paper sight-unseen. */}
+      <Modal
+        open={!!omrPreview}
+        title={`OMR answer sheet — Set ${omrPreview || ''}`}
+        subtitle="The exact PDF the scanner reads — check it before printing"
+        onClose={() => setOmrPreview(null)}
+        size="xl"
+        icon={ScanLine}
+        footer={<>
+          <button
+            type="button"
+            className="btn btn-outline"
+            onClick={() => refreshOmr(omrPreview)}
+            disabled={omrBusy}
+            title="Re-render this sheet with the latest layout code"
+          >
+            <RefreshCw size={14} className={omrBusy ? 'is-spinning' : ''} /> Re-render
+          </button>
+          <a className="btn btn-outline" href={downloadUrl('omr', omrPreview)} target="_blank" rel="noreferrer">
+            <Download size={14} /> Download PDF
+          </a>
+          <button
+            type="button"
+            className="btn btn-primary"
+            onClick={() => omrFrameRef.current?.contentWindow?.print()}
+          >
+            <Printer size={14} /> Print
+          </button>
+        </>}
+      >
+        {omrPreview && (
+          <iframe
+            key={`${omrPreview}-${omrNonce}`}
+            ref={omrFrameRef}
+            className="omr-preview-frame"
+            src={previewUrl('omr', omrPreview)}
+            title={`OMR answer sheet preview — Set ${omrPreview}`}
+          />
+        )}
       </Modal>
 
       {/* The printable document — hidden on screen, revealed by @media print */}

@@ -761,7 +761,74 @@ router.get('/:id/download/:type', requireAuth, async (req, res, next) => {
       return res.status(404).json({ error: 'File not found. Generate the exam sets first.' });
     }
 
+    // ?inline=1 — preview in the browser (iframe) instead of a download.
+    if (req.query.inline === '1') {
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', `inline; filename="${downloadName}"`);
+      return res.sendFile(filePath);
+    }
+
     res.download(filePath, downloadName);
+  } catch (err) {
+    next(err);
+  }
+});
+
+/**
+ * POST /api/exams/:id/omr/refresh — re-render the OMR sheet for the current
+ * set(s) using the latest layout code. The setId and question order are
+ * unchanged, so sheets already in circulation still scan (the QR's layout
+ * block is what differs). `?set=A|B` refreshes one set; absent → both.
+ */
+router.post('/:id/omr/refresh', requireAuth, async (req, res, next) => {
+  try {
+    const examId = req.params.id;
+    const setFilter = req.query.set ? String(req.query.set).toUpperCase() : null;
+    if (setFilter && !['A', 'B'].includes(setFilter)) {
+      return res.status(400).json({ error: 'Set label A or B is required.' });
+    }
+
+    const [examRows] = await pool.query(
+      `SELECT e.id, e.title FROM exams e
+       JOIN subjects s ON s.id = e.subject_id
+       WHERE e.id = :examId AND s.instructor_id = :userId`,
+      { examId, userId: req.user.id }
+    );
+    if (!examRows.length) return res.status(404).json({ error: 'Exam not found.' });
+    const exam = examRows[0];
+
+    const [sets] = await pool.query(
+      `SELECT id, set_label, version, omr_sheet_path FROM exam_sets
+       WHERE exam_id = :examId AND is_current = 1
+       ${setFilter ? 'AND set_label = :setFilter' : ''}
+       ORDER BY set_label`,
+      setFilter ? { examId, setFilter } : { examId }
+    );
+    if (!sets.length) {
+      return res.status(404).json({ error: 'No current set found — generate the exam sets first.' });
+    }
+
+    const refreshed = [];
+    for (const set of sets) {
+      const [items] = await pool.query(
+        `SELECT q.* FROM exam_set_questions esq
+         JOIN questions q ON q.id = esq.question_id
+         WHERE esq.exam_set_id = :setId ORDER BY esq.sort_order`,
+        { setId: set.id }
+      );
+      await generateOMRSheet({
+        examId,
+        examSetId: set.id,
+        setVersion: set.version,
+        examTitle: exam.title,
+        setLabel: set.set_label,
+        questions: items,
+        filename: path.basename(set.omr_sheet_path || `omr_${examId}_set${set.set_label}.pdf`),
+      });
+      refreshed.push(set.set_label);
+    }
+
+    res.json({ refreshed });
   } catch (err) {
     next(err);
   }

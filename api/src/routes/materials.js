@@ -20,7 +20,7 @@ import { requireAuth } from '../middleware/auth.js';
 import { rateLimit } from '../middleware/rateLimit.js';
 import jobsService, { enqueue } from '../services/jobs.js';
 import { assertSafePublicUrl } from '../services/safeUrl.js';
-import { encryptFileAtRest } from '../services/storageCrypto.js';
+import { encryptFileAtRest, readProtectedFile } from '../services/storageCrypto.js';
 
 const router = Router();
 
@@ -181,11 +181,33 @@ router.get('/:id', requireAuth, async (req, res, next) => {
     if (!rows.length) return res.status(404).json({ error: 'Material not found.' });
     const m = rows[0];
     // Truncate content in list view; full content only on explicit request.
-    if (m.content && m.content.length > 5000) {
+    if (m.content && m.content.length > 5000 && req.query.full !== '1') {
       m.content = m.content.slice(0, 5000) + '\n...[truncated]';
     }
     if (m.error) m.error = jobsService.friendlyJobError(m.error, m.updated_at || m.created_at);
     res.json({ material: m });
+  } catch (err) {
+    next(err);
+  }
+});
+
+/** GET /api/materials/:id/file — stream the decrypted original file inline. */
+router.get('/:id/file', requireAuth, async (req, res, next) => {
+  try {
+    const [rows] = await pool.query(
+      `SELECT title, file_path, mime_type, source_type FROM materials
+       WHERE id = :id AND created_by = :userId`,
+      { id: req.params.id, userId: req.user.id }
+    );
+    const m = rows[0];
+    if (!m || !m.file_path) return res.status(404).json({ error: 'File not found.' });
+    const buf = await readProtectedFile(m.file_path);
+    const ext = { pdf: '.pdf', docx: '.docx', pptx: '.pptx', text: '.txt' }[m.source_type] || '';
+    const safeName = `${String(m.title || 'material').replace(/[^\w.-]+/g, '_')}${ext}`;
+    res.setHeader('Content-Type', m.mime_type || 'application/octet-stream');
+    res.setHeader('Content-Disposition', `inline; filename="${safeName}"`);
+    res.setHeader('Content-Length', buf.length);
+    res.send(buf);
   } catch (err) {
     next(err);
   }

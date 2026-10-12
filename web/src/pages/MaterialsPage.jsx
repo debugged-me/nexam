@@ -20,6 +20,7 @@ import { useSearchParams } from 'react-router-dom';
 import {
   Upload, Link2, Video, FileText, Trash2, RotateCw, FileStack, Sparkles,
   BookOpen, Loader2, CheckCircle2, AlertCircle, RefreshCw, X, Copy, Ellipsis, Info,
+  Download,
 } from 'lucide-react';
 import { useToast } from '../components/Toast.jsx';
 import { useContextMenu, useCopyText } from '../components/ContextMenu.jsx';
@@ -98,6 +99,8 @@ export default function MaterialsPage() {
   const [refreshing, setRefreshing] = useState(false);
   const [pollsUsed, setPollsUsed] = useState(0);
   const [viewing, setViewing] = useState(null);
+  const [viewContent, setViewContent] = useState(null);
+  const [reader, setReader] = useState(null);
   const fileInput = useRef(null);
   const dragDepth = useRef(0);
 
@@ -395,10 +398,57 @@ export default function MaterialsPage() {
     }
   }
 
+  function openView(m) {
+    setViewing(m);
+    setViewContent(null);
+    api.get(`/materials/${m.id}?full=1`)
+      .then((d) => setViewContent({ id: m.id, content: d.material?.content || '' }))
+      .catch(() => setViewContent({ id: m.id, content: '' }));
+  }
+
+  const FILE_EXTS = { pdf: 'pdf', docx: 'docx', pptx: 'pptx', text: 'txt' };
+  const FILE_ACCENTS = { pdf: '#D64541', docx: '#2B579A', pptx: '#D24726', text: '#64748B' };
+
+  async function openReader(m) {
+    setReader({ title: m.title, loading: true });
+    const url = await api.getBlob(`/materials/${m.id}/file`).catch(() => null);
+    if (!url) {
+      setReader({
+        title: m.title, kind: 'text',
+        text: viewContent?.id === m.id && viewContent.content
+          ? viewContent.content
+          : 'The original file is not stored for this material.',
+      });
+      return;
+    }
+    const fileName = `${String(m.title || 'material').replace(/[^\w.-]+/g, '_')}.${FILE_EXTS[m.source_type] || 'bin'}`;
+    try {
+      if (m.source_type === 'pdf') {
+        setReader({ title: m.title, kind: 'pdf', url, fileName });
+      } else if (m.source_type === 'docx') {
+        const arrayBuffer = await (await fetch(url)).arrayBuffer();
+        const mammoth = await import('mammoth');
+        const { value: html } = await mammoth.convertToHtml({ arrayBuffer });
+        setReader({ title: m.title, kind: 'docx', html, url, fileName });
+      } else if (m.source_type === 'text') {
+        setReader({ title: m.title, kind: 'text', text: await (await fetch(url)).text(), url, fileName });
+      } else {
+        setReader({ title: m.title, kind: 'download', url, fileName });
+      }
+    } catch {
+      setReader({ title: m.title, kind: 'download', url, fileName });
+    }
+  }
+
+  function closeReader() {
+    if (reader?.url) URL.revokeObjectURL(reader.url);
+    setReader(null);
+  }
+
   function materialMenu(e, m) {
     const canGenerate = Boolean(Number(m.is_syllabus)) && m.status === 'processed';
     openMenu(e, [
-      { label: 'View details', icon: Info, onClick: () => setViewing(m) },
+      { label: 'View details', icon: Info, onClick: () => openView(m) },
       ...(canGenerate ? [{ label: 'Auto-generate Blueprint', icon: Sparkles, onClick: () => handleGenerateTos(m) }] : []),
       { label: m.status === 'failed' ? 'Retry processing' : 'Reprocess', icon: RotateCw, onClick: () => handleReprocess(m) },
       'sep',
@@ -474,7 +524,7 @@ export default function MaterialsPage() {
                           {m.source_type} · {m.chunk_count || 0} chunks
                         </div>
                         {m.title && m.title.length > 90 && (
-                          <button type="button" className="mat-readmore" onClick={() => setViewing(m)}>Read more</button>
+                          <button type="button" className="mat-readmore" onClick={() => openView(m)}>Read more</button>
                         )}
                         {m.status === 'pending' && (
                           <div className="mat-card-progress">
@@ -693,7 +743,7 @@ export default function MaterialsPage() {
         subtitle="Material details"
         icon={FileText}
         accent={viewing ? groupColor(matSubjectOf(viewing)?.id) : undefined}
-        onClose={() => setViewing(null)}
+        onClose={() => { setViewing(null); setViewContent(null); }}
         fields={viewing ? [
           { label: 'Status', value: <StatusPill status={viewing.status} small inline />, kind: 'meta' },
           { label: 'Subject', value: (() => { const s = matSubjectOf(viewing); return s ? `${s.name}${s.code ? ` (${s.code})` : ''}` : null; })(), kind: 'meta' },
@@ -703,8 +753,46 @@ export default function MaterialsPage() {
           { label: 'Syllabus', value: Number(viewing.is_syllabus) ? 'Yes' : 'No' },
           { label: 'Added', value: fmtDate(viewing.created_at) },
           { label: 'Processed', value: fmtDate(viewing.processed_at) },
+          viewing.status === 'processed' ? {
+            label: 'Extracted text',
+            kind: 'block',
+            accent: FILE_ACCENTS[viewing.source_type],
+            badge: FILE_EXTS[viewing.source_type]?.toUpperCase() || viewing.source_type?.toUpperCase(),
+            value: viewContent?.id === viewing.id
+              ? (viewContent.content || 'No extractable text found in this file.')
+              : 'Loading…',
+            onExpand: viewContent?.id === viewing.id || ['pdf', 'docx', 'pptx'].includes(viewing.source_type)
+              ? () => openReader(viewing)
+              : undefined,
+            expandLabel: ['pdf', 'docx', 'pptx'].includes(viewing.source_type) ? 'View original file' : 'Read full content',
+          } : null,
         ].filter(Boolean) : []}
       />
+      <Modal
+        open={!!reader}
+        title={reader?.title || 'Document'}
+        subtitle={reader?.kind === 'text' ? 'Extracted text' : 'Original file'}
+        onClose={closeReader}
+        size="xl"
+        footer={reader?.url ? (
+          <a className="btn btn-sm" href={reader.url} download={reader.fileName}>
+            <Download size={14} /> Download original
+          </a>
+        ) : undefined}
+      >
+        {reader?.loading && (
+          <div className="reader-fallback"><Loader2 size={20} /><p>Opening file…</p></div>
+        )}
+        {reader?.kind === 'pdf' && <iframe className="reader-frame" src={reader.url} title={reader.title} />}
+        {reader?.kind === 'docx' && <div className="reader-doc" dangerouslySetInnerHTML={{ __html: reader.html }} />}
+        {reader?.kind === 'text' && <div className="reader-paper">{reader.text}</div>}
+        {reader?.kind === 'download' && (
+          <div className="reader-fallback">
+            <FileText size={28} />
+            <p>This file type can't be previewed here — download it to view the original.</p>
+          </div>
+        )}
+      </Modal>
       {menuEl}
     </AppShell>
   );

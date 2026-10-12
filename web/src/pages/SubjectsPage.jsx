@@ -185,10 +185,20 @@ export default function SubjectsPage() {
   }
 
   async function handleDelete(subject) {
-    if (!(await confirm(`Delete "${subject.name}"? Its blueprints, questions, and materials links will be removed.`, { title: 'Delete subject' }))) return;
+    // The cascade removes everything inside the subject — name the contents
+    // so the confirm isn't a blind "are you sure?".
+    const parts = [
+      Number(subject.exam_count) && `${Number(subject.exam_count)} exam${Number(subject.exam_count) === 1 ? '' : 's'}`,
+      Number(subject.tos_count) && `${Number(subject.tos_count)} blueprint${Number(subject.tos_count) === 1 ? '' : 's'}`,
+      Number(subject.question_count) && `${Number(subject.question_count)} question${Number(subject.question_count) === 1 ? '' : 's'}`,
+    ].filter(Boolean);
+    const detail = parts.length
+      ? ` Its ${parts.join(', ')} — including any scanned results — are permanently deleted.`
+      : '';
+    if (!(await confirm(`Delete "${subject.name}"?${detail} This cannot be undone.`, { title: 'Delete subject', confirmText: parts.length ? 'Delete everything' : 'Delete' }))) return;
     setDeleting(subject);
     try {
-      await api.del(`/subjects/${subject.id}`);
+      await api.del(`/subjects/${subject.id}?cascade=1`);
       toast.success('Subject deleted.');
       setSelected((prev) => { const n = new Set(prev); n.delete(subject.id); return n; });
       load();
@@ -202,9 +212,23 @@ export default function SubjectsPage() {
   async function handleBulkDelete() {
     const ids = [...selected];
     if (!ids.length) return;
+    // Aggregate the selected subjects' contents so the confirm states the
+    // real cost — the cascade wipes everything inside each subject.
+    const chosen = (subjects || []).filter((s) => selected.has(s.id));
+    const nE = chosen.reduce((a, s) => a + (Number(s.exam_count) || 0), 0);
+    const nB = chosen.reduce((a, s) => a + (Number(s.tos_count) || 0), 0);
+    const nQ = chosen.reduce((a, s) => a + (Number(s.question_count) || 0), 0);
+    const detail = (nE || nB || nQ)
+      ? ` They contain ${[
+          nE && `${nE} exam${nE === 1 ? '' : 's'}`,
+          nB && `${nB} blueprint${nB === 1 ? '' : 's'}`,
+          nQ && `${nQ} question${nQ === 1 ? '' : 's'}`,
+        ].filter(Boolean).join(', ')} — including any scanned results.`
+      : '';
+    if (!(await confirm(`Delete ${ids.length} subject${ids.length === 1 ? '' : 's'}?${detail} This cannot be undone.`, { title: 'Delete subjects', confirmText: 'Delete everything' }))) return;
     setDeleting({ bulk: true });
     try {
-      const data = await api.post('/subjects/bulk-delete', { ids });
+      const data = await api.post('/subjects/bulk-delete', { ids, cascade: true });
       toast.success(`${data.deleted || ids.length} subject${(data.deleted || ids.length) === 1 ? '' : 's'} deleted.`);
       setSelected(new Set());
       setSelectMode(false);

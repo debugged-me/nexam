@@ -1484,6 +1484,12 @@ export default function QuestionsPage() {
           { label: 'Subject', value: viewing.subject_name, kind: 'meta' },
           { label: 'Topic', value: viewing.topic },
           viewing.similarity_flag === 'flagged' ? { label: 'Similarity', value: 'Flagged as a possible duplicate' } : null,
+          viewing.source === 'ai' && viewing.ai_evidence ? {
+            label: 'Cited evidence',
+            value: viewing.ai_evidence,
+            kind: 'block',
+            badge: [viewing.ai_source, viewing.ai_generator].filter(Boolean).join(' · ') || undefined,
+          } : null,
           { label: 'Updated', value: fmtDateQ(viewing.updated_at || viewing.created_at) },
         ].filter(Boolean) : []}
       />

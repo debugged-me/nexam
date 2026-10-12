@@ -1474,6 +1474,72 @@ td.dataTables_empty,
   gap: 12px;
   margin-bottom: 1.1rem;
 }
+
+/* ==========================================================================
+   Stage rail — compact lifecycle steps ("work in flight") on detail pages.
+   ========================================================================== */
+.stage-rail {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  list-style: none;
+  margin: 0 0 1.1rem;
+  padding: 0;
+}
+.stage-step {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  flex: 1;
+  min-width: 0;
+}
+/* Connector — tinted once the step before it is done. */
+.stage-step:not(:last-child)::after {
+  content: '';
+  flex: 1;
+  height: 1.5px;
+  margin: 0 10px;
+  background: var(--line);
+}
+.stage-step.is-done:not(:last-child)::after { background: var(--gc-3); }
+.stage-dot {
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: var(--surface-3);
+  color: var(--ink-faint);
+  font: 600 .62rem/1 var(--font-display);
+}
+.stage-step.is-done .stage-dot { background: var(--gc-3); color: #fff; }
+.stage-step.is-current .stage-dot {
+  background: var(--action-600);
+  color: #fff;
+  box-shadow: 0 0 0 3px var(--accent-wash, rgba(45, 147, 232, .16));
+}
+.stage-text { display: flex; flex-direction: column; min-width: 0; }
+.stage-label {
+  font-size: .72rem;
+  font-weight: 600;
+  color: var(--ink-faint);
+  white-space: nowrap;
+}
+.stage-step.is-done .stage-label { color: var(--ink-2); }
+.stage-step.is-current .stage-label { color: var(--ink); }
+.stage-sub {
+  font-size: .62rem;
+  color: var(--ink-faint);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+@media (max-width: 768px) {
+  .stage-rail { flex-wrap: wrap; row-gap: 10px; }
+  .stage-step { flex: 0 0 auto; }
+  .stage-step:not(:last-child)::after { flex: 0 0 16px; margin: 0 8px; }
+}
 .detail-grid-2 {
   display: grid;
   grid-template-columns: 1fr 1fr;

@@ -11,7 +11,7 @@ import '../styles/blueprint-detail.css';
  */
 import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { Plus, Trash2, BookOpen, ChevronRight, Sparkles, FileText, Pencil, ListOrdered, Layers, Clock, Check, X, AlertTriangle, Lock, Copy, GripVertical } from 'lucide-react';
+import { Plus, Trash2, BookOpen, Sparkles, FileText, Pencil, ListOrdered, Layers, Clock, Check, X, AlertTriangle, Lock, Copy, GripVertical } from 'lucide-react';
 import { DndContext, PointerSensor, KeyboardSensor, closestCenter, useSensor, useSensors } from '@dnd-kit/core';
 import { SortableContext, arrayMove, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
@@ -25,6 +25,7 @@ import AppShell from '../components/AppShell.jsx';
 import { CardsSkeleton } from '../components/Loaders.jsx';
 import { useGridTable, DsPager, DsPageSize } from '../components/DataTable.jsx';
 import Reveal from '../components/Reveal.jsx';
+import StageRail from '../components/StageRail.jsx';
 import celebrate from '../lib/celebrate.js';
 
 const BLOOM_LABELS = { remember: 'Remember', understand: 'Understand', apply: 'Apply', analyze: 'Analyze', evaluate: 'Evaluate', create: 'Create' };
@@ -509,7 +510,7 @@ export default function TosDetailPage() {
   const topicGrid = useGridTable({ data: data?.topics || [], columns: TOPIC_PAGER_COLUMNS, pageSize: TOPIC_PAGE_SIZE });
 
   if (!data) return <AppShell pageClass="blueprint-detail" activeNav="tos" pageTitle="Blueprint"><CardsSkeleton tiles={3} /></AppShell>;
-  const { tos, topics, coverage = {} } = data;
+  const { tos, topics, coverage = {}, usage = { exams: 0, scans: 0 } } = data;
   const finalized = tos.status === 'finalized';
   const totalHours = topics.reduce((s, t) => s + (Number(t.instructional_hours) || 0), 0);
 
@@ -535,6 +536,23 @@ export default function TosDetailPage() {
     pageRows: pageTopics, safePage: safeTopicPage,
     start: topicStart, end: topicEnd,
   } = topicGrid;
+
+  // Lifecycle rail — where this blueprint actually is, live. The first
+  // unfinished stage is "current"; everything before it checks off.
+  const totalItems = Math.max(0, Number(tos.total_items) || 0);
+  const railStages = [
+    { label: 'Topics planned', sub: `${topics.length} topic${topics.length === 1 ? '' : 's'}`, done: topics.length > 0 },
+    { label: 'Banked', sub: `${coveredSlots} of ${totalItems} covered`, done: totalItems > 0 && coveredSlots >= totalItems },
+    { label: 'Finalized', sub: finalized ? 'locked' : 'draft — review required', done: finalized },
+    { label: 'Exam assembled', sub: usage.exams ? `${usage.exams} exam${usage.exams === 1 ? '' : 's'}` : undefined, done: usage.exams > 0 },
+    { label: 'Sheets scanned', sub: usage.scans ? `${usage.scans} sheet${usage.scans === 1 ? '' : 's'}` : undefined, done: usage.scans > 0 },
+  ];
+  const railNext = railStages.findIndex((s) => !s.done);
+  const railSteps = railStages.map((s, i) => ({
+    label: s.label,
+    sub: s.sub,
+    state: s.done ? 'done' : i === railNext ? 'current' : 'todo',
+  }));
 
   // Topic checkboxes drive "remove" (draft only) and "derive into new blueprint".
   const selTopicCount = selTopics.size;
@@ -621,21 +639,8 @@ export default function TosDetailPage() {
         </div>
       </div>
 
-      <div className="tos-workflow-callout" data-tour="tos-workflow">
-        <div className="tos-workflow-step">
-          <span className="tos-workflow-num">1</span>
-          <span className="tos-workflow-text"><strong>Review & Finalize TOS</strong> — Confirm topics, hours, item counts, and Bloom weights before locking the blueprint.</span>
-        </div>
-        <ChevronRight className="tos-workflow-arrow" />
-        <div className="tos-workflow-step">
-          <span className="tos-workflow-num">2</span>
-          <span className="tos-workflow-text"><strong>Generate & Review</strong> — AI drafts grounded questions; duplicate checking must finish before instructor approval.</span>
-        </div>
-        <ChevronRight className="tos-workflow-arrow" />
-        <div className="tos-workflow-step">
-          <span className="tos-workflow-num">3</span>
-          <span className="tos-workflow-text"><strong>Build Set A/B</strong> — Uses only approved questions and fills every topic × Bloom allocation exactly.</span>
-        </div>
+      <div data-tour="tos-workflow">
+        <StageRail steps={railSteps} />
       </div>
 
       <div className="stats-grid mb-2" data-tour="tos-stats">

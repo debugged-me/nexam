@@ -101,6 +101,11 @@ export const TOURS = [
         description: 'Profile photo, Account, Appearance (theme, typeface, and text size — saved to your account), and sign out. Appearance is a shared page, so staff get it too.',
       },
       {
+        sel: '[data-tour="dash-kpis"]', side: 'bottom',
+        title: 'The rolling tiles',
+        description: 'Drafts, banked questions, exams, and scanned sheets — each tile counts up live, carries its trend, and deep-links to the list it summarizes.',
+      },
+      {
         sel: '[data-tour="dash-focus"]', side: 'left',
         title: 'Where to look each day',
         description: 'A prioritized queue: scans needing verification, drafts awaiting review, named blueprint shortfalls, and publish-ready exams — each row deep-links to where the work happens.',
@@ -206,8 +211,8 @@ export const TOURS = [
       },
       {
         sel: '[data-tour="tos-workflow"]', side: 'bottom',
-        title: 'What happens downstream',
-        description: 'Finalize → AI drafts grounded questions → exams assemble Set A/B from approved items only. This card maps the rest of the pipeline.',
+        title: 'Where this blueprint is',
+        description: 'A live pipeline, not a diagram: topics planned → banked → finalized → exam assembled → sheets scanned. Each stage checks off as it happens; the highlighted one is your next job.',
       },
       {
         sel: '[data-tour="tos-detail-actions"]', side: 'bottom', align: 'end',
@@ -266,6 +271,11 @@ export const TOURS = [
         sel: '[data-tour="review-card"]', side: 'top',
         title: 'Evidence, not vibes',
         description: 'Each draft must cite an exact span from your materials. Flagged duplicates must be compared before approval — grounding is enforced, not trusted.',
+      },
+      {
+        sel: '[data-tour="review-evidence"]', side: 'top',
+        title: 'The citation itself',
+        description: 'The quoted span and the source material it came from appear right on the card, with the model that wrote it — verify the claim before approving.',
       },
       {
         sel: '[data-tour="review-actions"]', side: 'top',
@@ -378,6 +388,11 @@ export const TOURS = [
         description: 'Generate sets builds the parallel Set A/B pack; Publish is always an explicit, confirmed step — nothing publishes itself.',
       },
       {
+        sel: '[data-tour="exam-pipeline"]', side: 'bottom',
+        title: 'The exam’s live status',
+        description: 'Assembled → sets generated → published → scanned → reviewed. The rail updates itself as sheets come in — the highlighted stage is where this exam stands right now.',
+      },
+      {
         sel: '[data-tour="exam-downloads"]', side: 'bottom',
         title: 'The artifacts',
         description: 'Per set: a PDF paper, the answer key, and a QR-linked OMR sheet for the mobile scanner.',
@@ -405,6 +420,11 @@ export const TOURS = [
         sel: '[data-tour="aieval-stats"]', side: 'bottom',
         title: 'The scorecard',
         description: 'Precision and approval rate of AI drafts, similarity flag rate, extraction accuracy — the system grading itself.',
+      },
+      {
+        sel: '[data-tour="aieval-cards"]', side: 'top',
+        title: 'Outcomes and provenance',
+        description: 'The donut splits generated drafts by your verdict; provider usage shows which model wrote what — so a model that keeps getting rejected stands out.',
       },
       {
         sel: '[data-tour="aieval-matrix"]', side: 'top',
@@ -435,6 +455,11 @@ export const TOURS = [
         description: 'Every scanned item that underperformed across your exams lands here — the questions worth revising before they go out again.',
       },
       {
+        sel: '[data-tour="attn-stats"]', side: 'bottom',
+        title: 'The size of the problem',
+        description: 'Flagged items, exams affected, weighted correct rate, and responses analyzed — the KPI tiles animate so the worst number is the first thing you see.',
+      },
+      {
         sel: '[data-tour="attn-filter"]', side: 'bottom', align: 'end',
         title: 'One exam or all of them',
         description: 'Scope the list to a single exam — or keep the cross-exam view to spot items that struggle everywhere.',
@@ -456,7 +481,7 @@ export const TOURS = [
       {
         sel: '[data-tour="exam-stats"]', side: 'bottom',
         title: 'The headline numbers',
-        description: 'Students scanned, class average, spread, pass count, and sheets still awaiting your review.',
+        description: 'Students scanned, class average (with its delta versus the passing mark), spread, pass count, and sheets still awaiting your review.',
       },
       {
         sel: '[data-tour="analytics-topics"]', side: 'right',
@@ -480,7 +505,12 @@ export const TOURS = [
       {
         sel: '[data-tour="analytics-stats"]', side: 'bottom',
         title: 'The roll-up',
-        description: 'Exams, sheets scanned, students graded, and flags needing review.',
+        description: 'Animated KPI tiles — exams, sheets scanned, students graded, flags needing review, and the class average with its day-over-day delta.',
+      },
+      {
+        sel: '[data-tour="analytics-trend"]', side: 'bottom',
+        title: 'Trend and volume',
+        description: 'Average score over time beside sheets scanned per day — the finance-style pair that separates a weak cohort from a quiet week.',
       },
       {
         sel: '[data-tour="analytics-insights"]', side: 'bottom',

@@ -20,7 +20,8 @@ import ExamPaper from '../components/ExamPaper.jsx';
 import api, { ApiError, getToken } from '../lib/api.js';
 import AppShell from '../components/AppShell.jsx';
 import { CardsSkeleton } from '../components/Loaders.jsx';
-import { StatusPill, GroupChip, groupColor } from '../components/Board.jsx';
+import { StatusPill, GroupChip, groupColor, statusOf } from '../components/Board.jsx';
+import StageRail from '../components/StageRail.jsx';
 import { PassDoughnut, DistBarChart } from '../components/AnalyticsCharts.jsx';
 import Reveal from '../components/Reveal.jsx';
 import celebrate from '../lib/celebrate.js';
@@ -205,6 +206,8 @@ export default function ExamDetailPage() {
   const { exam, questions, tos, sets } = data;
   const published = exam.status === 'published';
   const print = exam.format === 'print';
+  const totalScans = parseInt(results?.stats?.total_scans || 0, 10);
+  const reviewOpen = parseInt(results?.stats?.needs_review_count || 0, 10);
   const hasSets = Array.isArray(sets) && sets.length > 0;
   const showDownloads = downloadsVisible || hasSets;
   const accent = groupColor(exam.subject_id || exam.subject_name);
@@ -219,6 +222,22 @@ export default function ExamDetailPage() {
   const printQuestions = setDef?.question_ids?.length
     ? setDef.question_ids.map((qid) => questions.find((q) => q.id === qid)).filter(Boolean)
     : questions;
+
+  // Lifecycle rail — the first unfinished stage is "current".
+  const tone = statusOf(exam.status);
+  const railStages = [
+    { label: 'Assembled', sub: `${questions.length} item${questions.length === 1 ? '' : 's'}`, done: questions.length > 0 },
+    { label: 'Sets generated', sub: hasSets ? `${sets.length} set${sets.length === 1 ? '' : 's'}` : undefined, done: hasSets },
+    { label: 'Published', sub: published || tone === 'live' ? exam.status : 'draft', done: published || tone === 'live' },
+    { label: 'Scanned', sub: totalScans ? `${totalScans} sheet${totalScans === 1 ? '' : 's'}` : undefined, done: totalScans > 0 },
+    { label: 'Reviewed', sub: totalScans ? (reviewOpen ? `${reviewOpen} to confirm` : 'all confirmed') : undefined, done: totalScans > 0 && reviewOpen === 0 },
+  ];
+  const railNext = railStages.findIndex((s) => !s.done);
+  const railSteps = railStages.map((s, i) => ({
+    label: s.label,
+    sub: s.sub,
+    state: s.done ? 'done' : i === railNext ? 'current' : 'todo',
+  }));
 
   return (
     <AppShell pageClass="exam-detail" activeNav="exams" pageTitle={exam.title}>
@@ -250,6 +269,10 @@ export default function ExamDetailPage() {
             <Pencil size={14} /> Edit
           </Link>
         </div>
+      </div>
+
+      <div data-tour="exam-pipeline">
+        <StageRail steps={railSteps} />
       </div>
 
       <div className="exam-detail-layout">

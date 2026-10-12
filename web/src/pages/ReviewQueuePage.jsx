@@ -828,7 +828,7 @@ export default function ReviewQueuePage() {
                       </div>
                     )}
                     {current.source === 'ai' && (current.ai_evidence || current.ai_source) && (
-                      <div className="rv-evidence">
+                      <div className="rv-evidence" data-tour="review-evidence">
                         <span className="rv-label">
                           <Quote size={11} aria-hidden="true" /> Cited evidence
                           {current.ai_source ? ` · ${current.ai_source}` : ''}

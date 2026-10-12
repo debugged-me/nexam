@@ -226,7 +226,19 @@ router.get('/:id', async (req, res, next) => {
       if (r.status === 'active') cell.approved += Number(r.n);
     }
 
-    res.json({ tos, topics, coverage });
+    // Usage — exams assembled from this blueprint and sheets scanned on
+    // them, so the detail rail can show the full lifecycle without a
+    // second request.
+    const [usageRows] = await pool.query(
+      `SELECT COUNT(DISTINCT e.id) AS exams, COUNT(sr.id) AS scans
+       FROM exams e
+       LEFT JOIN scan_results sr ON sr.exam_id = e.id
+       WHERE e.tos_id = :id AND e.created_by = :uid`,
+      { id: tos.id, uid: req.user.id }
+    );
+    const usage = { exams: Number(usageRows[0]?.exams) || 0, scans: Number(usageRows[0]?.scans) || 0 };
+
+    res.json({ tos, topics, coverage, usage });
   } catch (err) { next(err); }
 });
 
@@ -474,7 +486,30 @@ router.delete('/:id', async (req, res, next) => {
   try {
     const tos = await getOwned(req.params.id, req.user.id);
     if (!tos) return res.status(404).json({ error: 'TOS not found.' });
-    if (!requireDraft(tos, res)) return;
+
+    // Finalized blueprints stay deletable only when nothing references them.
+    // With zero linked exams/questions they're dead weight; with links they
+    // remain the audit anchor those records point back to.
+    if (tos.status === 'finalized') {
+      const [refs] = await pool.query(
+        `SELECT
+           (SELECT COUNT(*) FROM exams e WHERE e.tos_id = :id) AS exams,
+           (SELECT COUNT(*) FROM questions q WHERE q.tos_id = :id AND q.status <> 'rejected') +
+           (SELECT COUNT(*) FROM question_tos qt WHERE qt.tos_id = :id) AS questions`,
+        { id: tos.id }
+      );
+      const nExams = Number(refs[0]?.exams) || 0;
+      const nQuestions = Number(refs[0]?.questions) || 0;
+      if (nExams || nQuestions) {
+        const parts = [];
+        if (nExams) parts.push(`${nExams} exam${nExams === 1 ? '' : 's'}`);
+        if (nQuestions) parts.push(`${nQuestions} question link${nQuestions === 1 ? '' : 's'}`);
+        return res.status(409).json({
+          error: `This finalized blueprint still has ${parts.join(' and ')} pointing at it — delete those first, or keep the blueprint for records.`,
+        });
+      }
+    }
+
     await pool.query(`DELETE FROM tos_topics WHERE tos_id = :id`, { id: tos.id });
     await pool.query(`DELETE FROM tos WHERE id = :id`, { id: tos.id });
     logAudit({

@@ -375,11 +375,27 @@ router.put('/:id', requireAuth, async (req, res, next) => {
 router.delete('/:id', requireAuth, async (req, res, next) => {
   try {
     const [examRows] = await pool.query(
-      `SELECT e.id FROM exams e JOIN subjects s ON s.id = e.subject_id
+      `SELECT e.id, e.title FROM exams e JOIN subjects s ON s.id = e.subject_id
        WHERE e.id = :id AND s.instructor_id = :uid`,
       { id: req.params.id, uid: req.user.id }
     );
     if (!examRows.length) return res.status(404).json({ error: 'Exam not found.' });
+
+    // Guard: an exam with scanned sheets destroys graded results — require
+    // the explicit `cascade` flag so a bare DELETE can't do it silently.
+    const [[c]] = await pool.query(
+      `SELECT COUNT(*) AS scans FROM scan_results WHERE exam_id = :id`,
+      { id: req.params.id }
+    );
+    const nScans = Number(c?.scans) || 0;
+    const confirmed = req.body?.cascade === true || req.query?.cascade === '1' || req.query?.cascade === 'true';
+    if (nScans && !confirmed) {
+      return res.status(409).json({
+        error: `"${examRows[0].title}" has ${nScans} scanned sheet${nScans === 1 ? '' : 's'} — deleting the exam destroys those results permanently. Confirm to proceed.`,
+        requiresConfirm: true,
+        counts: { scans: nScans },
+      });
+    }
 
     await pool.query(`DELETE FROM exam_set_questions WHERE exam_set_id IN (SELECT id FROM exam_sets WHERE exam_id = :id)`, { id: req.params.id });
     await pool.query(`DELETE FROM exam_sets WHERE exam_id = :id`, { id: req.params.id });

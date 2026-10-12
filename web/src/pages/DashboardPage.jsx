@@ -24,6 +24,7 @@ import { CardsSkeleton } from '../components/Loaders.jsx';
 import { StatusPill } from '../components/Board.jsx';
 import api, { ApiError } from '../lib/api.js';
 import { vtNavigate } from '../lib/viewTransitions.js';
+import { timeAgo } from '../lib/time.js';
 import '../styles/dashboard.css';
 
 function count(value) {
@@ -468,7 +469,9 @@ export default function DashboardPage() {
                             </span>
                           </span>
                           <StatusPill status={exam.status} small />
-                          <span className="dash-exam-date">{formatDate(exam.created_at)}</span>
+                          <span className="dash-exam-date" title={exam.created_at ? new Date(exam.created_at).toLocaleString() : undefined}>
+                            {timeAgo(exam.created_at) || formatDate(exam.created_at)}
+                          </span>
                         </Link>
                       </li>
                     ))}

@@ -29,6 +29,7 @@ import {
   VolumeBarChart,
 } from '../components/AnalyticsCharts.jsx';
 import { BLOOM_LABELS, BLOOM_ORDER, PASS_MARK, buildInsights } from '../lib/insights.js';
+import { fmtScanned, timeAgo } from '../lib/time.js';
 
 /** Insight icon keys → Lucide components (lib stays framework-free). */
 const INSIGHT_ICONS = { alert: AlertTriangle, check: CheckCircle, layers: Layers, up: TrendingUp, down: TrendingDown, info: AlertCircle };
@@ -45,16 +46,9 @@ function fmtPct0(v) {
   return Math.round(Number(v));
 }
 
-/** Format a scanned_at timestamp like the PHP "M j, g:i A". */
-function fmtScanned(iso) {
-  if (!iso) return '—';
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return '—';
-  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-  const hr = d.getHours() % 12 || 12;
-  const min = String(d.getMinutes()).padStart(2, '0');
-  const ampm = d.getHours() >= 12 ? 'PM' : 'AM';
-  return `${months[d.getMonth()]} ${d.getDate()}, ${hr}:${min} ${ampm}`;
+/** Relative scan label with the absolute date kept in a title tooltip. */
+function fmtScannedRel(iso) {
+  return timeAgo(iso) || fmtScanned(iso);
 }
 
 /** Truncate a string to n chars with ellipsis (mirrors mb_strimwidth). */
@@ -398,7 +392,7 @@ export default function AnalyticsPage() {
       {trend.length > 0 && (
         <Reveal className="detail-grid-2 mb-3 print-skip">
           <TrendCard trend={trend} tour="analytics-trend" />
-          <div className="card">
+          <div className="card" data-tour="analytics-volume">
             <div className="card-header">
               <span className="card-title">Scan volume</span>
               <span className="text-muted meta-sm">sheets per day</span>
@@ -485,7 +479,7 @@ export default function AnalyticsPage() {
                             {score.toFixed(1)}%
                           </span>
                         </td>
-                        <td className="text-muted meta-sm">{fmtScanned(rs.scanned_at)}</td>
+                        <td className="text-muted meta-sm" title={fmtScanned(rs.scanned_at)}>{fmtScannedRel(rs.scanned_at)}</td>
                       </tr>
                     );
                   })}
@@ -776,7 +770,7 @@ export function ExamDetail({ examId, detail, onBack }) {
                           <span className="g-state is-live"><CheckCircle size={14} /> Reviewed</span>
                         )}
                       </td>
-                      <td className="text-muted meta-sm">{fmtScanned(st.scanned_at)}</td>
+                      <td className="text-muted meta-sm" title={fmtScanned(st.scanned_at)}>{fmtScannedRel(st.scanned_at)}</td>
                     </tr>
                   );
                 })}

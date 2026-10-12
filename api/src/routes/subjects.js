@@ -268,6 +268,37 @@ router.delete('/:id', async (req, res, next) => {
     const subject = await getOwned(req.params.id, req.user.id);
     if (!subject) return res.status(404).json({ error: 'Subject not found.' });
 
+    // Guard: a populated subject wipes exams (and their scans), blueprints,
+    // questions, and materials in one cascade. Require the explicit
+    // `cascade` flag — a bare DELETE returns what would be destroyed.
+    const [[counts]] = await pool.query(
+      `SELECT
+         (SELECT COUNT(*) FROM exams e WHERE e.subject_id = :id) AS exams,
+         (SELECT COUNT(*) FROM tos t WHERE t.subject_id = :id) AS blueprints,
+         (SELECT COUNT(*) FROM questions q WHERE q.subject_id = :id AND q.created_by = :uid AND q.status <> 'rejected') AS questions,
+         (SELECT COUNT(*) FROM materials m WHERE m.subject_id = :id) AS materials`,
+      { id: subject.id, uid: req.user.id }
+    );
+    const nExams = Number(counts.exams) || 0;
+    const nBlueprints = Number(counts.blueprints) || 0;
+    const nQuestions = Number(counts.questions) || 0;
+    const nMaterials = Number(counts.materials) || 0;
+    const hasData = nExams || nBlueprints || nQuestions || nMaterials;
+
+    const confirmed = req.body?.cascade === true || req.query?.cascade === '1' || req.query?.cascade === 'true';
+    if (hasData && !confirmed) {
+      const parts = [];
+      if (nExams) parts.push(`${nExams} exam${nExams === 1 ? '' : 's'}`);
+      if (nBlueprints) parts.push(`${nBlueprints} blueprint${nBlueprints === 1 ? '' : 's'}`);
+      if (nQuestions) parts.push(`${nQuestions} question${nQuestions === 1 ? '' : 's'}`);
+      if (nMaterials) parts.push(`${nMaterials} material${nMaterials === 1 ? '' : 's'}`);
+      return res.status(409).json({
+        error: `"${subject.name}" still has ${parts.join(', ')} — deleting the subject removes all of them, including scanned results. Confirm to proceed.`,
+        requiresConfirm: true,
+        counts: { exams: nExams, blueprints: nBlueprints, questions: nQuestions, materials: nMaterials },
+      });
+    }
+
     await cascadeDeleteSubject(subject.id, req.user.id);
     logAudit({
       actorId: req.user.id, actorEmail: req.user.email,
@@ -297,6 +328,32 @@ router.post('/bulk-delete', async (req, res, next) => {
       `SELECT id FROM subjects WHERE id IN (:ids) AND instructor_id = :uid`,
       { ids: validIds, uid: req.user.id }
     );
+
+    // Same guard as single delete: populated subjects need the explicit
+    // `cascade` flag — a bare request returns what would be destroyed.
+    const ownedIds = owned.map((r) => r.id);
+    if (ownedIds.length && req.body?.cascade !== true) {
+      const [[totals]] = await pool.query(
+        `SELECT
+           (SELECT COUNT(*) FROM exams e WHERE e.subject_id IN (:ids)) AS exams,
+           (SELECT COUNT(*) FROM tos t WHERE t.subject_id IN (:ids)) AS blueprints,
+           (SELECT COUNT(*) FROM questions q WHERE q.subject_id IN (:ids) AND q.created_by = :uid AND q.status <> 'rejected') AS questions,
+           (SELECT COUNT(*) FROM materials m WHERE m.subject_id IN (:ids)) AS materials`,
+        { ids: ownedIds, uid: req.user.id }
+      );
+      const total = Number(totals.exams || 0) + Number(totals.blueprints || 0)
+        + Number(totals.questions || 0) + Number(totals.materials || 0);
+      if (total > 0) {
+        return res.status(409).json({
+          error: `${ownedIds.length} subject${ownedIds.length === 1 ? '' : 's'} selected still hold data — deleting them removes their exams, blueprints, questions, and materials, including scanned results. Confirm to proceed.`,
+          requiresConfirm: true,
+          counts: {
+            exams: Number(totals.exams) || 0, blueprints: Number(totals.blueprints) || 0,
+            questions: Number(totals.questions) || 0, materials: Number(totals.materials) || 0,
+          },
+        });
+      }
+    }
 
     for (const row of owned) {
       await cascadeDeleteSubject(row.id, req.user.id);

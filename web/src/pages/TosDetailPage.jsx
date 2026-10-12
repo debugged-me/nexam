@@ -121,13 +121,25 @@ function apportion(total, weights) {
  * so the grand total still equals tos.total_items. Each row is then split
  * across the Bloom weights by largest remainder, so every row sums to the
  * topic's item count and the columns sum to the blueprint total.
+ *
+ * That split is only a preview. When the API sends `plan` (the exact matrix
+ * generation and assembly enforce, per topic id) it is drawn as-is: the two
+ * roundings can differ by a few cells, and the page must show the real one.
  */
-function buildMatrix(tos, topics) {
+function buildMatrix(tos, topics, plan) {
   const weights = BLOOM_ORDER.map((k) => Number(tos.bloom_weights?.[k]) || 0);
   const totalItems = Math.max(0, Number(tos.total_items) || 0);
 
   const stored = topics.map((t) => Math.max(0, Number(t.item_count) || 0));
   const storedSum = stored.reduce((s, n) => s + n, 0);
+
+  if (plan && topics.length && topics.every((t) => Array.isArray(plan[t.id]))) {
+    const rows = topics.map((topic) => {
+      const cells = BLOOM_ORDER.map((_, c) => Math.max(0, Number(plan[topic.id][c]) || 0));
+      return { topic, items: cells.reduce((s, n) => s + n, 0), cells };
+    });
+    return matrixTotals(rows, weights, { reconciled: false, storedSum });
+  }
   let itemCounts = stored;
   if (storedSum !== totalItems) {
     const hours = topics.map((t) => Math.max(0, Number(t.instructional_hours) || 0));
@@ -166,6 +178,10 @@ function buildMatrix(tos, topics) {
     return { topic, items, cells };
   });
 
+  return matrixTotals(rows, weights, { reconciled: storedSum !== totalItems, storedSum });
+}
+
+function matrixTotals(rows, weights, extra) {
   const colTotals = BLOOM_ORDER.map((_, c) => rows.reduce((s, r) => s + r.cells[c], 0));
   // Sum the columns, not the row item counts: when every Bloom weight is 0
   // apportion() places nothing, and a grand total taken from row items would
@@ -174,7 +190,7 @@ function buildMatrix(tos, topics) {
 
   const cellMax = Math.max(1, ...rows.flatMap((r) => r.cells));
 
-  return { rows, colTotals, grand, weights, cellMax, reconciled: storedSum !== totalItems, storedSum };
+  return { rows, colTotals, grand, weights, cellMax, ...extra };
 }
 
 export default function TosDetailPage() {
@@ -518,7 +534,7 @@ export default function TosDetailPage() {
   }
 
   const matrix = useMemo(
-    () => (data ? buildMatrix(data.tos, data.topics) : null),
+    () => (data ? buildMatrix(data.tos, data.topics, data.plan) : null),
     [data]
   );
 
@@ -600,6 +616,7 @@ export default function TosDetailPage() {
     try {
       await api.put(`/tos/${id}/topics/reorder`, { orderedIds: orderDraft.map((t) => t.id) });
       setData((d) => d && { ...d, topics: orderDraft.map((t, i) => ({ ...t, sort_order: i + 1 })) });
+      load(); // the plan's split depends on topic order — fetch the new one
       setReordering(false);
       setOrderDraft(null);
       toast.success('Topic order saved.');

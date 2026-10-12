@@ -262,14 +262,16 @@ export default function DashboardPage() {
     });
   }
   for (const g of gapTos) {
-    const deficit = Math.max(0, count(g.total_items) - count(g.banked));
+    // Per topic × Bloom cell from the API — the same count the blueprint's
+    // Generate button offers, so the two never disagree.
+    const deficit = count(g.missing);
     if (!deficit) continue;
     queue.push({
       key: `gap-${g.id}`,
       label: 'Blueprint gap',
       tone: '',
       headline: `“${g.title}” is ${deficit} item${deficit === 1 ? '' : 's'} short.`,
-      copy: `${count(g.banked)} of ${count(g.total_items)} banked — generate the deficit or reuse from your bank.`,
+      copy: `${count(g.covered)} of ${count(g.planned)} planned items banked — generate the missing ones or reuse from your bank.`,
       cta: 'Open blueprint',
       to: `/tos/${g.id}`,
       draftsPreview: false,

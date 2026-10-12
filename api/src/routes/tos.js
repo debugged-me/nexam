@@ -18,6 +18,8 @@ import { v4 as uuid } from 'uuid';
 import { requireAuth } from '../middleware/auth.js';
 import pool from '../config/db.js';
 import { recalcTopicItemCounts } from '../services/tosTopics.js';
+import { buildTosMatrix } from '../services/tosAlignment.js';
+import { blueprintCoverage } from '../services/tosCoverage.js';
 import { logAudit } from '../services/audit.js';
 
 const router = Router();
@@ -111,27 +113,11 @@ router.get('/', async (req, res, next) => {
       params
     );
 
-    // Live (non-rejected) questions already linked to each blueprint — the
-    // "banked" count the list shows next to the item target.
-    const [bankedRows] = await pool.query(
-      `SELECT links.tos_id, COUNT(DISTINCT links.question_id) AS n
-       FROM (
-         SELECT q.id AS question_id, q.tos_id AS tos_id FROM questions q
-         WHERE q.created_by = :uid AND q.tos_id IS NOT NULL
-           AND q.status <> 'rejected'
-           AND (q.similarity_flag IS NULL OR q.similarity_flag <> 'rejected')
-         UNION
-         SELECT qt.question_id, qt.tos_id FROM question_tos qt
-         JOIN questions q ON q.id = qt.question_id
-         WHERE q.created_by = :uid
-           AND q.status <> 'rejected'
-           AND (q.similarity_flag IS NULL OR q.similarity_flag <> 'rejected')
-       ) links
-       GROUP BY links.tos_id`,
-      { uid: req.user.id }
-    );
-    const bankedByTos = Object.fromEntries(bankedRows.map((r) => [r.tos_id, Number(r.n)]));
-    for (const t of tosList) t.banked = bankedByTos[t.id] || 0;
+    // Items of each plan already banked, counted per topic × Bloom cell (a
+    // surplus in one cell never covers another) — the "N of M banked" the
+    // list shows, and the same figure the Generate button works from.
+    const coverage = await blueprintCoverage(req.user.id, tosList);
+    for (const t of tosList) t.banked = coverage.get(t.id)?.covered || 0;
 
     // Parse bloom_weights JSON
     for (const t of tosList) {
@@ -238,7 +224,17 @@ router.get('/:id', async (req, res, next) => {
     );
     const usage = { exams: Number(usageRows[0]?.exams) || 0, scans: Number(usageRows[0]?.scans) || 0 };
 
-    res.json({ tos, topics, coverage, usage });
+    // The exact topic × Bloom plan generation and assembly use, per topic id,
+    // so the page draws the server matrix instead of re-deriving it (its own
+    // rounding once disagreed by a few items). Null while the topic counts
+    // don't yet add up to the total; the page then previews its own split.
+    let plan = null;
+    try {
+      const { rows } = buildTosMatrix(topics, tos.bloom_weights, Number(tos.total_items));
+      plan = Object.fromEntries(topics.map((t, i) => [t.id, rows[i]]));
+    } catch { plan = null; }
+
+    res.json({ tos, topics, coverage, usage, plan });
   } catch (err) { next(err); }
 });
 

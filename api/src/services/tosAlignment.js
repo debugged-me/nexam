@@ -49,6 +49,7 @@ export function buildTosMatrix(topics, bloomWeights, totalItems) {
   const bloomTargets = largestRemainder(total, bloomWeights, BLOOM_ORDER);
   const remaining = { ...bloomTargets };
   const slots = [];
+  const rows = [];
   topics.forEach((topic, topicIndex) => {
     const rowTotal = Number(topic.item_count || 0);
     const row = topicIndex === topics.length - 1
@@ -60,11 +61,27 @@ export function buildTosMatrix(topics, bloomWeights, totalItems) {
       remaining[bloom] -= row[bloom];
       if (row[bloom] > 0) slots.push({ topic: topic.title, bloom, count: row[bloom] });
     }
+    rows.push(BLOOM_ORDER.map((bloom) => row[bloom]));
   });
   if (BLOOM_ORDER.some((bloom) => remaining[bloom] !== 0)) {
     throw new Error('TOS matrix did not consume every Bloom allocation.');
   }
-  return { slots, bloomTargets };
+  return { slots, bloomTargets, rows };
+}
+
+/**
+ * Per-cell gap between a plan and the live questions banked for it. `have`
+ * maps "topic\u0000bloom" to a count. Cells are independent: surplus in one
+ * cell never fills another, so `missing` is exactly what generation drafts.
+ */
+export function slotGap(slots, have) {
+  let missing = 0;
+  for (const slot of slots) {
+    const n = have.get(`${slot.topic}\u0000${slot.bloom}`) || 0;
+    missing += Math.max(0, slot.count - n);
+  }
+  const planned = slots.reduce((sum, slot) => sum + slot.count, 0);
+  return { planned, covered: planned - missing, missing };
 }
 
 export function validateAlignedQuestions(questions, topics, bloomWeights, totalItems) {

@@ -18,7 +18,7 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import {
   Check, X, Pencil, SkipForward, Undo2, ArrowLeft, ArrowRight, AlertTriangle,
   CheckCheck, ClipboardCheck, Keyboard, Sparkles, Plus, Trash2, Save, RefreshCw,
-  Loader2, GripVertical,
+  GripVertical,
 } from 'lucide-react';
 import { DndContext, PointerSensor, KeyboardSensor, closestCenter, useSensor, useSensors } from '@dnd-kit/core';
 import { SortableContext, arrayMove, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
@@ -139,9 +139,8 @@ export default function ReviewQueuePage() {
   const reload = useCallback(() => setReloadTick((t) => t + 1), []);
 
   // Live view of the background worker — generation and per-draft duplicate
-  // checks surface here instead of disappearing behind a toast. When a job
-  // that was active leaves the active set, fresh drafts may have landed, so
-  // the queue is pulled again.
+  // checks show as one in-place toast, and the queue merges new drafts in as
+  // they land (see the live merge below).
   const { jobs, activeCount, refresh: refreshJobs } = useJobs();
   const activeJobs = useMemo(() => jobs.filter(isActiveJob), [jobs]);
   const activeSummary = useMemo(() => {
@@ -170,16 +169,57 @@ export default function ReviewQueuePage() {
   const failureOver = failedGenerate?.error?.includes('the wait is over')
     || dismissedFailure === failedGenerate?.id;
 
-  const prevActiveIds = useRef(null);
+  // Live merge while background work runs. Every jobs poll (and once more
+  // when the work stops) re-reads the drafts quietly: new ones are appended,
+  // existing ones pick up their latest duplicate-check state, and the
+  // reviewer's place, session decisions and open edit are left alone. A
+  // short-lived check can start and finish between two polls, so watching
+  // for jobs to finish missed drafts until the page was refreshed.
+  const liveRef = useRef({ decisions: {}, loaded: null });
+  useEffect(() => { liveRef.current = { decisions, loaded }; });
+  const mergeDrafts = useCallback(() => {
+    const key = subjectId;
+    const params = new URLSearchParams({ status: 'draft' });
+    if (key) params.set('subject_id', key);
+    api.get(`/questions?${params}`, { quiet: true })
+      .then((data) => {
+        const { decisions: d, loaded: prev } = liveRef.current;
+        if (!prev || prev.key !== key) return; // first load not in yet, or filter changed
+        const fresh = data.questions || [];
+        const byId = new Map(fresh.map((q) => [q.id, q]));
+        const seen = new Set(prev.questions.map((q) => q.id));
+        const added = fresh.filter((q) => !seen.has(q.id));
+        setLoaded({ key, questions: [...prev.questions.map((q) => byId.get(q.id) || q), ...added] });
+        // Arrivals after a cleared (or empty) queue: land on the first new draft.
+        if (added.length && prev.questions.every((q) => d[q.id])) setCursor(prev.questions.length);
+      })
+      .catch(() => { /* quiet — the next poll tries again */ });
+  }, [subjectId]);
+  const wasActive = useRef(false);
   useEffect(() => {
-    const now = new Set(activeJobs.map((j) => j.id));
-    const prev = prevActiveIds.current;
-    prevActiveIds.current = now;
-    if (!prev || prev.size === 0) return;
-    for (const id of prev) {
-      if (!now.has(id)) { reload(); break; }
+    if (activeCount > 0 || wasActive.current) mergeDrafts();
+    wasActive.current = activeCount > 0;
+  }, [jobs, activeCount, mergeDrafts]);
+
+  // Background work as one in-place toast instead of a page banner.
+  const { live: liveToast, settle: settleToast, dismiss: dismissToast } = toast;
+  const workToast = useRef({ shown: false, closed: false });
+  useEffect(() => {
+    const id = 'review-background-work';
+    const state = workToast.current;
+    if (activeCount > 0) {
+      if (state.closed) return;
+      state.shown = true;
+      liveToast(id, `${activeSummary || 'Background work'} — ${activeCount} task${activeCount === 1 ? '' : 's'} running`, {
+        onDismiss: () => { state.closed = true; },
+      });
+    } else {
+      if (state.shown && !state.closed) settleToast(id, 'Background work finished — the queue is up to date.');
+      state.shown = false;
+      state.closed = false;
     }
-  }, [activeJobs, reload]);
+  }, [activeCount, activeSummary, liveToast, settleToast]);
+  useEffect(() => () => dismissToast('review-background-work'), [dismissToast]);
 
   useEffect(() => {
     api.get('/subjects').then((data) => setSubjects(data.subjects || [])).catch(() => {});
@@ -253,7 +293,14 @@ export default function ReviewQueuePage() {
   const total = queue?.length || 0;
   // The side list earns its space only while there is something to pick
   // between — gone once the queue is cleared or down to a single draft.
-  const showQueue = tally.remaining > 1;
+  // Shown while there is still something to review and more than one draft
+  // in play; gone once the queue is cleared.
+  const showQueue = tally.remaining > 0 && total > 1;
+  const finishedCount = total - tally.remaining;
+  // Side panel tabs: undecided drafts vs. this session's decisions. Decided
+  // drafts leave "Queue" the moment they are approved or rejected.
+  const [queueTab, setQueueTab] = useState('queue');
+  const panelTab = finishedCount ? queueTab : 'queue';
   const queueCounts = useMemo(() => {
     const counts = {};
     for (const q of queue || []) {
@@ -264,7 +311,10 @@ export default function ReviewQueuePage() {
   }, [queue, decisions]);
   const decidedCount = total - tally.remaining;
   const progressPct = total ? Math.round((decidedCount / total) * 100) : 0;
-  const canEditInline = !!current && PUT_SAFE_TYPES.has(current.type);
+  // A draft already approved/rejected this session (opened from Finished or
+  // via Previous) is read-only here — Undo is the way to change it.
+  const currentDecision = current ? decisions[current.id] || null : null;
+  const canEditInline = !!current && PUT_SAFE_TYPES.has(current.type) && !currentDecision;
   const canUndo = !!lastAction && PUT_SAFE_TYPES.has(lastAction.snapshot.type);
   const similarityReady = !!current?.similarity_checked_at
     && !current?.similarity_error && current?.similarity_flag === 'none';
@@ -273,6 +323,7 @@ export default function ReviewQueuePage() {
 
   const decide = useCallback(async (action, opts = {}) => {
     if (!current || busy) return;
+    if (decisions[current.id]) return; // already decided — Undo changes it
     if (action === 'approved' && !similarityReady && !opts.allowSimilarityFailure) {
       toastRef.current.warning('Wait for duplicate checking, or resolve the similarity warning, before approval.');
       return;
@@ -522,6 +573,7 @@ export default function ReviewQueuePage() {
   useEffect(() => {
     hotkeys.current = {
       active: !!current && !busy && !editing && !confirmBulk && tally.remaining > 0,
+      decided: !!currentDecision,
       canUndo: canUndo && !busy && !editing && !confirmBulk,
       canEdit: canEditInline && !busy && !editing && !confirmBulk,
       decide, undoLast, skip, goBack, openEdit,
@@ -552,8 +604,11 @@ export default function ReviewQueuePage() {
       }
       if (!h.active) return;
 
-      if (key === 'a') { e.preventDefault(); h.decide('approved'); }
-      else if (key === 'r') { e.preventDefault(); h.decide('rejected'); }
+      if (key === 'a' || key === 'r') {
+        if (h.decided) return; // finished drafts stay read-only
+        e.preventDefault();
+        h.decide(key === 'a' ? 'approved' : 'rejected');
+      }
       else if (key === 's' || e.key === 'ArrowRight') { e.preventDefault(); h.skip(); }
       else if (e.key === 'ArrowLeft') { e.preventDefault(); h.goBack(); }
     }
@@ -571,7 +626,7 @@ export default function ReviewQueuePage() {
       <span className="rv-undo-text">
         {lastAction.action === 'approved' ? 'Approved' : 'Rejected'}
         {lastAction.bypassed ? ' — without duplicate check' : ''}
-        <span className="rv-undo-stem">“{shorten(lastAction.snapshot.stem)}”</span>
+        <span className="rv-undo-stem" title={String(lastAction.snapshot.stem || '')}>“{String(lastAction.snapshot.stem || '').replace(/\s+/g, ' ').trim()}”</span>
       </span>
       {canUndo ? (
         <button type="button" className="btn btn-outline btn-sm rv-undo-btn" onClick={undoLast} disabled={busy}>
@@ -638,21 +693,6 @@ export default function ReviewQueuePage() {
         {!queue?.length && queueActions}
       </header>
 
-      {activeCount > 0 && (
-        <div className="rv-alert" role="status">
-          <Loader2 size={18} className="rv-spin" />
-          <div className="rv-alert-body">
-            <strong>{activeSummary || 'Background work in progress'}</strong>
-            <span>
-              {activeCount} task{activeCount === 1 ? '' : 's'} still running — new drafts
-              appear here automatically as they finish.
-            </span>
-          </div>
-          <button type="button" className="btn btn-outline btn-sm" onClick={reload} disabled={busy}>
-            <RefreshCw size={15} /> Refresh now
-          </button>
-        </div>
-      )}
 
       {failedGenerate && !failureOver && (
         <div className="rv-alert" role="alert">
@@ -838,7 +878,7 @@ export default function ReviewQueuePage() {
                       </div>
                     )}
                     {current.source === 'ai' && <EvidenceViewer key={current.id} question={current} />}
-                    {!canEditInline && (
+                    {!PUT_SAFE_TYPES.has(current.type) && (
                       <p className="rv-note">
                         Matching items can't be edited from here — saving would drop their premise list.
                         Approve, reject, or <Link to="/questions">open the question bank</Link> to change the pairs.
@@ -850,11 +890,20 @@ export default function ReviewQueuePage() {
 
               {!editing && (
                 <div className="rv-actions" data-tour="review-actions">
+                  {currentDecision && (
+                    <p className={`rv-decided is-${currentDecision}`} role="status">
+                      {currentDecision === 'approved' ? <Check size={15} aria-hidden="true" /> : <X size={15} aria-hidden="true" />}
+                      {currentDecision === 'approved' ? 'Already approved' : 'Already rejected'} this session
+                      {lastAction?.id === current.id && canUndo
+                        ? <> — press <kbd className="rv-kbd">U</kbd> or use Undo to change it.</>
+                        : '.'}
+                    </p>
+                  )}
                   <div className="rv-actions-main">
-                    <button type="button" className="rv-act is-approve" onClick={() => decide('approved')} disabled={busy || !similarityReady}>
+                    <button type="button" className="rv-act is-approve" onClick={() => decide('approved')} disabled={busy || !similarityReady || !!currentDecision}>
                       <Check size={18} /> Approve <kbd className="rv-kbd">A</kbd>
                     </button>
-                    <button type="button" className="rv-act is-reject" onClick={() => decide('rejected')} disabled={busy}>
+                    <button type="button" className="rv-act is-reject" onClick={() => decide('rejected')} disabled={busy || !!currentDecision}>
                       <X size={18} /> Reject <kbd className="rv-kbd">R</kbd>
                     </button>
                     <button
@@ -862,7 +911,7 @@ export default function ReviewQueuePage() {
                       className="rv-act is-edit"
                       onClick={openEdit}
                       disabled={busy || !canEditInline}
-                      title={canEditInline ? 'Fix it and approve in one motion' : 'Not available for matching items'}
+                      title={currentDecision ? 'Already decided this session' : canEditInline ? 'Fix it and approve in one motion' : 'Not available for matching items'}
                     >
                       <Pencil size={18} /> Edit <kbd className="rv-kbd">E</kbd>
                     </button>
@@ -894,20 +943,27 @@ export default function ReviewQueuePage() {
           {showQueue && (
             <aside className="rv-queue" aria-label="Drafts in this queue">
               <div className="rv-queue-head">
-                <div className="rv-queue-title">
-                  <span>Queue</span>
-                  <span className="rv-queue-left">{tally.remaining} left</span>
+                <div className="rv-queue-tabs" role="group" aria-label="Show drafts">
+                  <button type="button" aria-pressed={panelTab === 'queue'} onClick={() => setQueueTab('queue')}>
+                    Queue <span className="rv-queue-tabcount">{tally.remaining}</span>
+                  </button>
+                  <button type="button" aria-pressed={panelTab === 'finished'} onClick={() => setQueueTab('finished')} disabled={!finishedCount}>
+                    Finished <span className="rv-queue-tabcount">{finishedCount}</span>
+                  </button>
                 </div>
                 <div className="rv-queue-summary">
-                  {QUEUE_STATE_ORDER.filter((st) => queueCounts[st]).map((st) => (
-                    <span key={st} className="rv-queue-count" data-state={st}>
-                      {queueCounts[st]} {QUEUE_STATE_LABELS[st].toLowerCase()}
-                    </span>
-                  ))}
+                  {(panelTab === 'queue' ? QUEUE_STATE_ORDER.slice(0, 4) : QUEUE_STATE_ORDER.slice(4))
+                    .filter((st) => queueCounts[st]).map((st) => (
+                      <span key={st} className="rv-queue-count" data-state={st}>
+                        {queueCounts[st]} {QUEUE_STATE_LABELS[st].toLowerCase()}
+                      </span>
+                    ))}
                 </div>
               </div>
               <ol className="rv-queue-list" ref={queueListRef}>
                 {queue.map((q, i) => {
+                  // Numbers stay the draft's place in the queue ("Item N of M").
+                  if (Boolean(decisions[q.id]) !== (panelTab === 'finished')) return null;
                   const state = queueState(q, decisions[q.id]);
                   return (
                     <li key={q.id}>
@@ -1029,11 +1085,6 @@ export default function ReviewQueuePage() {
 }
 
 /** First ~60 characters of a stem, for the undo bar. */
-function shorten(stem) {
-  const s = String(stem ?? '').replace(/\s+/g, ' ').trim();
-  return s.length > 60 ? `${s.slice(0, 60)}…` : s;
-}
-
 /**
  * The answerable part of a draft, rendered per type — options with the correct
  * one marked, the premise/response map for matching, and the expected answer

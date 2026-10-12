@@ -93,7 +93,12 @@
   .dash-todo-body strong { display: block; margin-top: 3px; color: var(--ink); font: 600 .9rem/1.4 var(--font-display); letter-spacing: -.01em; }
   .dash-todo-body p { margin: 3px 0 0; color: var(--ink-3); font-size: .76rem; line-height: 1.55; }
   .dash-todo-cta { align-self: center; white-space: nowrap; }
-  .dash-todo-drafts { display: grid; gap: 4px; margin: 10px 0 0; padding: 0; list-style: none; }
+  /* With a preview list underneath, keep the button level with the headline. */
+  .dash-todo-item:has(.dash-todo-drafts) .dash-todo-cta { align-self: start; margin-top: 14px; }
+  /* minmax(0, 1fr): grid items default to min-width:auto, and a nowrap stem
+     would otherwise widen the card under the CTA. */
+  .dash-todo-drafts { display: grid; grid-template-columns: minmax(0, 1fr); gap: 4px; margin: 10px 0 0; padding: 0; list-style: none; }
+  .dash-todo-drafts li { min-width: 0; }
   .dash-todo-drafts a {
     display: block;
     padding: 7px 10px;

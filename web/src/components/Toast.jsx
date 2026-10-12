@@ -2,7 +2,7 @@
  * Toast — application notifications backed by `sonner`.
  *
  * The public API is unchanged (useToast → show/success/error/warning/info/
- * dismiss) so call sites don't move; the rendered stack is sonner's, themed
+ * dismiss, plus live/settle for in-place status toasts) so call sites don't move; the rendered stack is sonner's, themed
  * through the CSS variables in styles/toast.css.
  */
 import { createContext, useContext, useCallback, useMemo } from 'react';
@@ -30,6 +30,13 @@ export function ToastProvider({ children }) {
     warning: (m, d) => show(m, 'warning', d),
     info: (m, d) => show(m, 'info', d),
     dismiss,
+    /** Persistent status toast that updates in place under `id` (a spinner
+     *  until settled). `onDismiss` fires when the user closes it. */
+    live: (id, message, { description, onDismiss } = {}) => sonner.loading(message, {
+      id, description, duration: Infinity, closeButton: true, onDismiss,
+    }),
+    /** Turn a live toast into a brief success note. */
+    settle: (id, message) => sonner.success(message, { id, description: undefined, duration: 2500, closeButton: false }),
   }), [show, dismiss]);
 
   return (

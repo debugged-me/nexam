@@ -14,6 +14,7 @@
 import { Router } from 'express';
 import { requireAuth } from '../middleware/auth.js';
 import pool from '../config/db.js';
+import { blueprintCoverage } from '../services/tosCoverage.js';
 
 const router = Router();
 
@@ -211,36 +212,22 @@ router.get('/', requireAuth, async (req, res, next) => {
       { uid: userId }
     );
 
-    // Named blueprint gaps — finalized TOS whose banked (linked, live)
-    // question count is short of its item target. Same linkage rules the
-    // generation worker uses to compute coverage.
-    const [gapTos] = await pool.query(
-      `SELECT t.id, t.title, t.total_items,
-         COALESCE(banked.n, 0) AS banked
+    // Named blueprint gaps — finalized TOS with planned topic × Bloom cells
+    // still short. Counted per cell (blueprintCoverage), so the figure is
+    // exactly what the blueprint page offers to generate.
+    const [finalizedTos] = await pool.query(
+      `SELECT t.id, t.title, t.total_items, t.bloom_weights
        FROM tos t
        JOIN subjects s ON s.id = t.subject_id
-       LEFT JOIN (
-         SELECT links.tos_id, COUNT(DISTINCT links.question_id) AS n
-         FROM (
-           SELECT q.id AS question_id, q.tos_id AS tos_id FROM questions q
-           WHERE q.created_by = :uid AND q.tos_id IS NOT NULL
-             AND q.status <> 'rejected'
-             AND (q.similarity_flag IS NULL OR q.similarity_flag <> 'rejected')
-           UNION
-           SELECT qt.question_id, qt.tos_id FROM question_tos qt
-           JOIN questions q ON q.id = qt.question_id
-           WHERE q.created_by = :uid
-             AND q.status <> 'rejected'
-             AND (q.similarity_flag IS NULL OR q.similarity_flag <> 'rejected')
-         ) links
-         GROUP BY links.tos_id
-       ) banked ON banked.tos_id = t.id
-       WHERE s.instructor_id = :uid AND t.status = 'finalized'
-       HAVING banked < t.total_items
-       ORDER BY (t.total_items - banked) DESC, t.title ASC
-       LIMIT 3`,
+       WHERE s.instructor_id = :uid AND t.status = 'finalized'`,
       { uid: userId }
     );
+    const tosCoverage = await blueprintCoverage(userId, finalizedTos);
+    const gapTos = finalizedTos
+      .map((t) => ({ id: t.id, title: t.title, total_items: t.total_items, ...tosCoverage.get(t.id) }))
+      .filter((t) => t.missing > 0)
+      .sort((a, b) => b.missing - a.missing || a.title.localeCompare(b.title))
+      .slice(0, 3);
 
     // Draft exams that already have questions — assembled and ready to publish.
     const [readyExams] = await pool.query(

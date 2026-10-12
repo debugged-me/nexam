@@ -138,4 +138,49 @@
 .q-pick-stem { font-size: var(--text-sm); color: var(--ink); flex: 1; }
 .q-pick-meta { font-size: var(--text-xs); color: var(--ink-3); margin-top: 2px; }
 
+/* ==========================================================================
+   Exam list — an adaptive list (board.css). Only what is unique to exams
+   lives here: the Results cell, the blueprint link, mid-width widths.
+   ========================================================================== */
+
+/* Long exam titles wrap to two lines instead of truncating. */
+.ex-table .g-title { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; white-space: normal; line-height: 1.3; }
+
+/* Items in the title meta only once the Items column drops. */
+.ex-meta-items { display: none; }
+.ex-meta-tos {
+    max-width: 220px;
+    color: var(--ink-3);
+    text-decoration: none;
+}
+.ex-meta-tos span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ex-meta-tos:hover { color: var(--action-700); text-decoration: underline; text-underline-offset: 2px; }
+.ex-meta-tos:focus-visible { outline: 2px solid var(--action-600); outline-offset: 2px; border-radius: 2px; }
+
+/* Results — class average, sheets scanned, and a bar against the pass mark. */
+.ex-res { display: flex; flex-direction: column; gap: 6px; min-width: 0; max-width: 200px; }
+.ex-res-head { display: flex; align-items: baseline; gap: 8px; min-width: 0; }
+.ex-res-head strong { flex: none; color: var(--ink); font: 600 var(--text-sm)/1.2 var(--font-display); font-variant-numeric: tabular-nums; }
+.ex-res-cap { overflow: hidden; color: var(--ink-3); font-size: var(--text-xs); text-overflow: ellipsis; white-space: nowrap; }
+.ex-res-bar { display: flex; height: 6px; overflow: hidden; border-radius: 99px; background: var(--surface-3); }
+.ex-res-bar i { display: block; height: 100%; background: var(--ink-faint); transition: width .4s ease; }
+.ex-res[data-passing="true"] .ex-res-bar i { background: var(--green-600); }
+.ex-res[data-passing="false"] .ex-res-bar i { background: var(--amber-600); }
+.ex-res-review { color: var(--amber-700); font-size: .6875rem; font-weight: 600; }
+.ex-res-none { color: var(--ink-faint); font-size: var(--text-xs); }
+.row-card .ex-res { max-width: none; }
+
+@media (max-width: 1199px) {
+    .ex-table .ex-meta-items { display: inline; }
+    /* Status moves into the title meta; the ⋮ needs ~70px once it grows to
+       a 44px touch target. 42 + 24 + 24 + 10 = 100. */
+    table.grid.ex-table th.ex-c-title { width: 42%; }
+    table.grid.ex-table th.ex-c-res { width: 24%; }
+    table.grid.ex-table th.ex-c-next { width: 24%; }
+    table.grid.ex-table th.ex-c-act { width: 10%; }
+}
+@media (prefers-reduced-motion: reduce) {
+    .ex-res-bar i { transition: none; }
+}
+
 }

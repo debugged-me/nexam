@@ -1116,6 +1116,7 @@ a.g-link:hover { color: var(--action-600); text-decoration: underline; text-unde
 .wp-14  { width: 14%; }
 .wp-16  { width: 16%; }
 .wp-17  { width: 17%; }
+.wp-20  { width: 20%; }
 .wp-22  { width: 22%; }
 .wp-27  { width: 27%; }
 .wp-31  { width: 31%; }
@@ -1138,6 +1139,7 @@ table.grid.dataTable thead > tr > th.wp-13 { width: 13%; }
 table.grid.dataTable thead > tr > th.wp-14 { width: 14%; }
 table.grid.dataTable thead > tr > th.wp-16 { width: 16%; }
 table.grid.dataTable thead > tr > th.wp-17 { width: 17%; }
+table.grid.dataTable thead > tr > th.wp-20 { width: 20%; }
 table.grid.dataTable thead > tr > th.wp-22 { width: 22%; }
 table.grid.dataTable thead > tr > th.wp-27 { width: 27%; }
 table.grid.dataTable thead > tr > th.wp-31 { width: 31%; }
@@ -1574,3 +1576,128 @@ td.dataTables_empty,
   gap: 1.2rem;
 }
 @media (max-width: 768px) { .detail-grid-2 { grid-template-columns: 1fr; } }
+
+/* ==========================================================================
+   Adaptive lists — shared by Blueprints, Exams and the Question bank.
+   --------------------------------------------------------------------------
+   ≥1200px the full table. 768–1199px a table.grid.is-adaptive drops every
+   .col-opt cell and shows .row-meta-status inside the title cell instead;
+   each page then sets a second percentage set (summing to 100) for the
+   columns that remain, so the table fits instead of scrolling. <768px the
+   page renders .row-cards instead of the table.
+   ========================================================================== */
+
+/* KPI row — four across, or 2 × 2; never three plus a stray card. */
+.stats-grid.stats-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+
+/* Secondary line under a row title: status (mid widths) · facts · extras. */
+.row-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 10px;
+  min-width: 0;
+  margin-top: 4px;
+  color: var(--ink-3);
+  font-size: var(--text-xs);
+  line-height: 1.35;
+}
+.row-meta-status { display: none; }
+.row-meta-icon { display: inline-flex; align-items: center; gap: 4px; }
+.row-meta-icon svg { flex: none; }
+
+/* Next step — the one action that moves a row on. */
+.row-next {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  max-width: 100%;
+  min-height: 30px;
+  padding: 0 10px;
+  border-radius: var(--radius-sm);
+  background: var(--action-50);
+  color: var(--action-700);
+  font: 600 var(--text-xs)/1.2 var(--font-body);
+  text-decoration: none;
+  transition: background-color .13s ease;
+}
+.row-next span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.row-next svg { flex-shrink: 0; }
+.row-next:hover { background: var(--action-100); color: var(--action-700); text-decoration: none; }
+.row-next:focus-visible { outline: 2px solid var(--action-600); outline-offset: 2px; }
+.row-next.is-done { background: var(--green-50); color: var(--green-700); }
+.row-next.is-done:hover { background: var(--green-100); color: var(--green-700); }
+.row-next.is-warn { background: var(--amber-50); color: var(--amber-700); }
+.row-next.is-warn:hover { background: var(--amber-100); color: var(--amber-700); }
+.row-next.is-block { width: 100%; min-height: 44px; padding: 0 14px; font-size: var(--text-sm); }
+.row-next-arrow { margin-left: auto; transition: transform .15s ease; }
+.row-next:hover .row-next-arrow { transform: translateX(2px); }
+
+/* Empty search/filter result inside a .dataset. */
+.row-nomatch {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 40px 16px;
+  color: var(--ink-3);
+  text-align: center;
+}
+.row-nomatch p { margin: 0; }
+
+/* Cards (<768px), optionally in collapsible groups. */
+.row-cards { display: flex; flex-direction: column; gap: 14px; padding: 12px; }
+.row-card-group { display: flex; flex-direction: column; gap: 8px; }
+.row-card-group-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 0 4px;
+  border: 0;
+  background: none;
+  color: var(--gc, var(--ink));
+  font: 600 var(--text-sm)/1.3 var(--font-display);
+  text-align: left;
+  cursor: pointer;
+}
+.row-card-group-name { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.row-card-caret { flex: none; transition: transform .15s ease; }
+.row-card-group-head[aria-expanded="false"] .row-card-caret { transform: rotate(-90deg); }
+.row-card-list { display: grid; gap: 10px; margin: 0; padding: 0; list-style: none; }
+.row-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+  padding: 12px 14px 14px 17px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
+}
+.row-card::before { content: ''; position: absolute; inset: 0 auto 0 0; width: 3px; background: var(--gc, var(--line)); }
+.row-card-top { display: flex; align-items: center; gap: 8px; min-height: 28px; margin-right: -8px; }
+.row-card-when { margin-left: auto; color: var(--ink-faint); font-size: var(--text-xs); white-space: nowrap; }
+.row-card-title { color: var(--ink); font: 600 1rem/1.35 var(--font-display); text-decoration: none; }
+.row-card-title:hover { text-decoration: underline; text-underline-offset: 2px; }
+.row-card-title:focus-visible { outline: 2px solid var(--action-600); outline-offset: 2px; border-radius: 2px; }
+.row-card .row-meta { margin-top: -4px; }
+
+@media (max-width: 1199px) {
+  .stats-grid.stats-4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .dataset-scroll table.grid.is-adaptive { min-width: 0; }
+  table.grid.is-adaptive .col-opt { display: none; }
+  table.grid.is-adaptive .row-meta-status { display: inline-flex; }
+}
+@media (max-width: 991px) {
+  .row-next { min-height: 44px; }
+}
+@media (max-width: 599px) {
+  .stats-grid.stats-4 .stat-value { font-size: 1.5rem; white-space: nowrap; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .row-next, .row-next-arrow, .row-card-caret { transition: none; }
+}

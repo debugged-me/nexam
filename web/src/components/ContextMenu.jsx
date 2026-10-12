@@ -38,9 +38,11 @@ export function useCopyText() {
 export function useContextMenu() {
   const [menu, setMenu] = useState(null); // { x, y, items }
 
-  const openMenu = useCallback((e, items) => {
+  const openMenu = useCallback((e, allItems) => {
     e.preventDefault();
     e.stopPropagation();
+    // Conditional entries may be passed as `cond && {…}` — drop the falsy ones.
+    const items = allItems.filter(Boolean);
     const estH = items.length * EST_ITEM_H + 12;
     setMenu({
       x: Math.min(e.clientX, window.innerWidth - MENU_MIN_W - 8),

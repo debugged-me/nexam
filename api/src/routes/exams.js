@@ -188,16 +188,37 @@ router.get('/', requireAuth, async (req, res, next) => {
   try {
     const [exams] = await pool.query(
       `SELECT e.id, e.title, e.subject_id, e.tos_id, s.name AS subject_name, s.code AS subject_code,
+              t.title AS tos_title,
               e.status, e.set_count, e.format, e.duration_minutes, e.instructions,
               (SELECT COUNT(*) FROM exam_questions eq WHERE eq.exam_id = e.id) AS question_count,
               (SELECT COUNT(*) FROM exam_sets es WHERE es.exam_id = e.id AND es.is_current = 1) AS set_count_generated,
               e.created_at, e.updated_at
        FROM exams e
        JOIN subjects s ON s.id = e.subject_id
+       LEFT JOIN tos t ON t.id = e.tos_id
        WHERE s.instructor_id = :userId
        ORDER BY e.created_at DESC`,
       { userId: req.user.id }
     );
+    // Results per exam — sheets scanned, scans still awaiting review, and
+    // the class average — so the list can show where each exam stands.
+    const [scanRows] = await pool.query(
+      `SELECT sr.exam_id, COUNT(*) AS scans, SUM(sr.needs_review = 1) AS to_review,
+              AVG(sr.score) AS avg_score
+       FROM scan_results sr
+       JOIN exams e ON e.id = sr.exam_id
+       JOIN subjects s ON s.id = e.subject_id
+       WHERE s.instructor_id = :userId
+       GROUP BY sr.exam_id`,
+      { userId: req.user.id }
+    );
+    const scansByExam = new Map(scanRows.map((r) => [r.exam_id, r]));
+    for (const e of exams) {
+      const r = scansByExam.get(e.id);
+      e.scan_count = Number(r?.scans) || 0;
+      e.review_count = Number(r?.to_review) || 0;
+      e.avg_score = r?.avg_score == null ? null : Math.round(Number(r.avg_score) * 10) / 10;
+    }
     res.json({ exams });
   } catch (err) {
     next(err);

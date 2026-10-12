@@ -13,7 +13,8 @@
  * group is a <tbody className="b-group"> whose first row is a BoardGroupHead,
  * so collapsing, colouring and summarising stay CSS-only off that wrapper.
  */
-import { ChevronDown, Plus } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { ArrowRight, ChevronDown, Plus } from 'lucide-react';
 
 /* Canonical tone for every status used by the API. Maps to --st-* tokens. */
 const STATUS_TONES = {
@@ -144,5 +145,40 @@ export function BoardAddRow({ colSpan, label = 'Add item', onClick, href, as: Li
           : content}
       </td>
     </tr>
+  );
+}
+
+/**
+ * The one action that moves a row on (adaptive lists). `step` is
+ * { label, to, icon?, done?, warn?, hint? }; `block` is the full-width card
+ * version with a trailing arrow.
+ */
+export function NextStepLink({ step, block = false }) {
+  const Icon = step.icon || ArrowRight;
+  return (
+    <Link
+      to={step.to}
+      className={`row-next${step.done ? ' is-done' : ''}${step.warn ? ' is-warn' : ''}${block ? ' is-block' : ''}`}
+      data-step={step.key}
+      title={step.hint}
+    >
+      <Icon size={14} aria-hidden="true" />
+      <span>{step.label}</span>
+      {block && <ArrowRight size={14} aria-hidden="true" className="row-next-arrow" />}
+    </Link>
+  );
+}
+
+/** Collapsible group of cards (adaptive lists below 768px). */
+export function CardGroup({ title, color, count, collapsed, onToggle, children }) {
+  return (
+    <section className="row-card-group" style={{ '--gc': color }}>
+      <button type="button" className="row-card-group-head" aria-expanded={!collapsed} onClick={onToggle}>
+        <ChevronDown size={15} aria-hidden="true" className="row-card-caret" />
+        <span className="row-card-group-name">{title}</span>
+        {count != null && <span className="b-group-count">{count}</span>}
+      </button>
+      {!collapsed && children}
+    </section>
   );
 }

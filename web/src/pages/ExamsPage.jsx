@@ -1,36 +1,42 @@
 import '../styles/exams.css';
 /**
- * ExamsPage — exam board grouped like a Monday board.
+ * ExamsPage — exam board grouped like a Monday board (adaptive list).
  *
- * Rows group by subject (default) or status, each group a collapsible band
- * with its own accent colour, a segmented status summary under the rows, and
- * an "add" row that opens the builder scoped to that subject. Toolbar holds
- * search, group-by and the primary action; sorting stays on the headers.
+ * Rows group by subject (default) or status. Each exam shows its format,
+ * blueprint, items, results so far (sheets scanned + class average) and the
+ * one next step from lib/examProgress.js. ≥1200px the full table; 768–1199px
+ * the secondary columns drop; <768px every exam is a card.
  */
 import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import {
-  Plus, Pencil, Trash2, Info, Eye, Ellipsis, Search, FileCheck,
-  Layers, Printer, MonitorSmartphone, Copy, FileText, PenLine, ListChecks,
+  Plus, Pencil, Trash2, Info, Eye, Ellipsis, Search, FileCheck, Layers, Printer,
+  MonitorSmartphone, Copy, FileText, ListPlus, Files, Send, ScanLine, ClipboardCheck,
+  ChartColumn, Gauge, PanelsTopLeft,
 } from 'lucide-react';
 import { useToast } from '../components/Toast.jsx';
 import { useContextMenu, useCopyText } from '../components/ContextMenu.jsx';
 import { useConfirm } from '../components/ConfirmDialog.jsx';
 import api, { ApiError } from '../lib/api.js';
 import { vtNavigate } from '../lib/viewTransitions.js';
+import { timeAgo } from '../lib/time.js';
+import { useMediaQuery } from '../lib/useMediaQuery.js';
+import { examNextStep, examResults, isPublished } from '../lib/examProgress.js';
 import DetailsModal from '../components/DetailsModal.jsx';
 import AppShell from '../components/AppShell.jsx';
 import { TableSkeleton } from '../components/Loaders.jsx';
 import { animateRows } from '../lib/animRows.js';
 import EmptyStateArt from '../components/EmptyStateArt.jsx';
 import {
-  StatusPill, BoardGroupHead,
-  BoardAddRow, GroupChip, groupColor, statusOf, statusMeta, STATUS_LABELS, STATUS_ORDER, StatCard,
+  StatusPill, BoardGroupHead, NextStepLink, CardGroup,
+  GroupChip, groupColor, statusOf, statusMeta, STATUS_LABELS, STATUS_ORDER, StatCard,
 } from '../components/Board.jsx';
 import { useGridTable } from '../components/DataTable.jsx';
 
-const FULL_SPAN = 7;
 const EXAM_STATUSES = STATUS_ORDER.exam;
+const NEXT_ICONS = {
+  assemble: ListPlus, sets: Files, publish: Send, scan: ScanLine, review: ClipboardCheck, results: ChartColumn,
+};
 
 // Sort accessors — id matches the column the header toggles.
 const EXAM_COLUMNS = [
@@ -38,6 +44,7 @@ const EXAM_COLUMNS = [
   { id: 'subject', accessorFn: (e) => (e.subject_name || '').toLowerCase() },
   { id: 'status',  accessorFn: (e) => EXAM_STATUSES.indexOf(statusOf(e.status)) },
   { id: 'items',   accessorFn: (e) => e.question_count || 0 },
+  { id: 'results', accessorFn: (e) => (Number(e.scan_count) ? Number(e.avg_score) || 0 : -1) },
   { id: 'updated', accessorFn: (e) => e.updated_at || e.created_at || '' },
 ];
 
@@ -45,6 +52,16 @@ function fmtDate(iso) {
   if (!iso) return '—';
   const d = new Date(String(iso).replace(' ', 'T'));
   return Number.isNaN(d.getTime()) ? '—' : d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+}
+
+/** "3 hr ago" this week, then "Oct 5" (the year only when it differs). */
+function touchedText(iso) {
+  const d = new Date(String(iso || '').replace(' ', 'T'));
+  if (Number.isNaN(d.getTime())) return '—';
+  const opts = d.getFullYear() === new Date().getFullYear()
+    ? { month: 'short', day: 'numeric' }
+    : { month: 'short', day: 'numeric', year: 'numeric' };
+  return timeAgo(d.toISOString()) || d.toLocaleDateString('en-US', opts);
 }
 
 /** Roll a list of exams into { tone: count } for the summary strip. */
@@ -55,6 +72,26 @@ function statusCounts(list) {
     counts[tone] = (counts[tone] || 0) + 1;
   }
   return counts;
+}
+
+const stepFor = (e) => { const step = examNextStep(e); return { ...step, icon: NEXT_ICONS[step.key] }; };
+
+/** Sheets scanned + class average against the pass mark. */
+function Results({ e }) {
+  const r = examResults(e);
+  if (!r) return <span className="ex-res-none">No scans yet</span>;
+  return (
+    <span className="ex-res" data-passing={r.avg == null ? undefined : r.passing}>
+      <span className="ex-res-head">
+        <strong title="Class average">{r.avg == null ? '—' : `${Math.round(r.avg)}%`}</strong>
+        <span className="ex-res-cap">{r.caption}</span>
+      </span>
+      <span className="ex-res-bar" role="img" aria-label={r.avg == null ? 'No average yet' : `Class average ${Math.round(r.avg)} percent`}>
+        <i style={{ width: `${r.avg ?? 0}%` }} />
+      </span>
+      {r.toReview > 0 && <span className="ex-res-review">{r.toReview} to confirm</span>}
+    </span>
+  );
 }
 
 export default function ExamsPage() {
@@ -69,6 +106,7 @@ export default function ExamsPage() {
   const [groupBy, setGroupBy] = useState('subject'); // subject | status | none
   const [collapsed, setCollapsed] = useState(() => new Set());
   const searchRef = useRef(null);
+  const asCards = useMediaQuery('(max-width: 767px)');
 
   const load = useCallback(() => {
     api.get('/exams')
@@ -108,17 +146,19 @@ export default function ExamsPage() {
   });
   const { pageRows: filtered, sortClass, sortHandler, renderSortArrow } = grid;
 
-  // KPI row — exam counts by status plus total questions assembled.
+  // KPI row — exams, published, sheets scanned and the class average across
+  // every scanned sheet (weighted by sheets, not by exam).
   const examStats = useMemo(() => (exams || []).reduce(
     (acc, e) => {
-      const tone = statusOf(e.status);
-      if (tone === 'live' || tone === 'published') acc.ready += 1;
-      else if (tone === 'draft') acc.drafts += 1;
-      acc.questions += Number(e.question_count) || 0;
+      if (isPublished(e)) acc.published += 1;
+      const scans = Number(e.scan_count) || 0;
+      acc.scans += scans;
+      if (scans && e.avg_score != null) { acc.scoreSum += Number(e.avg_score) * scans; acc.scored += scans; }
       return acc;
     },
-    { ready: 0, drafts: 0, questions: 0 },
+    { published: 0, scans: 0, scoreSum: 0, scored: 0 },
   ), [exams]);
+  const overallAvg = examStats.scored ? Math.round(examStats.scoreSum / examStats.scored) : null;
 
   /** Ordered groups for the current group-by; 'none' collapses to one group. */
   const groups = useMemo(() => {
@@ -159,7 +199,7 @@ export default function ExamsPage() {
     return new Set(exams.map((e) => e.subject_id || 'none')).size === 1;
   }, [exams]);
   const showSubject = groupBy !== 'subject' && !singleSubject;
-  const colSpan = showSubject ? FULL_SPAN : FULL_SPAN - 1;
+  const colSpan = showSubject ? 8 : 7;
 
   function toggleGroup(key) {
     setCollapsed((prev) => {
@@ -180,6 +220,8 @@ export default function ExamsPage() {
       { label: 'View details', icon: Info, onClick: () => setViewing(exam) },
       { label: 'Open', icon: Eye, onClick: () => navigate(`/exams/${exam.id}`) },
       { label: 'Edit', icon: Pencil, onClick: () => navigate(`/exams/${exam.id}/edit`) },
+      Number(exam.scan_count) > 0 && { label: 'View results', icon: ChartColumn, onClick: () => navigate(`/analytics/exam/${exam.id}`) },
+      exam.subject_id && { label: 'New exam in this subject', icon: Plus, onClick: () => navigate(`/exams/new?subject_id=${encodeURIComponent(exam.subject_id)}`) },
       'sep',
       { label: 'Copy title', icon: Copy, onClick: () => copyText(exam.title, 'Title') },
       'sep',
@@ -187,64 +229,70 @@ export default function ExamsPage() {
     ]);
   }
 
+  // Title link animates into the exam page; new-tab clicks stay plain links.
+  function openExam(ev, id) {
+    if (ev.metaKey || ev.ctrlKey || ev.shiftKey || ev.altKey || ev.button !== 0) return;
+    ev.preventDefault();
+    vtNavigate(navigate, `/exams/${id}`, { sharedEl: ev.currentTarget });
+  }
+
+  /** Format · duration · blueprint — shared by rows and cards. */
+  function examFacts(e, { withItems = false } = {}) {
+    const print = e.format === 'print';
+    const count = e.question_count || 0;
+    return (
+      <>
+        <span className="row-meta-icon">
+          {print ? <Printer size={13} aria-hidden="true" /> : <MonitorSmartphone size={13} aria-hidden="true" />}
+          {print ? 'Print' : 'Digital'}
+        </span>
+        {withItems && <span>{count} {count === 1 ? 'item' : 'items'}</span>}
+        {!withItems && <span className="ex-meta-items">{count} {count === 1 ? 'item' : 'items'}</span>}
+        {e.duration_minutes ? <span>{e.duration_minutes} min</span> : null}
+        {e.tos_id && e.tos_title && (
+          <Link to={`/tos/${e.tos_id}`} className="row-meta-icon ex-meta-tos" title={`Blueprint: ${e.tos_title}`}>
+            <PanelsTopLeft size={13} aria-hidden="true" /><span>{e.tos_title}</span>
+          </Link>
+        )}
+      </>
+    );
+  }
+
   // Render function (not a nested component) — a component type re-created
   // every render would force React to remount every row, re-triggering the
   // auto-animate on each state change (e.g. opening the context menu).
   function renderExamRow(e) {
     const count = e.question_count || 0;
-    const print = e.format === 'print';
-    const meta = [];
-    if (e.duration_minutes) meta.push(`${e.duration_minutes} min`);
-    meta.push(`${count} ${count === 1 ? 'item' : 'items'}`);
+    const touched = e.updated_at || e.created_at;
     return (
       <tr key={e.id} className="b-row" data-id={e.id} onContextMenu={(ev) => examMenu(ev, e)}>
-        <td>
+        <td className="col-primary">
           <span className="g-primary">
-            <Link
-              to={`/exams/${e.id}`}
-              className="g-title"
-              onClick={(ev) => {
-                // Let new-tab clicks (cmd/ctrl/middle) behave like a plain link.
-                if (ev.metaKey || ev.ctrlKey || ev.shiftKey || ev.altKey || ev.button !== 0) return;
-                ev.preventDefault();
-                vtNavigate(navigate, `/exams/${e.id}`, { sharedEl: ev.currentTarget });
-              }}
-            >
+            <Link to={`/exams/${e.id}`} className="g-title" title={e.title} onClick={(ev) => openExam(ev, e.id)}>
               {e.title}
             </Link>
-            <span className="g-meta">
-              {meta.join(' · ')}
-              {e.title && e.title.length > 45 && (
-                <>
-                  {' · '}
-                  <button type="button" className="g-more" onClick={() => setViewing(e)}>Read more</button>
-                </>
-              )}
+            <span className="row-meta">
+              <span className="row-meta-status"><StatusPill status={e.status} small /></span>
+              {examFacts(e)}
             </span>
           </span>
         </td>
         {showSubject && (
-          <td data-order={e.subject_name || ''}>
+          <td className="col-opt" data-order={e.subject_name || ''}>
             {e.subject_name
               ? <GroupChip color={groupColor(e.subject_id || e.subject_name)}>{e.subject_name}</GroupChip>
               : <span className="g-mute">—</span>}
           </td>
         )}
-        <td>
-          <span className="g-inline">
-            {print ? <Printer size={14} /> : <MonitorSmartphone size={14} />}
-            {print ? 'Print' : 'Digital'}
-          </span>
-        </td>
-        <td data-order={EXAM_STATUSES.indexOf(statusOf(e.status))}>
+        <td className="col-opt" data-order={EXAM_STATUSES.indexOf(statusOf(e.status))}>
           <StatusPill status={e.status} />
         </td>
-        <td className="is-num" data-order={count}>
+        <td className="is-num col-opt" data-order={count}>
           <span className={`g-count${count ? '' : ' is-zero'}`}>{count || '—'}</span>
         </td>
-        <td className="g-mute" data-order={e.updated_at || e.created_at || ''}>
-          {fmtDate(e.updated_at || e.created_at)}
-        </td>
+        <td><Results e={e} /></td>
+        <td className="g-mute col-opt" title={fmtDate(touched)}>{touchedText(touched)}</td>
+        <td><NextStepLink step={stepFor(e)} /></td>
         <td className="col-actions">
           {/* Same floating menu as right-click — uniform with Subjects/Questions. */}
           <button
@@ -260,6 +308,34 @@ export default function ExamsPage() {
       </tr>
     );
   }
+
+  function renderExamCard(e) {
+    return (
+      <li key={e.id} className="row-card" style={{ '--gc': groupColor(e.subject_id || e.subject_name) }} onContextMenu={(ev) => examMenu(ev, e)}>
+        <div className="row-card-top">
+          <StatusPill status={e.status} small />
+          <span className="row-card-when">{touchedText(e.updated_at || e.created_at)}</span>
+          <button type="button" className="g-menu" onClick={(ev) => examMenu(ev, e)} aria-label={`Actions for ${e.title}`}>
+            <Ellipsis size={16} />
+          </button>
+        </div>
+        <Link to={`/exams/${e.id}`} className="row-card-title" onClick={(ev) => openExam(ev, e.id)}>{e.title}</Link>
+        <span className="row-meta">
+          {showSubject && e.subject_name && <GroupChip color={groupColor(e.subject_id || e.subject_name)}>{e.subject_name}</GroupChip>}
+          {examFacts(e, { withItems: true })}
+        </span>
+        {examResults(e) && <Results e={e} />}
+        <NextStepLink step={stepFor(e)} block />
+      </li>
+    );
+  }
+
+  const noMatch = (
+    <div className="row-nomatch">
+      <p>No exams match “{query.trim()}”.</p>
+      <button type="button" className="btn btn-outline btn-sm" onClick={() => setQuery('')}>Clear search</button>
+    </div>
+  );
 
   return (
     <AppShell pageClass="exams" activeNav="exams" pageTitle="Exams" wide>
@@ -277,11 +353,11 @@ export default function ExamsPage() {
         </div>
       ) : (
         <>
-        <div className="stats-grid">
+        <div className="stats-grid stats-4">
           <StatCard icon={FileText} tint="blue" value={exams.length} label="Exams" />
-          <StatCard icon={FileCheck} tint="green" value={examStats.ready} label="Live & published" />
-          <StatCard icon={PenLine} tint="amber" value={examStats.drafts} label="Drafts" />
-          <StatCard icon={ListChecks} tint="cyan" value={examStats.questions} label="Questions assembled" />
+          <StatCard icon={FileCheck} tint="green" value={examStats.published} label="Published" />
+          <StatCard icon={ScanLine} tint="purple" value={examStats.scans} label="Sheets scanned" />
+          <StatCard icon={Gauge} tint="cyan" value={overallAvg == null ? '—' : `${overallAvg}%`} label="Average score" />
         </div>
         <section className="dataset" data-density="comfortable">
           <div className="dataset-bar" data-tour="exams-toolbar">
@@ -321,32 +397,33 @@ export default function ExamsPage() {
             </div>
           </div>
 
+          {groups.length === 0 ? noMatch : asCards ? (
+            <div className="row-cards" data-tour="exams-board">
+              {grouped ? groups.map((g) => (
+                <CardGroup key={g.key} title={g.title} color={g.color} count={g.rows.length} collapsed={collapsed.has(g.key)} onToggle={() => toggleGroup(g.key)}>
+                  <ul className="row-card-list" ref={animateRows}>{g.rows.map(renderExamCard)}</ul>
+                </CardGroup>
+              )) : (
+                <ul className="row-card-list" ref={animateRows}>{groups[0].rows.map(renderExamCard)}</ul>
+              )}
+            </div>
+          ) : (
           <div className="dataset-scroll" data-tour="exams-board">
-            <table className="grid datatable" data-grid="exams" data-grid-label="exams">
+            <table className="grid datatable ex-table is-adaptive" data-grid="exams" data-grid-label="exams">
               <caption className="sr-only">Exams in your workspace</caption>
               <thead>
                 <tr>
-                  <th className={`col-primary wp-31 ${sortClass('exam')}`} onClick={sortHandler('exam')} data-name="Exam" data-locked>Exam{renderSortArrow('exam')}</th>
-                  {showSubject && <th className={`wp-16 ${sortClass('subject')}`} onClick={sortHandler('subject')} data-name="Subject">Subject{renderSortArrow('subject')}</th>}
-                  <th className="wp-10" data-name="Format">Format</th>
-                  <th className={`wp-12 ${sortClass('status')}`} onClick={sortHandler('status')} data-name="Status">Status{renderSortArrow('status')}</th>
-                  <th className={`is-num wp-9 ${sortClass('items')}`} onClick={sortHandler('items')} data-name="Items">Items{renderSortArrow('items')}</th>
-                  <th className={`wp-12 ${sortClass('updated')}`} onClick={sortHandler('updated')} data-name="Updated">Updated{renderSortArrow('updated')}</th>
-                  <th className="col-actions wp-10">Actions</th>
+                  <th className={`col-primary ex-c-title ${showSubject ? 'wp-20' : 'wp-31'} ${sortClass('exam')}`} onClick={sortHandler('exam')} data-name="Exam" data-locked>Exam{renderSortArrow('exam')}</th>
+                  {showSubject && <th className={`wp-12 col-opt ${sortClass('subject')}`} onClick={sortHandler('subject')} data-name="Subject">Subject{renderSortArrow('subject')}</th>}
+                  <th className={`${showSubject ? 'wp-10' : 'wp-11'} col-opt ${sortClass('status')}`} onClick={sortHandler('status')} data-name="Status">Status{renderSortArrow('status')}</th>
+                  <th className={`is-num wp-8 col-opt ${sortClass('items')}`} onClick={sortHandler('items')} data-name="Items">Items{renderSortArrow('items')}</th>
+                  <th className={`wp-14 ex-c-res ${sortClass('results')}`} onClick={sortHandler('results')} data-name="Results">Results{renderSortArrow('results')}</th>
+                  <th className={`wp-11 col-opt ${sortClass('updated')}`} onClick={sortHandler('updated')} data-name="Updated">Updated{renderSortArrow('updated')}</th>
+                  <th className="wp-20 ex-c-next" data-name="Next step">Next step</th>
+                  <th className="col-actions wp-5 ex-c-act"><span className="sr-only">Actions</span></th>
                 </tr>
               </thead>
-              {groups.length === 0 ? (
-                <tbody ref={animateRows}>
-                  <tr>
-                    <td className="ds-noresults" colSpan={colSpan}>
-                      <span className="ds-noresults-title">No exams found</span>
-                      <span className="ds-noresults-sub">
-                        Try a different search or <button type="button" onClick={() => setQuery('')}>clear it</button>.
-                      </span>
-                    </td>
-                  </tr>
-                </tbody>
-              ) : groups.map((g) => {
+              {groups.map((g) => {
                 const isCollapsed = collapsed.has(g.key);
                 const counts = statusCounts(g.rows);
                 const itemTotal = g.rows.reduce((n, e) => n + (e.question_count || 0), 0);
@@ -367,19 +444,12 @@ export default function ExamsPage() {
                       />
                     )}
                     {g.rows.map(renderExamRow)}
-                    {grouped && groupBy === 'subject' && (
-                      <BoardAddRow
-                        colSpan={colSpan}
-                        label="New exam"
-                        href={g.rows[0]?.subject_id ? `/exams/new?subject_id=${encodeURIComponent(g.rows[0].subject_id)}` : '/exams/new'}
-                        as={Link}
-                      />
-                    )}
                   </tbody>
                 );
               })}
             </table>
           </div>
+          )}
         </section>
         </>
       )}
@@ -396,6 +466,9 @@ export default function ExamsPage() {
           { label: 'Format', value: viewing.format === 'print' ? 'Print' : 'Digital', kind: 'meta' },
           { label: 'Items', value: viewing.question_count || 0, kind: 'stat' },
           viewing.duration_minutes ? { label: 'Duration', value: `${viewing.duration_minutes} min`, kind: 'stat' } : null,
+          viewing.tos_title ? { label: 'Blueprint', value: viewing.tos_title } : null,
+          { label: 'Sheets scanned', value: Number(viewing.scan_count) || 0 },
+          viewing.avg_score != null ? { label: 'Class average', value: `${Math.round(Number(viewing.avg_score))}%` } : null,
           { label: 'Updated', value: fmtDate(viewing.updated_at || viewing.created_at) },
         ].filter(Boolean) : []}
       />

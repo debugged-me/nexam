@@ -12,8 +12,8 @@ import { useEffect, useState, useCallback, useMemo } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import {
   Plus, Pencil, Trash2, Info, Eye, Ellipsis, FilePlus2, Upload, Check, Layers, Copy, PanelsTopLeft,
-  FileCheck, Database, Search, Filter, ArrowRight, ListPlus, Lock, Sparkles, ClipboardCheck,
-  CircleCheck, ChevronDown,
+  FileCheck, Database, Search, Filter, ListPlus, Lock, Sparkles, ClipboardCheck,
+  CircleCheck,
 } from 'lucide-react';
 import { useToast } from '../components/Toast.jsx';
 import { useContextMenu, useCopyText } from '../components/ContextMenu.jsx';
@@ -34,7 +34,7 @@ import {
   BLOOM_ORDER, BLOOM_LABELS, blueprintCoverage, blueprintNextStep, bloomMix, coverageCaption,
 } from '../lib/blueprintProgress.js';
 import {
-  StatusPill, BoardGroupHead,
+  StatusPill, BoardGroupHead, NextStepLink, CardGroup,
   GroupChip, groupColor, statusOf, statusMeta, STATUS_ORDER, StatCard,
 } from '../components/Board.jsx';
 
@@ -130,22 +130,8 @@ function Coverage({ t }) {
   );
 }
 
-function NextStep({ t, block = false }) {
-  const step = blueprintNextStep(t);
-  const Icon = NEXT_ICONS[step.key] || ArrowRight;
-  return (
-    <Link
-      to={step.to}
-      className={`bp-next${step.done ? ' is-done' : ''}${block ? ' is-block' : ''}`}
-      data-step={step.key}
-      title={step.hint}
-    >
-      <Icon size={14} aria-hidden="true" />
-      <span>{step.label}</span>
-      {block && <ArrowRight size={14} aria-hidden="true" className="bp-next-arrow" />}
-    </Link>
-  );
-}
+/** Next step for a row, with this page's icon for it. */
+const stepFor = (t) => { const step = blueprintNextStep(t); return { ...step, icon: NEXT_ICONS[step.key] }; };
 
 export default function TosPage() {
   const toast = useToast();
@@ -350,8 +336,8 @@ export default function TosPage() {
         <td className="col-primary">
           <span className="g-primary">
             <Link to={`/tos/${t.id}`} className="g-title" title={t.title}>{t.title}</Link>
-            <span className="bp-meta">
-              <span className="bp-meta-status"><StatusPill status={t.status} small /></span>
+            <span className="row-meta">
+              <span className="row-meta-status"><StatusPill status={t.status} small /></span>
               {showSubject && t.subject_name && <span className="bp-meta-subject">{t.subject_name}</span>}
               <span>{topics ? `${topics} topic${topics === 1 ? '' : 's'} · ${items} items` : `${items} items · no topics yet`}</span>
               <BloomMix weights={t.bloom_weights} />
@@ -359,7 +345,7 @@ export default function TosPage() {
           </span>
         </td>
         {showSubject && (
-          <td className="bp-c-opt">
+          <td className="col-opt">
             {t.subject_name ? (
               <GroupChip color={groupColor(t.subject_id || t.subject_name)}>{t.subject_name}</GroupChip>
             ) : (
@@ -367,9 +353,9 @@ export default function TosPage() {
             )}
           </td>
         )}
-        <td className="bp-c-opt" data-order={statusOf(t.status)}><StatusPill status={t.status} /></td>
+        <td className="col-opt" data-order={statusOf(t.status)}><StatusPill status={t.status} /></td>
         <td><Coverage t={t} /></td>
-        <td className="is-num bp-c-opt">
+        <td className="is-num col-opt">
           {exams ? (
             <span className="bp-exams">
               <span className="g-count">{exams}</span>
@@ -377,8 +363,8 @@ export default function TosPage() {
             </span>
           ) : <span className="g-mute">—</span>}
         </td>
-        <td className="g-mute bp-c-opt" title={fmtDate(touched)}>{touchedText(touched)}</td>
-        <td><NextStep t={t} /></td>
+        <td className="g-mute col-opt" title={fmtDate(touched)}>{touchedText(touched)}</td>
+        <td><NextStepLink step={stepFor(t)} /></td>
         <td className="col-actions">
           {/* Same floating menu as right-click — uniform with Subjects/Questions. */}
           <button
@@ -401,16 +387,16 @@ export default function TosPage() {
     const exams = Number(t.exam_count) || 0;
     const touched = t.updated_at || t.created_at;
     return (
-      <li key={t.id} className="bp-card" style={{ '--gc': groupColor(t.subject_id || t.subject_name) }} onContextMenu={(e) => tosMenu(e, t)}>
-        <div className="bp-card-top">
+      <li key={t.id} className="row-card" style={{ '--gc': groupColor(t.subject_id || t.subject_name) }} onContextMenu={(e) => tosMenu(e, t)}>
+        <div className="row-card-top">
           <StatusPill status={t.status} small />
-          <span className="bp-card-when">{touchedText(touched)}</span>
+          <span className="row-card-when">{touchedText(touched)}</span>
           <button type="button" className="g-menu" onClick={(e) => tosMenu(e, t)} aria-label={`Actions for ${t.title}`}>
             <Ellipsis size={16} />
           </button>
         </div>
-        <Link to={`/tos/${t.id}`} className="bp-card-title">{t.title}</Link>
-        <span className="bp-meta">
+        <Link to={`/tos/${t.id}`} className="row-card-title">{t.title}</Link>
+        <span className="row-meta">
           {showSubject && t.subject_name && <GroupChip color={groupColor(t.subject_id || t.subject_name)}>{t.subject_name}</GroupChip>}
           <span>
             {topics ? `${topics} topic${topics === 1 ? '' : 's'} · ${items} items` : `${items} items · no topics yet`}
@@ -419,7 +405,7 @@ export default function TosPage() {
         </span>
         <BloomMix weights={t.bloom_weights} interactive={false} />
         {topics > 0 && <Coverage t={t} />}
-        <NextStep t={t} block />
+        <NextStepLink step={stepFor(t)} block />
       </li>
     );
   }
@@ -427,7 +413,7 @@ export default function TosPage() {
   const openNew = () => setEditing({ title: '', subject_id: subjects[0]?.id || '', total_items: 50, bloom_weights: { ...DEFAULT_BLOOM } });
   const clearFinder = () => { setQuery(''); setFilter('all'); };
   const noMatch = (
-    <div className="bp-nomatch">
+    <div className="row-nomatch">
       <p>No blueprints match{query ? ` “${query.trim()}”` : ''}.</p>
       <button type="button" className="btn btn-outline btn-sm" onClick={clearFinder}>Clear search and filter</button>
     </div>
@@ -454,7 +440,7 @@ export default function TosPage() {
         </div>
       ) : (
         <>
-        <div className="stats-grid bp-stats">
+        <div className="stats-grid stats-4">
           <StatCard icon={PanelsTopLeft} tint="blue" value={tosList.length} label="Blueprints" />
           <StatCard icon={FileCheck} tint="green" value={tosStats.finalized} label="Finalized" />
           <StatCard icon={FilePlus2} tint="purple" value={tosStats.ready} label="Exam-ready" />
@@ -501,37 +487,29 @@ export default function TosPage() {
           </div>
 
           {rows.length === 0 ? noMatch : asCards ? (
-            <div className="bp-cards" data-tour="tos-table">
-              {tosGroups ? tosGroups.map((g) => {
-                const isCollapsed = collapsed.has(g.key);
-                return (
-                  <section key={g.key} className="bp-card-group" style={{ '--gc': g.color }}>
-                    <button type="button" className="bp-card-group-head" aria-expanded={!isCollapsed} onClick={() => toggleGroup(g.key)}>
-                      <ChevronDown size={15} aria-hidden="true" className="bp-caret" />
-                      <span className="bp-card-group-name">{g.title}</span>
-                      <span className="b-group-count">{g.rows.length}</span>
-                    </button>
-                    {!isCollapsed && <ul className="bp-card-list" ref={animateRows}>{g.rows.map(renderTosCard)}</ul>}
-                  </section>
-                );
-              }) : (
-                <ul className="bp-card-list" ref={animateRows}>{rows.map(renderTosCard)}</ul>
+            <div className="row-cards" data-tour="tos-table">
+              {tosGroups ? tosGroups.map((g) => (
+                <CardGroup key={g.key} title={g.title} color={g.color} count={g.rows.length} collapsed={collapsed.has(g.key)} onToggle={() => toggleGroup(g.key)}>
+                  <ul className="row-card-list" ref={animateRows}>{g.rows.map(renderTosCard)}</ul>
+                </CardGroup>
+              )) : (
+                <ul className="row-card-list" ref={animateRows}>{rows.map(renderTosCard)}</ul>
               )}
             </div>
           ) : (
           <div className="dataset-scroll" data-tour="tos-table">
-        <table className="grid datatable bp-table" data-subject={showSubject || undefined}>
+        <table className="grid datatable bp-table is-adaptive" data-subject={showSubject || undefined}>
           <caption className="sr-only">Table of Specification blueprints in your workspace</caption>
           <thead>
             <tr>
               <th className={`col-primary bp-c-title ${showSubject ? 'wp-22' : 'wp-32'} ${sortClass('title')}`} onClick={sortHandler('title')}>
                 Blueprint{renderSortArrow('title')}
               </th>
-              {showSubject && <th className={`wp-12 bp-c-opt ${sortClass('subject')}`} onClick={sortHandler('subject')}>Subject{renderSortArrow('subject')}</th>}
-              <th className={`wp-10 bp-c-opt ${sortClass('status')}`} onClick={sortHandler('status')}>Status{renderSortArrow('status')}</th>
+              {showSubject && <th className={`wp-12 col-opt ${sortClass('subject')}`} onClick={sortHandler('subject')}>Subject{renderSortArrow('subject')}</th>}
+              <th className={`wp-10 col-opt ${sortClass('status')}`} onClick={sortHandler('status')}>Status{renderSortArrow('status')}</th>
               <th className={`${showSubject ? 'wp-16' : 'wp-17'} bp-c-cov ${sortClass('coverage')}`} onClick={sortHandler('coverage')}>Banked{renderSortArrow('coverage')}</th>
-              <th className={`is-num wp-8 bp-c-opt ${sortClass('exams')}`} onClick={sortHandler('exams')}>Exams{renderSortArrow('exams')}</th>
-              <th className={`${showSubject ? 'wp-10' : 'wp-11'} bp-c-opt ${sortClass('updated')}`} onClick={sortHandler('updated')}>Updated{renderSortArrow('updated')}</th>
+              <th className={`is-num wp-8 col-opt ${sortClass('exams')}`} onClick={sortHandler('exams')}>Exams{renderSortArrow('exams')}</th>
+              <th className={`${showSubject ? 'wp-10' : 'wp-11'} col-opt ${sortClass('updated')}`} onClick={sortHandler('updated')}>Updated{renderSortArrow('updated')}</th>
               <th className="wp-17 bp-c-next">Next step</th>
               <th className="col-actions wp-5 bp-c-act"><span className="sr-only">Actions</span></th>
             </tr>

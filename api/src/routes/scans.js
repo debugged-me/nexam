@@ -29,7 +29,15 @@ const MAX_ITEMS = 200;
 
 /**
  * Resolve which question ordering to score against.
- * Priority: explicit examSetId → set label → exam_questions fallback.
+ * Priority: explicit examSetId → set label (current run only) →
+ * exam_questions fallback.
+ *
+ * An explicit set id that does not resolve is a hard error, not a fallback:
+ * the printed sheet belongs to a specific set ordering, and guessing the
+ * same-label current set would score it against the wrong key. Archived
+ * sets (is_current = 0) still resolve — their frozen ordering is exactly
+ * what sheets printed from that run need.
+ *
  * @returns {Promise<{examSetId: string|null, questions: Array}>}
  */
 async function resolveSetQuestions(conn, examId, examSetId, setLabel) {
@@ -41,11 +49,20 @@ async function resolveSetQuestions(conn, examId, examSetId, setLabel) {
       { id: examSetId, examId }
     );
     if (rows.length) resolvedSetId = rows[0].id;
+    else {
+      const err = new Error(
+        'This answer sheet belongs to a set that no longer exists. '
+        + 'Re-print the current answer sheet and scan again.'
+      );
+      err.status = 409;
+      err.code = 'STALE_SET';
+      throw err;
+    }
   }
 
   if (!resolvedSetId && setLabel) {
     const [rows] = await conn.query(
-      `SELECT id FROM exam_sets WHERE exam_id = :examId AND set_label = :label`,
+      `SELECT id FROM exam_sets WHERE exam_id = :examId AND set_label = :label AND is_current = 1`,
       { examId, label: String(setLabel).trim().toUpperCase() }
     );
     if (rows.length) resolvedSetId = rows[0].id;
@@ -126,15 +143,85 @@ function revealScanIdentity(row) {
 }
 
 /**
+ * Serialize a stored scan into the exact shape POST /api/scans returns —
+ * used when a retried submission hits the client_scan_id dedup and the
+ * original result must be replayed to the client instead of re-inserted.
+ */
+async function loadStoredScanResult(conn, scanId) {
+  const [scanRows] = await conn.query(
+    `SELECT id, exam_id, exam_set_id, student_name, total_items, correct_count, score, needs_review
+     FROM scan_results WHERE id = :scanId`,
+    { scanId }
+  );
+  const scan = scanRows[0];
+  if (!scan) return null;
+
+  const [answers] = scan.exam_set_id
+    ? await conn.query(
+        `SELECT sa.item_number, sa.marked_answer, sa.correct_answer, sa.is_correct, sa.ambiguous, q.type
+         FROM scan_answers sa
+         LEFT JOIN exam_set_questions esq
+           ON esq.exam_set_id = :setId AND esq.sort_order = sa.item_number
+         LEFT JOIN questions q ON q.id = esq.question_id
+         WHERE sa.scan_result_id = :scanId
+         ORDER BY sa.item_number ASC`,
+        { scanId, setId: scan.exam_set_id }
+      )
+    : await conn.query(
+        `SELECT sa.item_number, sa.marked_answer, sa.correct_answer, sa.is_correct, sa.ambiguous, q.type
+         FROM scan_answers sa
+         LEFT JOIN exam_questions eq
+           ON eq.exam_id = :examId AND eq.sort_order = sa.item_number
+         LEFT JOIN questions q ON q.id = eq.question_id
+         WHERE sa.scan_result_id = :scanId
+         ORDER BY sa.item_number ASC`,
+        { scanId, examId: scan.exam_id }
+      );
+
+  const ambiguousCount = answers.filter((a) => a.ambiguous).length;
+  return {
+    id: scan.id,
+    examId: scan.exam_id,
+    examSetId: scan.exam_set_id,
+    studentName: unprotectText(scan.student_name) || null,
+    totalItems: Number(scan.total_items) || 0,
+    correctCount: Number(scan.correct_count) || 0,
+    score: scan.score == null ? 0 : parseFloat(scan.score),
+    needsReview: scan.needs_review ? 1 : 0,
+    ambiguousCount,
+    results: answers.map((a) => ({
+      itemNumber: a.item_number,
+      markedAnswer: a.marked_answer,
+      correctAnswer: a.correct_answer,
+      isCorrect: !!a.is_correct,
+      ambiguous: !!a.ambiguous,
+      type: a.type ?? null,
+    })),
+  };
+}
+
+/**
  * POST /api/scans — submit a scanned OMR result.
  *
  * Body: { examId, examSetId?, set?, studentName?, studentNumber?,
- *         answers: [{ itemNumber, markedAnswer, ambiguous }] }
+ *         clientScanId?, answers: [{ itemNumber, markedAnswer, ambiguous }] }
+ *
+ * clientScanId is the mobile client's idempotency key: it is minted before
+ * the first submit attempt and reused on every retry/outbox replay, so a
+ * retried upload returns the original result instead of a duplicate row.
  */
 router.post('/', rateLimit({ name: 'scan-submit', max: 90, windowSec: 300 }), async (req, res, next) => {
   const conn = await pool.getConnection();
+  // Read outside the try so the catch block can use it for the
+  // duplicate-key replay path.
+  const clientScanId = req.body?.clientScanId;
   try {
     const { examId, examSetId, set, studentName, studentNumber, answers } = req.body || {};
+
+    if (clientScanId != null &&
+        (typeof clientScanId !== 'string' || !/^[A-Za-z0-9_-]{8,64}$/.test(clientScanId))) {
+      return res.status(400).json({ error: 'clientScanId must be 8–64 letters, digits, "-" or "_".' });
+    }
 
     if (!examId || !UUID_RE.test(String(examId))) {
       return res.status(400).json({ error: 'Valid examId is required.' });
@@ -163,6 +250,19 @@ router.post('/', rateLimit({ name: 'scan-submit', max: 90, windowSec: 300 }), as
     );
     if (!examRows.length) return res.status(404).json({ error: 'Exam not found.' });
     const exam = examRows[0];
+
+    // Idempotent retry — a resubmission of the same client key replays the
+    // stored result rather than writing a second scan.
+    if (clientScanId) {
+      const [dup] = await conn.query(
+        `SELECT id FROM scan_results WHERE scanned_by = :uid AND client_scan_id = :cid`,
+        { uid: req.user.id, cid: clientScanId }
+      );
+      if (dup.length) {
+        const existing = await loadStoredScanResult(conn, dup[0].id);
+        if (existing) return res.status(200).json({ ...existing, duplicate: true });
+      }
+    }
 
     await conn.beginTransaction();
 
@@ -210,9 +310,9 @@ router.post('/', rateLimit({ name: 'scan-submit', max: 90, windowSec: 300 }), as
     await conn.query(
       `INSERT INTO scan_results
          (id, exam_id, exam_set_id, student_id, student_name,
-          total_items, correct_count, score, needs_review, scanned_by)
+          total_items, correct_count, score, needs_review, scanned_by, client_scan_id)
        VALUES (:id, :examId, :examSetId, :studentId, :studentName,
-               :totalItems, :correctCount, :score, :needsReview, :scannedBy)`,
+               :totalItems, :correctCount, :score, :needsReview, :scannedBy, :clientScanId)`,
       {
         id: scanId,
         examId,
@@ -224,6 +324,7 @@ router.post('/', rateLimit({ name: 'scan-submit', max: 90, windowSec: 300 }), as
         score,
         needsReview,
         scannedBy: req.user.id,
+        clientScanId: clientScanId || null,
       }
     );
 
@@ -268,6 +369,20 @@ router.post('/', rateLimit({ name: 'scan-submit', max: 90, windowSec: 300 }), as
     });
   } catch (err) {
     try { await conn.rollback(); } catch { /* not in a transaction */ }
+    // Two submissions carrying the same client key raced — the loser hits
+    // the unique key. Replay the winner's stored result to both clients.
+    if (clientScanId && err?.code === 'ER_DUP_ENTRY') {
+      try {
+        const [dup] = await conn.query(
+          `SELECT id FROM scan_results WHERE scanned_by = :uid AND client_scan_id = :cid`,
+          { uid: req.user.id, cid: clientScanId }
+        );
+        if (dup.length) {
+          const existing = await loadStoredScanResult(conn, dup[0].id);
+          if (existing) return res.status(200).json({ ...existing, duplicate: true });
+        }
+      } catch { /* fall through to the original error */ }
+    }
     next(err);
   } finally {
     conn.release();

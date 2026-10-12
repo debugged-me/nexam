@@ -61,11 +61,12 @@ class _MainShellState extends State<MainShell> {
       ScansScreen(
         session: widget.session,
         onSessionExpired: widget.onSessionExpired,
-        onLoaded: (scans) {
+        onLoaded: (scans, pendingSync) {
           final count = scans
-              .where((s) =>
-                  s['needs_review'] == 1 || s['needs_review'] == true)
-              .length;
+                  .where((s) =>
+                      s['needs_review'] == 1 || s['needs_review'] == true)
+                  .length +
+              pendingSync;
           if (mounted && count != _flagged) {
             setState(() => _flagged = count);
           }

@@ -114,13 +114,19 @@ class ScanApi {
   final http.Client _client;
 
   /// POST /api/scans — submit a scanned OMR result.
+  ///
+  /// [clientScanId] is the idempotency key: minted once per scan and reused
+  /// on retries and outbox replays, so a re-sent upload returns the stored
+  /// result instead of writing a duplicate.
   Future<ScanResult> submitScan({
     required String baseUrl,
     required String token,
     required String examId,
     String? examSetId,
+    String? set,
     String? studentName,
     String? studentNumber,
+    String? clientScanId,
     required List<ScannedAnswer> answers,
   }) async {
     final response = await _safeRequest(
@@ -130,8 +136,10 @@ class ScanApi {
         body: jsonEncode({
           'examId': examId,
           if (examSetId != null) 'examSetId': examSetId,
+          if (set != null) 'set': set,
           if (studentName != null) 'studentName': studentName,
           if (studentNumber != null) 'studentNumber': studentNumber,
+          if (clientScanId != null) 'clientScanId': clientScanId,
           'answers': answers.map((a) => a.toJson()).toList(),
         }),
       ),

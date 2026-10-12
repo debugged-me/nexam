@@ -61,6 +61,7 @@ Future<void> _openBubbleScanner(
       builder: (_) => BubbleScannerScreen(
         qrPayload: payload,
         examSetId: examSetId,
+        ownerId: session.id,
         baseUrl: session.baseUrl,
         token: session.token,
       ),

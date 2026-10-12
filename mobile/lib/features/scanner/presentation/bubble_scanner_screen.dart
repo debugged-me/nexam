@@ -8,6 +8,7 @@ import '../../../core/widgets/nexam_app_bar.dart';
 import '../../exams/domain/exam.dart';
 import '../data/omr_scanner.dart';
 import '../data/scan_api.dart';
+import '../data/scan_outbox.dart';
 
 /// Capture screen — dark camera UI with an A4 framing guide, student
 /// fields in a glass card, torch toggle, and a shutter button. The photo
@@ -17,12 +18,17 @@ class BubbleScannerScreen extends StatefulWidget {
     super.key,
     required this.qrPayload,
     required this.examSetId,
+    required this.ownerId,
     required this.baseUrl,
     required this.token,
   });
 
   final OmrQrPayload qrPayload;
   final String? examSetId;
+
+  /// Instructor account id — namespaces the offline outbox so queued
+  /// scans can never be flushed under a different login.
+  final String ownerId;
   final String baseUrl;
   final String token;
 
@@ -168,6 +174,7 @@ class _BubbleScannerScreenState extends State<BubbleScannerScreen>
             detections: output.detections,
             qrPayload: widget.qrPayload,
             examSetId: widget.examSetId,
+            ownerId: widget.ownerId,
             studentName: _nameController.text,
             studentNumber: _numberController.text,
             baseUrl: widget.baseUrl,
@@ -551,6 +558,7 @@ class ScanReviewScreen extends StatefulWidget {
     required this.detections,
     required this.qrPayload,
     required this.examSetId,
+    required this.ownerId,
     required this.studentName,
     required this.studentNumber,
     required this.baseUrl,
@@ -561,6 +569,7 @@ class ScanReviewScreen extends StatefulWidget {
   final List<OmrDetection> detections;
   final OmrQrPayload qrPayload;
   final String? examSetId;
+  final String ownerId;
   final String studentName;
   final String studentNumber;
   final String baseUrl;
@@ -576,6 +585,11 @@ class _ScanReviewScreenState extends State<ScanReviewScreen> {
   late List<List<String>> _subAnswers;
   late List<bool> _ambiguous;
   bool _submitting = false;
+
+  /// Idempotency key for this sheet — minted once when the review screen
+  /// opens, so every retry of THIS submission carries the same id and the
+  /// server can dedupe it instead of writing a second scan.
+  final String _clientScanId = mintClientScanId();
 
   int get _answeredCount => _answers.where((a) => a.isNotEmpty).length;
   int get _ambiguousCount => _ambiguous.where((a) => a).length;
@@ -593,24 +607,26 @@ class _ScanReviewScreenState extends State<ScanReviewScreen> {
   Future<void> _submit() async {
     setState(() => _submitting = true);
 
-    try {
-      final scannedAnswers = <ScannedAnswer>[];
-      for (int i = 0; i < _answers.length; i++) {
-        scannedAnswers.add(ScannedAnswer(
+    final scannedAnswers = <ScannedAnswer>[
+      for (int i = 0; i < _answers.length; i++)
+        ScannedAnswer(
           itemNumber: i + 1,
           markedAnswer: _answers[i],
           ambiguous: _ambiguous[i],
-        ));
-      }
+        ),
+    ];
 
+    try {
       final result = await widget.scanApi.submitScan(
         baseUrl: widget.baseUrl,
         token: widget.token,
         examId: widget.qrPayload.examId,
         examSetId: widget.examSetId,
+        set: widget.qrPayload.set,
         studentName: widget.studentName.isEmpty ? null : widget.studentName,
         studentNumber:
             widget.studentNumber.isEmpty ? null : widget.studentNumber,
+        clientScanId: _clientScanId,
         answers: scannedAnswers,
       );
 
@@ -633,7 +649,47 @@ class _ScanReviewScreenState extends State<ScanReviewScreen> {
         ),
       );
     } on ApiException catch (e) {
-      if (mounted) {
+      if (e.isNetworkError) {
+        // No connection — nothing is lost. The full payload (with its
+        // idempotency key) goes to the instructor's outbox and syncs the
+        // next time the app reaches the server.
+        try {
+          final outbox = await ScanOutbox.forOwner(widget.ownerId);
+          await outbox.add(PendingScan(
+            clientScanId: _clientScanId,
+            examId: widget.qrPayload.examId,
+            examSetId: widget.examSetId,
+            set: widget.qrPayload.set,
+            studentName:
+                widget.studentName.isEmpty ? null : widget.studentName,
+            studentNumber:
+                widget.studentNumber.isEmpty ? null : widget.studentNumber,
+            answers: scannedAnswers,
+          ));
+          if (!mounted) return;
+          Navigator.of(context)
+            ..pop() // review screen
+            ..pop() // scanner screen
+            ..pop(); // qr scanner screen
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text(
+                  'No connection — scan saved and will sync automatically when you are back online.'),
+              backgroundColor: AppTheme.warning,
+              duration: Duration(seconds: 4),
+            ),
+          );
+        } catch (_) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('No connection and the offline save failed — keep this screen open and retry.'),
+                backgroundColor: AppTheme.error,
+              ),
+            );
+          }
+        }
+      } else if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(e.isSessionExpired

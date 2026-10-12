@@ -154,6 +154,14 @@ export default function ExamDetailPage() {
 
   async function handleGenerate() {
     if (!data?.questions?.length) { toast.error('Attach questions first.'); return; }
+    const scannedCount = parseInt(results?.stats?.total_scans || 0, 10);
+    if (hasSets && scannedCount > 0) {
+      const ok = await confirm(
+        `Regenerating starts a new print run — sheets already printed stay scannable and keep scoring against their own ordering, but any sheets printed from now on must use the new run. Continue?`,
+        { title: 'Regenerate sets', confirmText: 'Regenerate', danger: false }
+      );
+      if (!ok) return;
+    }
     setGenerating(true);
     try {
       const result = await api.post(`/exams/${id}/generate-sets`, { setCount: data.exam.set_count });

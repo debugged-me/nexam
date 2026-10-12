@@ -152,7 +152,7 @@ router.get('/', requireAuth, async (req, res, next) => {
       `SELECT e.id, e.title, e.subject_id, e.tos_id, s.name AS subject_name, s.code AS subject_code,
               e.status, e.set_count, e.format, e.duration_minutes, e.instructions,
               (SELECT COUNT(*) FROM exam_questions eq WHERE eq.exam_id = e.id) AS question_count,
-              (SELECT COUNT(*) FROM exam_sets es WHERE es.exam_id = e.id) AS set_count_generated,
+              (SELECT COUNT(*) FROM exam_sets es WHERE es.exam_id = e.id AND es.is_current = 1) AS set_count_generated,
               e.created_at, e.updated_at
        FROM exams e
        JOIN subjects s ON s.id = e.subject_id
@@ -292,7 +292,7 @@ router.get('/:id', requireAuth, async (req, res, next) => {
               esq.question_id, esq.sort_order
        FROM exam_sets es
        LEFT JOIN exam_set_questions esq ON esq.exam_set_id = es.id
-       WHERE es.exam_id = :id
+       WHERE es.exam_id = :id AND es.is_current = 1
        ORDER BY es.set_label ASC, esq.sort_order ASC`,
       { id: exam.id }
     );
@@ -497,6 +497,16 @@ router.post('/:id/generate-sets', requireAuth, async (req, res, next) => {
     const { tos, topics, weights: bloomWeights } = alignment;
     const setCount = 2;
 
+    // The new print run's version — stamped on the QR payload so a scanned
+    // sheet is bound to this exact generation, and on the set rows so the
+    // previous run can be archived rather than deleted (sheets already
+    // printed from it keep scoring against their frozen ordering).
+    const [versionRows] = await pool.query(
+      `SELECT COALESCE(MAX(version), 0) AS v FROM exam_sets WHERE exam_id = :examId`,
+      { examId }
+    );
+    const nextVersion = Number(versionRows[0].v) + 1;
+
     // Phase 1: generate all PDF files first (slow, can't be rolled back — so
     // do it before opening the DB transaction). If PDF generation fails, no
     // DB rows were touched.
@@ -535,6 +545,7 @@ router.post('/:id/generate-sets', requireAuth, async (req, res, next) => {
       await generateOMRSheet({
         examId,
         examSetId: setId,
+        setVersion: nextVersion,
         examTitle: exam.title,
         setLabel,
         questions: setQuestions,
@@ -544,22 +555,21 @@ router.post('/:id/generate-sets', requireAuth, async (req, res, next) => {
       setPlans.push({ setId, setLabel, setQuestions, examFilename, answerKeyFilename, omrFilename });
     }
 
-    // Phase 2: replace sets + set questions atomically.
+    // Phase 2: archive the previous print run and insert the new one
+    // atomically. Old sets are never deleted — a QR sheet already in
+    // circulation references its set id, so archiving (is_current = 0) keeps
+    // those sheets scorable against the ordering they were printed with.
     const conn = await pool.getConnection();
     try {
       await conn.beginTransaction();
 
-      await conn.query(
-        `DELETE FROM exam_set_questions WHERE exam_set_id IN (SELECT id FROM exam_sets WHERE exam_id = ?)`,
-        [examId]
-      );
-      await conn.query(`DELETE FROM exam_sets WHERE exam_id = ?`, [examId]);
+      await conn.query(`UPDATE exam_sets SET is_current = 0 WHERE exam_id = ?`, [examId]);
 
       for (const plan of setPlans) {
         await conn.query(
-          `INSERT INTO exam_sets (id, exam_id, set_label, pdf_path, answer_key_path, omr_sheet_path)
-           VALUES (?, ?, ?, ?, ?, ?)`,
-          [plan.setId, examId, plan.setLabel, plan.examFilename, plan.answerKeyFilename, plan.omrFilename]
+          `INSERT INTO exam_sets (id, exam_id, set_label, pdf_path, answer_key_path, omr_sheet_path, version, is_current)
+           VALUES (?, ?, ?, ?, ?, ?, ?, 1)`,
+          [plan.setId, examId, plan.setLabel, plan.examFilename, plan.answerKeyFilename, plan.omrFilename, nextVersion]
         );
 
         for (let i = 0; i < plan.setQuestions.length; i++) {
@@ -583,6 +593,7 @@ router.post('/:id/generate-sets', requireAuth, async (req, res, next) => {
     const generatedSets = setPlans.map((p) => ({
       id: p.setId,
       setLabel: p.setLabel,
+      version: nextVersion,
       pdfPath: p.examFilename,
       answerKeyPath: p.answerKeyFilename,
       omrSheetPath: p.omrFilename,
@@ -639,10 +650,10 @@ router.get('/:id/sets', requireAuth, async (req, res, next) => {
     if (!examRows.length) return res.status(404).json({ error: 'Exam not found.' });
 
     const [sets] = await pool.query(
-      `SELECT es.*, 
+      `SELECT es.*,
               (SELECT COUNT(*) FROM exam_set_questions esq WHERE esq.exam_set_id = es.id) AS question_count
        FROM exam_sets es
-       WHERE es.exam_id = :examId
+       WHERE es.exam_id = :examId AND es.is_current = 1
        ORDER BY es.set_label ASC`,
       { examId }
     );
@@ -672,7 +683,7 @@ router.get('/:id/download/:type', requireAuth, async (req, res, next) => {
 
     let filename, downloadName;
     if (type === 'tos-report') {
-      const [sets] = await pool.query(`SELECT COUNT(*) AS cnt FROM exam_sets WHERE exam_id = :examId`, { examId });
+      const [sets] = await pool.query(`SELECT COUNT(*) AS cnt FROM exam_sets WHERE exam_id = :examId AND is_current = 1`, { examId });
       if (Number(sets[0].cnt) !== 2) {
         return res.status(404).json({ error: 'Generate the current Set A and Set B before downloading this report.' });
       }
@@ -684,7 +695,7 @@ router.get('/:id/download/:type', requireAuth, async (req, res, next) => {
       }
       const column = type === 'exam' ? 'pdf_path' : type === 'answerkey' ? 'answer_key_path' : 'omr_sheet_path';
       const [sets] = await pool.query(
-        `SELECT ${column} AS filename FROM exam_sets WHERE exam_id = :examId AND set_label = :setLabel`,
+        `SELECT ${column} AS filename FROM exam_sets WHERE exam_id = :examId AND set_label = :setLabel AND is_current = 1`,
         { examId, setLabel }
       );
       if (!sets.length || !sets[0].filename) {

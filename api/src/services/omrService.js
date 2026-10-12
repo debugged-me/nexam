@@ -151,6 +151,7 @@ function rowLabel(item, sub, isMulti) {
  * @param {object} opts
  * @param {string} opts.examId
  * @param {string} opts.examSetId — embeds set identity in the QR payload
+ * @param {number} [opts.setVersion] — print-run version, embedded as `sv`
  * @param {string} opts.examTitle
  * @param {string} opts.setLabel — 'A' | 'B'
  * @param {Array}  opts.questions — ordered items (type + options drive layout)
@@ -160,11 +161,14 @@ export async function generateOMRSheet(opts) {
   const filePath = path.join(STORAGE_DIR, opts.filename);
 
   // Self-describing QR payload: exam + set id (no server lookup needed) and
-  // the per-item layout so the scanner reconstructs the grid exactly.
+  // the per-item layout so the scanner reconstructs the grid exactly. `sv`
+  // records which print run the sheet belongs to — a sheet from an archived
+  // run still resolves its own set id, never the current run's same label.
   const qrPayload = JSON.stringify({
     v: 1,
     examId: opts.examId,
     setId: opts.examSetId || null,
+    sv: opts.setVersion ?? 1,
     set: opts.setLabel,
     count: opts.questions.length,
     types: opts.questions.map(typeCode),

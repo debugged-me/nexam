@@ -10,10 +10,12 @@ import '../../../core/widgets/skeleton.dart';
 import '../../../core/widgets/states.dart';
 import '../../auth/domain/instructor_session.dart';
 import '../data/scan_api.dart';
+import '../data/scan_outbox.dart';
 import 'scan_detail_screen.dart';
 
 /// Scans tab — every scanned sheet as a ledger list, newest first,
-/// filterable by review state.
+/// filterable by review state. Sheets queued offline sit in their own
+/// "waiting to sync" section above the server list.
 class ScansScreen extends StatefulWidget {
   const ScansScreen({
     super.key,
@@ -25,8 +27,9 @@ class ScansScreen extends StatefulWidget {
   final InstructorSession session;
   final VoidCallback onSessionExpired;
 
-  /// Reports each load to the shell so it can badge the nav icon.
-  final void Function(List<Map<String, dynamic>> scans)? onLoaded;
+  /// Reports each load to the shell so it can badge the nav icon —
+  /// server scans plus the count still waiting in the offline outbox.
+  final void Function(List<Map<String, dynamic>> scans, int pendingSync)? onLoaded;
 
   @override
   State<ScansScreen> createState() => _ScansScreenState();
@@ -37,8 +40,11 @@ enum _ScanFilter { all, flagged, done }
 class _ScansScreenState extends State<ScansScreen> {
   final _scanApi = ScanApi();
   List<Map<String, dynamic>> _scans = [];
+  List<PendingScan> _pending = [];
+  ScanOutbox? _outbox;
   _ScanFilter _filter = _ScanFilter.all;
   bool _loading = true;
+  bool _syncing = false;
   String? _error;
 
   bool _isFlagged(Map<String, dynamic> s) =>
@@ -63,27 +69,87 @@ class _ScansScreenState extends State<ScansScreen> {
       _loading = true;
       _error = null;
     });
+    _outbox ??= await ScanOutbox.forOwner(widget.session.id);
+    if (!mounted) return;
+    final pending = await _outbox!.list();
+    if (mounted) setState(() => _pending = pending);
     try {
-      final scans = await _scanApi.listScans(
+      var scans = await _scanApi.listScans(
         baseUrl: widget.session.baseUrl,
         token: widget.session.token,
       );
+
+      // Connectivity proven — replay anything the offline outbox is holding.
+      if (pending.isNotEmpty) {
+        setState(() => _syncing = true);
+        final outcome = await _outbox!.flush(
+          baseUrl: widget.session.baseUrl,
+          token: widget.session.token,
+        );
+        if (!mounted) return;
+        if (outcome.sessionExpired) {
+          widget.onSessionExpired();
+          return;
+        }
+        _pending = await _outbox!.list();
+        if (outcome.synced > 0) {
+          scans = await _scanApi.listScans(
+            baseUrl: widget.session.baseUrl,
+            token: widget.session.token,
+          );
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(
+                    'Synced ${outcome.synced} offline scan${outcome.synced == 1 ? '' : 's'}.'),
+                backgroundColor: AppTheme.success,
+              ),
+            );
+          }
+        }
+      }
+
       if (mounted) {
         setState(() {
           _scans = scans;
           _loading = false;
+          _syncing = false;
         });
-        widget.onLoaded?.call(scans);
+        widget.onLoaded?.call(scans, _pending.length);
       }
     } on ApiException catch (e) {
       if (e.isSessionExpired) {
         widget.onSessionExpired();
         return;
       }
-      if (mounted) setState(() { _error = e.message; _loading = false; });
+      if (mounted) setState(() { _error = e.message; _loading = false; _syncing = false; });
     } catch (e) {
-      if (mounted) setState(() { _error = '$e'; _loading = false; });
+      if (mounted) setState(() { _error = '$e'; _loading = false; _syncing = false; });
     }
+  }
+
+  Future<void> _discardPending(PendingScan entry) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Discard queued scan?'),
+        content: const Text(
+            'This sheet was never synced. Discarding it deletes the recorded answers permanently.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Keep'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('Discard', style: TextStyle(color: AppTheme.error)),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    await _outbox?.remove(entry.clientScanId);
+    await _load();
   }
 
   @override
@@ -107,6 +173,7 @@ class _ScansScreenState extends State<ScansScreen> {
               ? _buildError()
               : Column(
                   children: [
+                    if (_pending.isNotEmpty || _syncing) _buildPendingSection(),
                     _buildFilterChips(),
                     Expanded(
                       child: RefreshIndicator(
@@ -148,6 +215,100 @@ class _ScansScreenState extends State<ScansScreen> {
         ),
       ),
     );
+  }
+
+  /// Offline outbox — sheets captured while the server was unreachable.
+  /// They replay automatically whenever this screen can load the list;
+  /// a rejected entry keeps its error until the instructor discards it.
+  Widget _buildPendingSection() {
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+      padding: const EdgeInsets.fromLTRB(14, 12, 14, 10),
+      decoration: BoxDecoration(
+        color: AppTheme.warning.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+        border: Border.all(color: AppTheme.warning.withValues(alpha: 0.35)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                _syncing ? Icons.sync_rounded : Icons.cloud_off_rounded,
+                size: 16,
+                color: AppTheme.warning,
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  _syncing
+                      ? 'Syncing offline scans…'
+                      : '${_pending.length} sheet${_pending.length == 1 ? '' : 's'} waiting to sync',
+                  style: const TextStyle(
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w700,
+                    color: AppTheme.textDark,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          for (final entry in _pending) _pendingRow(entry),
+        ],
+      ),
+    );
+  }
+
+  Widget _pendingRow(PendingScan entry) {
+    final ago = _timeAgo(entry.queuedAt);
+    final name = (entry.studentName?.isNotEmpty == true)
+        ? entry.studentName!
+        : 'Unnamed sheet';
+    final setLabel = (entry.set?.isNotEmpty == true) ? ' · Set ${entry.set}' : '';
+    return Padding(
+      padding: const EdgeInsets.only(top: 8),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '$name$setLabel',
+                  style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600, color: AppTheme.textDark),
+                  overflow: TextOverflow.ellipsis,
+                ),
+                Text(
+                  entry.lastError != null
+                      ? '${entry.lastError} — queued $ago'
+                      : 'Queued $ago · ${entry.answers.length} answers',
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: entry.lastError != null ? AppTheme.error : AppTheme.textMuted,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
+          ),
+          IconButton(
+            onPressed: () => _discardPending(entry),
+            icon: const Icon(Icons.delete_outline_rounded, size: 18, color: AppTheme.textMuted),
+            tooltip: 'Discard queued scan',
+            visualDensity: VisualDensity.compact,
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _timeAgo(DateTime at) {
+    final diff = DateTime.now().difference(at);
+    if (diff.inMinutes < 1) return 'just now';
+    if (diff.inMinutes < 60) return '${diff.inMinutes}m ago';
+    if (diff.inHours < 24) return '${diff.inHours}h ago';
+    return '${diff.inDays}d ago';
   }
 
   Widget _buildFilterChips() {

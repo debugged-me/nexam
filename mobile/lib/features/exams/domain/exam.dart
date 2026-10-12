@@ -127,6 +127,7 @@ class OmrQrPayload {
     required this.version,
     required this.examId,
     required this.setId,
+    required this.setVersion,
     required this.set,
     required this.count,
     required this.items,
@@ -138,6 +139,11 @@ class OmrQrPayload {
 
   /// Exact exam_sets.id from the QR — no server-side set lookup needed.
   final String? setId;
+
+  /// Print-run version (`sv`) — which generation of the set this sheet
+  /// belongs to. Sheets from older (archived) runs still resolve their own
+  /// set id server-side; this is informational for now.
+  final int setVersion;
   final String set;
   final int count;
 
@@ -157,6 +163,7 @@ class OmrQrPayload {
       version: int.tryParse(json['v']?.toString() ?? '') ?? 1,
       examId: json['examId']?.toString() ?? '',
       setId: json['setId']?.toString(),
+      setVersion: int.tryParse(json['sv']?.toString() ?? '') ?? 1,
       set: json['set']?.toString() ?? '',
       count: count,
       items: items,
@@ -167,6 +174,7 @@ class OmrQrPayload {
         'v': version,
         'examId': examId,
         'setId': setId,
+        'sv': setVersion,
         'set': set,
         'count': count,
       };

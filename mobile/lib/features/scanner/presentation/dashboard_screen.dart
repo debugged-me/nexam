@@ -13,6 +13,7 @@ import '../../auth/domain/instructor_session.dart';
 import '../../exams/data/exam_api.dart';
 import '../../exams/domain/exam.dart';
 import '../../scanner/data/scan_api.dart';
+import '../../scanner/data/scan_outbox.dart';
 import '../../scanner/presentation/scan_detail_screen.dart';
 import '../../scanner/presentation/scan_flow.dart';
 
@@ -104,10 +105,34 @@ class _DashboardScreenState extends State<DashboardScreen> {
         baseUrl: widget.session.baseUrl,
         token: widget.session.token,
       );
-      final scans = await _scanApi.listScans(
+      var scans = await _scanApi.listScans(
         baseUrl: widget.session.baseUrl,
         token: widget.session.token,
       );
+
+      // Server is reachable — replay queued offline scans before showing
+      // the activity numbers, so the dashboard reflects them immediately.
+      try {
+        final outbox = await ScanOutbox.forOwner(widget.session.id);
+        if ((await outbox.list()).isNotEmpty) {
+          final outcome = await outbox.flush(
+            baseUrl: widget.session.baseUrl,
+            token: widget.session.token,
+          );
+          if (outcome.sessionExpired) {
+            if (mounted) widget.onSessionExpired();
+            return;
+          }
+          if (outcome.synced > 0) {
+            scans = await _scanApi.listScans(
+              baseUrl: widget.session.baseUrl,
+              token: widget.session.token,
+            );
+          }
+        }
+      } catch (_) {
+        // Outbox failure must not block the dashboard itself.
+      }
 
       if (mounted) {
         setState(() {

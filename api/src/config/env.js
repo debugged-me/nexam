@@ -94,6 +94,8 @@ export const env = {
     worker: {
       pollInterval: parseInt(process.env.WORKER_POLL_INTERVAL || '5000', 10),
       concurrency: parseInt(process.env.WORKER_CONCURRENCY || '2', 10),
+      // How often the index-reconcile sweep runs (ms). Set to 0 to disable.
+      reconcileInterval: parseInt(process.env.WORKER_RECONCILE_INTERVAL || '900000', 10),
     },
     generation: {
       maxTokens: parseInt(process.env.AI_MAX_TOKENS || '8192', 10),

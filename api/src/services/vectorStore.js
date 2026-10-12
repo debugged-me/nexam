@@ -102,28 +102,32 @@ async function embeddingsFor(provider) {
 }
 
 /**
- * Wrap an embeddings client so silent empty-vector results become throws.
- * LangChain's Gemini embedDocuments resolves with empty arrays on API failure
- * (unlike embedQuery, which throws) — unvalidated, that poisons a new index
- * with 0-dimensional vectors that every future query crashes on.
+ * Wrap an embeddings client so silent empty-vector results become throws —
+ * and recoverable ones get retried. LangChain's Gemini embedDocuments resolves
+ * a rejected batchEmbedContents as arrays of EMPTY vectors instead of throwing
+ * (Promise.allSettled + fill([])), so a rate-limited or quota-stretched batch
+ * "succeeds" with zero vectors — which is exactly how indexes rot silently.
+ * On that failure mode we retry per-text through embedQuery (which throws
+ * honestly on real failures), keeping the fast batch path when it works.
  */
 function checkedEmbeddings(embeddings) {
+  const embedQueryChecked = async (text) => {
+    const v = await embeddings.embedQuery(text);
+    if (!Array.isArray(v) || !v.length) {
+      throw new Error(`${embeddings.modelName || 'provider'} returned an empty query vector.`);
+    }
+    return v;
+  };
   return {
-    embedQuery: async (text) => {
-      const v = await embeddings.embedQuery(text);
-      if (!Array.isArray(v) || !v.length) {
-        throw new Error(`${embeddings.modelName || 'provider'} returned an empty query vector.`);
-      }
-      return v;
-    },
+    embedQuery: embedQueryChecked,
     embedDocuments: async (texts) => {
       const vs = await embeddings.embedDocuments(texts);
       const bad = !Array.isArray(vs) || vs.length !== texts.length
         || vs.some((v) => !Array.isArray(v) || !v.length);
-      if (bad) {
-        throw new Error(`${embeddings.modelName || 'provider'} returned empty document vectors.`);
-      }
-      return vs;
+      if (!bad) return vs;
+      const out = [];
+      for (const text of texts) out.push(await embedQueryChecked(text));
+      return out;
     },
   };
 }
@@ -166,6 +170,29 @@ async function dirExists(dir) {
   } catch {
     return false;
   }
+}
+
+/** Set of metadata IDs in an index dir's docstore. null when the index is
+ *  absent or unreadable — callers treat that as "needs rebuild". */
+async function indexIds(dir) {
+  try {
+    const raw = await fs.readFile(path.join(dir, 'docstore.json'), 'utf8');
+    const docs = JSON.parse(raw);
+    if (!Array.isArray(docs)) return null;
+    return new Set(docs.map((d) => d?.[1]?.metadata?.id).filter(Boolean));
+  } catch {
+    return null;
+  }
+}
+
+/** ID set of a subject's question index in one provider space (null = broken). */
+export async function questionsIndexIds(collection, provider = 'gemini') {
+  return indexIds(questionsDir(collection, provider));
+}
+
+/** ID set of a subject's chunk index in one provider space (null = broken). */
+export async function chunksIndexIds(subjectId, provider = 'gemini') {
+  return indexIds(chunksDir(subjectId, provider));
 }
 
 /** Append docs to an index dir (create it when absent) under the lock. */
@@ -538,4 +565,6 @@ export default {
   searchQuestionsByVector,
   removeQuestion,
   rebuildQuestionsIndex,
+  questionsIndexIds,
+  chunksIndexIds,
 };

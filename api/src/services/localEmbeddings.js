@@ -15,15 +15,23 @@ import path from 'path';
 import env from '../config/env.js';
 
 let _pipe = null; // { sig, promise }
+let _queue = Promise.resolve(); // serializes native inference
 
-/** Lazily load the feature-extraction pipeline (downloads weights once). */
+/**
+ * Lazily load the feature-extraction pipeline (downloads weights once).
+ * _pipe is assigned BEFORE the first await — a concurrent first call must
+ * share the same load promise, otherwise N racing callers each spawn an ONNX
+ * session and the duplicated native state crashes the process.
+ */
 async function getPipeline() {
   const model = env.ai.local.embedModel;
   if (_pipe?.sig === model) return _pipe.promise;
-  const { pipeline, env: hfEnv } = await import('@huggingface/transformers');
-  hfEnv.cacheDir = env.ai.local.cacheDir || path.resolve(process.cwd(), 'storage/models');
-  if (env.ai.local.offline) hfEnv.allowRemoteModels = false;
-  const promise = pipeline('feature-extraction', model);
+  const promise = (async () => {
+    const { pipeline, env: hfEnv } = await import('@huggingface/transformers');
+    hfEnv.cacheDir = env.ai.local.cacheDir || path.resolve(process.cwd(), 'storage/models');
+    if (env.ai.local.offline) hfEnv.allowRemoteModels = false;
+    return pipeline('feature-extraction', model);
+  })();
   _pipe = { sig: model, promise };
   // A rejected load must not poison the cache — clear it so the next call
   // retries (transient download/IO failures shouldn't kill the mirror).
@@ -31,16 +39,24 @@ async function getPipeline() {
   return promise;
 }
 
-/** Run the pipeline and reshape the output tensor into rows of numbers. */
+/** Run the pipeline and reshape the output tensor into rows of numbers.
+ *  Inferences are serialized through a promise queue — ONNX Runtime native
+ *  sessions are not safe for parallel use, and a native abort cannot be
+ *  try/caught: one bad race takes the whole API process down (seen live as a
+ *  post-approve 502). At ~10-50ms per text, queuing costs nothing. */
 async function run(texts) {
-  const pipe = await getPipeline();
-  const out = await pipe(texts, { pooling: 'mean', normalize: true });
-  const [rows, dim] = out.dims;
-  const vectors = [];
-  for (let i = 0; i < rows; i++) {
-    vectors.push(Array.from(out.data.slice(i * dim, (i + 1) * dim)));
-  }
-  return vectors;
+  const job = _queue.then(async () => {
+    const pipe = await getPipeline();
+    const out = await pipe(texts, { pooling: 'mean', normalize: true });
+    const [rows, dim] = out.dims;
+    const vectors = [];
+    for (let i = 0; i < rows; i++) {
+      vectors.push(Array.from(out.data.slice(i * dim, (i + 1) * dim)));
+    }
+    return vectors;
+  });
+  _queue = job.catch(() => {}); // a failed job must not block the queue
+  return job;
 }
 
 /** Embeddings-shaped client matching the LangChain interface. */

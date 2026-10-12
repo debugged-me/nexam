@@ -10,11 +10,12 @@ const space = ['gemini', 'local'].includes(spaceArg?.split('=')[1])
   ? spaceArg.split('=')[1]
   : 'both';
 
+// Canonical index set — must match the write path (questionIndex.js): every
+// active objective question is a comparison target, including unverified
+// bypassed actives (they're in circulation; a re-typed copy should flag).
 const [questions] = await pool.query(
   `SELECT * FROM questions WHERE status = 'active'
-   AND type IN ('mcq','true_false','matching','identification')
-   AND similarity_checked_at IS NOT NULL AND similarity_error IS NULL
-   AND similarity_flag = 'none'`
+   AND type IN ('mcq','true_false','matching','identification')`
 );
 const result = await rebuildQuestionsIndex(
   INSTITUTION_QUESTION_INDEX,

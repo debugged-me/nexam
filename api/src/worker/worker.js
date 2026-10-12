@@ -11,6 +11,7 @@
 import env from '../config/env.js';
 import { claimNext, markDone, markFailed, requeueStaleRunning } from '../services/jobs.js';
 import { getHandler } from './handlers.js';
+import { sweep as reconcileSweep } from './reconcile.js';
 import pool from '../config/db.js';
 
 let running = false;
@@ -67,6 +68,17 @@ async function loop() {
   const recovered = await requeueStaleRunning(15);
   if (recovered) console.warn(`[worker] Re-queued ${recovered} stale interrupted job(s).`);
   console.log(`[worker] Started (poll every ${env.ai.worker.pollInterval}ms, concurrency ${env.ai.worker.concurrency})`);
+
+  // Periodic index reconcile — first pass shortly after boot (covers drift
+  // accumulated while the server was down), then on the configured interval.
+  const reconcileMs = env.ai.worker.reconcileInterval;
+  if (reconcileMs > 0) {
+    setTimeout(() => reconcileSweep().catch(() => {}), 20000);
+    const reconcileTimer = setInterval(() => reconcileSweep().catch(() => {}), reconcileMs);
+    reconcileTimer.unref();
+    console.log(`[worker] Index reconcile every ${reconcileMs}ms`);
+  }
+
   while (running) {
     try {
       await tick();

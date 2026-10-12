@@ -451,3 +451,69 @@
 }
 .tos-sugg-row .btn { flex: none; }
 
+
+/* Reorder mode — flat sortable list swapping in for the topics table */
+.tos-reorder-list {
+    list-style: none;
+    margin: 0;
+    padding: 10px 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+.tos-reorder-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 9px 12px;
+    border: 1px solid var(--line);
+    border-radius: var(--radius-md);
+    background: var(--surface);
+    color: var(--ink);
+    font-size: .85rem;
+    user-select: none;
+}
+.tos-reorder-item.is-dragging {
+    position: relative;
+    z-index: 2;
+    border-color: var(--action-600);
+    box-shadow: var(--shadow-md);
+}
+.tos-drag-handle {
+    display: flex;
+    align-items: center;
+    padding: 4px;
+    margin: -4px -6px -4px -2px;
+    border: 0;
+    border-radius: 6px;
+    background: none;
+    color: var(--ink-3);
+    cursor: grab;
+    touch-action: none;
+}
+.tos-drag-handle:hover { color: var(--ink); background: var(--surface-2); }
+.tos-drag-handle:active { cursor: grabbing; }
+.tos-reorder-num {
+    width: 22px;
+    flex: none;
+    text-align: right;
+    color: var(--ink-3);
+    font: 600 .72rem/1 var(--font-body);
+    font-variant-numeric: tabular-nums;
+}
+.tos-reorder-item .cell-primary { flex: 1 1 auto; min-width: 0; }
+.tos-reorder-hrs {
+    flex: none;
+    color: var(--ink-3);
+    font: 600 .7rem/1 var(--font-body);
+}
+.tos-reorder-foot {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 11px 14px;
+    border-top: 1px solid var(--line);
+    background: var(--surface-2);
+}
+.tos-reorder-actions { display: flex; align-items: center; gap: 8px; flex: none; }

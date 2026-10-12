@@ -90,13 +90,16 @@ export default function Modal({ open, title, subtitle, onClose, children, footer
             <div className="modal-header">
               <div className="modal-headline">
                 {Icon && (
-                  <span
+                  <motion.span
                     className={`modal-icon${accent ? ' is-tinted' : ''}`}
                     style={accent ? { '--ma': accent } : undefined}
                     aria-hidden="true"
+                    initial={reduceMotion ? false : { scale: 0.4, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    transition={{ delay: 0.14, type: 'spring', stiffness: 480, damping: 22 }}
                   >
                     <Icon size={17} />
-                  </span>
+                  </motion.span>
                 )}
                 <div className="modal-headline-copy">
                   <h2 className="modal-title">{title}</h2>

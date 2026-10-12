@@ -538,6 +538,46 @@ router.post('/:id/topics', async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
+// ── Reorder topics (draft only) ───────────────────────
+// Must be registered before PUT /:id/topics/:topicId — "reorder" would
+// otherwise be captured as a topicId.
+router.put('/:id/topics/reorder', async (req, res, next) => {
+  try {
+    const tos = await getOwned(req.params.id, req.user.id);
+    if (!tos) return res.status(404).json({ error: 'TOS not found.' });
+    if (!requireDraft(tos, res)) return;
+
+    const { orderedIds } = req.body || {};
+    const [owned] = await pool.query(
+      `SELECT id FROM tos_topics WHERE tos_id = :id`, { id: tos.id }
+    );
+    const valid = new Set(owned.map((r) => r.id));
+    if (!Array.isArray(orderedIds)
+      || orderedIds.length !== valid.size
+      || orderedIds.some((id) => !valid.has(id))) {
+      return res.status(422).json({ error: 'orderedIds must contain every topic id exactly once.' });
+    }
+
+    const conn = await pool.getConnection();
+    try {
+      await conn.beginTransaction();
+      for (let i = 0; i < orderedIds.length; i++) {
+        await conn.query(
+          `UPDATE tos_topics SET sort_order = :ord WHERE id = :tid AND tos_id = :tosId`,
+          { ord: i + 1, tid: orderedIds[i], tosId: tos.id }
+        );
+      }
+      await conn.commit();
+    } catch (e) {
+      await conn.rollback();
+      throw e;
+    } finally {
+      conn.release();
+    }
+    res.json({ message: 'Topic order updated.' });
+  } catch (err) { next(err); }
+});
+
 // ── Update topic ──────────────────────────────────────
 router.put('/:id/topics/:topicId', async (req, res, next) => {
   try {

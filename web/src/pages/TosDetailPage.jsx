@@ -11,7 +11,10 @@ import '../styles/blueprint-detail.css';
  */
 import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { Plus, Trash2, BookOpen, ChevronRight, Sparkles, FileText, Pencil, ListOrdered, Layers, Clock, Check, X, AlertTriangle, Lock, ChevronFirst, ChevronLeft, ChevronLast, Copy } from 'lucide-react';
+import { Plus, Trash2, BookOpen, ChevronRight, Sparkles, FileText, Pencil, ListOrdered, Layers, Clock, Check, X, AlertTriangle, Lock, ChevronFirst, ChevronLeft, ChevronLast, Copy, GripVertical } from 'lucide-react';
+import { DndContext, PointerSensor, KeyboardSensor, closestCenter, useSensor, useSensors } from '@dnd-kit/core';
+import { SortableContext, arrayMove, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import { useToast } from '../components/Toast.jsx';
 import { useContextMenu, useCopyText } from '../components/ContextMenu.jsx';
 import { useConfirm } from '../components/ConfirmDialog.jsx';
@@ -192,6 +195,13 @@ export default function TosDetailPage() {
   const [suggestions, setSuggestions] = useState(null);
   const [suggestOpen, setSuggestOpen] = useState(false);
   const [fillingSyllabus, setFillingSyllabus] = useState(false);
+  const [reordering, setReordering] = useState(false);
+  const [orderDraft, setOrderDraft] = useState(null);
+  const [savingOrder, setSavingOrder] = useState(false);
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  );
   const titleRef = useRef(null);
   const jobStatusesRef = useRef(new Map());
 
@@ -526,6 +536,39 @@ export default function TosDetailPage() {
   const allTopicsChecked = pageTopicIds.length > 0 && pageTopicIds.every((tId) => selTopics.has(tId));
   const someTopicsChecked = !allTopicsChecked && pageTopicIds.some((tId) => selTopics.has(tId));
 
+  // Reorder mode swaps the topics table for a flat sortable list; the order
+  // commits once on Save so multi-drag adjustments stay local.
+  const startReorder = () => {
+    setOrderDraft([...topics]);
+    setReordering(true);
+    setSelTopics(new Set());
+  };
+  const cancelReorder = () => { setReordering(false); setOrderDraft(null); };
+
+  const onTopicDragEnd = ({ active, over }) => {
+    if (!over || active.id === over.id) return;
+    setOrderDraft((cur) => {
+      const from = cur.findIndex((t) => t.id === active.id);
+      const to = cur.findIndex((t) => t.id === over.id);
+      return from < 0 || to < 0 ? cur : arrayMove(cur, from, to);
+    });
+  };
+
+  const saveOrder = async () => {
+    setSavingOrder(true);
+    try {
+      await api.put(`/tos/${id}/topics/reorder`, { orderedIds: orderDraft.map((t) => t.id) });
+      setData((d) => d && { ...d, topics: orderDraft.map((t, i) => ({ ...t, sort_order: i + 1 })) });
+      setReordering(false);
+      setOrderDraft(null);
+      toast.success('Topic order saved.');
+    } catch (err) {
+      toast.error(err.message || 'Could not save the new order.');
+    } finally {
+      setSavingOrder(false);
+    }
+  };
+
   return (
     <AppShell pageClass="blueprint-detail" activeNav="tos" pageTitle={tos.title}>
 
@@ -720,6 +763,11 @@ export default function TosDetailPage() {
           ) : (
             <div className="tos-head-right">
               <span className="text-muted meta-sm">{topics.length} topic{topics.length === 1 ? '' : 's'}</span>
+              {!finalized && topics.length > 1 && (
+                <button type="button" className="btn btn-outline btn-xs" onClick={startReorder}>
+                  <GripVertical size={13} /> Reorder
+                </button>
+              )}
               {!finalized && suggestions?.id === id && (suggestionItems.length > 0 || suggestions.hasSyllabus) && (
                 <button type="button" className="btn btn-outline btn-xs" onClick={() => setSuggestOpen(true)}>
                   <Sparkles size={13} /> Suggest topics
@@ -729,7 +777,28 @@ export default function TosDetailPage() {
             </div>
           )}
         </div>
-        {topics.length === 0 ? (
+        {reordering ? (
+          <div className="tos-reorder">
+            <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onTopicDragEnd}>
+              <SortableContext items={(orderDraft || []).map((t) => t.id)} strategy={verticalListSortingStrategy}>
+                <ul className="tos-reorder-list">
+                  {(orderDraft || []).map((t, i) => (
+                    <SortableTopicRow key={t.id} id={t.id} index={i} title={t.title} hours={t.instructional_hours} />
+                  ))}
+                </ul>
+              </SortableContext>
+            </DndContext>
+            <div className="tos-reorder-foot">
+              <span className="text-muted meta-sm">Drag rows to set the topic sequence used by the matrix and generated sets.</span>
+              <div className="tos-reorder-actions">
+                <button type="button" className="btn btn-ghost btn-sm" onClick={cancelReorder} disabled={savingOrder}>Cancel</button>
+                <button type="button" className="btn btn-primary btn-sm" onClick={saveOrder} disabled={savingOrder}>
+                  {savingOrder ? <span className="btn-spinner" /> : <Check size={14} />} Save order
+                </button>
+              </div>
+            </div>
+          </div>
+        ) : topics.length === 0 ? (
           <div className="empty-state empty-state-md">
             <Layers aria-hidden="true" />
             <p>No topics added yet. Add topics below to define what this TOS covers.</p>
@@ -884,7 +953,7 @@ export default function TosDetailPage() {
           </div>
         )}
 
-        {topics.length > TOPIC_PAGE_SIZE && (
+        {!reordering && topics.length > TOPIC_PAGE_SIZE && (
           <div className="dataset-foot">
             <div className="ds-range">
               <b>{topicStart}</b>–<b>{topicEnd}</b> of <b>{topics.length}</b>
@@ -909,7 +978,7 @@ export default function TosDetailPage() {
           </div>
         )}
 
-        {!finalized && <div className="card-body card-body-divider">
+        {!finalized && !reordering && <div className="card-body card-body-divider">
           <form onSubmit={handleAddTopic}>
             <div className="inline-form">
               <div className="inline-form-grow">
@@ -1027,5 +1096,24 @@ export default function TosDetailPage() {
 
       {menuEl}
     </AppShell>
+  );
+}
+
+/** Draggable row inside reorder mode — flat list, no editing affordances. */
+function SortableTopicRow({ id, index, title, hours }) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
+  return (
+    <li
+      ref={setNodeRef}
+      style={{ transform: CSS.Transform.toString(transform), transition }}
+      className={`tos-reorder-item${isDragging ? ' is-dragging' : ''}`}
+    >
+      <button type="button" className="tos-drag-handle" {...attributes} {...listeners} aria-label={`Drag to reorder ${title}`}>
+        <GripVertical size={15} />
+      </button>
+      <span className="tos-reorder-num">{index + 1}</span>
+      <span className="cell-primary">{title}</span>
+      <span className="tos-reorder-hrs">{Number(hours) || 0} hrs</span>
+    </li>
   );
 }

@@ -115,6 +115,10 @@ function ContextMenuPanel({ x, y, items, onClose }) {
     function onDown(e) {
       if (ref.current && !ref.current.contains(e.target)) onClose();
     }
+    // Typeahead — typing jumps to the next item whose label starts with
+    // the accumulated buffer (resets after ~0.6s idle), like native menus.
+    let search = '';
+    let searchAt = 0;
     function onKey(e) {
       if (e.key === 'Escape') { onClose(); return; }
       const btns = itemButtons();
@@ -132,6 +136,23 @@ function ContextMenuPanel({ x, y, items, onClose }) {
       } else if (e.key === 'End') {
         e.preventDefault();
         btns[btns.length - 1].focus();
+      } else if (e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
+        const now = Date.now();
+        search = now - searchAt > 600 ? '' : search;
+        search += e.key.toLowerCase();
+        searchAt = now;
+        const labels = btns.map((b) => b.textContent.trim().toLowerCase());
+        // Search from the item after the focused one, wrapping around.
+        let idx = labels.findIndex((l, i) => i > cur && l.startsWith(search));
+        if (idx === -1) idx = labels.findIndex((l) => l.startsWith(search));
+        if (idx === -1 && search.length > 1) {
+          search = e.key.toLowerCase();
+          idx = labels.findIndex((l) => l.startsWith(search));
+        }
+        if (idx !== -1) {
+          e.preventDefault();
+          btns[idx].focus();
+        }
       }
     }
     function onScrollOrResize() { onClose(); }

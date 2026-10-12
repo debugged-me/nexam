@@ -374,6 +374,54 @@
 :root[data-text-size='compact'] { font-size: 15px; }
 :root[data-text-size='large'] { font-size: 17.5px; }
 
+/* ---- Accent — account preference via data-accent on <html>.
+   Blue is the base palette (no rules needed). Each accent swaps the
+   action ramp, ring/wash, and sidebar-active tones; semantic status
+   colors and the brand accent intentionally stay put. ---- */
+:root[data-accent='emerald'] {
+  --action-50: #E9F6EF; --action-100: #CFEADB;
+  --action-300: #7BD3AA; --action-400: #3FB97A;
+  --action-600: #23A265; --action-700: #177446;
+  --ring: rgba(35, 162, 101, .24); --ring-soft: rgba(35, 162, 101, .10);
+  --accent-wash: rgba(35, 162, 101, .09); --accent-line: rgba(35, 162, 101, .32);
+  --sb-active: #23A265; --sb-active-line: #23A265; --sb-text-active: #177446;
+}
+:root[data-accent='violet'] {
+  --action-50: #F3EFFF; --action-100: #E4DDFB;
+  --action-300: #B3A1EC; --action-400: #9178E2;
+  --action-600: #7C5CD6; --action-700: #6441C4;
+  --ring: rgba(124, 92, 214, .24); --ring-soft: rgba(124, 92, 214, .10);
+  --accent-wash: rgba(124, 92, 214, .09); --accent-line: rgba(124, 92, 214, .32);
+  --sb-active: #7C5CD6; --sb-active-line: #7C5CD6; --sb-text-active: #6441C4;
+}
+:root[data-accent='amber'] {
+  --action-50: #FBF1DC; --action-100: #F5E1B4;
+  --action-300: #E2B95E; --action-400: #CF9A33;
+  --action-600: #B07D1E; --action-700: #8F6617;
+  --ring: rgba(176, 125, 30, .26); --ring-soft: rgba(176, 125, 30, .11);
+  --accent-wash: rgba(176, 125, 30, .10); --accent-line: rgba(176, 125, 30, .36);
+  --sb-active: #B07D1E; --sb-active-line: #B07D1E; --sb-text-active: #8F6617;
+}
+:root[data-accent='rose'] {
+  --action-50: #FCECEF; --action-100: #F7D3D9;
+  --action-300: #EE8FA0; --action-400: #E65F78;
+  --action-600: #D93856; --action-700: #B02C45;
+  --ring: rgba(217, 56, 86, .24); --ring-soft: rgba(217, 56, 86, .10);
+  --accent-wash: rgba(217, 56, 86, .09); --accent-line: rgba(217, 56, 86, .32);
+  --sb-active: #D93856; --sb-active-line: #D93856; --sb-text-active: #B02C45;
+}
+
+/* ---- Corners — account preference via data-radius on <html>.
+   "default" is the base scale; sharp and rounded re-tune it globally. ---- */
+:root[data-radius='sharp'] {
+  --radius-xs: 2px; --radius-sm: 2px; --radius: 3px;
+  --radius-lg: 4px; --radius-md: 3px; --radius-xl: 5px;
+}
+:root[data-radius='rounded'] {
+  --radius-xs: 8px; --radius-sm: 10px; --radius: 12px;
+  --radius-lg: 14px; --radius-md: 13px; --radius-xl: 18px;
+}
+
 /* ==========================================================================
    Dark theme — applied when <html data-theme="dark">. Only semantic tokens
    flip; the saturated status/brand ramps stay (they read fine on dark).
@@ -466,6 +514,44 @@
   --sb-active-line: #4A9FEF;
   --sb-field: #22262C;
   --sb-field-line: #3A4048;
+}
+
+/* Accent ramps re-based for dark — same hue families, brightened fills. */
+:root[data-theme="dark"][data-accent='emerald'] {
+  --action-50: #14291F; --action-100: #1C402F;
+  --action-300: #2E7D57; --action-400: #3FB97A;
+  --action-600: #4AC98A; --action-700: #7BD3AA;
+  --ring: rgba(74, 201, 138, .32); --ring-soft: rgba(74, 201, 138, .16);
+  --accent-wash: rgba(74, 201, 138, .13); --accent-line: rgba(74, 201, 138, .38);
+  --sb-active: #4AC98A; --sb-active-line: #4AC98A;
+  --sb-active-ink: #0C1F16; --sb-text-active: #7BD3AA;
+}
+:root[data-theme="dark"][data-accent='violet'] {
+  --action-50: #221C36; --action-100: #312855;
+  --action-300: #5B4499; --action-400: #8F72E6;
+  --action-600: #9D80E8; --action-700: #B49CEF;
+  --ring: rgba(157, 128, 232, .32); --ring-soft: rgba(157, 128, 232, .16);
+  --accent-wash: rgba(157, 128, 232, .13); --accent-line: rgba(157, 128, 232, .38);
+  --sb-active: #9D80E8; --sb-active-line: #9D80E8;
+  --sb-active-ink: #191329; --sb-text-active: #B49CEF;
+}
+:root[data-theme="dark"][data-accent='amber'] {
+  --action-50: #2F2510; --action-100: #4A3716;
+  --action-300: #8F6617; --action-400: #D9A33F;
+  --action-600: #E0A83F; --action-700: #F0C46A;
+  --ring: rgba(224, 168, 63, .32); --ring-soft: rgba(224, 168, 63, .16);
+  --accent-wash: rgba(224, 168, 63, .13); --accent-line: rgba(224, 168, 63, .38);
+  --sb-active: #E0A83F; --sb-active-line: #E0A83F;
+  --sb-active-ink: #231A08; --sb-text-active: #F0C46A;
+}
+:root[data-theme="dark"][data-accent='rose'] {
+  --action-50: #2E151B; --action-100: #472029;
+  --action-300: #93374B; --action-400: #E75E7C;
+  --action-600: #F0708A; --action-700: #F5A3B3;
+  --ring: rgba(240, 112, 138, .32); --ring-soft: rgba(240, 112, 138, .16);
+  --accent-wash: rgba(240, 112, 138, .13); --accent-line: rgba(240, 112, 138, .38);
+  --sb-active: #F0708A; --sb-active-line: #F0708A;
+  --sb-active-ink: #2A0E15; --sb-text-active: #F5A3B3;
 }
 
 /* Status and subject colors; no page layout rules. */

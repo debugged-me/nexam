@@ -81,6 +81,20 @@ const FACE_STACKS = {
   geist: '"Geist", sans-serif',
 };
 
+const ACCENT_OPTIONS = [
+  { key: 'blue', label: 'Blue', sw: '#2383E2' },
+  { key: 'emerald', label: 'Emerald', sw: '#23A265' },
+  { key: 'violet', label: 'Violet', sw: '#7C5CD6' },
+  { key: 'amber', label: 'Amber', sw: '#B07D1E' },
+  { key: 'rose', label: 'Rose', sw: '#D93856' },
+];
+
+const RADIUS_OPTIONS = [
+  { key: 'sharp', label: 'Sharp', description: 'Minimal rounding — crisp, technical edges.', r: 4 },
+  { key: 'default', label: 'Default', description: 'The standard nexam corner scale.', r: 10 },
+  { key: 'rounded', label: 'Rounded', description: 'Softer, pillier surfaces throughout.', r: 18 },
+];
+
 const SIZE_OPTIONS = [
   {
     key: 'compact',
@@ -111,7 +125,7 @@ const SWATCHES = [
 ];
 
 export default function AppearancePage() {
-  const { mode, setThemeMode, font, setFont, setFontPair, textSize, setTextSize } = useTheme();
+  const { mode, setThemeMode, font, setFont, setFontPair, textSize, setTextSize, accent, setAccent, radius, setRadius } = useTheme();
   const [displayFace, bodyFace] = fontPair(font);
   const isCustom = font.includes('+');
   const faceLabel = (key) => FACE_OPTIONS.find((f) => f.key === key)?.label || key;
@@ -159,6 +173,34 @@ export default function AppearancePage() {
                     <strong>{label}</strong>
                     <small>{description}</small>
                   </span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+
+      <div className="card" data-tour="appearance-accent">
+        <div className="card-header">
+          <span className="card-title">Accent</span>
+        </div>
+        <div className="card-body">
+          <div className="accent-row" role="radiogroup" aria-label="Accent color">
+            {ACCENT_OPTIONS.map(({ key, label, sw }) => {
+              const selected = accent === key;
+              return (
+                <button
+                  key={key}
+                  type="button"
+                  role="radio"
+                  aria-checked={selected}
+                  className={`accent-chip${selected ? ' is-selected' : ''}`}
+                  onClick={() => setAccent(key)}
+                >
+                  <i style={{ background: sw }} aria-hidden="true">
+                    {selected && <Check size={13} strokeWidth={3.5} />}
+                  </i>
+                  <strong>{label}</strong>
                 </button>
               );
             })}
@@ -299,6 +341,42 @@ export default function AppearancePage() {
                   <span className={`font-shot size-shot size-shot--${key}`} aria-hidden="true">
                     <b>Aa</b>
                     <i>The quick brown fox jumps</i>
+                    {selected && (
+                      <span className="shot-check">
+                        <Check size={12} strokeWidth={3} />
+                      </span>
+                    )}
+                  </span>
+                  <span className="theme-card-meta">
+                    <strong>{label}</strong>
+                    <small>{description}</small>
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+
+      <div className="card" data-tour="appearance-corners">
+        <div className="card-header">
+          <span className="card-title">Corners</span>
+        </div>
+        <div className="card-body">
+          <div className="font-grid" role="radiogroup" aria-label="Corner radius">
+            {RADIUS_OPTIONS.map(({ key, label, description, r }) => {
+              const selected = radius === key;
+              return (
+                <button
+                  key={key}
+                  type="button"
+                  role="radio"
+                  aria-checked={selected}
+                  className={`font-card${selected ? ' is-selected' : ''}`}
+                  onClick={() => setRadius(key)}
+                >
+                  <span className="font-shot radius-shot" aria-hidden="true">
+                    <i style={{ borderRadius: `${r}px` }} />
                     {selected && (
                       <span className="shot-check">
                         <Check size={12} strokeWidth={3} />

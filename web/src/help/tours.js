@@ -528,12 +528,17 @@ export const TOURS = [
     steps: [
       {
         title: 'Make the workspace yours',
-        description: 'Theme, typeface, and text size live here — saved to your account, so they follow you across devices.',
+        description: 'Theme, accent, typeface, text size, and corner style live here — saved to your account, so they follow you across devices.',
       },
       {
         sel: '[data-tour="appearance-themes"]', side: 'bottom',
         title: 'Theme',
         description: 'Light, dark, or follow your system — also reachable from the account menu.',
+      },
+      {
+        sel: '[data-tour="appearance-accent"]', side: 'bottom',
+        title: 'Accent',
+        description: 'Recolors every action, focus ring, and active state — blue is the institution default. Status colors stay semantic so warning and danger still read correctly.',
       },
       {
         sel: '[data-tour="appearance-typeface"]', side: 'bottom',
@@ -544,6 +549,11 @@ export const TOURS = [
         sel: '[data-tour="appearance-size"]', side: 'top',
         title: 'Text size',
         description: 'Compact is the standard scale — Regular and Large grow text and spacing together for easier reading.',
+      },
+      {
+        sel: '[data-tour="appearance-corners"]', side: 'top',
+        title: 'Corners',
+        description: 'Sharp, default, or rounded — retunes the radius scale on every card, button, and field at once.',
       },
       {
         sel: '[data-tour="appearance-palette"]', side: 'top',

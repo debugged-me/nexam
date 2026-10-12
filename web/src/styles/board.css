@@ -1,5 +1,5 @@
 /* ==========================================================================
-   board.css — shared board, dataset, and list-header system
+   board.css — shared board, dataset, and page-header system
    --------------------------------------------------------------------------
    Single source of truth for the app's data surfaces: page/list headers,
    Monday-style group bands, status pills, summary strips, dataset toolbars,
@@ -31,61 +31,6 @@
 .rv-head > :only-child,
 .institution-head > :only-child { margin-left: auto; }
 .page-header-actions { display: flex; align-items: center; gap: .5rem; flex-wrap: wrap; }
-
-.list-head {
-  display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
-  gap: var(--space-4);
-  flex-wrap: wrap;
-  margin-bottom: 18px;
-}
-.list-head-main {
-  position: relative;
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 4px 6px;
-  min-width: 0;
-}
-.list-head-main > .eyebrow { flex: 1 1 100%; margin-bottom: 0; }
-.list-head-title {
-  display: flex;
-  align-items: baseline;
-  gap: 9px;
-  font-family: var(--font-display, "Google Sans", sans-serif);
-  font-size: 1.5rem;
-  font-weight: 650;
-  letter-spacing: -.03em;
-  line-height: 1.2;
-  color: var(--ink);
-}
-.list-head-count {
-  padding: 1px 7px;
-  border-radius: 999px;
-  border: 1px solid var(--line);
-  background: var(--surface-2);
-  color: var(--ink-3);
-  font-family: var(--font-body, "Inter", sans-serif);
-  font-size: var(--text-xs);
-  font-weight: 500;
-  font-variant-numeric: tabular-nums;
-}
-.list-head-desc {
-  max-width: 68ch;
-  margin-top: 4px;
-  color: var(--ink-3);
-  font-size: var(--text-sm);
-  line-height: 1.5;
-}
-.list-head-actions {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  flex-shrink: 0;
-}
-
-
 
 /* ==========================================================================
    Page-owned board and status presentation
@@ -237,19 +182,6 @@ tr:hover .b-status { border-color: color-mix(in srgb, var(--st, var(--st-gray)) 
 
 /* Inline variant for headers/meta lines — shrinks to its text. */
 .b-status--inline { display: inline-flex; width: auto; }
-
-/* ==========================================================================
-   Ghost ledger rows — fill a short table so spare space reads as an
-   intentional empty ledger instead of a broken void.
-   ========================================================================== */
-
-tr.b-ghost > td {
-  height: var(--grid-row) !important;
-  padding: 0 !important;
-  border-bottom: 1px solid var(--line) !important;
-  pointer-events: none;
-}
-table.grid tbody tr.b-ghost:last-child > td { border-bottom: 0 !important; }
 
 /* ==========================================================================
    "+ Add" row at the foot of a group — Monday's add-item affordance
@@ -1503,13 +1435,11 @@ td.dataTables_empty,
 }
 
 /* ---- Shared header + dataset refinements -------------------------------- */
-.list-head, .page-header { align-items: center; padding-top: 10px; margin-bottom: 24px; gap: 16px; }
-.list-head { margin-bottom: 16px; }
-.list-head-title, .page-header h1, .page-header h2 { font-size: 1.65rem; font-weight: 600; letter-spacing: -.04em; }
-.list-head-main > .eyebrow, .page-header .eyebrow { color: var(--action-600); font-size: .64rem; font-weight: 600; letter-spacing: .05em; margin-bottom: 9px; }
-.list-head-count { font-size: .7rem; padding: 2px 7px; border: 1px solid var(--line); background: var(--surface-2); border-radius: 5px; }
+.page-header { align-items: center; padding-top: 10px; margin-bottom: 24px; gap: 16px; }
+.page-header h1, .page-header h2 { font-size: 1.65rem; font-weight: 600; letter-spacing: -.04em; }
+.page-header .eyebrow { color: var(--action-600); font-size: .64rem; font-weight: 600; letter-spacing: .05em; margin-bottom: 9px; }
 .page-description { flex: 1 1 100%; font-size: .79rem; color: var(--ink-3); margin-top: 7px; line-height: 1.6; }
-@media (max-width: 599px) { .list-head-title, .page-header h1, .page-header h2 { font-size: 1.4rem; } .list-head, .page-header { margin-bottom: 18px; align-items: flex-start; } }
+@media (max-width: 599px) { .page-header h1, .page-header h2 { font-size: 1.4rem; } .page-header { margin-bottom: 18px; align-items: flex-start; } }
 
 .dataset-bar { min-height: 54px; padding: 8px 14px; gap: 12px; }
 .dataset-foot { background: var(--surface); min-height: 50px; }

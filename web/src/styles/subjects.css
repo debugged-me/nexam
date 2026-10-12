@@ -9,41 +9,6 @@
    ========================================================================== */
 
 /* ==========================================================================
-   Page header
-   ========================================================================== */
-
-.list-head {
-  display: flex;
-  align-items: baseline;
-  margin-bottom: 22px;
-  padding-top: 10px;
-}
-
-.list-head-title {
-  display: flex;
-  align-items: baseline;
-  gap: 9px;
-  font-family: var(--font-display, "Google Sans", sans-serif);
-  font-size: 1.65rem;
-  font-weight: 600;
-  letter-spacing: -.04em;
-  line-height: 1.2;
-  color: var(--ink);
-}
-
-/* Count chip — a quiet blue moment echoing the primary action. */
-.list-head-count {
-  padding: 2px 8px;
-  border-radius: 6px;
-  background: color-mix(in srgb, var(--action-600) 9%, var(--surface));
-  color: var(--action-700);
-  font-family: var(--font-body, "Inter", sans-serif);
-  font-size: .7rem;
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
-}
-
-/* ==========================================================================
    Dataset shell — the card the table lives in
    ========================================================================== */
 
@@ -637,8 +602,6 @@ table.grid td.col-actions { background: var(--surface); z-index: 1; }
 }
 
 @media (max-width: 599px) {
-  .list-head { margin-bottom: 18px; align-items: flex-start; }
-  .list-head-title { font-size: 1.4rem; }
   .dataset-bar-lead { flex: 1 1 100%; }
   .ds-search { flex-basis: 100%; }
   .dataset-bar-trail { flex: 1 1 100%; }

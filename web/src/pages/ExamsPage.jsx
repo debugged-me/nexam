@@ -11,7 +11,7 @@ import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import {
   Plus, Pencil, Trash2, Info, Eye, Ellipsis, Search, FileCheck,
-  Layers, ChevronUp, ChevronDown, Printer, MonitorSmartphone, Copy,
+  Layers, Printer, MonitorSmartphone, Copy,
 } from 'lucide-react';
 import { useToast } from '../components/Toast.jsx';
 import { useContextMenu, useCopyText } from '../components/ContextMenu.jsx';
@@ -24,13 +24,22 @@ import { TableSkeleton } from '../components/Loaders.jsx';
 import { animateRows } from '../lib/animRows.js';
 import EmptyStateArt from '../components/EmptyStateArt.jsx';
 import {
-  StatusPill, BoardGroupHead, BoardGhostRows,
+  StatusPill, BoardGroupHead,
   BoardAddRow, GroupChip, groupColor, statusOf, statusMeta, STATUS_LABELS, STATUS_ORDER,
 } from '../components/Board.jsx';
+import { useGridTable } from '../components/DataTable.jsx';
 
 const COL_SPAN = 7;
-const LEDGER_MIN = 11; // ghost rows pad a short table out to a real ledger
 const EXAM_STATUSES = STATUS_ORDER.exam;
+
+// Sort accessors — id matches the column the header toggles.
+const EXAM_COLUMNS = [
+  { id: 'exam',    accessorFn: (e) => (e.title || '').toLowerCase() },
+  { id: 'subject', accessorFn: (e) => (e.subject_name || '').toLowerCase() },
+  { id: 'status',  accessorFn: (e) => EXAM_STATUSES.indexOf(statusOf(e.status)) },
+  { id: 'items',   accessorFn: (e) => e.question_count || 0 },
+  { id: 'updated', accessorFn: (e) => e.updated_at || e.created_at || '' },
+];
 
 function fmtDate(iso) {
   if (!iso) return '—';
@@ -58,7 +67,6 @@ export default function ExamsPage() {
   const [viewing, setViewing] = useState(null);
   const [query, setQuery] = useState('');
   const [groupBy, setGroupBy] = useState('subject'); // subject | status | none
-  const [sort, setSort] = useState({ col: 'updated', dir: 'desc' });
   const [collapsed, setCollapsed] = useState(() => new Set());
   const searchRef = useRef(null);
 
@@ -83,29 +91,22 @@ export default function ExamsPage() {
     return () => window.removeEventListener('keydown', onKey);
   }, []);
 
-  const filtered = useMemo(() => {
-    if (!exams) return [];
-    const q = query.trim().toLowerCase();
-    let rows = q
-      ? exams.filter((e) =>
-          (e.title || '').toLowerCase().includes(q) ||
-          (e.subject_name || '').toLowerCase().includes(q) ||
-          (e.subject_code || '').toLowerCase().includes(q))
-      : [...exams];
-    const mul = sort.dir === 'desc' ? -1 : 1;
-    rows.sort((a, b) => {
-      let av, bv;
-      switch (sort.col) {
-        case 'exam':    av = (a.title || '').toLowerCase(); bv = (b.title || '').toLowerCase(); break;
-        case 'subject': av = (a.subject_name || '').toLowerCase(); bv = (b.subject_name || '').toLowerCase(); break;
-        case 'status':  av = EXAM_STATUSES.indexOf(statusOf(a.status)); bv = EXAM_STATUSES.indexOf(statusOf(b.status)); break;
-        case 'items':   av = a.question_count || 0; bv = b.question_count || 0; break;
-        default:        av = a.updated_at || a.created_at || ''; bv = b.updated_at || b.created_at || '';
-      }
-      return av < bv ? -mul : av > bv ? mul : 0;
-    });
-    return rows;
-  }, [exams, query, sort]);
+  // Search + sort come from the shared grid machinery; grouping is layered
+  // on top of the sorted rows below. No pagination — boards render fully.
+  const grid = useGridTable({
+    data: exams || [],
+    columns: EXAM_COLUMNS,
+    paginate: false,
+    initialSorting: [{ id: 'updated', desc: true }],
+    globalFilter: query,
+    globalFilterFn: (row, _col, value) => {
+      const e = row.original;
+      return `${e.title || ''} ${e.subject_name || ''} ${e.subject_code || ''}`
+        .toLowerCase()
+        .includes(String(value).toLowerCase());
+    },
+  });
+  const { pageRows: filtered, sortClass, sortHandler, renderSortArrow } = grid;
 
   /** Ordered groups for the current group-by; 'none' collapses to one group. */
   const groups = useMemo(() => {
@@ -138,19 +139,6 @@ export default function ExamsPage() {
   }, [filtered, groupBy]);
 
   const grouped = groupBy !== 'none';
-
-  function toggleSort(col) {
-    setSort((prev) => prev.col === col
-      ? { col, dir: prev.dir === 'asc' ? 'desc' : 'asc' }
-      : { col, dir: 'asc' });
-  }
-  function sortClass(col) {
-    if (sort.col !== col) return 'sorting';
-    return sort.dir === 'asc' ? 'sorting_asc' : 'sorting_desc';
-  }
-  const sortArrow = (col) => sort.col !== col ? null : (
-    <span className="ds-sort">{sort.dir === 'asc' ? <ChevronUp size={13} /> : <ChevronDown size={13} />}</span>
-  );
 
   function toggleGroup(key) {
     setCollapsed((prev) => {
@@ -253,12 +241,6 @@ export default function ExamsPage() {
   return (
     <AppShell pageClass="exams" activeNav="exams" pageTitle="Exams" wide>
 
-      <div className="list-head">
-        <div className="list-head-main">
-          <h1 className="list-head-title">Exams {exams && <span className="list-head-count">{exams.length}</span>}</h1>
-        </div>
-      </div>
-
       {exams === null ? (
         <TableSkeleton />
       ) : exams.length === 0 ? (
@@ -314,12 +296,12 @@ export default function ExamsPage() {
               <caption className="sr-only">Exams in your workspace</caption>
               <thead>
                 <tr>
-                  <th className={`col-primary wp-31 ${sortClass('exam')}`} onClick={() => toggleSort('exam')} data-name="Exam" data-locked>Exam{sortArrow('exam')}</th>
-                  <th className={`wp-16 ${sortClass('subject')}`} onClick={() => toggleSort('subject')} data-name="Subject">Subject{sortArrow('subject')}</th>
+                  <th className={`col-primary wp-31 ${sortClass('exam')}`} onClick={sortHandler('exam')} data-name="Exam" data-locked>Exam{renderSortArrow('exam')}</th>
+                  <th className={`wp-16 ${sortClass('subject')}`} onClick={sortHandler('subject')} data-name="Subject">Subject{renderSortArrow('subject')}</th>
                   <th className="wp-10" data-name="Format">Format</th>
-                  <th className={`wp-12 ${sortClass('status')}`} onClick={() => toggleSort('status')} data-name="Status">Status{sortArrow('status')}</th>
-                  <th className={`is-num wp-9 ${sortClass('items')}`} onClick={() => toggleSort('items')} data-name="Items">Items{sortArrow('items')}</th>
-                  <th className={`wp-12 ${sortClass('updated')}`} onClick={() => toggleSort('updated')} data-name="Updated">Updated{sortArrow('updated')}</th>
+                  <th className={`wp-12 ${sortClass('status')}`} onClick={sortHandler('status')} data-name="Status">Status{renderSortArrow('status')}</th>
+                  <th className={`is-num wp-9 ${sortClass('items')}`} onClick={sortHandler('items')} data-name="Items">Items{renderSortArrow('items')}</th>
+                  <th className={`wp-12 ${sortClass('updated')}`} onClick={sortHandler('updated')} data-name="Updated">Updated{renderSortArrow('updated')}</th>
                   <th className="col-actions wp-10">Actions</th>
                 </tr>
               </thead>
@@ -355,7 +337,6 @@ export default function ExamsPage() {
                       />
                     )}
                     {g.rows.map(renderExamRow)}
-                    {!grouped && <BoardGhostRows count={LEDGER_MIN - g.rows.length} colSpan={COL_SPAN} />}
                     {grouped && groupBy === 'subject' && (
                       <BoardAddRow
                         colSpan={COL_SPAN}

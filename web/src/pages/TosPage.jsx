@@ -19,14 +19,13 @@ import { TableSkeleton } from '../components/Loaders.jsx';
 import EmptyStateArt from '../components/EmptyStateArt.jsx';
 import { animateRows } from '../lib/animRows.js';
 import {
-  StatusPill, BoardGroupHead, BoardGhostRows,
+  StatusPill, BoardGroupHead,
   GroupChip, groupColor, statusOf, statusMeta, STATUS_ORDER,
 } from '../components/Board.jsx';
 
 const BLOOM_LABELS = { remember: 'Remember', understand: 'Understand', apply: 'Apply', analyze: 'Analyze', evaluate: 'Evaluate', create: 'Create' };
 const BLOOM_ORDER = ['remember', 'understand', 'apply', 'analyze', 'evaluate', 'create'];
 const DEFAULT_BLOOM = { remember: 15, understand: 20, apply: 20, analyze: 20, evaluate: 15, create: 10 };
-const LEDGER_MIN = 11; // ghost rows pad a short table out to a real ledger
 
 function fmtDate(iso) {
   if (!iso) return '—';
@@ -236,12 +235,6 @@ export default function TosPage() {
   return (
     <AppShell pageClass="tos" activeNav="tos" pageTitle="Blueprints (TOS)" wide>
 
-      <div className="list-head">
-        <div className="list-head-main">
-          <h1 className="list-head-title">Blueprints {tosList && <span className="list-head-count">{tosList.length}</span>}</h1>
-        </div>
-      </div>
-
       {tosList === null ? (
         <TableSkeleton />
       ) : tosList.length === 0 ? (
@@ -308,7 +301,6 @@ export default function TosPage() {
           }) : (
             <tbody ref={animateRows}>
               {tosList.map(renderTosRow)}
-              <BoardGhostRows count={LEDGER_MIN - tosList.length} colSpan={7} />
             </tbody>
           )}
         </table>

@@ -126,13 +126,13 @@ export default function InstitutionBankPage() {
         <label className="institution-search">
           <Search size={16} aria-hidden="true" />
           <span className="sr-only">Search institution questions</span>
-          <input value={query} onChange={(event) => { setQuery(event.target.value); setPage(0); }} placeholder="Search question, topic, or subject" />
+          <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search question, topic, or subject" />
         </label>
-        <select value={bloom} onChange={(event) => { setBloom(event.target.value); setPage(0); }} aria-label="Filter by Bloom level">
+        <select value={bloom} onChange={(event) => setBloom(event.target.value)} aria-label="Filter by Bloom level">
           <option value="">All Bloom levels</option>
           {Object.entries(BLOOM_LABELS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
         </select>
-        <select value={type} onChange={(event) => { setType(event.target.value); setPage(0); }} aria-label="Filter by question type">
+        <select value={type} onChange={(event) => setType(event.target.value)} aria-label="Filter by question type">
           <option value="">All question types</option>
           {Object.entries(TYPE_LABELS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
         </select>

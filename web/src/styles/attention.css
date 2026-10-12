@@ -68,7 +68,6 @@
     padding: 10px 14px;
     border-top: 1px solid var(--line, #e2e7ee);
 }
-.attn-pager-btns { display: flex; align-items: center; gap: 4px; }
 
 @media (max-width: 768px) {
     .attn-col-topic,

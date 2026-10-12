@@ -9,15 +9,11 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import {
   Plus, Pencil, Trash2, Search, CheckSquare, BookOpen,
   Eye, Check, Copy, Ellipsis, Info,
-  ChevronUp, ChevronDown, ChevronFirst, ChevronLeft, ChevronRight, ChevronLast,
 } from 'lucide-react';
 import { useToast } from '../components/Toast.jsx';
 import { useConfirm } from '../components/ConfirmDialog.jsx';
 import { useContextMenu, useCopyText } from '../components/ContextMenu.jsx';
-import {
-  useReactTable, getCoreRowModel, getFilteredRowModel,
-  getSortedRowModel, getPaginationRowModel,
-} from '@tanstack/react-table';
+import { useGridTable, DatasetFoot } from '../components/DataTable.jsx';
 import Modal from '../components/Modal.jsx';
 import DetailsModal from '../components/DetailsModal.jsx';
 import Tooltip from '../components/Tooltip.jsx';
@@ -26,10 +22,9 @@ import AppShell from '../components/AppShell.jsx';
 import { TableSkeleton } from '../components/Loaders.jsx';
 import { animateRows } from '../lib/animRows.js';
 import EmptyStateArt from '../components/EmptyStateArt.jsx';
-import { groupColor, BoardGhostRows } from '../components/Board.jsx';
+import { groupColor } from '../components/Board.jsx';
 
 const PAGE_SIZE = 25;
-const LEDGER_MIN = 11; // ghost rows pad a short table out to a real ledger
 
 /** Trim + collapse internal whitespace, then clip to `len` with an ellipsis. */
 function clip(str, len = 90) {
@@ -63,10 +58,8 @@ export default function SubjectsPage() {
   // Grid state — search + selection are local; sort/filter/pagination live in
   // the headless table instance (same DOM and classes as before).
   const [query, setQuery] = useState('');
-  const [sorting, setSorting] = useState([{ id: 'created', desc: true }]);
   const [selectMode, setSelectMode] = useState(false);
   const [selected, setSelected] = useState(new Set());
-  const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: PAGE_SIZE });
 
   const searchRef = useRef(null);
 
@@ -110,39 +103,18 @@ export default function SubjectsPage() {
     { id: 'actions', enableSorting: false },
   ], []);
 
-  const table = useReactTable({
+  const grid = useGridTable({
     data: subjects || [],
     columns,
-    state: { sorting, globalFilter: query, pagination },
-    onSortingChange: setSorting,
-    onPaginationChange: setPagination,
+    pageSize: PAGE_SIZE,
+    initialSorting: [{ id: 'created', desc: true }],
+    globalFilter: query,
     globalFilterFn: (row, _col, value) =>
       `${row.original.name || ''} ${row.original.code || ''}`
         .toLowerCase()
         .includes(String(value).toLowerCase()),
-    enableSortingRemoval: false, // keep the old cycle: asc ⇄ desc, never unsorted
-    sortDescFirst: false,        // first click on any column sorts ascending
-    getCoreRowModel: getCoreRowModel(),
-    getFilteredRowModel: getFilteredRowModel(),
-    getSortedRowModel: getSortedRowModel(),
-    getPaginationRowModel: getPaginationRowModel(),
   });
-
-  const filteredCount = table.getFilteredRowModel().rows.length;
-  const pageCount = Math.max(1, table.getPageCount());
-  const safePage = Math.min(pagination.pageIndex, pageCount - 1);
-  const pageRows = table.getRowModel().rows.map((row) => row.original);
-  const start = filteredCount ? safePage * PAGE_SIZE + 1 : 0;
-  const end = Math.min((safePage + 1) * PAGE_SIZE, filteredCount);
-
-  function sortClass(col) {
-    const dir = table.getColumn(col)?.getIsSorted();
-    if (dir === 'asc') return 'sorting_asc';
-    if (dir === 'desc') return 'sorting_desc';
-    return 'sorting';
-  }
-
-  const sortHandler = (col) => table.getColumn(col)?.getToggleSortingHandler();
+  const { pageRows, sortClass, sortHandler, renderSortArrow } = grid;
 
   function toggleSelectMode() {
     setSelectMode((v) => {
@@ -249,22 +221,8 @@ export default function SubjectsPage() {
     ]);
   }
 
-  const renderSortArrow = (col) => {
-    const dir = table.getColumn(col)?.getIsSorted();
-    if (!dir) return null;
-    return dir === 'asc'
-      ? <span className="ds-sort"><ChevronUp size={13} /></span>
-      : <span className="ds-sort"><ChevronDown size={13} /></span>;
-  };
-
   return (
     <AppShell pageClass="subjects" activeNav="subjects" pageTitle="Subjects" wide>
-
-      <div className="list-head">
-        <div className="list-head-main">
-          <h1 className="list-head-title">Subjects {subjects && <span className="list-head-count">{subjects.length}</span>}</h1>
-        </div>
-      </div>
 
       {subjects === null ? (
         <TableSkeleton />
@@ -423,36 +381,12 @@ export default function SubjectsPage() {
                     </tr>
                   );
                 })}
-                {pageRows.length > 0 && (
-                  <BoardGhostRows count={LEDGER_MIN - pageRows.length} colSpan={selectMode ? 8 : 7} />
-                )}
               </tbody>
             </table>
           </div>
 
           {/* Footer — range + pagination */}
-          <div className="dataset-foot">
-            <div className="ds-range">
-              <b>{start}</b>–<b>{end}</b> of <b>{filteredCount}</b>
-            </div>
-            <div className="ds-pager">
-              <button type="button" className="ds-page" onClick={() => table.setPageIndex(0)} disabled={!table.getCanPreviousPage()} aria-label="First page">
-                <ChevronFirst size={15} />
-              </button>
-              <button type="button" className="ds-page" onClick={() => table.previousPage()} disabled={!table.getCanPreviousPage()} aria-label="Previous page">
-                <ChevronLeft size={15} />
-              </button>
-              <span className="ds-page" aria-current="page">{safePage + 1}</span>
-              <span className="ds-gap">/</span>
-              <span className="ds-page">{pageCount}</span>
-              <button type="button" className="ds-page" onClick={() => table.nextPage()} disabled={!table.getCanNextPage()} aria-label="Next page">
-                <ChevronRight size={15} />
-              </button>
-              <button type="button" className="ds-page" onClick={() => table.setPageIndex(pageCount - 1)} disabled={!table.getCanNextPage()} aria-label="Last page">
-                <ChevronLast size={15} />
-              </button>
-            </div>
-          </div>
+          <DatasetFoot grid={grid} />
         </section>
       )}
 

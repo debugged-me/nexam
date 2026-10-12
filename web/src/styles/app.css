@@ -955,51 +955,8 @@ textarea.form-control { resize: vertical; min-height: 92px; height: auto; paddin
 .form-container { max-width: 640px; margin: 0 auto; }
 .form-container--wide { max-width: 800px; }
 
-/* ==========================================================================
-   List page header
-   ========================================================================== */
-/* Info toggle beside a list title; the note opens as a popover anchored to
-   the title's left edge (.list-head-main) so it never runs off a phone. */
-.list-head-info > summary {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 30px;
-  height: 30px;
-  border-radius: 50%;
-  color: var(--ink-faint);
-  cursor: pointer;
-  list-style: none;
-  user-select: none;
-  transition: background-color .13s ease, color .13s ease;
-}
-.list-head-info > summary::-webkit-details-marker { display: none; }
-.list-head-info > summary svg { width: 16px !important; height: 16px !important; }
-.list-head-info > summary:hover,
-.list-head-info[open] > summary { background: var(--surface-3); color: var(--ink-2); }
-.list-head-info > summary:focus { outline: none; }
-.list-head-info > summary:focus-visible { box-shadow: 0 0 0 3px var(--ring); }
-.list-head-info p {
-  position: absolute;
-  top: calc(100% + 6px);
-  left: 0;
-  z-index: 60;
-  width: max-content;
-  max-width: min(46ch, calc(100vw - 40px));
-  margin: 0;
-  padding: 10px 14px;
-  background: var(--surface);
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  box-shadow: var(--shadow-md);
-  color: var(--ink-2);
-  font-size: var(--text-sm);
-  line-height: 1.5;
-  animation: popover-in .14s ease-out;
-}
-@keyframes popover-in { from { opacity: 0; } }
+
 @media (max-width: 767.98px) {
-  .list-head-info > summary { width: 44px; height: 44px; margin: -7px; }
   .btn { min-height: 44px; }
   .btn-sm { min-height: 40px; }
   .rail-toggle { width: 44px; height: 44px; }

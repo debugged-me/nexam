@@ -135,6 +135,14 @@ applying. `ContextMenu` uses only global classes, so it is exempt.
 
 ### Table convention (`table.grid`)
 
+Shared table state lives in `components/DataTable.jsx`: `useGridTable`
+wraps TanStack Table (sorting/filtering state, clamped page math, sort
+helpers) and `DsPager`/`DatasetFoot` render the standard pager and footer.
+New tables should use them rather than hand-rolling `setPage`/`slice`/sort
+comparators; pass `resetKey` (a serialized filter value) to return to page
+1 when page-owned filters change, and `paginate: false` for grouped boards
+that render every row.
+
 `board.css` is the shared grid system. Its rules are deliberate:
 
 - `table-layout: fixed` distributes surplus width across **every** column.

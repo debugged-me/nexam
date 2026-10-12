@@ -10,11 +10,11 @@ import '../styles/attention.css';
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import {
-  AlertTriangle, ChevronFirst, ChevronLast, ChevronLeft, ChevronRight,
-  ListChecks, ArrowLeft, Printer, Copy,
+  AlertTriangle, ListChecks, ArrowLeft, Printer, Copy,
 } from 'lucide-react';
 import { useToast } from '../components/Toast.jsx';
 import { useContextMenu, useCopyText } from '../components/ContextMenu.jsx';
+import { useGridTable, DsPager } from '../components/DataTable.jsx';
 import api from '../lib/api.js';
 import AppShell from '../components/AppShell.jsx';
 import { TableSkeleton } from '../components/Loaders.jsx';
@@ -22,6 +22,8 @@ import { animateRows } from '../lib/animRows.js';
 import { BLOOM_LABELS } from '../lib/insights.js';
 
 const PAGE_SIZE = 20;
+// Rows arrive pre-sorted (lowest correct first) — the table only paginates.
+const PAGER_COLUMNS = [{ id: 'row', enableSorting: false }];
 
 function trimwd(s, n = 90) {
   if (!s) return '';
@@ -40,7 +42,6 @@ export default function AttentionPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const examFilter = searchParams.get('exam') || '';
   const [data, setData] = useState(null);
-  const [page, setPage] = useState(0);
 
   useEffect(() => {
     api.get(`/analytics/attention${examFilter ? `?examId=${encodeURIComponent(examFilter)}` : ''}`)
@@ -51,9 +52,8 @@ export default function AttentionPage() {
   const items = useMemo(() => data?.items || [], [data]);
   const exams = useMemo(() => data?.exams || [], [data]);
 
-  const pageCount = Math.max(1, Math.ceil(items.length / PAGE_SIZE));
-  const safePage = Math.min(page, pageCount - 1);
-  const pageItems = items.slice(safePage * PAGE_SIZE, safePage * PAGE_SIZE + PAGE_SIZE);
+  const grid = useGridTable({ data: items, columns: PAGER_COLUMNS, pageSize: PAGE_SIZE, resetKey: examFilter });
+  const { pageRows: pageItems, pageCount } = grid;
 
   const worst = items.length ? Number(items[0].correctRate) : null;
 
@@ -130,7 +130,6 @@ export default function AttentionPage() {
                 data-tour="attn-filter"
                 value={examFilter}
                 onChange={(e) => {
-                  setPage(0);
                   setSearchParams(e.target.value ? { exam: e.target.value } : {});
                 }}
                 aria-label="Filter by exam"
@@ -213,17 +212,9 @@ export default function AttentionPage() {
               {pageCount > 1 && (
                 <div className="attn-pager">
                   <span className="text-muted meta-sm">
-                    {safePage * PAGE_SIZE + 1}–{Math.min((safePage + 1) * PAGE_SIZE, items.length)} of {items.length}
+                    {grid.start}–{grid.end} of {items.length}
                   </span>
-                  <div className="attn-pager-btns">
-                    <button type="button" className="ds-page" onClick={() => setPage(0)} disabled={safePage === 0} aria-label="First page"><ChevronFirst size={15} /></button>
-                    <button type="button" className="ds-page" onClick={() => setPage((p) => Math.max(0, p - 1))} disabled={safePage === 0} aria-label="Previous page"><ChevronLeft size={15} /></button>
-                    <span className="ds-page" aria-current="page">{safePage + 1}</span>
-                    <span className="ds-gap">/</span>
-                    <span className="ds-page">{pageCount}</span>
-                    <button type="button" className="ds-page" onClick={() => setPage((p) => Math.min(pageCount - 1, p + 1))} disabled={safePage >= pageCount - 1} aria-label="Next page"><ChevronRight size={15} /></button>
-                    <button type="button" className="ds-page" onClick={() => setPage(pageCount - 1)} disabled={safePage >= pageCount - 1} aria-label="Last page"><ChevronLast size={15} /></button>
-                  </div>
+                  <DsPager grid={grid} />
                 </div>
               )}
             </>

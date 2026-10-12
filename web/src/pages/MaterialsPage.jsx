@@ -466,11 +466,7 @@ export default function MaterialsPage() {
 
   return (
     <AppShell pageClass="materials" activeNav="materials" pageTitle="Materials">
-      <div className="list-head">
-        <div className="list-head-main">
-          <h1 className="list-head-title">Materials {materials && <span className="list-head-count">{materials.length}</span>}</h1>
-        </div>
-      </div>
+
           {pendingCount > 0 && (
             <div className="mat-pending-banner" role="status">
               <Loader2 size={16} className="mat-spin" />

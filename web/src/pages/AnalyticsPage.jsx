@@ -22,6 +22,7 @@ import { useToast } from '../components/Toast.jsx';
 import api from '../lib/api.js';
 import { downloadCsv, downloadXlsx } from '../lib/exports.js';
 import AppShell from '../components/AppShell.jsx';
+import { useGridTable, DsPager } from '../components/DataTable.jsx';
 import AnimatedNumber from '../components/AnimatedNumber.jsx';
 import Sparkline from '../components/Sparkline.jsx';
 import Reveal from '../components/Reveal.jsx';
@@ -66,6 +67,8 @@ function trimwd(s, n = 30) {
 
 const BINS = Array.from({ length: 10 }, (_, i) => i * 10);
 const STUDENTS_PER_PAGE = 25;
+// Student rows arrive in API order — the table only paginates.
+const STUDENT_PAGER_COLUMNS = [{ id: 'row', enableSorting: false }];
 
 /** Shared stat-card entrance — a gentle rise, staggered by index. */
 const statCardAnim = (i) => ({
@@ -486,7 +489,7 @@ export default function AnalyticsPage() {
  * Exam-level result summary.
  */
 export function ExamDetail({ examId, detail, onBack }) {
-  const [page, setPage] = useState(0);
+  const grid = useGridTable({ data: detail?.students || [], columns: STUDENT_PAGER_COLUMNS, pageSize: STUDENTS_PER_PAGE });
   if (!detail) {
     return <CardsSkeleton tiles={4} />;
   }
@@ -495,9 +498,7 @@ export function ExamDetail({ examId, detail, onBack }) {
   const s = stats || {};
   const dist = distribution || [];
   const studs = students || [];
-  const pageCount = Math.ceil(studs.length / STUDENTS_PER_PAGE);
-  const safePage = Math.min(page, Math.max(0, pageCount - 1));
-  const pageStuds = studs.slice(safePage * STUDENTS_PER_PAGE, (safePage + 1) * STUDENTS_PER_PAGE);
+  const { pageRows: pageStuds, pageCount, safePage } = grid;
   const themeRows = (themes || []).map((t) => ({ ...t, name: t.topic }));
   const blooms = bloomLevels || [];
   const insights = buildInsights({
@@ -777,15 +778,9 @@ export function ExamDetail({ examId, detail, onBack }) {
         {pageCount > 1 && (
           <div className="dataset-foot no-print">
             <span className="text-muted meta-sm">
-              {safePage * STUDENTS_PER_PAGE + 1}–{Math.min((safePage + 1) * STUDENTS_PER_PAGE, studs.length)} of {studs.length} students
+              {grid.start}–{grid.end} of {studs.length} students
             </span>
-            <div className="ds-pager">
-              <button type="button" className="ds-page" disabled={safePage === 0} onClick={() => setPage(0)} title="First page">«</button>
-              <button type="button" className="ds-page" disabled={safePage === 0} onClick={() => setPage(safePage - 1)} title="Previous page">‹</button>
-              <span className="ds-page text-muted">{safePage + 1} / {pageCount}</span>
-              <button type="button" className="ds-page" disabled={safePage >= pageCount - 1} onClick={() => setPage(safePage + 1)} title="Next page">›</button>
-              <button type="button" className="ds-page" disabled={safePage >= pageCount - 1} onClick={() => setPage(pageCount - 1)} title="Last page">»</button>
-            </div>
+            <DsPager grid={grid} />
           </div>
         )}
       </div>

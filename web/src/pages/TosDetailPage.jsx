@@ -11,7 +11,7 @@ import '../styles/blueprint-detail.css';
  */
 import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { Plus, Trash2, BookOpen, ChevronRight, Sparkles, FileText, Pencil, ListOrdered, Layers, Clock, Check, X, AlertTriangle, Lock, ChevronFirst, ChevronLeft, ChevronLast, Copy, GripVertical } from 'lucide-react';
+import { Plus, Trash2, BookOpen, ChevronRight, Sparkles, FileText, Pencil, ListOrdered, Layers, Clock, Check, X, AlertTriangle, Lock, Copy, GripVertical } from 'lucide-react';
 import { DndContext, PointerSensor, KeyboardSensor, closestCenter, useSensor, useSensors } from '@dnd-kit/core';
 import { SortableContext, arrayMove, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
@@ -23,6 +23,7 @@ import api, { ApiError } from '../lib/api.js';
 import useJobs, { isActiveJob, jobPayload } from '../lib/useJobs.js';
 import AppShell from '../components/AppShell.jsx';
 import { CardsSkeleton } from '../components/Loaders.jsx';
+import { useGridTable, DsPager } from '../components/DataTable.jsx';
 import Reveal from '../components/Reveal.jsx';
 import celebrate from '../lib/celebrate.js';
 
@@ -34,6 +35,9 @@ const OUTCOME_PREVIEW = 2;
 
 /** Topics table page size — rows carry outcome lists, so they are tall. */
 const TOPIC_PAGE_SIZE = 10;
+
+// Topic order comes from the blueprint itself — the table only paginates.
+const TOPIC_PAGER_COLUMNS = [{ id: 'row', enableSorting: false }];
 
 /** Split a textarea's contents into trimmed, non-empty outcome lines. */
 function splitLines(text) {
@@ -184,7 +188,6 @@ export default function TosDetailPage() {
   const [editDraft, setEditDraft] = useState({ title: '', instructional_hours: 0, outcomes: '' });
   const [savingEdit, setSavingEdit] = useState(false);
   const [expanded, setExpanded] = useState(() => new Set());
-  const [topicPage, setTopicPage] = useState(0);
   const [selTopics, setSelTopics] = useState(() => new Set());
   const [deriveOpen, setDeriveOpen] = useState(false);
   const [deriveTitle, setDeriveTitle] = useState('');
@@ -501,6 +504,10 @@ export default function TosDetailPage() {
     [data]
   );
 
+  // Hook must run before the !data early return — safe because the table
+  // just gets an empty topic list until the blueprint loads.
+  const topicGrid = useGridTable({ data: data?.topics || [], columns: TOPIC_PAGER_COLUMNS, pageSize: TOPIC_PAGE_SIZE });
+
   if (!data) return <AppShell pageClass="blueprint-detail" activeNav="tos" pageTitle="Blueprint"><CardsSkeleton tiles={3} /></AppShell>;
   const { tos, topics, coverage = {} } = data;
   const finalized = tos.status === 'finalized';
@@ -524,11 +531,10 @@ export default function TosDetailPage() {
 
   // The topics table paginates; safeTopicPage self-heals if deletions shrink
   // the last page. Rows index into matrix.rows by ABSOLUTE position.
-  const topicPageCount = Math.max(1, Math.ceil(topics.length / TOPIC_PAGE_SIZE));
-  const safeTopicPage = Math.min(topicPage, topicPageCount - 1);
-  const pageTopics = topics.slice(safeTopicPage * TOPIC_PAGE_SIZE, safeTopicPage * TOPIC_PAGE_SIZE + TOPIC_PAGE_SIZE);
-  const topicStart = topics.length ? safeTopicPage * TOPIC_PAGE_SIZE + 1 : 0;
-  const topicEnd = Math.min((safeTopicPage + 1) * TOPIC_PAGE_SIZE, topics.length);
+  const {
+    pageRows: pageTopics, safePage: safeTopicPage,
+    start: topicStart, end: topicEnd,
+  } = topicGrid;
 
   // Topic checkboxes drive "remove" (draft only) and "derive into new blueprint".
   const selTopicCount = selTopics.size;
@@ -958,23 +964,7 @@ export default function TosDetailPage() {
             <div className="ds-range">
               <b>{topicStart}</b>–<b>{topicEnd}</b> of <b>{topics.length}</b>
             </div>
-            <div className="ds-pager">
-              <button type="button" className="ds-page" onClick={() => setTopicPage(0)} disabled={safeTopicPage === 0} aria-label="First page">
-                <ChevronFirst size={15} />
-              </button>
-              <button type="button" className="ds-page" onClick={() => setTopicPage((p) => Math.max(0, p - 1))} disabled={safeTopicPage === 0} aria-label="Previous page">
-                <ChevronLeft size={15} />
-              </button>
-              <span className="ds-page" aria-current="page">{safeTopicPage + 1}</span>
-              <span className="ds-gap">/</span>
-              <span className="ds-page">{topicPageCount}</span>
-              <button type="button" className="ds-page" onClick={() => setTopicPage((p) => Math.min(topicPageCount - 1, p + 1))} disabled={safeTopicPage >= topicPageCount - 1} aria-label="Next page">
-                <ChevronRight size={15} />
-              </button>
-              <button type="button" className="ds-page" onClick={() => setTopicPage(topicPageCount - 1)} disabled={safeTopicPage >= topicPageCount - 1} aria-label="Last page">
-                <ChevronLast size={15} />
-              </button>
-            </div>
+            <DsPager grid={topicGrid} />
           </div>
         )}
 

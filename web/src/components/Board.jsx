@@ -4,7 +4,6 @@
  *   <StatusPill status="live" />          tinted status pill for a grid cell
  *   <BoardGroupHead />                    collapsible coloured group band (tr)
  *   <BoardAddRow />                       "+ Add" affordance row (tr)
- *   <BoardGhostRows />                    empty ledger rows for sparse tables
  *   groupColor(key)                       deterministic accent per entity
  *   statusOf(value)                       canonical tone for a raw status
  *   statusMeta(counts, order)             "2 published · 1 draft" rollup text
@@ -111,18 +110,6 @@ export function statusMeta(counts, order) {
     .filter((k) => counts[k])
     .map((k) => `${counts[k]} ${(STATUS_LABELS[k] || k).toLowerCase()}`)
     .join(' · ');
-}
-
-/**
- * Empty ledger rows that make a sparse table read as an intentional empty
- * ledger instead of a void. Render inside a tbody; `colSpan` must cover the
- * visible columns.
- */
-export function BoardGhostRows({ count, colSpan }) {
-  if (!count || count <= 0) return null;
-  return Array.from({ length: count }, (_, i) => (
-    <tr key={`ghost-${i}`} className="b-ghost" aria-hidden="true"><td colSpan={colSpan} /></tr>
-  ));
 }
 
 /** "+ Add" affordance row, matching the group's left spine. */

@@ -15,7 +15,6 @@ import { Link, useSearchParams } from 'react-router-dom';
 import {
   Plus, Pencil, Trash2, Check, X, Search, Upload, Sparkles, HelpCircle,
   Ellipsis, FileText, ListChecks, RotateCcw, FilterX, Layers, Copy, Eye, ListFilter,
-  ChevronFirst, ChevronLeft, ChevronRight, ChevronLast,
 } from 'lucide-react';
 import { useToast } from '../components/Toast.jsx';
 import { useContextMenu, useCopyText } from '../components/ContextMenu.jsx';
@@ -30,9 +29,10 @@ import { animateRows } from '../lib/animRows.js';
 import EmptyStateArt from '../components/EmptyStateArt.jsx';
 import { JobsActivityPanel } from '../components/JobsList.jsx';
 import {
-  StatusPill, BoardGroupHead, BoardGhostRows,
+  StatusPill, BoardGroupHead,
   BoardAddRow, GroupChip, groupColor, statusOf, statusMeta, STATUS_ORDER,
 } from '../components/Board.jsx';
+import { useGridTable, DsPager } from '../components/DataTable.jsx';
 
 const BLOOM_LABELS = { remember: 'Remember', understand: 'Understand', apply: 'Apply', analyze: 'Analyze', evaluate: 'Evaluate', create: 'Create' };
 const BLOOM_ORDER = ['remember', 'understand', 'apply', 'analyze', 'evaluate', 'create'];
@@ -143,7 +143,9 @@ function readFileText(file) {
 
 const DEFAULT_FILTERS = { subject_id: '', bloom: '', type: '', status: '', tos_id: '', topic: '' };
 const PAGE_SIZE = 25;
-const LEDGER_MIN = 11; // ghost rows pad a short table out to a real ledger
+// Rows arrive pre-ordered by the page's own pipeline — the table only needs
+// a stub column so TanStack can slice the current page.
+const PAGER_COLUMNS = [{ id: 'row', enableSorting: false }];
 
 /** API path for a filter set — also the cache key api.peek() looks up. */
 function questionsPath(filters) {
@@ -272,13 +274,11 @@ export default function QuestionsPage() {
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [groupBy, setGroupBy] = useState('none'); // none | subject | status | bloom
   const [collapsed, setCollapsed] = useState(() => new Set());
-  const [page, setPage] = useState(0);
   const searchRef = useRef(null);
   const lastPickedRef = useRef(null); // anchor row index for shift-click ranges
 
   /** Any change to what the grid shows restarts paging at the first page. */
   function updateFilters(next) {
-    setPage(0);
     setFilters(next);
   }
 
@@ -297,11 +297,9 @@ export default function QuestionsPage() {
     const requestedStatus = searchParams.get('status');
     const requestedSubject = searchParams.get('subject_id');
     if (requestedSubject && subjects.some((subject) => String(subject.id) === requestedSubject)) {
-      setPage(0);
       setFilters((current) => current.subject_id === requestedSubject ? current : { ...current, subject_id: requestedSubject, tos_id: '' });
     }
     if (['draft', 'active', 'rejected'].includes(requestedStatus)) {
-      setPage(0);
       setFilters((current) => current.status === requestedStatus ? current : { ...current, status: requestedStatus });
     }
     if (searchParams.get('new') === '1') {
@@ -375,7 +373,6 @@ export default function QuestionsPage() {
   const COLS = showSubject ? 8 : 7;
 
   const clearFilters = useCallback(() => {
-    setPage(0);
     setFilters(DEFAULT_FILTERS);
     setSearch('');
   }, []);
@@ -403,11 +400,13 @@ export default function QuestionsPage() {
 
   // Pagination slices the filtered rows; every row still carries its global
   // `rows` index so selection and shift-click ranges never notice the split.
-  const pageCount = Math.max(1, Math.ceil(rows.length / PAGE_SIZE));
-  const safePage = Math.min(page, pageCount - 1);
-  const pageRows = rows.slice(safePage * PAGE_SIZE, safePage * PAGE_SIZE + PAGE_SIZE);
-  const pageStart = rows.length ? safePage * PAGE_SIZE + 1 : 0;
-  const pageEnd = Math.min((safePage + 1) * PAGE_SIZE, rows.length);
+  // resetKey returns to page 1 whenever any filter/grouping input changes,
+  // which is what the old setPage(0) calls did by hand.
+  const grid = useGridTable({
+    data: rows, columns: PAGER_COLUMNS, pageSize: PAGE_SIZE,
+    resetKey: JSON.stringify([filters, search, groupBy]),
+  });
+  const { pageRows, safePage } = grid;
 
   // Board grouping — visual only, computed over the current page's rows.
   const qGroups = useMemo(() => {
@@ -842,7 +841,6 @@ export default function QuestionsPage() {
       return (
         <tbody ref={animateRows}>
           {pageRows.map((q, i) => renderQuestionRow(q, safePage * PAGE_SIZE + i))}
-          <BoardGhostRows count={LEDGER_MIN - pageRows.length} colSpan={COLS} />
         </tbody>
       );
     }
@@ -879,12 +877,6 @@ export default function QuestionsPage() {
 
   return (
     <AppShell pageClass="questions" activeNav="questions" pageTitle="Questions" wide>
-
-      <div className="list-head">
-        <div className="list-head-main">
-          <h1 className="list-head-title">Questions {filteredQuestions && <span className="list-head-count">{filteredQuestions.length}</span>}</h1>
-        </div>
-      </div>
 
       {filteredQuestions === null ? (
         <TableSkeleton />
@@ -941,7 +933,7 @@ export default function QuestionsPage() {
                   autoComplete="off"
                   placeholder="Search stems and topics…"
                   value={search}
-                  onChange={(e) => { setPage(0); setSearch(e.target.value); }}
+                  onChange={(e) => setSearch(e.target.value)}
                 />
                 <kbd aria-hidden="true">/</kbd>
               </label>
@@ -963,7 +955,7 @@ export default function QuestionsPage() {
                   aria-label="Group questions by"
                   data-active={groupBy !== 'none'}
                   value={groupBy}
-                  onChange={(e) => { setGroupBy(e.target.value); setCollapsed(new Set()); setPage(0); }}
+                  onChange={(e) => { setGroupBy(e.target.value); setCollapsed(new Set()); }}
                 >
                   <option value="none">Group: None</option>
                   <option value="subject">Group: Subject</option>
@@ -1054,28 +1046,10 @@ export default function QuestionsPage() {
           {/* Footer */}
           <div className="dataset-foot">
             <div className="ds-range">
-              <b>{pageStart}</b>–<b>{pageEnd}</b> of <b>{rows.length}</b> question{rows.length !== 1 ? 's' : ''}
+              <b>{grid.start}</b>–<b>{grid.end}</b> of <b>{rows.length}</b> question{rows.length !== 1 ? 's' : ''}
               {selecting && <span className="q-foot-note"> · {selectionCount} selected</span>}
             </div>
-            {rows.length > PAGE_SIZE && (
-              <div className="ds-pager">
-                <button type="button" className="ds-page" onClick={() => setPage(0)} disabled={safePage === 0} aria-label="First page">
-                  <ChevronFirst size={15} />
-                </button>
-                <button type="button" className="ds-page" onClick={() => setPage((p) => Math.max(0, p - 1))} disabled={safePage === 0} aria-label="Previous page">
-                  <ChevronLeft size={15} />
-                </button>
-                <span className="ds-page" aria-current="page">{safePage + 1}</span>
-                <span className="ds-gap">/</span>
-                <span className="ds-page">{pageCount}</span>
-                <button type="button" className="ds-page" onClick={() => setPage((p) => Math.min(pageCount - 1, p + 1))} disabled={safePage >= pageCount - 1} aria-label="Next page">
-                  <ChevronRight size={15} />
-                </button>
-                <button type="button" className="ds-page" onClick={() => setPage(pageCount - 1)} disabled={safePage >= pageCount - 1} aria-label="Last page">
-                  <ChevronLast size={15} />
-                </button>
-              </div>
-            )}
+            {rows.length > PAGE_SIZE && <DsPager grid={grid} />}
           </div>
         </section>
       )}

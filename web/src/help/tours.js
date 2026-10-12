@@ -98,7 +98,7 @@ export const TOURS = [
       {
         sel: '[data-tour="shell-account"]', side: 'bottom', align: 'end',
         title: 'Your menu',
-        description: 'Profile photo, Account, Appearance (light / dark / system — saved per user, per device), and sign out. Appearance is a shared page, so staff get it too.',
+        description: 'Profile photo, Account, Appearance (theme, typeface, and text size — saved to your account), and sign out. Appearance is a shared page, so staff get it too.',
       },
       {
         sel: '[data-tour="dash-focus"]', side: 'left',
@@ -528,12 +528,22 @@ export const TOURS = [
     steps: [
       {
         title: 'Make the workspace yours',
-        description: 'Theme and palette live here — saved to this device, independent of your account data.',
+        description: 'Theme, typeface, and text size live here — saved to your account, so they follow you across devices.',
       },
       {
         sel: '[data-tour="appearance-themes"]', side: 'bottom',
         title: 'Theme',
         description: 'Light, dark, or follow your system — also reachable from the account menu.',
+      },
+      {
+        sel: '[data-tour="appearance-typeface"]', side: 'bottom',
+        title: 'Typeface',
+        description: 'Six presets — Sora + SF Pro is the default, pairing a geometric display face with a compact body face. The Custom card opens a mixer where you pair any display and body face yourself.',
+      },
+      {
+        sel: '[data-tour="appearance-size"]', side: 'top',
+        title: 'Text size',
+        description: 'Compact is the standard scale — Regular and Large grow text and spacing together for easier reading.',
       },
       {
         sel: '[data-tour="appearance-palette"]', side: 'top',

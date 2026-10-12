@@ -15,8 +15,36 @@
 import { useSyncExternalStore } from 'react';
 
 export const THEME_MODES = ['light', 'dark', 'system'];
+export const FACES = ['system', 'sora', 'googlesans', 'inter', 'geist'];
 export const FONTS = ['system', 'sora', 'duo', 'googlesans', 'inter', 'geist'];
 export const TEXT_SIZES = ['compact', 'default', 'large'];
+
+/** Presets resolve to [display, body] face pairs; custom pairings are
+ *  stored as "display+body" (e.g. "sora+inter") in the same font field. */
+const PRESET_PAIRS = {
+  system: ['system', 'system'],
+  sora: ['sora', 'sora'],
+  duo: ['sora', 'system'],
+  googlesans: ['googlesans', 'googlesans'],
+  inter: ['inter', 'inter'],
+  geist: ['geist', 'geist'],
+};
+const PRESET_FOR_PAIR = Object.fromEntries(
+  Object.entries(PRESET_PAIRS).map(([k, v]) => [v.join('+'), k])
+);
+
+/** [display, body] faces for any stored font value (preset or "a+b"). */
+export function fontPair(v = font) {
+  if (PRESET_PAIRS[v]) return PRESET_PAIRS[v];
+  const [d, b] = String(v).split('+');
+  return FACES.includes(d) && FACES.includes(b) ? [d, b] : PRESET_PAIRS.duo;
+}
+
+function isValidFont(v) {
+  if (FONTS.includes(v)) return true;
+  const [d, b] = String(v).split('+');
+  return FACES.includes(d) && FACES.includes(b);
+}
 
 const GLOBAL_KEY = 'nexam.theme';        // last applied mode — boot cache
 const LAST_UID_KEY = 'nexam.theme.uid';  // account the boot cache belongs to
@@ -43,7 +71,7 @@ function readKey(k) {
 function readFontKey(k) {
   try {
     const v = k ? localStorage.getItem(k) : null;
-    return FONTS.includes(v) ? v : null;
+    return isValidFont(v) ? v : null;
   } catch {
     return null;
   }
@@ -99,8 +127,11 @@ export function resolveTheme(m = mode) {
 
 function apply() {
   const resolved = forcedTheme || resolveTheme();
+  const [displayFace, bodyFace] = fontPair();
   document.documentElement.dataset.theme = resolved;
   document.documentElement.dataset.font = font;
+  document.documentElement.dataset.fontDisplay = displayFace;
+  document.documentElement.dataset.fontBody = bodyFace;
   document.documentElement.dataset.textSize = textSize;
   document.documentElement.style.colorScheme = resolved;
 }
@@ -164,7 +195,7 @@ export function setThemeMode(next, origin) {
 
 /** Typeface preference — applied instantly as data-font on <html>. */
 export function setFont(next) {
-  if (!FONTS.includes(next) || next === font) return;
+  if (!isValidFont(next) || next === font) return;
   font = next;
   persist();
   apply();
@@ -174,6 +205,13 @@ export function setFont(next) {
       .then(({ default: api }) => api.put('/auth/appearance', { font: next }))
       .catch(() => { /* offline — the per-user cache still has it */ });
   }
+}
+
+/** Custom display+body pairing — collapses to the matching preset when
+ *  one exists (sora+system stores "duo", not "sora+system"). */
+export function setFontPair(display, body) {
+  if (!FACES.includes(display) || !FACES.includes(body)) return;
+  setFont(PRESET_FOR_PAIR[`${display}+${body}`] || `${display}+${body}`);
 }
 
 /** Text-size preference — applied instantly as data-text-size on <html>. */
@@ -199,7 +237,7 @@ export function applyUserTheme(user) {
   mode = THEME_MODES.includes(user?.theme)
     ? user.theme
     : readKey(userKey(boundUserId)) || 'system';
-  font = FONTS.includes(user?.font)
+  font = isValidFont(user?.font)
     ? user.font
     : readFontKey(fontUserKey(boundUserId)) || 'duo';
   textSize = TEXT_SIZES.includes(user?.text_size)
@@ -229,12 +267,12 @@ function subscribe(fn) {
   return () => listeners.delete(fn);
 }
 
-/** React binding: { mode, resolved, setThemeMode, font, setFont, textSize, setTextSize } — re-renders on change. */
+/** React binding: { mode, resolved, setThemeMode, font, setFont, setFontPair, textSize, setTextSize } — re-renders on change. */
 export function useTheme() {
   const current = useSyncExternalStore(subscribe, getThemeMode);
   const currentFont = useSyncExternalStore(subscribe, () => font);
   const currentSize = useSyncExternalStore(subscribe, () => textSize);
-  return { mode: current, resolved: forcedTheme || resolveTheme(current), setThemeMode, font: currentFont, setFont, textSize: currentSize, setTextSize };
+  return { mode: current, resolved: forcedTheme || resolveTheme(current), setThemeMode, font: currentFont, setFont, setFontPair, textSize: currentSize, setTextSize };
 }
 
 // Follow the OS live while the mode is "system".

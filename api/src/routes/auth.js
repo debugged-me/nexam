@@ -803,12 +803,19 @@ router.put('/me', requireAnyAuth, async (req, res, next) => {
 /**
  * PUT /api/auth/appearance — persist the account's appearance prefs
  * (theme: light | dark | system;
- * font: system | sora | duo | googlesans | inter | geist;
+ * font: system | sora | duo | googlesans | inter | geist | <face>+<face>
+ *       (custom display+body pairing, e.g. "sora+inter");
  * text_size: compact | default | large).
  * Fields may be sent alone. Applied client-side on every login/me load
  * so the preference follows the account across browsers and devices.
  */
 const APPEARANCE_FONTS = ['system', 'sora', 'duo', 'googlesans', 'inter', 'geist'];
+const APPEARANCE_FACES = ['system', 'sora', 'googlesans', 'inter', 'geist'];
+const isValidFont = (v) => {
+  if (APPEARANCE_FONTS.includes(v)) return true;
+  const parts = String(v).split('+');
+  return parts.length === 2 && parts.every((p) => APPEARANCE_FACES.includes(p));
+};
 const APPEARANCE_SIZES = ['compact', 'default', 'large'];
 router.put('/appearance', requireAnyAuth, async (req, res, next) => {
   try {
@@ -818,7 +825,7 @@ router.put('/appearance', requireAnyAuth, async (req, res, next) => {
     if (theme !== undefined && !['light', 'dark', 'system'].includes(theme)) {
       return res.status(422).json({ error: 'Invalid theme.' });
     }
-    if (font !== undefined && !APPEARANCE_FONTS.includes(font)) {
+    if (font !== undefined && !isValidFont(font)) {
       return res.status(422).json({ error: 'Invalid font.' });
     }
     if (textSize !== undefined && !APPEARANCE_SIZES.includes(textSize)) {

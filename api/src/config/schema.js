@@ -31,7 +31,7 @@ const DDL = [
   created_at timestamp NOT NULL DEFAULT current_timestamp(),
   avatar_v int(10) unsigned NOT NULL DEFAULT 0,
   theme varchar(10) DEFAULT NULL,
-  font varchar(20) DEFAULT NULL,
+  font varchar(40) DEFAULT NULL,
   text_size varchar(20) DEFAULT NULL,
   PRIMARY KEY (id),
   UNIQUE KEY email (email)
@@ -54,7 +54,7 @@ const DDL = [
   `ALTER TABLE users ADD COLUMN IF NOT EXISTS created_at TIMESTAMP NOT NULL DEFAULT current_timestamp()`,
   `ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_v INT(10) UNSIGNED NOT NULL DEFAULT 0`,
   `ALTER TABLE users ADD COLUMN IF NOT EXISTS theme VARCHAR(10) NULL DEFAULT NULL`,
-  `ALTER TABLE users ADD COLUMN IF NOT EXISTS font VARCHAR(20) NULL DEFAULT NULL`,
+  `ALTER TABLE users ADD COLUMN IF NOT EXISTS font VARCHAR(40) NULL DEFAULT NULL`,
   `ALTER TABLE users ADD COLUMN IF NOT EXISTS text_size VARCHAR(20) NULL DEFAULT NULL`,
   `ALTER TABLE users ADD UNIQUE KEY IF NOT EXISTS email (email)`,
 
@@ -702,6 +702,7 @@ const COLUMN_TYPES = {
   'students.full_name': 'text',
   'scan_results.student_name': 'text',
   'users.avatar_path': 'varchar(255)',
+  'users.font': 'varchar(40)',
 };
 
 export async function ensureSchema() {

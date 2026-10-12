@@ -5,9 +5,11 @@ import '../styles/appearance.css';
  * three-way toggle lives in the topbar user dropdown; both write to the
  * same per-device setting.
  */
+import { useState } from 'react';
 import AppShell from '../components/AppShell.jsx';
-import { useTheme } from '../lib/theme.js';
-import { Check, Monitor, Moon, Sun } from 'lucide-react';
+import Modal from '../components/Modal.jsx';
+import { fontPair, useTheme } from '../lib/theme.js';
+import { Blend, Check, Monitor, Moon, Sun } from 'lucide-react';
 
 const OPTIONS = [
   {
@@ -63,6 +65,22 @@ const FONT_OPTIONS = [
   },
 ];
 
+const FACE_OPTIONS = [
+  { key: 'sora', label: 'Sora' },
+  { key: 'system', label: 'SF Pro' },
+  { key: 'googlesans', label: 'Google Sans' },
+  { key: 'inter', label: 'Inter' },
+  { key: 'geist', label: 'Geist' },
+];
+
+const FACE_STACKS = {
+  sora: '"Sora", sans-serif',
+  system: '"SF Pro Text", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+  googlesans: '"Google Sans", sans-serif',
+  inter: '"Inter", sans-serif',
+  geist: '"Geist", sans-serif',
+};
+
 const SIZE_OPTIONS = [
   {
     key: 'compact',
@@ -93,7 +111,13 @@ const SWATCHES = [
 ];
 
 export default function AppearancePage() {
-  const { mode, setThemeMode, font, setFont, textSize, setTextSize } = useTheme();
+  const { mode, setThemeMode, font, setFont, setFontPair, textSize, setTextSize } = useTheme();
+  const [displayFace, bodyFace] = fontPair(font);
+  const isCustom = font.includes('+');
+  const faceLabel = (key) => FACE_OPTIONS.find((f) => f.key === key)?.label || key;
+  const [pairOpen, setPairOpen] = useState(false);
+  const [draft, setDraft] = useState(['sora', 'system']);
+  const openPairPicker = () => { setDraft(fontPair(font)); setPairOpen(true); };
 
   return (
     <AppShell pageClass="appearance" activeNav="appearance" pageTitle="Appearance">
@@ -142,7 +166,7 @@ export default function AppearancePage() {
         </div>
       </div>
 
-      <div className="card">
+      <div className="card" data-tour="appearance-typeface">
         <div className="card-header">
           <span className="card-title">Typeface</span>
         </div>
@@ -175,11 +199,87 @@ export default function AppearancePage() {
                 </button>
               );
             })}
+            <button
+              type="button"
+              role="radio"
+              aria-checked={isCustom}
+              className={`font-card${isCustom ? ' is-selected' : ''}`}
+              onClick={openPairPicker}
+            >
+              <span className="font-shot font-shot--custom" aria-hidden="true">
+                <b style={{ fontFamily: FACE_STACKS[displayFace] }}>Aa</b>
+                <i style={{ fontFamily: FACE_STACKS[bodyFace] }}>The quick brown fox jumps</i>
+                {isCustom && (
+                  <span className="shot-check">
+                    <Check size={12} strokeWidth={3} />
+                  </span>
+                )}
+              </span>
+              <span className="theme-card-meta">
+                <strong>Custom</strong>
+                <small>{isCustom ? `${faceLabel(displayFace)} + ${faceLabel(bodyFace)}` : 'Pick your own display + body pair.'}</small>
+              </span>
+            </button>
           </div>
         </div>
       </div>
 
-      <div className="card">
+      <Modal
+        open={pairOpen}
+        size="sm"
+        icon={Blend}
+        title="Custom pairing"
+        subtitle="Mix a display face for titles and a body face for everything else."
+        onClose={() => setPairOpen(false)}
+        footer={(
+          <>
+            <button type="button" className="btn btn-ghost" onClick={() => setPairOpen(false)}>Cancel</button>
+            <button
+              type="button"
+              className="btn btn-primary"
+              onClick={() => { setFontPair(draft[0], draft[1]); setPairOpen(false); }}
+            >
+              Use pairing
+            </button>
+          </>
+        )}
+      >
+        <div className="pair-grid">
+          <label className="pair-field">
+            <span className="pair-label">Display face</span>
+            <small>Titles, headlines, and KPI numerals.</small>
+            <select
+              className="form-control form-select"
+              value={draft[0]}
+              onChange={(e) => setDraft([e.target.value, draft[1]])}
+            >
+              {FACE_OPTIONS.map(({ key, label }) => (
+                <option key={key} value={key}>{label}</option>
+              ))}
+            </select>
+          </label>
+          <label className="pair-field">
+            <span className="pair-label">Body face</span>
+            <small>Paragraphs, tables, forms, and controls.</small>
+            <select
+              className="form-control form-select"
+              value={draft[1]}
+              onChange={(e) => setDraft([draft[0], e.target.value])}
+            >
+              {FACE_OPTIONS.map(({ key, label }) => (
+                <option key={key} value={key}>{label}</option>
+              ))}
+            </select>
+          </label>
+          <div className="font-shot pair-shot" aria-hidden="true">
+            <b style={{ fontFamily: FACE_STACKS[draft[0]] }}>Aa</b>
+            <i style={{ fontFamily: FACE_STACKS[draft[1]] }}>The quick brown fox jumps</i>
+            <small className="pair-shot-name">{faceLabel(draft[0])} + {faceLabel(draft[1])}</small>
+          </div>
+        </div>
+      </Modal>
+
+      <div className="card" data-tour="appearance-size">
         <div className="card-header">
           <span className="card-title">Text size</span>
         </div>

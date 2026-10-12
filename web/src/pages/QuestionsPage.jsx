@@ -293,12 +293,15 @@ export default function QuestionsPage() {
     api.get('/tos').then((data) => setTosList(data.tos || [])).catch(() => {});
   }, []);
 
-  const openImport = useCallback(() => {
+  const openImport = useCallback((subjectOverride) => {
     setImportState({
       content: '',
       fileName: '',
       detectedFormat: '',
-      subjectId: filters.subject_id || subjects[0]?.id || '',
+      // Deep links pass a string (?subject_id=…); onClick passes its event —
+      // the typeof guard keeps the event from becoming the subject id.
+      subjectId: (typeof subjectOverride === 'string' && subjectOverride)
+        || filters.subject_id || subjects[0]?.id || '',
       topic: '',
       preview: null,
       previewing: false,
@@ -311,8 +314,10 @@ export default function QuestionsPage() {
   useEffect(() => {
     const requestedStatus = searchParams.get('status');
     const requestedSubject = searchParams.get('subject_id');
-    if (requestedSubject && subjects.some((subject) => String(subject.id) === requestedSubject)) {
-      setFilters((current) => current.subject_id === requestedSubject ? current : { ...current, subject_id: requestedSubject, tos_id: '' });
+    const validSubject = requestedSubject && subjects.some((subject) => String(subject.id) === requestedSubject)
+      ? requestedSubject : null;
+    if (validSubject) {
+      setFilters((current) => current.subject_id === validSubject ? current : { ...current, subject_id: validSubject, tos_id: '' });
     }
     if (['draft', 'active', 'rejected'].includes(requestedStatus)) {
       setFilters((current) => current.status === requestedStatus ? current : { ...current, status: requestedStatus });
@@ -336,7 +341,9 @@ export default function QuestionsPage() {
       }
     }
     if (searchParams.get('import') === '1') {
-      openImport();
+      // The subject filter from the same URL hasn't applied to state yet —
+      // pass it through so the importer preselects the right subject.
+      openImport(validSubject || undefined);
       const next = new URLSearchParams(searchParams);
       next.delete('import');
       setSearchParams(next, { replace: true });

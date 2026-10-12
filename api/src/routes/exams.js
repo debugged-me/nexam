@@ -45,6 +45,9 @@ async function planQuestionsForTos(tos, userId) {
       `SELECT q.* FROM questions q
        WHERE q.subject_id = :subjectId AND q.created_by = :userId
          AND q.status = 'active' AND q.type IN ('mcq','true_false','matching','identification')
+         -- Auto-pick stays strictly similarity-verified: an unverified
+         -- (outage-bypassed) item may enter an exam only by the instructor's
+         -- explicit selection on the exam page, never silently by assembly.
          AND q.similarity_checked_at IS NOT NULL AND q.similarity_error IS NULL
          AND q.similarity_flag = 'none'
          AND q.topic = :topic AND q.bloom = :bloom
@@ -68,7 +71,13 @@ async function planQuestionsForTos(tos, userId) {
 function circulationError(question) {
   if (question.status !== 'active') return 'contains a question that is not approved';
   if (!SUPPORTED_QUESTION_TYPES.includes(question.type)) return 'contains an unsupported question type';
-  if (!question.similarity_checked_at || question.similarity_error || question.similarity_flag !== 'none') {
+  if (question.similarity_flag !== 'none') {
+    return 'contains a question with an unresolved similarity flag';
+  }
+  // An active question still carrying similarity_error was approved under the
+  // outage bypass — the instructor accepted that risk, so it may circulate.
+  // Pending checks can't reach 'active' at all.
+  if (!question.similarity_checked_at && !question.similarity_error) {
     return 'contains a question that has not passed similarity review';
   }
   return null;
@@ -442,8 +451,10 @@ router.post('/:id/questions', requireAuth, async (req, res, next) => {
       `SELECT q.id FROM questions q
        WHERE q.id IN (:ids) AND q.created_by = :uid AND q.subject_id = :subjectId
          AND q.status = 'active' AND q.type IN ('mcq','true_false','matching','identification')
-         AND q.similarity_checked_at IS NOT NULL AND q.similarity_error IS NULL
          AND q.similarity_flag = 'none'
+         -- checked OR errored: a live similarity_error on an active row means it
+         -- was approved under the outage bypass — the instructor chose it.
+         AND (q.similarity_checked_at IS NOT NULL OR q.similarity_error IS NOT NULL)
          ${tosClause}`,
       { ids: validIds, uid: req.user.id, subjectId: exam.subject_id, tosId: exam.tos_id }
     );

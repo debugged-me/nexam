@@ -521,8 +521,15 @@ export default function ExamDetailPage() {
           </button>
         </>}>
         {availableQs.length === 0 ? (
-          <p className="placeholder">No more approved questions available for this subject.</p>
+          <>
+            <p className="placeholder">No more approved questions available for this subject.</p>
+            <p className="q-pick-note">
+              Need more? <Link to={`/questions?import=1&subject_id=${data?.exam?.subject_id}`}>Import a GIFT/XML bank</Link>
+              {' '}— imported items land in the review queue first.
+            </p>
+          </>
         ) : (
+          <>
           <div className="q-picker">
             <label className="q-pick-item q-pick-all">
               <input
@@ -551,11 +558,21 @@ export default function ExamDetailPage() {
                   <div className="q-pick-stem">{q.stem}</div>
                   <div className="q-pick-meta">
                     {TYPE_LABELS[q.type] || q.type} · {q.bloom ? BLOOM_LABELS[q.bloom] : '—'} · {q.topic || 'No topic'}
+                    {q.similarity_error && (
+                      <span className="q-pick-unverified" title={`Approved without a duplicate check — ${q.similarity_error}`}>
+                        Unverified
+                      </span>
+                    )}
                   </div>
                 </div>
               </label>
             ))}
           </div>
+          <p className="q-pick-note">
+            Missing an item? <Link to={`/questions?import=1&subject_id=${data?.exam?.subject_id}`}>Import a GIFT/XML bank</Link>
+            {' '}— imported items join the review queue first.
+          </p>
+          </>
         )}
       </Modal>
 

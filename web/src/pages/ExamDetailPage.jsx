@@ -10,10 +10,11 @@ import { useEffect, useState, useCallback } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import {
   Plus, Trash2, FileText, FileCheck, Download, Send, Printer,
-  Pencil, HelpCircle, Clock, Monitor, QrCode, ScanLine, Sparkles,
+  Pencil, HelpCircle, Clock, Monitor, QrCode, ScanLine, Sparkles, Copy,
 } from 'lucide-react';
 import { useToast } from '../components/Toast.jsx';
 import { useConfirm } from '../components/ConfirmDialog.jsx';
+import { useContextMenu, useCopyText } from '../components/ContextMenu.jsx';
 import Modal from '../components/Modal.jsx';
 import ExamPaper from '../components/ExamPaper.jsx';
 import api, { ApiError, getToken } from '../lib/api.js';
@@ -74,6 +75,8 @@ export default function ExamDetailPage() {
   const [printReady, setPrintReady] = useState(false);
   const [results, setResults] = useState(null);
   const [itemStats, setItemStats] = useState([]);
+  const { menuEl, openMenu } = useContextMenu();
+  const copyText = useCopyText();
 
   const load = useCallback(() => {
     api.get(`/exams/${id}`)
@@ -215,7 +218,6 @@ export default function ExamDetailPage() {
       <div className="print-skip">
       <div className="page-header">
         <div>
-          <span className="eyebrow">Exam</span>
           <h1>{exam.title}</h1>
           <div className="exam-meta">
             {exam.subject_name && <GroupChip color={accent}>{exam.subject_name}</GroupChip>}
@@ -348,7 +350,11 @@ export default function ExamDetailPage() {
                   </thead>
                   <tbody>
                     {questions.map((q, i) => (
-                      <tr key={q.id}>
+                      <tr key={q.id} onContextMenu={(e) => openMenu(e, [
+                        { label: 'Copy stem', icon: Copy, onClick: () => copyText(q.stem, 'Question stem') },
+                        'sep',
+                        { label: 'Remove from exam', icon: Trash2, danger: true, onClick: () => handleRemoveQ(q.id) },
+                      ])}>
                         <td className="text-muted">{i + 1}</td>
                         <td className="cell-medium">{q.stem}</td>
                         <td><span className="badge badge-gray">{TYPE_LABELS[q.type] || q.type}</span></td>
@@ -502,6 +508,7 @@ export default function ExamDetailPage() {
           includeKey={printCfg.includeKey}
         />
       )}
+      {menuEl}
     </AppShell>
   );
 }

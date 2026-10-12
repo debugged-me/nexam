@@ -236,22 +236,7 @@ export default function TosPage() {
   return (
     <AppShell pageClass="tos" activeNav="tos" pageTitle="Blueprints (TOS)" wide>
 
-      <header className="list-head" data-tour="tos-head">
-        <div className="list-head-main">
-          <span className="eyebrow">Workspace</span>
-          <h1 className="list-head-title">
-            Blueprints (TOS)
-            {tosList && tosList.length > 0 && (
-              <span className="list-head-count">{tosList.length}</span>
-            )}
-          </h1>
-          <details className="list-head-info">
-            <summary aria-label="What is a blueprint?"><Info size={16} /></summary>
-            <p>A Table of Specification (TOS) defines how many items each topic and Bloom level contributes to an exam. Upload a syllabus and auto-generate one, or create it manually.</p>
-          </details>
-          <p className="page-description">Give every topic and Bloom level its place.</p>
-        </div>
-      </header>
+
 
       {tosList === null ? (
         <TableSkeleton />
@@ -297,13 +282,13 @@ export default function TosPage() {
           <caption className="sr-only">Table of Specification blueprints in your workspace</caption>
           <thead>
             <tr>
-              <th className="col-primary wp-27">Blueprint</th>
-              <th className="wp-17">Subject</th>
+              <th className="col-primary wp-33">Blueprint</th>
+              <th className="wp-14">Subject</th>
               <th className="wp-12">Status</th>
               <th className="is-num wp-10">Topics</th>
               <th className="is-num wp-9">Items</th>
-              <th className="wp-14">Updated</th>
-              <th className="col-actions wp-11">Actions</th>
+              <th className="wp-12">Updated</th>
+              <th className="col-actions wp-10">Actions</th>
             </tr>
           </thead>
           {tosGroups ? tosGroups.map((g) => {

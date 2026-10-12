@@ -259,22 +259,7 @@ export default function SubjectsPage() {
 
   return (
     <AppShell pageClass="subjects" activeNav="subjects" pageTitle="Subjects" wide>
-      <header className="list-head" data-tour="subjects-head">
-        <div className="list-head-main">
-          <span className="eyebrow">Workspace</span>
-          <h1 className="list-head-title">
-            Subjects
-            {subjects && subjects.length > 0 && (
-              <span className="list-head-count">{subjects.length}</span>
-            )}
-          </h1>
-          <details className="list-head-info">
-            <summary aria-label="About subjects"><Info size={16} /></summary>
-            <p>A subject is the container for your question bank, blueprints, materials and exams.</p>
-          </details>
-          <p className="page-description">Everything you build lives inside a subject.</p>
-        </div>
-      </header>
+
 
       {subjects === null ? (
         <TableSkeleton />

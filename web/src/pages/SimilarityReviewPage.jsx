@@ -51,11 +51,6 @@ export default function SimilarityReviewPage() {
   return (
     <AppShell pageClass="similarity" activeNav="questions" pageTitle="Similarity Review">
       <div className="page-header">
-        <div>
-          <span className="eyebrow">Question bank</span>
-          <h1>Similarity Review</h1>
-          <p className="page-sub">This question was flagged as a potential duplicate. Compare it with existing questions and decide whether to keep or reject it.</p>
-        </div>
         <div className="page-header-actions">
           <Link to="/questions" className="btn btn-outline btn-sm">
             <ArrowLeft size={16} /> Back to Questions

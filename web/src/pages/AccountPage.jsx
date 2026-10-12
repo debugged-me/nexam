@@ -108,17 +108,6 @@ export default function AccountPage() {
   return (
     <AppShell pageClass="account" activeNav="account" pageTitle="Account">
 
-      <div className="page-header">
-        <div>
-          <span className="eyebrow">Settings</span>
-          <h1>Account</h1>
-          <p className="page-sub">Manage your profile and password.</p>
-        </div>
-        <Link to="/appearance" className="btn btn-outline btn-sm">
-          <Palette size={15} /> Appearance
-        </Link>
-      </div>
-
       {/* Profile summary stats */}
       <div className="stats-grid mb-3" data-tour="account-stats">
         <div className="stat-card">
@@ -150,11 +139,16 @@ export default function AccountPage() {
         <div className="card" data-tour="account-profile">
           <div className="card-header">
             <span className="card-title">Profile</span>
-            {!editingName && (
-              <button type="button" className="btn btn-outline btn-sm" onClick={() => setEditingName(true)}>
-                <Lock size={16} /> Edit
-              </button>
-            )}
+            <div className="card-header-actions">
+              <Link to="/appearance" className="btn btn-outline btn-sm">
+                <Palette size={15} /> Appearance
+              </Link>
+              {!editingName && (
+                <button type="button" className="btn btn-outline btn-sm" onClick={() => setEditingName(true)}>
+                  <Lock size={16} /> Edit
+                </button>
+              )}
+            </div>
           </div>
           <div className="card-body">
             <div className="account-photo-row" data-tour="account-photo">

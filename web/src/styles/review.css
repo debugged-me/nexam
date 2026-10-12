@@ -90,6 +90,9 @@
     gap: var(--space-2) var(--space-4);
     margin-bottom: var(--space-2);
 }
+/* Queue tools ride this strip once drafts are on screen — match the bar's
+   compact height instead of the header's roomier select. */
+.rv-progress-top .rv-select { min-height: 32px; }
 
 .rv-progress-pos {
     font-family: var(--font-display, "Google Sans", sans-serif);
@@ -262,6 +265,22 @@
 }
 .rv-alert-body span { display: block; margin-top: 2px; font-weight: 400; }
 .rv-alert .btn { flex: 0 0 auto; background: var(--surface); }
+.rv-alert-dismiss {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: inherit;
+  opacity: .65;
+  cursor: pointer;
+}
+.rv-alert-dismiss:hover { background: var(--amber-100); opacity: 1; }
 .rv-spin { animation: spin 1s linear infinite; }
 .rv-alert + .rv-alert { margin-top: var(--space-2); }
 

@@ -56,11 +56,6 @@ export default function AiEvalPage() {
   return (
     <AppShell pageClass="ai-eval" activeNav="analytics" pageTitle="AI Evaluation" wide>
       <div className="page-header">
-        <div>
-          <span className="eyebrow">Results &amp; insights</span>
-          <h1>AI Component Evaluation</h1>
-          <p className="page-sub">Quality metrics for AI-generated questions, similarity detection, and material extraction.</p>
-        </div>
         <div className="header-actions">
           <button type="button" className="btn btn-outline btn-sm" onClick={() => navigate('/analytics')}>
             <ArrowLeft size={14} /> Back to Analytics

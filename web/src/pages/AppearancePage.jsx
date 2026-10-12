@@ -42,21 +42,11 @@ const SWATCHES = [
 ];
 
 export default function AppearancePage() {
-  const { mode, resolved, setThemeMode } = useTheme();
+  const { mode, setThemeMode } = useTheme();
 
   return (
     <AppShell pageClass="appearance" activeNav="appearance" pageTitle="Appearance">
-      <div className="page-header">
-        <div>
-          <span className="eyebrow">Settings</span>
-          <h1>Appearance</h1>
-          <p className="page-sub">
-            Choose how nexam looks on this device. Saved to this browser —
-            currently {resolved === 'dark' ? 'dark' : 'light'}
-            {mode === 'system' ? ' (following system)' : ''}.
-          </p>
-        </div>
-      </div>
+
 
       <div className="card" data-tour="appearance-themes">
         <div className="card-header">

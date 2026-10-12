@@ -13,6 +13,7 @@ import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { Plus, Trash2, BookOpen, ChevronRight, Sparkles, FileText, Pencil, ListOrdered, Layers, Clock, Check, X, AlertTriangle, Lock, ChevronFirst, ChevronLeft, ChevronLast, Copy } from 'lucide-react';
 import { useToast } from '../components/Toast.jsx';
+import { useContextMenu, useCopyText } from '../components/ContextMenu.jsx';
 import { useConfirm } from '../components/ConfirmDialog.jsx';
 import Modal from '../components/Modal.jsx';
 import api, { ApiError } from '../lib/api.js';
@@ -170,6 +171,8 @@ export default function TosDetailPage() {
   const { id } = useParams();
   const toast = useToast();
   const confirm = useConfirm();
+  const { menuEl, openMenu } = useContextMenu();
+  const copyText = useCopyText();
   const navigate = useNavigate();
   const [data, setData] = useState(() => api.peek(`/tos/${id}`) ?? null);
   const [newTopic, setNewTopic] = useState({ title: '', instructional_hours: 0, outcomes: '' });
@@ -528,7 +531,6 @@ export default function TosDetailPage() {
 
       <div className="page-header">
         <div>
-          <span className="eyebrow">Blueprint</span>
           <h1>{tos.title}</h1>
           {tos.subject_name && (
             <Link to="/subjects" className="crumb-link">
@@ -769,7 +771,17 @@ export default function TosDetailPage() {
 
                   const isSel = selTopics.has(tp.id);
                   return (
-                    <tr key={tp.id} className={`${editing ? 'tos-row-editing' : ''}${isSel ? ' is-selected' : ''}`.trim() || undefined}>
+                    <tr key={tp.id} className={`${editing ? 'tos-row-editing' : ''}${isSel ? ' is-selected' : ''}`.trim() || undefined}
+                      onContextMenu={editing ? undefined : (e) => openMenu(e, [
+                        ...(finalized ? [] : [
+                          { label: 'Edit topic', icon: Pencil, onClick: () => startEdit(tp) },
+                        ]),
+                        { label: 'Copy title', icon: Copy, onClick: () => copyText(tp.title, 'Topic title') },
+                        ...(finalized ? [] : [
+                          'sep',
+                          { label: 'Remove topic', icon: Trash2, danger: true, onClick: () => handleDeleteTopic(tp.id) },
+                        ]),
+                      ])}>
                       <td className="col-select">
                         <label className="ds-check">
                           <input
@@ -1013,6 +1025,7 @@ export default function TosDetailPage() {
         </form>
       </Modal>
 
+      {menuEl}
     </AppShell>
   );
 }

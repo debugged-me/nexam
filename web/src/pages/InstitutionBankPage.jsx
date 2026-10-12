@@ -1,12 +1,13 @@
 import '../styles/institution.css';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useWindowVirtualizer } from '@tanstack/react-virtual';
-import { Copy, Library, Rows3, Search, StretchHorizontal } from 'lucide-react';
+import { Copy, FileText, Check, Library, Rows3, Search, StretchHorizontal } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import AppShell from '../components/AppShell.jsx';
 import { TableSkeleton } from '../components/Loaders.jsx';
 import Modal from '../components/Modal.jsx';
 import { useToast } from '../components/Toast.jsx';
+import { useContextMenu, useCopyText } from '../components/ContextMenu.jsx';
 import { groupColor } from '../components/Board.jsx';
 import api from '../lib/api.js';
 
@@ -22,6 +23,8 @@ const TYPE_LABELS = {
 export default function InstitutionBankPage() {
   const toast = useToast();
   const navigate = useNavigate();
+  const { menuEl, openMenu } = useContextMenu();
+  const copyText = useCopyText();
   const [questions, setQuestions] = useState(() => api.peek('/questions/institution')?.questions ?? null);
   const [subjects, setSubjects] = useState(() => api.peek('/subjects')?.subjects ?? []);
   const [query, setQuery] = useState('');
@@ -110,11 +113,6 @@ export default function InstitutionBankPage() {
   return (
     <AppShell pageClass="institution" activeNav="institution" pageTitle="Institution question bank" wide>
       <section className="institution-head">
-        <div>
-          <span className="eyebrow">Approved resources</span>
-          <h1>Institution question bank</h1>
-          <p>Search approved questions across the school. Reused items enter your private review queue before they can be placed in an exam.</p>
-        </div>
         <div className="institution-head-side" data-tour="institution-side">
           <div className="institution-count"><Library size={18} /> {filtered.length} questions</div>
           <button type="button" className="ds-btn" onClick={toggleDensity} aria-pressed={density === 'compact'} title={density === 'compact' ? 'Show full questions' : 'Show compact list'}>
@@ -164,6 +162,12 @@ export default function InstitutionBankPage() {
                 className="institution-question"
                 key={virtualItem.key}
                 data-index={virtualItem.index}
+                onContextMenu={(e) => openMenu(e, [
+                  { label: 'Reuse as draft', icon: Copy, disabled: !subjects.length, onClick: () => openReuse(question) },
+                  'sep',
+                  { label: 'Copy question', icon: FileText, onClick: () => copyText(question.stem, 'Question') },
+                  { label: 'Copy answer', icon: Check, onClick: () => copyText(question.answer, 'Answer') },
+                ])}
                 ref={virtualizer.measureElement}
                 style={{ transform: `translateY(${virtualItem.start - virtualizer.options.scrollMargin}px)` }}
               >
@@ -213,6 +217,7 @@ export default function InstitutionBankPage() {
           </label>
         </form>
       </Modal>
+      {menuEl}
     </AppShell>
   );
 }

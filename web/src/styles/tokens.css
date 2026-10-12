@@ -164,8 +164,8 @@
   --sb-title: #959BA3;
   --sb-divider: #E8EBEF;
   --sb-hover: #DFE4EC;
-  --sb-active: #E8F1FC;                     /* blue wash on cool gray */
-  --sb-active-ink: #1B6EC2;
+  --sb-active: #2383E2;                     /* solid action blue — same as the featured CTA */
+  --sb-active-ink: #FFFFFF;
   --sb-active-line: #2383E2;
   --sb-field: #EDF0F4;
   --sb-field-line: #D9DEE4;
@@ -288,8 +288,8 @@
   --sb-title: #666D77;
   --sb-divider: #262B31;
   --sb-hover: #22262C;
-  --sb-active: rgba(74, 159, 239, .14);
-  --sb-active-ink: #7FB9F0;
+  --sb-active: #4A9FEF;
+  --sb-active-ink: #0C1420;
   --sb-active-line: #4A9FEF;
   --sb-field: #22262C;
   --sb-field-line: #3A4048;

@@ -416,31 +416,6 @@ export default function MaterialsPage() {
 
   return (
     <AppShell pageClass="materials" activeNav="materials" pageTitle="Materials">
-      <div className="mat-toolbar" data-tour="materials-head">
-            <div className="list-head-main">
-              <span className="eyebrow">Workspace</span>
-              <h1 className="list-head-title">
-                Materials
-                {materials && materials.length > 0 && (
-                  <span className="list-head-count">{materials.length}</span>
-                )}
-              </h1>
-              <p className="page-description">Upload syllabi and reference files — they ground your blueprints and AI drafts.</p>
-            </div>
-            <div className="mat-toolbar-actions">
-              <button className="btn" onClick={handleRefresh} disabled={refreshing} title="Refresh list">
-                <RefreshCw size={16} className={refreshing ? 'mat-spin' : undefined} /> Refresh
-              </button>
-              <button className="btn btn-primary" onClick={() => { setUploadMode('file'); setUploadOpen(true); }} data-tour="materials-upload">
-                <Upload size={16} /> Upload material
-              </button>
-            </div>
-          </div>
-
-          <p className="mat-droptip" data-tour="materials-tip">
-            <Upload size={13} /> Tip: drag files anywhere onto this page — several at once — to queue them for upload.
-          </p>
-
           {pendingCount > 0 && (
             <div className="mat-pending-banner" role="status">
               <Loader2 size={16} className="mat-spin" />
@@ -465,6 +440,19 @@ export default function MaterialsPage() {
             </div>
           ) : (
             <div className="mat-list" ref={animateRows} data-tour="materials-list">
+              <div className="mat-list-bar" data-tour="materials-head">
+                <p className="mat-droptip" data-tour="materials-tip">
+                  <Upload size={13} /> Tip: drag files anywhere onto this page — several at once — to queue them for upload.
+                </p>
+                <div className="mat-toolbar-actions">
+                  <button className="btn btn-outline btn-sm" onClick={handleRefresh} disabled={refreshing} title="Refresh list">
+                    <RefreshCw size={15} className={refreshing ? 'mat-spin' : undefined} /> Refresh
+                  </button>
+                  <button className="btn btn-primary btn-sm" onClick={() => { setUploadMode('file'); setUploadOpen(true); }} data-tour="materials-upload">
+                    <Upload size={15} /> Upload material
+                  </button>
+                </div>
+              </div>
               {materials.map((m, i) => {
                 const Icon = SOURCE_ICONS[m.source_type] || FileText;
                 const matSubject = matSubjectOf(m);

@@ -187,7 +187,7 @@ svg.lucide { stroke-width: 1.5; }
 .nav-item { -webkit-tap-highlight-color: transparent; }
 .nav-item:focus { outline: none; }
 .nav-item:focus-visible { outline: 2px solid var(--action-600); outline-offset: -2px; }
-.nav-item.active svg { opacity: 1; color: var(--action-600); }
+.nav-item.active svg { opacity: 1; color: currentColor; }
 /* Active-pill — the layoutId element that glides between nav items. It
    carries the active background so the item itself can stay transparent
    while the pill travels. */
@@ -584,6 +584,7 @@ a[class]:hover, button[class]:hover { transition-timing-function: ease-out; }
   flex-wrap: wrap;
   gap: 10px;
 }
+.card-header-actions { display: flex; align-items: center; gap: 8px; }
 .card-title {
   display: block;
   font-family: var(--font-display, "Google Sans", sans-serif);

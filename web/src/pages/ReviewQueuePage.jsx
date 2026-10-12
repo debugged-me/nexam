@@ -204,6 +204,12 @@ export default function ReviewQueuePage() {
     () => jobs.find((j) => j.type === 'generate' && j.status === 'failed'),
     [jobs]
   );
+  // The API rewrites rate-limit errors to "the wait is over" once the
+  // provider cooldown has elapsed — at that point the alert isn't
+  // actionable, so it hides. Other failures stay until dismissed.
+  const [dismissedFailure, setDismissedFailure] = useState(null);
+  const failureOver = failedGenerate?.error?.includes('the wait is over')
+    || dismissedFailure === failedGenerate?.id;
 
   const prevActiveIds = useRef(null);
   useEffect(() => {
@@ -575,6 +581,45 @@ export default function ReviewQueuePage() {
     </div>
   );
 
+  // Queue tools ride inside the progress strip once drafts are on screen —
+  // the header keeps them only while the queue is empty or loading.
+  const queueActions = (
+    <div className="rv-head-actions" data-tour="review-tools">
+      <label className="sr-only" htmlFor="rv-subject">Filter by subject</label>
+      <select
+        id="rv-subject"
+        className="rv-select"
+        data-active={!!subjectId}
+        value={subjectId}
+        onChange={(e) => setSubjectId(e.target.value)}
+        disabled={busy}
+      >
+        <option value="">All subjects</option>
+        {subjects.map((s) => (
+          <option key={s.id} value={s.id}>{s.code ? `${s.code} — ${s.name}` : s.name}</option>
+        ))}
+      </select>
+      <button
+        type="button"
+        className="btn btn-outline btn-sm"
+        onClick={() => setConfirmBulk(true)}
+        disabled={busy || approvableIds.length === 0}
+        title="Approve every draft still waiting in this queue"
+      >
+        <CheckCheck size={16} /> Approve all remaining
+      </button>
+      <button
+        type="button"
+        className="btn btn-outline btn-sm is-danger"
+        onClick={() => setConfirmClear(true)}
+        disabled={busy || pendingIds.length === 0}
+        title="Delete every draft still waiting in this queue"
+      >
+        <Trash2 size={16} /> Clear queue
+      </button>
+    </div>
+  );
+
   return (
     <AppShell pageClass="review" activeNav="questions" pageTitle="Review Queue">
       <header className="rv-head">
@@ -585,42 +630,7 @@ export default function ReviewQueuePage() {
             Every AI-drafted question needs your decision before it joins the bank. One item at a time, in full.
           </p>
         </div>
-        <div className="rv-head-actions" data-tour="review-tools">
-          <label className="sr-only" htmlFor="rv-subject">Filter by subject</label>
-          <select
-            id="rv-subject"
-            className="rv-select"
-            data-active={!!subjectId}
-            value={subjectId}
-            onChange={(e) => setSubjectId(e.target.value)}
-            disabled={busy}
-          >
-            <option value="">All subjects</option>
-            {subjects.map((s) => (
-              <option key={s.id} value={s.id}>{s.code ? `${s.code} — ${s.name}` : s.name}</option>
-            ))}
-          </select>
-          <button
-            type="button"
-            className="btn btn-outline btn-sm"
-            onClick={() => setConfirmBulk(true)}
-            disabled={busy || approvableIds.length === 0}
-          >
-            <CheckCheck size={16} /> Approve all remaining
-          </button>
-          <button
-            type="button"
-            className="btn btn-outline btn-sm is-danger"
-            onClick={() => setConfirmClear(true)}
-            disabled={busy || pendingIds.length === 0}
-            title="Delete every draft still waiting in this queue"
-          >
-            <Trash2 size={16} /> Clear queue
-          </button>
-          <Link to="/questions" className="btn btn-outline btn-sm">
-            <ArrowLeft size={16} /> Question bank
-          </Link>
-        </div>
+        {!queue?.length && queueActions}
       </header>
 
       {activeCount > 0 && (
@@ -639,13 +649,21 @@ export default function ReviewQueuePage() {
         </div>
       )}
 
-      {failedGenerate && (
+      {failedGenerate && !failureOver && (
         <div className="rv-alert" role="alert">
           <AlertTriangle size={18} />
           <div className="rv-alert-body">
             <strong>Question generation failed</strong>
             <span>{failedGenerate.error || 'The worker reported an error.'}</span>
           </div>
+          <button
+            type="button"
+            className="rv-alert-dismiss"
+            aria-label="Dismiss"
+            onClick={() => setDismissedFailure(failedGenerate.id)}
+          >
+            <X size={15} />
+          </button>
         </div>
       )}
 
@@ -694,6 +712,7 @@ export default function ReviewQueuePage() {
                 <span className="rv-tally-item is-rejected"><X size={13} /> {tally.rejected} rejected</span>
                 <span className="rv-tally-item"><ClipboardCheck size={13} /> {tally.remaining} remaining</span>
               </div>
+              {queueActions}
             </div>
             <div
               className="rv-progress-track"

@@ -130,13 +130,7 @@ export default function ExamFormPage() {
   return (
     <AppShell pageClass="exam-form" activeNav="exams" pageTitle={isEdit ? 'Edit exam' : 'New exam'}>
       <div className="form-container form-container--wide">
-        <div className="page-header">
-          <div>
-            <span className="eyebrow">Exams</span>
-            <h1>{isEdit ? 'Edit exam' : 'New exam'}</h1>
-            <p className="page-sub">{isEdit ? 'Update the exam details.' : 'Start from a blueprint or create a blank exam.'}</p>
-          </div>
-        </div>
+
 
         <div className="card">
           <div className="card-body">

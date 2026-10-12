@@ -143,7 +143,6 @@ export default function WizardPage() {
     <AppShell pageClass="wizard" activeNav="wizard" pageTitle="Build an exam">
       <header className="wizard-head">
         <div className="wizard-head-copy">
-          <span className="eyebrow"><Sparkles size={13} /> Guided workspace</span>
           <h1>Build an exam</h1>
           <p>Choose a subject and add one source. Nexam handles the setup work; you review the questions and stay in control.</p>
         </div>

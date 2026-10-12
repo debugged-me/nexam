@@ -13,7 +13,7 @@ import '../styles/questions.css';
 import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import {
-  Plus, Pencil, Trash2, Check, X, Info, Search, Upload, Sparkles,
+  Plus, Pencil, Trash2, Check, X, Search, Upload, Sparkles,
   Ellipsis, FileText, ListChecks, RotateCcw, FilterX, Layers, Copy, Eye, ListFilter,
   ChevronFirst, ChevronLeft, ChevronRight, ChevronLast,
 } from 'lucide-react';
@@ -879,29 +879,7 @@ export default function QuestionsPage() {
 
   return (
     <AppShell pageClass="questions" activeNav="questions" pageTitle="Questions" wide>
-      <header className="list-head" data-tour="questions-head">
-        <div className="list-head-main">
-          <span className="eyebrow">Workspace</span>
-          <h1 className="list-head-title">
-            Questions
-            {filteredQuestions && filteredQuestions.length > 0 && (
-              <span className="list-head-count">{filteredQuestions.length}</span>
-            )}
-          </h1>
-          <details className="list-head-info">
-            <summary aria-label="About questions"><Info size={16} /></summary>
-            <p>One reusable bank. Tag each item with a topic and Bloom level so blueprints can draw from it.</p>
-          </details>
-          <p className="page-description">Your questions, from first draft to ready for the classroom.</p>
-        </div>
-        {draftCount > 0 && (
-          <div className="list-head-actions">
-            <Link to="/questions/review" className="btn btn-brand btn-sm q-review-cta" data-tour="questions-review">
-              <ListChecks size={15} /> Review {draftCount} draft{draftCount === 1 ? '' : 's'}
-            </Link>
-          </div>
-        )}
-      </header>
+
 
       {filteredQuestions === null ? (
         <TableSkeleton />
@@ -991,6 +969,11 @@ export default function QuestionsPage() {
             </div>
 
             <div className="dataset-bar-trail">
+              {draftCount > 0 && (
+                <Link to="/questions/review" className="btn btn-brand btn-sm q-review-cta" data-tour="questions-review">
+                  <ListChecks size={15} /> Review {draftCount} draft{draftCount === 1 ? '' : 's'}
+                </Link>
+              )}
               <button type="button" className="btn btn-outline btn-sm" data-tour="questions-import" onClick={openImport}>
                 <Upload size={16} /> Import
               </button>

@@ -11,9 +11,10 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import {
   AlertTriangle, ChevronFirst, ChevronLast, ChevronLeft, ChevronRight,
-  ListChecks, ArrowLeft, Printer,
+  ListChecks, ArrowLeft, Printer, Copy,
 } from 'lucide-react';
 import { useToast } from '../components/Toast.jsx';
+import { useContextMenu, useCopyText } from '../components/ContextMenu.jsx';
 import api from '../lib/api.js';
 import AppShell from '../components/AppShell.jsx';
 import { TableSkeleton } from '../components/Loaders.jsx';
@@ -34,6 +35,8 @@ const TYPE_LABELS = {
 export default function AttentionPage() {
   const toast = useToast();
   const navigate = useNavigate();
+  const { menuEl, openMenu } = useContextMenu();
+  const copyText = useCopyText();
   const [searchParams, setSearchParams] = useSearchParams();
   const examFilter = searchParams.get('exam') || '';
   const [data, setData] = useState(null);
@@ -174,6 +177,11 @@ export default function AttentionPage() {
                     {pageItems.map((w, i) => (
                       <tr key={`${w.exam_id}-${w.item_number}-${i}`} className="attn-row"
                         onClick={() => navigate(`/analytics/items/${encodeURIComponent(w.exam_id)}`)}
+                        onContextMenu={(e) => openMenu(e, [
+                          { label: 'Open item analysis', icon: ListChecks, onClick: () => navigate(`/analytics/items/${encodeURIComponent(w.exam_id)}`) },
+                          'sep',
+                          { label: 'Copy question', icon: Copy, onClick: () => copyText(w.stem, 'Question') },
+                        ])}
                         title={`Open item analysis for ${w.exam_title}`}>
                         <td>
                           <span className="attn-stem">{trimwd(w.stem)}</span>
@@ -222,6 +230,7 @@ export default function AttentionPage() {
           )}
         </div>
       )}
+      {menuEl}
     </AppShell>
   );
 }

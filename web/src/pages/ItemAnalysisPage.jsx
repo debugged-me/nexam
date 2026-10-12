@@ -7,8 +7,9 @@ import '../styles/item-analysis.css';
  */
 import { useEffect, useState, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, ListChecks, Printer, FileDown, FileSpreadsheet } from 'lucide-react';
+import { ArrowLeft, ListChecks, Printer, FileDown, FileSpreadsheet, Eye, Copy } from 'lucide-react';
 import { useToast } from '../components/Toast.jsx';
+import { useContextMenu, useCopyText } from '../components/ContextMenu.jsx';
 import api from '../lib/api.js';
 import { downloadCsv, downloadXlsx } from '../lib/exports.js';
 import AppShell from '../components/AppShell.jsx';
@@ -26,6 +27,8 @@ export default function ItemAnalysisPage() {
   const navigate = useNavigate();
   const [items, setItems] = useState(() => api.peek(`/analytics/exam/${examId}/items`)?.items ?? null);
   const [selected, setSelected] = useState(null);
+  const { menuEl, openMenu } = useContextMenu();
+  const copyText = useCopyText();
 
   const load = useCallback(() => {
     api.get(`/analytics/exam/${examId}/items`)
@@ -66,11 +69,6 @@ export default function ItemAnalysisPage() {
   return (
     <AppShell pageClass="item-analysis" activeNav="analytics" pageTitle="Item Analysis" wide>
       <div className="page-header print-skip">
-        <div>
-          <span className="eyebrow">Results &amp; insights</span>
-          <h1>Item Analysis</h1>
-          <p className="page-sub">Response distributions and difficulty per question.</p>
-        </div>
         <div className="header-actions">
           {items?.length > 0 && (<>
             <button type="button" className="btn btn-outline btn-sm" onClick={() => window.print()} title="Print the item analysis">
@@ -149,6 +147,11 @@ export default function ItemAnalysisPage() {
               <tbody>
                 {items.map((item) => (
                   <tr key={`${item.set || ''}-${item.itemNumber}`} className="ia-row" onClick={() => setSelected(item)}
+                    onContextMenu={(e) => openMenu(e, [
+                      { label: 'View details', icon: Eye, onClick: () => setSelected(item) },
+                      'sep',
+                      { label: 'Copy stem', icon: Copy, onClick: () => copyText(item.stem, 'Question') },
+                    ])}
                     title="Open full item detail">
                     <td className="ia-numcell">
                       <span className="ia-itemnum">{item.itemNumber}</span>
@@ -237,6 +240,7 @@ export default function ItemAnalysisPage() {
         </div>
         </>
       )}
+      {menuEl}
     </AppShell>
   );
 }

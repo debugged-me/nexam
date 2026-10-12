@@ -950,6 +950,27 @@ a.g-title:focus-visible { outline: 2px solid var(--brand-accent); outline-offset
 .g-meta-short { color: var(--amber-700, #8F6617); font-weight: 550; }
 .g-meta-met { color: var(--green-700, #1E7B34); font-weight: 550; }
 
+/* Slim coverage bar beside the banked read-out — amber while gathering,
+   green once every planned item is banked. */
+.g-prog {
+    display: inline-block;
+    vertical-align: middle;
+    width: 44px;
+    height: 3px;
+    margin: 0 6px;
+    border-radius: 99px;
+    background: var(--line-strong);
+    overflow: hidden;
+}
+.g-prog-fill {
+    display: block;
+    height: 100%;
+    border-radius: inherit;
+    background: var(--amber-600);
+    transition: width .35s ease;
+}
+.g-prog-fill[data-met="true"] { background: var(--green-600); }
+
 /* Inline "more" link — opens the full record (DetailsModal) when the primary
    text can't fit the fixed-width column. */
 .g-more {

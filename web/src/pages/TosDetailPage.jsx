@@ -508,7 +508,7 @@ export default function TosDetailPage() {
 
   // Hook must run before the !data early return — safe because the table
   // just gets an empty topic list until the blueprint loads.
-  const topicGrid = useGridTable({ data: data?.topics || [], columns: TOPIC_PAGER_COLUMNS, pageSize: TOPIC_PAGE_SIZE });
+  const topicGrid = useGridTable({ data: data?.topics || [], columns: TOPIC_PAGER_COLUMNS, pageSize: TOPIC_PAGE_SIZE, storageKey: 'tos-topics' });
 
   if (!data) return <AppShell pageClass="blueprint-detail" activeNav="tos" pageTitle="Blueprint"><CardsSkeleton tiles={3} /></AppShell>;
   const { tos, topics, coverage = {}, usage = { exams: 0, scans: 0 } } = data;

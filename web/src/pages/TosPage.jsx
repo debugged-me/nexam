@@ -213,6 +213,13 @@ export default function TosPage() {
                   <span className={t.banked >= items ? 'g-meta-met' : 'g-meta-short'}>
                     {Math.min(Number(t.banked || 0), items)} of {items} banked
                   </span>
+                  <span className="g-prog" aria-hidden="true">
+                    <span
+                      className="g-prog-fill"
+                      data-met={Number(t.banked || 0) >= items}
+                      style={{ width: `${Math.min(100, (Number(t.banked || 0) / items) * 100)}%` }}
+                    />
+                  </span>
                 </>
               )}
               {t.title && t.title.length > 40 && (

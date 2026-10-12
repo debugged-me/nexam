@@ -107,6 +107,7 @@ export default function SubjectsPage() {
     data: subjects || [],
     columns,
     pageSize: PAGE_SIZE,
+    storageKey: 'subjects',
     initialSorting: [{ id: 'created', desc: true }],
     globalFilter: query,
     globalFilterFn: (row, _col, value) =>

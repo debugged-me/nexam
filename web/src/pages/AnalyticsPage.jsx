@@ -499,7 +499,7 @@ export default function AnalyticsPage() {
  * Exam-level result summary.
  */
 export function ExamDetail({ examId, detail, onBack }) {
-  const grid = useGridTable({ data: detail?.students || [], columns: STUDENT_PAGER_COLUMNS, pageSize: STUDENTS_PER_PAGE });
+  const grid = useGridTable({ data: detail?.students || [], columns: STUDENT_PAGER_COLUMNS, pageSize: STUDENTS_PER_PAGE, storageKey: 'analytics-students' });
   if (!detail) {
     return <CardsSkeleton tiles={4} />;
   }

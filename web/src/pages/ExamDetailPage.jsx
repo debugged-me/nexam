@@ -6,7 +6,7 @@ import '../styles/exam-detail.css';
  * Uses a page header, status badges, actions, statistics, and cards for
  * Instructions / Questions / Downloads / LMS Export.
  */
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import {
   Plus, Trash2, FileText, FileCheck, Download, Send, Printer,
@@ -80,6 +80,11 @@ export default function ExamDetailPage() {
   const { menuEl, openMenu } = useContextMenu();
   const copyText = useCopyText();
 
+  // Fingerprint of the results payload — the heartbeat compares against it so
+  // unchanged polls never re-render or refetch item stats.
+  const scanFp = (res) => `${res?.stats?.total_scans || 0}:${res?.stats?.needs_review_count || 0}:${(res?.students || []).length}`;
+  const seenFp = useRef('');
+
   const load = useCallback(() => {
     api.get(`/exams/${id}`)
       .then((d) => {
@@ -90,6 +95,7 @@ export default function ExamDetailPage() {
           api.get(`/analytics/exam/${id}/items`),
         ])
           .then(([res, itemRes]) => {
+            seenFp.current = scanFp(res);
             setResults(res);
             setItemStats(itemRes?.items || []);
           })
@@ -99,6 +105,28 @@ export default function ExamDetailPage() {
   }, [id, toast, navigate]);
 
   useEffect(() => { load(); }, [load]);
+
+  // Live-scan heartbeat — scanned sheets POST synchronously from the scanner,
+  // never touching the jobs queue, so the page polls quietly and only applies
+  // state when the fingerprint actually moves.
+  useEffect(() => {
+    if (!data?.exam?.id) return undefined;
+    let stopped = false;
+    const tick = async () => {
+      try {
+        const res = await api.get(`/analytics/exam/${id}`, { quiet: true });
+        if (stopped || !res) return;
+        const fp = scanFp(res);
+        if (fp === seenFp.current) return;
+        seenFp.current = fp;
+        setResults(res);
+        const itemRes = await api.get(`/analytics/exam/${id}/items`, { quiet: true });
+        if (!stopped) setItemStats(itemRes?.items || []);
+      } catch { /* quiet heartbeat — transient errors are fine */ }
+    };
+    const timer = setInterval(tick, 6000);
+    return () => { stopped = true; clearInterval(timer); };
+  }, [data?.exam?.id, id]);
 
   // Print once the document block has rendered with the chosen config.
   useEffect(() => {

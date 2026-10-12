@@ -293,6 +293,21 @@ export default function QuestionsPage() {
     api.get('/tos').then((data) => setTosList(data.tos || [])).catch(() => {});
   }, []);
 
+  const openImport = useCallback(() => {
+    setImportState({
+      content: '',
+      fileName: '',
+      detectedFormat: '',
+      subjectId: filters.subject_id || subjects[0]?.id || '',
+      topic: '',
+      preview: null,
+      previewing: false,
+      previewError: '',
+      excluded: [],
+      dragging: false,
+    });
+  }, [filters.subject_id, subjects]);
+
   useEffect(() => {
     const requestedStatus = searchParams.get('status');
     const requestedSubject = searchParams.get('subject_id');
@@ -308,7 +323,25 @@ export default function QuestionsPage() {
       next.delete('new');
       setSearchParams(next, { replace: true });
     }
-  }, [searchParams, setSearchParams, subjects]);
+    // Deep links from the command palette: ?focus=<id> opens the question's
+    // detail modal once the list has loaded; ?import=1 opens the importer.
+    const requestedFocus = searchParams.get('focus');
+    if (requestedFocus && questions) {
+      const target = questions.find((q) => q.id === requestedFocus);
+      if (target) {
+        setViewing(target);
+        const next = new URLSearchParams(searchParams);
+        next.delete('focus');
+        setSearchParams(next, { replace: true });
+      }
+    }
+    if (searchParams.get('import') === '1') {
+      openImport();
+      const next = new URLSearchParams(searchParams);
+      next.delete('import');
+      setSearchParams(next, { replace: true });
+    }
+  }, [searchParams, setSearchParams, subjects, questions, openImport]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -410,6 +443,7 @@ export default function QuestionsPage() {
   // which is what the old setPage(0) calls did by hand.
   const grid = useGridTable({
     data: rows, columns: PAGER_COLUMNS, pageSize: PAGE_SIZE,
+    storageKey: 'questions',
     resetKey: JSON.stringify([filters, search, groupBy]),
   });
   const { pageRows, safePage } = grid;
@@ -627,21 +661,6 @@ export default function QuestionsPage() {
 
   function openEdit(q) {
     setEditing({ ...q, optionsText: Array.isArray(q.options) ? q.options.join('\n') : '' });
-  }
-
-  function openImport() {
-    setImportState({
-      content: '',
-      fileName: '',
-      detectedFormat: '',
-      subjectId: filters.subject_id || subjects[0]?.id || '',
-      topic: '',
-      preview: null,
-      previewing: false,
-      previewError: '',
-      excluded: [],
-      dragging: false,
-    });
   }
 
   async function importFile(file) {

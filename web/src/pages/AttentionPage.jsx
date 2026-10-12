@@ -55,7 +55,7 @@ export default function AttentionPage() {
   const items = useMemo(() => data?.items || [], [data]);
   const exams = useMemo(() => data?.exams || [], [data]);
 
-  const grid = useGridTable({ data: items, columns: PAGER_COLUMNS, pageSize: PAGE_SIZE, resetKey: examFilter });
+  const grid = useGridTable({ data: items, columns: PAGER_COLUMNS, pageSize: PAGE_SIZE, storageKey: 'attention', resetKey: examFilter });
   const { pageRows: pageItems } = grid;
 
   const worst = items.length ? Number(items[0].correctRate) : null;

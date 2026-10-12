@@ -40,6 +40,7 @@ export function useGridTable({
   data = [],
   columns,
   pageSize: initialPageSize = 15,
+  storageKey = null,
   initialSorting = [],
   globalFilter = '',
   globalFilterFn,
@@ -47,7 +48,18 @@ export function useGridTable({
   paginate = true,
 }) {
   const [sorting, setSorting] = useState(initialSorting);
-  const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: initialPageSize });
+  // storageKey persists the chosen page size per table (localStorage) — the
+  // page index stays session-only.
+  const [pagination, setPagination] = useState(() => {
+    let size = initialPageSize;
+    if (storageKey) {
+      try {
+        const saved = Number(localStorage.getItem(`nexam:pagesize:${storageKey}`));
+        if (Number.isInteger(saved) && saved > 0) size = saved;
+      } catch { /* storage unavailable */ }
+    }
+    return { pageIndex: 0, pageSize: size };
+  });
   const pageSize = pagination.pageSize;
 
   // Reset to the first page when the visible set changes via filters the
@@ -110,7 +122,12 @@ export function useGridTable({
     prev: () => setPagination((p) => ({ ...p, pageIndex: Math.max(0, safePage - 1) })),
     next: () => setPagination((p) => ({ ...p, pageIndex: Math.min(pageCount - 1, safePage + 1) })),
     last: () => setPagination((p) => ({ ...p, pageIndex: pageCount - 1 })),
-    setPageSize: (size) => setPagination({ pageIndex: 0, pageSize: size }),
+    setPageSize: (size) => {
+      if (storageKey) {
+        try { localStorage.setItem(`nexam:pagesize:${storageKey}`, String(size)); } catch { /* storage unavailable */ }
+      }
+      setPagination({ pageIndex: 0, pageSize: size });
+    },
     canPrev: safePage > 0,
     canNext: safePage < pageCount - 1,
   };
@@ -165,6 +182,11 @@ export function DsPager({ grid }) {
 
 /** "Show N per page" selector — resets to page 1 when the size changes. */
 export function DsPageSize({ grid, options = [10, 25, 50] }) {
+  // A persisted size may predate the current option list — keep it selectable
+  // rather than rendering a blank select.
+  const opts = options.includes(grid.pageSize)
+    ? options
+    : [...options, grid.pageSize].sort((a, b) => a - b);
   return (
     <label className="ds-perpage">
       Show
@@ -173,7 +195,7 @@ export function DsPageSize({ grid, options = [10, 25, 50] }) {
         onChange={(e) => grid.pager.setPageSize(Number(e.target.value))}
         aria-label="Rows per page"
       >
-        {options.map((n) => <option key={n} value={n}>{n}</option>)}
+        {opts.map((n) => <option key={n} value={n}>{n}</option>)}
       </select>
       per page
     </label>

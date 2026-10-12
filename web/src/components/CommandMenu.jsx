@@ -4,6 +4,7 @@ import { Command } from 'cmdk';
 import {
   Search, ArrowUp, ArrowDown, CornerDownLeft, X,
   FileText, ClipboardList, BookOpen, Plus, Upload, CheckCircle,
+  FileQuestion, FileUp,
 } from 'lucide-react';
 import { COMMAND_ITEMS } from './navigation.js';
 import api from '../lib/api.js';
@@ -37,6 +38,7 @@ const ACTIONS = [
   { key: 'act-subject', label: 'New subject', description: 'Create a subject', icon: Plus, to: '/subjects?new=1' },
   { key: 'act-exam', label: 'New exam', description: 'Assemble an exam manually', icon: Plus, to: '/exams/new' },
   { key: 'act-upload', label: 'Upload material', description: 'Add a reference file', icon: Upload, to: '/materials?upload=1' },
+  { key: 'act-import', label: 'Import questions', description: 'Bulk-add questions from a file or paste', icon: FileUp, to: '/questions?import=1' },
   { key: 'act-drafts', label: 'Review drafts', description: 'Questions waiting for approval', icon: CheckCircle, to: '/questions?status=draft' },
 ];
 
@@ -50,6 +52,7 @@ export default function CommandMenu({ open, onClose }) {
     exams: api.peek('/exams')?.exams,
     tos: api.peek('/tos')?.tos,
     subjects: api.peek('/subjects')?.subjects,
+    questions: api.peek('/questions?')?.questions ?? api.peek('/questions')?.questions,
   }));
   const navigate = useNavigate();
 
@@ -68,14 +71,15 @@ export default function CommandMenu({ open, onClose }) {
   }, [open]);
 
   // Own-content search — fetch whichever lists weren't already cached.
-  const needsFetch = !work.exams || !work.tos || !work.subjects;
+  const needsFetch = !work.exams || !work.tos || !work.subjects || !work.questions;
   useEffect(() => {
     if (!open || !needsFetch) return;
-    Promise.allSettled([api.get('/exams'), api.get('/tos'), api.get('/subjects')])
-      .then(([e, t, s]) => setWork((cur) => ({
+    Promise.allSettled([api.get('/exams'), api.get('/tos'), api.get('/subjects'), api.get('/questions')])
+      .then(([e, t, s, q]) => setWork((cur) => ({
         exams: e.status === 'fulfilled' ? e.value?.exams : (cur.exams || []),
         tos: t.status === 'fulfilled' ? t.value?.tos : (cur.tos || []),
         subjects: s.status === 'fulfilled' ? s.value?.subjects : (cur.subjects || []),
+        questions: q.status === 'fulfilled' ? q.value?.questions : (cur.questions || []),
       })));
   }, [open, needsFetch]);
 
@@ -99,6 +103,15 @@ export default function CommandMenu({ open, onClose }) {
     ...(work.subjects || []).slice(0, 6).map((s) => ({
       key: `subject-${s.id}`, label: s.name, description: 'Subject — open its question bank',
       icon: BookOpen, to: `/questions?subject_id=${s.id}`, keywords: ['subject', s.code || ''],
+    })),
+    // Questions are capped at 80 mounted items — enough to cover a typical
+    // bank — so the palette stays light while stems remain searchable.
+    ...(work.questions || []).slice(0, 80).map((q) => ({
+      key: `question-${q.id}`,
+      label: (q.stem || '').length > 80 ? `${q.stem.slice(0, 80)}…` : (q.stem || 'Untitled question'),
+      description: `Question · ${q.subject_name || ''}${q.topic ? ` · ${q.topic}` : ''}`,
+      icon: FileQuestion, to: `/questions?focus=${q.id}`,
+      keywords: ['question', q.topic || '', q.bloom || '', q.subject_name || ''],
     })),
   ] : [];
 

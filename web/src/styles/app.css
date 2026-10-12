@@ -1801,3 +1801,131 @@ select.form-control:not([multiple]) {
 .app-shell--sidebar-resizing { cursor: col-resize; user-select: none; }
 .app-shell--sidebar-resizing .main-content { pointer-events: none; }
 @media (max-width: 991.98px) { .sidebar-resize { display: none; } }
+
+/* ==========================================================================
+   Floating layers — Popover, HoverCard, Select (Radix, portaled)
+   ScopedLayer wraps each portal in the page's @scope class; the wrapper must
+   never form a box of its own.
+   ========================================================================== */
+.nx-layer.nx-layer { display: contents; }
+
+.nx-pop {
+  z-index: 100005; /* above modals (10000) and the context menu, below tooltips */
+  max-width: min(360px, calc(100vw - 24px));
+  max-height: var(--radix-popover-content-available-height, 70vh);
+  overflow: auto;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  color: var(--ink-2);
+  box-shadow: var(--shadow-card-hover);
+  font: 400 var(--text-sm)/1.5 var(--font-body);
+  transform-origin: var(--radix-popover-content-transform-origin, var(--radix-hover-card-content-transform-origin, top left));
+  animation: nxPopIn .14s ease;
+}
+.nx-pop:focus-visible { outline: 2px solid var(--action-600); outline-offset: 2px; }
+@keyframes nxPopIn {
+  from { opacity: 0; transform: scale(.97) translateY(-2px); }
+  to   { opacity: 1; transform: none; }
+}
+.nx-hovercard { width: 280px; }
+
+/* ---- Select ------------------------------------------------------------- */
+.nx-select {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 34px;
+  padding: 0 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--ink-2);
+  font: 500 .8125rem/1 var(--font-body);
+  white-space: nowrap;
+  cursor: pointer;
+  transition: border-color .13s ease, background-color .13s ease;
+}
+.nx-select > svg:first-child { color: var(--ink-faint); flex-shrink: 0; }
+.nx-select:hover { border-color: var(--line-strong); background: var(--surface-2); }
+.nx-select:focus-visible { outline: 2px solid var(--action-600); outline-offset: 1px; }
+.nx-select[data-state="open"] { border-color: var(--action-600); box-shadow: 0 0 0 3px var(--ring-soft); }
+.nx-select-caret { display: inline-flex; color: var(--ink-faint); }
+/* Native fallback (touch / narrow): the real <select> spans the control so
+   the OS picker opens anywhere on it; icon and caret sit on top, inert. */
+.nx-select--native { min-height: 44px; padding: 0; }
+.nx-select--native select {
+  appearance: none;
+  height: 100%;
+  min-height: 44px;
+  padding: 0 32px 0 34px;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+.nx-select--native > svg:first-child { position: absolute; left: 11px; pointer-events: none; }
+.nx-select--native .nx-select-caret { position: absolute; right: 10px; pointer-events: none; }
+
+.nx-select-menu {
+  min-width: var(--radix-select-trigger-width);
+  max-height: var(--radix-select-content-available-height, 60vh);
+  padding: 4px;
+}
+.nx-select-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 32px;
+  padding: 6px 10px;
+  border-radius: var(--radius-xs);
+  color: var(--ink-2);
+  font: 500 .8125rem/1.3 var(--font-body);
+  cursor: pointer;
+  outline: none;
+  user-select: none;
+}
+.nx-select-item[data-highlighted] { background: var(--surface-2); color: var(--ink); }
+.nx-select-item[data-state="checked"] { color: var(--action-700); }
+.nx-select-check { display: inline-flex; color: var(--action-600); }
+
+/* ==========================================================================
+   RichText math + TextDiff
+   ========================================================================== */
+.rt-math .katex { font-size: 1.05em; }
+.rt-math--display { display: block; margin: .5em 0; overflow-x: auto; overflow-y: hidden; text-align: center; }
+.rt-math.is-pending {
+  padding: 0 3px;
+  border-radius: var(--radius-xs);
+  background: var(--surface-2);
+  color: var(--ink-3);
+  font: .9em/1.4 var(--font-mono);
+}
+
+.text-diff { margin: 0; line-height: 1.65; overflow-wrap: anywhere; }
+.text-diff-add,
+.text-diff-del {
+  padding: 1px 2px;
+  border-radius: 3px;
+  text-decoration-thickness: 1.5px;
+}
+.text-diff-add {
+  background: color-mix(in srgb, var(--green-600) 16%, transparent);
+  color: var(--green-700);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.text-diff-del {
+  background: color-mix(in srgb, var(--red-600) 12%, transparent);
+  color: var(--red-700);
+  text-decoration: line-through;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nx-pop { animation: none; }
+  .nx-select { transition: none; }
+}

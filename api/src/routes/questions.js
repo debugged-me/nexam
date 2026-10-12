@@ -753,6 +753,70 @@ router.get('/:id/similarity', async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
+/**
+ * GET /:id/grounding — the cited source passages behind an AI draft, with the
+ * evidence span located inside them, so a reviewer sees the quote in context.
+ * Mirrors approvalBlockReason(): `verified` is true exactly when approval's
+ * grounding check would pass. Passages come only from the owner's own subject.
+ */
+router.get('/:id/grounding', async (req, res, next) => {
+  try {
+    const q = await getOwned(req.params.id, req.user.id);
+    if (!q) return res.status(404).json({ error: 'Question not found.' });
+    if (q.source !== 'ai') return res.json({ status: 'not_ai', verified: false, passages: [] });
+
+    let meta = null;
+    try {
+      meta = typeof q.generation_meta === 'string' ? JSON.parse(q.generation_meta) : q.generation_meta;
+    } catch { /* reported as missing provenance below */ }
+    const chunkIds = Array.isArray(meta?.chunkIds) ? [...new Set(meta.chunkIds.filter(Boolean))] : [];
+    const evidence = typeof meta?.evidence === 'string' ? meta.evidence.replace(/\s+/g, ' ').trim() : '';
+    if (!chunkIds.length || evidence.length < 3) {
+      return res.json({ status: 'no_evidence', verified: false, evidence, passages: [] });
+    }
+
+    const [chunks] = await pool.query(
+      `SELECT mc.id, mc.ordinal, mc.text, m.title
+       FROM material_chunks mc
+       JOIN materials m ON m.id = mc.material_id
+       JOIN subjects s ON s.id = mc.subject_id
+       WHERE mc.id IN (:ids) AND mc.subject_id = :subjectId AND s.instructor_id = :uid`,
+      { ids: chunkIds, subjectId: q.subject_id, uid: req.user.id }
+    );
+    const scores = new Map((meta.chunkScores || []).map((c) => [c.id, Number(c.score)]));
+    const needle = evidence.toLowerCase();
+    // Keep the retrieval order the model saw; offsets index the whitespace-
+    // collapsed text, which is exactly what is sent back.
+    const passages = chunkIds
+      .map((id) => chunks.find((c) => c.id === id))
+      .filter(Boolean)
+      .map((c) => {
+        const text = String(c.text).replace(/\s+/g, ' ').trim();
+        const at = text.toLowerCase().indexOf(needle);
+        return {
+          id: c.id,
+          title: c.title,
+          passage: Number(c.ordinal) + 1,
+          score: Number.isFinite(scores.get(c.id)) ? scores.get(c.id) : null,
+          text,
+          match: at >= 0 ? { start: at, end: at + evidence.length } : null,
+        };
+      });
+
+    // Same join approvalBlockReason() uses, so a span that straddles two
+    // passages verifies here exactly when it would at approval time.
+    const stale = passages.length !== chunkIds.length;
+    const joined = chunks.map((c) => c.text).join(' ').replace(/\s+/g, ' ').toLowerCase();
+    const verified = !stale && joined.includes(needle);
+    res.json({
+      status: stale ? 'stale' : verified ? 'verified' : 'not_found',
+      verified,
+      evidence,
+      passages,
+    });
+  } catch (err) { next(err); }
+});
+
 router.post('/:id/similarity/retry', async (req, res, next) => {
   try {
     const q = await getOwned(req.params.id, req.user.id);

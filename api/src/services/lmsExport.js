@@ -385,23 +385,16 @@ function unescapeGIFT(text) {
 
 // ── Moodle XML parser ────────────────────────────────
 
-/** CDATA/HTML question text → plain text (tags stripped, entities decoded). */
+/**
+ * Moodle <text> content → plain text. Moodle text is HTML carried inside
+ * XML, so it is decoded in two layers: the XML layer (CDATA verbatim, other
+ * runs XML-unescaped), then the HTML layer (tags stripped, entities such as
+ * &#x27; or &rsquo; decoded). Doing either layer partially is how
+ * "school&#x27;s" leaked into imported stems.
+ */
 function moodleText(xmlFragment) {
   if (!xmlFragment) return '';
-  return String(xmlFragment)
-    .replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, '$1')
-    .replace(/<br\s*\/?\s*>/gi, '\n')
-    .replace(/<\/(p|div|li|ul|ol|h[1-6]|tr)>/gi, '\n')
-    .replace(/<[^>]+>/g, '')
-    .replace(/&nbsp;/g, ' ')
-    .replace(/&amp;/g, '&')
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
-    .replace(/&quot;/g, '"')
-    .replace(/&#0?39;|&apos;/g, "'")
-    .replace(/[ \t]+\n/g, '\n')
-    .replace(/\n{3,}/g, '\n\n')
-    .trim();
+  return htmlToText(xmlLayer(xmlFragment));
 }
 
 /** Pull the inner <text>…</text> of the first element matching `tag`. */
@@ -653,12 +646,12 @@ export function parseCanvasXML(xmlText) {
 function parseQTIItem(itemXml) {
   // Extract stem from <mattext> inside <presentation>
   const stemMatch = itemXml.match(/<presentation>[\s\S]*?<mattext[^>]*>([\s\S]*?)<\/mattext>/i);
-  const stem = stemMatch ? decodeXmlEntities(stemMatch[1].trim()) : '';
+  const stem = stemMatch ? mattextValue(stemMatch[1]) : '';
   if (!stem) return null;
 
   // Extract feedback
   const feedbackMatch = itemXml.match(/<itemfeedback[\s\S]*?<mattext[^>]*>([\s\S]*?)<\/mattext>/i);
-  const explanation = feedbackMatch ? decodeXmlEntities(feedbackMatch[1].trim()) : null;
+  const explanation = feedbackMatch ? mattextValue(feedbackMatch[1]) || null : null;
 
   // Detect type: response_lid = MCQ/TrueFalse/Matching, response_str = short answer
   if (/<response_str/i.test(itemXml)) {
@@ -681,7 +674,7 @@ function parseQTIItem(itemXml) {
     let labelMatch;
     while ((labelMatch = labelRegex.exec(itemXml)) !== null) {
       labelIdents.push(labelMatch[1]);
-      options.push(decodeXmlEntities(labelMatch[2].trim()));
+      options.push(mattextValue(labelMatch[2]));
     }
 
     // The correct answer is a response_label ident — found either in the
@@ -733,17 +726,67 @@ function parseQTIItem(itemXml) {
   return null;
 }
 
+// Named references decoded on import. XML defines the first five; the rest
+// are the HTML ones LMS editors commonly emit. Unknown names are left as-is.
+const NAMED_ENTITIES = {
+  amp: '&', lt: '<', gt: '>', quot: '"', apos: "'",
+  nbsp: ' ', ndash: '–', mdash: '—', lsquo: '‘', rsquo: '’', ldquo: '“', rdquo: '”',
+  hellip: '…', bull: '•', middot: '·', deg: '°', plusmn: '±', times: '×', divide: '÷',
+  le: '≤', ge: '≥', ne: '≠', copy: '©', reg: '®', trade: '™',
+};
+
+/**
+ * Decode character references in ONE pass, so "&amp;lt;" becomes "&lt;"
+ * (the text the author wrote) and never "<". Handles decimal (&#39;), hex
+ * (&#x27;) and named references; invalid code points are left untouched.
+ */
+function decodeEntities(text) {
+  return String(text).replace(/&(#\d+|#x[0-9a-f]+|[a-z][a-z0-9]*);/gi, (ref, body) => {
+    if (body[0] === '#') {
+      const code = body[1] === 'x' || body[1] === 'X' ? parseInt(body.slice(2), 16) : Number(body.slice(1));
+      try { return code > 0 ? String.fromCodePoint(code) : ref; } catch { return ref; }
+    }
+    return NAMED_ENTITIES[body.toLowerCase()] ?? ref;
+  });
+}
+
 function decodeXmlEntities(text) {
   if (!text) return '';
-  // Decode named entities + numeric refs. &amp; must decode LAST so
-  // "&amp;lt;" → "&lt;" stays escaped rather than double-decoding to "<".
-  return String(text)
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
-    .replace(/&quot;/g, '"')
-    .replace(/&apos;/g, "'")
-    .replace(/&#(\d+);/g, (_, n) => String.fromCodePoint(Number(n)))
-    .replace(/&#x([0-9a-fA-F]+);/g, (_, n) => String.fromCodePoint(parseInt(n, 16)))
-    .replace(/&amp;/g, '&')
+  return decodeEntities(text).trim();
+}
+
+/** XML layer of an element's content: CDATA kept verbatim, the rest unescaped. */
+function xmlLayer(fragment) {
+  return String(fragment || '').replace(
+    /<!\[CDATA\[([\s\S]*?)\]\]>|[^<]+/g,
+    (run, cdata) => (cdata !== undefined ? cdata : decodeEntities(run))
+  );
+}
+
+// Real HTML markup (as LMS rich-text editors write it), as opposed to text
+// that merely contains "<" — e.g. a stem quoting "<tag>" stays intact.
+const HTML_MARKUP = /<\/?(p|div|span|br|b|i|u|em|strong|sub|sup|ul|ol|li|h[1-6]|table|thead|tbody|tr|td|th|img|a|font|pre|code|blockquote)\b[^>]*>/i;
+
+/** HTML → plain text: line breaks kept, tags stripped, entities decoded. */
+function htmlToText(html) {
+  return decodeEntities(
+    String(html)
+      .replace(/<br\s*\/?\s*>/gi, '\n')
+      .replace(/<\/(p|div|li|ul|ol|h[1-6]|tr)>/gi, '\n')
+      .replace(/<[^>]+>/g, '')
+  )
+    .replace(/\u00a0/g, ' ')
+    .replace(/[ \t]+\n/g, '\n')
+    .replace(/\n{3,}/g, '\n\n')
     .trim();
+}
+
+/**
+ * QTI <mattext> content → plain text. Canvas rich text is escaped HTML
+ * ("&lt;p&gt;…&amp;#x27;…"), so markup gets the HTML layer too; plain text
+ * (including our own exports) only gets the XML layer, so it round-trips.
+ */
+function mattextValue(content) {
+  const text = xmlLayer(content);
+  return HTML_MARKUP.test(text) ? htmlToText(text) : text.trim();
 }

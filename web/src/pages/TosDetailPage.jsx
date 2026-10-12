@@ -27,6 +27,7 @@ import { CardsSkeleton } from '../components/Loaders.jsx';
 import { useGridTable, DsPager, DsPageSize } from '../components/DataTable.jsx';
 import Reveal from '../components/Reveal.jsx';
 import StageRail from '../components/StageRail.jsx';
+import GenerationStream from '../components/GenerationStream.jsx';
 import celebrate from '../lib/celebrate.js';
 
 const BLOOM_LABELS = { remember: 'Remember', understand: 'Understand', apply: 'Apply', analyze: 'Analyze', evaluate: 'Evaluate', create: 'Create' };
@@ -304,10 +305,24 @@ export default function TosDetailPage() {
   // A generation run already active for THIS blueprint — other blueprints
   // can still generate in parallel; the API refuses an identical duplicate.
   const { jobs } = useJobs();
-  const generationActive = useMemo(
-    () => jobs.some((j) => j.type === 'generate' && isActiveJob(j) && jobPayload(j).tosId === id),
+  const activeGenJob = useMemo(
+    () => jobs.find((j) => j.type === 'generate' && isActiveJob(j) && jobPayload(j).tosId === id) || null,
     [jobs, id]
   );
+  const generationActive = !!activeGenJob;
+
+  // The live panel follows one run. It latches onto a run started here or
+  // already in flight when the page opened, and stays after the run ends so
+  // its summary can be read — until dismissed.
+  // Keyed by blueprint so navigating to another TOS never shows this one's run.
+  const [stream, setStream] = useState(null); // { tosId, jobId }
+  const dismissedRuns = useRef(new Set());
+  const streamJobId = stream?.tosId === id ? stream.jobId : null;
+  useEffect(() => {
+    if (activeGenJob && !streamJobId && !dismissedRuns.current.has(activeGenJob.id)) {
+      setStream({ tosId: id, jobId: activeGenJob.id });
+    }
+  }, [activeGenJob, streamJobId, id]);
   const syllabusActive = useMemo(
     () => jobs.some((j) => j.type === 'syllabus_tos' && isActiveJob(j) && jobPayload(j).tosId === id),
     [jobs, id]
@@ -397,8 +412,9 @@ export default function TosDetailPage() {
   async function handleGenerate() {
     setGenerating(true);
     try {
-      await api.post('/ai/generate-questions', { tosId: id });
-      toast.success(`Generation queued — drafts will appear on the Questions page, and you can watch progress under Background work.`);
+      const { jobId } = await api.post('/ai/generate-questions', { tosId: id });
+      if (jobId) setStream({ tosId: id, jobId });
+      toast.success('Generation started — drafts appear below as each one is written.');
     } catch (err) {
       toast.error(err instanceof ApiError ? err.message : 'Generation failed to start.');
     } finally {
@@ -643,6 +659,16 @@ export default function TosDetailPage() {
       <div data-tour="tos-workflow">
         <StageRail steps={railSteps} />
       </div>
+
+      {streamJobId && (
+        <GenerationStream
+          key={streamJobId}
+          jobId={streamJobId}
+          reviewHref={tos.subject_id ? `/questions/review?subject_id=${encodeURIComponent(tos.subject_id)}` : '/questions/review'}
+          onSettled={load}
+          onDismiss={() => { dismissedRuns.current.add(streamJobId); setStream(null); }}
+        />
+      )}
 
       <div className="stats-grid mb-2" data-tour="tos-stats">
         <div className="stat-card">

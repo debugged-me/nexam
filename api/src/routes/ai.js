@@ -4,6 +4,7 @@
  * GET  /api/ai/status              — which providers are configured, worker info.
  * GET  /api/ai/jobs                — recent jobs for the authenticated user.
  * GET  /api/ai/jobs/:id            — single job status (for polling).
+ * GET  /api/ai/jobs/:id/stream     — live SSE feed (progress + drafts).
  * POST /api/ai/syllabus-tos        — enqueue syllabus→TOS generation.
  * POST /api/ai/generate-questions  — enqueue RAG question generation (Phase 4).
  *
@@ -16,6 +17,7 @@ import jobs from '../services/jobs.js';
 import pool from '../config/db.js';
 import { requireAuth } from '../middleware/auth.js';
 import { rateLimit } from '../middleware/rateLimit.js';
+import { publishJobEvent, subscribeJobEvents } from '../services/jobEvents.js';
 
 const router = Router();
 
@@ -62,6 +64,158 @@ router.get('/jobs/:id', requireAuth, async (req, res, next) => {
   }
 });
 
+/** Parse a JSON column that may already be an object. */
+function parseJson(value) {
+  if (!value) return null;
+  if (typeof value === 'object') return value;
+  try { return JSON.parse(value); } catch { return null; }
+}
+
+/** Draft shape sent over the stream — mirrors what the generate handler publishes. */
+function streamDraft(row) {
+  const meta = parseJson(row.generation_meta);
+  const options = parseJson(row.options);
+  return {
+    id: row.id,
+    type: row.type,
+    stem: row.stem,
+    options: Array.isArray(options) ? options : [],
+    answer: row.answer,
+    topic: row.topic,
+    bloom: row.bloom,
+    evidence: typeof meta?.evidence === 'string' ? meta.evidence : null,
+  };
+}
+
+const TERMINAL_JOB = new Set(['done', 'failed', 'cancelled']);
+const STREAM_POLL_MS = 2500;
+const STREAM_PING_MS = 15000;     // well under nginx's 120s proxy_read_timeout
+const MAX_STREAMS_PER_USER = 6;
+const openStreams = new Map();    // userId -> open stream count
+
+/**
+ * GET /api/ai/jobs/:id/stream — Server-Sent Events feed for one job.
+ *
+ * Events: `state` (status/progress/result), `drafts` (questions a generate
+ * run has stored, each sent once), `end` (terminal — the server closes).
+ * The worker pushes through the in-process job bus; a timer re-reads the
+ * row as a safety net. Clients authenticate with the normal Bearer header
+ * (fetch + ReadableStream), never a query token.
+ */
+router.get('/jobs/:id/stream', requireAuth, async (req, res, next) => {
+  const userId = req.user.id;
+  let job;
+  try {
+    job = await jobs.getById(req.params.id);
+  } catch (err) {
+    return next(err);
+  }
+  // Strict ownership — the stream carries draft content.
+  if (!job || job.user_id !== userId) return res.status(404).json({ error: 'Job not found.' });
+  if ((openStreams.get(userId) || 0) >= MAX_STREAMS_PER_USER) {
+    return res.status(429).json({ error: 'Too many live job streams are open. Close a tab and try again.' });
+  }
+  openStreams.set(userId, (openStreams.get(userId) || 0) + 1);
+
+  res.status(200).set({
+    'Content-Type': 'text/event-stream; charset=utf-8',
+    'Cache-Control': 'no-cache, no-transform',
+    Connection: 'keep-alive',
+    'X-Accel-Buffering': 'no', // nginx: flush each event instead of buffering
+  });
+  res.flushHeaders();
+
+  const payload = parseJson(job.payload) || {};
+  const sentDrafts = new Set();
+  let lastState = '';
+  let lastDraftKey = '';
+  let closed = false;
+  let syncing = false;
+
+  const send = (event, data) => {
+    if (!closed) res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
+  };
+
+  const pushDrafts = (items) => {
+    const fresh = (items || []).filter((d) => d?.id && !sentDrafts.has(d.id));
+    fresh.forEach((d) => sentDrafts.add(d.id));
+    if (fresh.length) send('drafts', { items: fresh });
+  };
+
+  const sendState = (row, progress = parseJson(row.progress)) => {
+    const state = {
+      status: row.status,
+      progress,
+      error: row.error || null,
+      result: TERMINAL_JOB.has(row.status) ? parseJson(row.result) : null,
+    };
+    const key = JSON.stringify(state);
+    if (key !== lastState) { lastState = key; send('state', state); }
+  };
+
+  // Drafts this run already stored — a late open or a reconnect still sees
+  // everything, not just what arrives after it connected.
+  const loadDrafts = async (row) => {
+    if (row.type !== 'generate' || !payload.tosId || !row.started_at) return;
+    const [rows] = await pool.query(
+      `SELECT id, type, stem, options, answer, topic, bloom, generation_meta
+       FROM questions
+       WHERE tos_id = :tosId AND created_by = :uid AND source = 'ai' AND created_at >= :since
+       ORDER BY created_at ASC
+       LIMIT 500`,
+      { tosId: payload.tosId, uid: userId, since: row.started_at }
+    );
+    pushDrafts(rows.map(streamDraft));
+  };
+
+  let timer = null;
+  let ping = null;
+  let unsubscribe = () => {};
+  const finish = () => {
+    if (closed) return;
+    closed = true;
+    clearInterval(timer);
+    clearInterval(ping);
+    unsubscribe();
+    openStreams.set(userId, Math.max(0, (openStreams.get(userId) || 1) - 1));
+    if (!openStreams.get(userId)) openStreams.delete(userId);
+    res.end();
+  };
+
+  const sync = async () => {
+    if (closed || syncing) return;
+    syncing = true;
+    try {
+      const row = await jobs.getById(job.id);
+      if (!row) { send('end', { status: 'missing' }); finish(); return; }
+      job = row;
+      // Re-query drafts only when the row moved (a slot finished or the
+      // status changed) — the bus normally delivers them first anyway.
+      const draftKey = `${row.status}|${typeof row.progress === 'string' ? row.progress : JSON.stringify(row.progress)}`;
+      if (draftKey !== lastDraftKey) {
+        lastDraftKey = draftKey;
+        await loadDrafts(row);
+      }
+      sendState(row);
+      if (TERMINAL_JOB.has(row.status)) { send('end', { status: row.status }); finish(); }
+    } catch (err) {
+      console.error(`[ai] job stream ${job.id} sync failed:`, err.message);
+    } finally {
+      syncing = false;
+    }
+  };
+
+  unsubscribe = subscribeJobEvents(job.id, (event) => {
+    if (event.kind === 'drafts') pushDrafts(event.items);
+    else if (event.kind === 'progress') sendState({ ...job, status: 'running' }, event.progress);
+    else sync();
+  });
+  req.on('close', finish);
+  timer = setInterval(sync, STREAM_POLL_MS);
+  ping = setInterval(() => { if (!closed) res.write(': ping\n\n'); }, STREAM_PING_MS);
+  sync();
+});
+
 /**
  * POST /api/ai/jobs/:id/cancel — stop a queued or running job.
  * Queued jobs are never claimed (the worker only takes status='queued'); a
@@ -84,6 +238,7 @@ router.post('/jobs/:id/cancel', requireAuth, async (req, res, next) => {
        WHERE id = :id AND status IN ('queued', 'running')`,
       { id: job.id }
     );
+    publishJobEvent(job.id, { kind: 'status' });
     res.json({ cancelled: r.affectedRows > 0, status: 'cancelled' });
   } catch (err) {
     next(err);

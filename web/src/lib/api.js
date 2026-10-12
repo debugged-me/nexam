@@ -192,6 +192,45 @@ async function getBlob(path) {
   return URL.createObjectURL(blob);
 }
 
+/** Read a Server-Sent Events stream with the normal Bearer header (an
+ *  EventSource can't send one, and query tokens are reserved for downloads).
+ *  Calls onEvent(name, data) for each JSON event; heartbeats are skipped.
+ *  Resolves when the server closes the stream, rejects with ApiError on an
+ *  HTTP error, and rejects (AbortError or network) when the read is cut. */
+async function stream(path, { signal, onEvent }) {
+  const token = getToken();
+  const headers = { Accept: 'text/event-stream' };
+  if (token) headers.Authorization = `Bearer ${token}`;
+  const res = await fetch(`${API_BASE}${path}`, { headers, signal, cache: 'no-store' });
+  if (!res.ok || !res.body) {
+    let data = null;
+    try { data = await res.json(); } catch { data = null; }
+    throw new ApiError(data?.error || `Request failed (${res.status}).`, res.status, data);
+  }
+  const reader = res.body.pipeThrough(new TextDecoderStream()).getReader();
+  let buffer = '';
+  for (;;) {
+    const { value, done } = await reader.read();
+    if (done) return;
+    buffer += value.replace(/\r\n/g, '\n');
+    let cut;
+    while ((cut = buffer.indexOf('\n\n')) !== -1) {
+      const frame = buffer.slice(0, cut);
+      buffer = buffer.slice(cut + 2);
+      let event = 'message';
+      const lines = [];
+      for (const line of frame.split('\n')) {
+        if (line.startsWith('event:')) event = line.slice(6).trim();
+        else if (line.startsWith('data:')) lines.push(line.slice(5).replace(/^ /, ''));
+      }
+      if (!lines.length) continue;
+      let data;
+      try { data = JSON.parse(lines.join('\n')); } catch { continue; }
+      onEvent(event, data);
+    }
+  }
+}
+
 export const api = {
   get: (path, options) => get(path, options),
   post: (path, body) => write('POST', path, body),
@@ -199,6 +238,7 @@ export const api = {
   del: (path) => write('DELETE', path),
   uploadFile,
   getBlob,
+  stream,
   /** Last cached GET payload for `path`, or undefined. Use it to seed state. */
   peek: (path) => cache.get(path),
   /** Warm the cache for a screen that's about to open, without the busy indicator. */

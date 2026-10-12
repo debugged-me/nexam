@@ -130,30 +130,69 @@ router.get('/', async (req, res, next) => {
       { uid: req.user.id }
     );
 
-    // Grouped counts (one query each, not per-row).
+    // Grouped counts (one query each, not per-row). Besides totals, each
+    // stage reports how far along it is so the Subjects page can show where
+    // a subject sits in materials → blueprint → questions → exam.
+    const [mCounts] = await pool.query(
+      `SELECT m.subject_id, COUNT(*) AS n,
+              SUM(m.status = 'processed') AS ready,
+              SUM(m.status IN ('pending', 'processing')) AS pending,
+              MAX(m.created_at) AS last_at
+       FROM materials m
+       JOIN subjects s ON s.id = m.subject_id
+       WHERE s.instructor_id = :uid GROUP BY m.subject_id`,
+      { uid: req.user.id }
+    );
     const [qCounts] = await pool.query(
-      `SELECT subject_id, COUNT(*) AS n FROM questions WHERE created_by = :uid GROUP BY subject_id`,
+      `SELECT subject_id, COUNT(*) AS n,
+              SUM(status = 'draft') AS drafts,
+              SUM(status = 'active') AS approved,
+              MAX(updated_at) AS last_at
+       FROM questions WHERE created_by = :uid GROUP BY subject_id`,
       { uid: req.user.id }
     );
     const [tCounts] = await pool.query(
-      `SELECT t.subject_id, COUNT(*) AS n FROM tos t
+      `SELECT t.subject_id, COUNT(*) AS n,
+              SUM(t.status = 'finalized') AS finalized,
+              SUBSTRING_INDEX(GROUP_CONCAT(
+                CASE WHEN t.status = 'finalized' THEN t.id END
+                ORDER BY t.finalized_at DESC, t.created_at DESC
+              ), ',', 1) AS finalized_id,
+              MAX(t.updated_at) AS last_at
+       FROM tos t
        JOIN subjects s ON s.id = t.subject_id WHERE s.instructor_id = :uid GROUP BY t.subject_id`,
       { uid: req.user.id }
     );
     const [eCounts] = await pool.query(
-      `SELECT subject_id, COUNT(*) AS n FROM exams WHERE created_by = :uid GROUP BY subject_id`,
+      `SELECT subject_id, COUNT(*) AS n,
+              SUM(status = 'published') AS published,
+              MAX(updated_at) AS last_at
+       FROM exams WHERE created_by = :uid GROUP BY subject_id`,
       { uid: req.user.id }
     );
 
-    const qMap = {}, tMap = {}, eMap = {};
-    for (const r of qCounts) qMap[r.subject_id] = r.n;
-    for (const r of tCounts) tMap[r.subject_id] = r.n;
-    for (const r of eCounts) eMap[r.subject_id] = r.n;
+    // SUM() comes back as DECIMAL (a string from mysql2) — normalize.
+    const byId = (rows) => new Map(rows.map((r) => [r.subject_id, r]));
+    const num = (v) => Number(v) || 0;
+    const mMap = byId(mCounts), qMap = byId(qCounts), tMap = byId(tCounts), eMap = byId(eCounts);
 
     for (const s of subjects) {
-      s.question_count = qMap[s.id] || 0;
-      s.tos_count = tMap[s.id] || 0;
-      s.exam_count = eMap[s.id] || 0;
+      const m = mMap.get(s.id), q = qMap.get(s.id), t = tMap.get(s.id), e = eMap.get(s.id);
+      s.material_count = num(m?.n);
+      s.material_ready = num(m?.ready);
+      s.material_pending = num(m?.pending);
+      s.question_count = num(q?.n);
+      s.draft_count = num(q?.drafts);
+      s.approved_count = num(q?.approved);
+      s.tos_count = num(t?.n);
+      s.tos_finalized = num(t?.finalized);
+      s.finalized_tos_id = t?.finalized_id || null;
+      s.exam_count = num(e?.n);
+      s.exam_published = num(e?.published);
+      const stamps = [s.created_at, m?.last_at, q?.last_at, t?.last_at, e?.last_at]
+        .map((v) => (v ? new Date(v).getTime() : NaN))
+        .filter(Number.isFinite);
+      s.last_activity = stamps.length ? new Date(Math.max(...stamps)) : s.created_at;
     }
 
     res.json({ subjects });

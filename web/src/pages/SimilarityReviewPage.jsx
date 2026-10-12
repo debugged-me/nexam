@@ -8,6 +8,9 @@ import '../styles/similarity.css';
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { Check, Trash2, ArrowLeft } from 'lucide-react';
+import RichText from '../components/RichText.jsx';
+import TextDiff from '../components/TextDiff.jsx';
+import { wordDiff } from '../lib/wordDiff.js';
 import { useToast } from '../components/Toast.jsx';
 import EmptyStateArt from '../components/EmptyStateArt.jsx';
 import api from '../lib/api.js';
@@ -23,6 +26,9 @@ export default function SimilarityReviewPage() {
   const navigate = useNavigate();
   const [data, setData] = useState(null);
   const [deciding, setDeciding] = useState(false);
+  // Matches open with word differences highlighted; "Plain" shows each bank
+  // question as written (with math typeset).
+  const [showDiff, setShowDiff] = useState(true);
 
   useEffect(() => {
     api.get(`/questions/${id}/similarity`)
@@ -83,7 +89,7 @@ export default function SimilarityReviewPage() {
                 <span className="text-muted meta-sm">{question.topic}</span>
               )}
             </div>
-            <div className="sim-question-stem">{question.stem}</div>
+            <RichText as="div" className="sim-question-stem" text={question.stem} />
             {question.type === 'mcq' && Array.isArray(question.options) && question.options.length > 0 ? (
               <ul className="sim-question-options">
                 {question.options.map((opt, i) => (
@@ -117,13 +123,27 @@ export default function SimilarityReviewPage() {
       ) : (
         <div className="card mb-3" data-tour="sim-matches">
           <div className="card-header">
-            <span className="card-title">Similar Questions in the Bank</span>
-            <span className="text-muted meta-sm">{matches.length} match{matches.length > 1 ? 'es' : ''}</span>
+            <div>
+              <span className="card-title">Similar Questions in the Bank</span>
+              <p className="card-sub">{matches.length} match{matches.length > 1 ? 'es' : ''}</p>
+            </div>
+            <div className="sim-view" role="group" aria-label="How to show matches">
+              <button type="button" aria-pressed={showDiff} onClick={() => setShowDiff(true)}>Highlight differences</button>
+              <button type="button" aria-pressed={!showDiff} onClick={() => setShowDiff(false)}>Plain</button>
+            </div>
           </div>
+          {showDiff && (
+            <div className="sim-legend" aria-hidden="true">
+              <span><ins className="text-diff-add">word</ins> only in this draft</span>
+              <span><del className="text-diff-del">word</del> only in the bank question</span>
+            </div>
+          )}
           <div className="card-body">
             <div className="sim-matches">
               {matches.map((m, idx) => {
                 const matchLevel = m.match_bloom ? bl[m.match_bloom] || 0 : 0;
+                const matchStem = m.match_stem || m.stem || '';
+                const overlap = matchStem ? wordDiff(matchStem, question.stem).wordOverlap : null;
                 return (
                   <div key={m.result_id || idx} className="sim-match">
                     <div className="sim-match-header">
@@ -137,11 +157,22 @@ export default function SimilarityReviewPage() {
                         <span className="sim-score-track" aria-hidden="true"><i style={{ width: `${Math.min(100, (m.score || 0) * 100)}%` }} /></span>
                         {((m.score || 0) * 100).toFixed(1)}% similar
                       </span>
+                      {overlap != null && (
+                        <span className="sim-overlap" title="Share of words both stems have in common">
+                          {Math.round(overlap * 100)}% same wording
+                        </span>
+                      )}
                       {m.decision && (
                         <span className="badge badge-gray">{m.decision.charAt(0).toUpperCase() + m.decision.slice(1)}</span>
                       )}
                     </div>
-                    <div className="sim-match-stem">{m.match_stem || m.stem || '—'}</div>
+                    {!matchStem ? (
+                      <div className="sim-match-stem">—</div>
+                    ) : showDiff ? (
+                      <TextDiff className="sim-match-stem" from={matchStem} to={question.stem} />
+                    ) : (
+                      <RichText as="div" className="sim-match-stem" text={matchStem} />
+                    )}
                   </div>
                 );
               })}

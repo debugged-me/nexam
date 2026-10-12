@@ -128,19 +128,24 @@ export default function MaterialsPage() {
   }, []);
   useEffect(() => { load(); }, [load]);
 
-  useEffect(() => {
-    if (searchParams.get('upload') !== '1') return;
-    setUploadMode('file');
-    setUploadOpen(true);
-    const next = new URLSearchParams(searchParams);
-    next.delete('upload');
-    setSearchParams(next, { replace: true });
-  }, [searchParams, setSearchParams]);
-
   const setSubject = useCallback((id) => {
     setForm((f) => ({ ...f, subject_id: id }));
     rememberSubject(id);
   }, []);
+
+  // ?upload=1 opens the upload dialog; ?subject_id= (a subject card's
+  // "Upload materials") preselects that subject in it.
+  useEffect(() => {
+    if (searchParams.get('upload') !== '1') return;
+    const subjectParam = searchParams.get('subject_id');
+    if (subjectParam) setSubject(subjectParam);
+    setUploadMode('file');
+    setUploadOpen(true);
+    const next = new URLSearchParams(searchParams);
+    next.delete('upload');
+    next.delete('subject_id');
+    setSearchParams(next, { replace: true });
+  }, [searchParams, setSearchParams, setSubject]);
 
   // ── Pending-state polling ────────────────────────────────
   // Extraction + embedding run in a worker, so a fresh upload has no

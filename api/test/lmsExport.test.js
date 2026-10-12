@@ -198,3 +198,42 @@ test('Moodle XML: shortanswer becomes identification; essay survives for skip-re
   assert.equal(parsed[3].type, 'moodle_essay');
   assert.match(normalizeImportItem(parsed[3], 3).skip, /unsupported type/);
 });
+
+// Character references left behind by one-layer decoding ("school&#x27;s").
+test('Moodle XML: hex and named HTML entities inside CDATA decode to text', () => {
+  const xml = `<quiz><question type="multichoice">
+    <questiontext format="html"><text><![CDATA[<p>If a teacher&rsquo;s learner is at risk, the teacher should:</p>]]></text></questiontext>
+    <answer fraction="100" format="html"><text><![CDATA[Follow the school&#x27;s established procedures]]></text></answer>
+    <answer fraction="0" format="html"><text><![CDATA[Ignore it &amp; move on]]></text></answer>
+  </question></quiz>`;
+  const [q] = parseMoodleXML(xml);
+  assert.equal(q.stem, 'If a teacher’s learner is at risk, the teacher should:');
+  assert.deepEqual(q.options, ["Follow the school's established procedures", 'Ignore it & move on']);
+  assert.equal(q.answer, "Follow the school's established procedures");
+});
+
+test('Moodle XML: escaped HTML without CDATA strips tags after the XML layer', () => {
+  const xml = `<quiz><question type="truefalse">
+    <questiontext format="html"><text>&lt;p&gt;It&amp;#39;s &amp;lt;b&amp;gt; that bolds text.&lt;/p&gt;</text></questiontext>
+    <answer fraction="100"><text>True</text></answer>
+    <answer fraction="0"><text>False</text></answer>
+  </question></quiz>`;
+  const [q] = parseMoodleXML(xml);
+  // One decode per layer: the author's literal "&lt;b&gt;" survives as "<b>" text.
+  assert.equal(q.stem, "It's <b> that bolds text.");
+});
+
+test('Canvas XML: escaped rich text is unwrapped; plain text keeps literal entities', () => {
+  const rich = `<questestinterop><item ident="1"><presentation><material>
+    <mattext texttype="text/html">&lt;p&gt;Follow the school&amp;#x27;s procedure&lt;/p&gt;</mattext></material>
+    <response_lid ident="r"><render_choice>
+      <response_label ident="a"><material><mattext>Yes</mattext></material></response_label>
+      <response_label ident="b"><material><mattext>No</mattext></material></response_label>
+    </render_choice></response_lid></presentation>
+    <resprocessing><respcondition><conditionvar><varequal respident="r">a</varequal></conditionvar></respcondition></resprocessing>
+  </item></questestinterop>`;
+  assert.equal(parseCanvasXML(rich)[0].stem, "Follow the school's procedure");
+
+  const literal = { ...MCQ, stem: 'What does &nbsp; mean in HTML?', answer: 'Paris' };
+  assert.equal(parseCanvasXML(toCanvasXML([literal]))[0].stem, 'What does &nbsp; mean in HTML?');
+});

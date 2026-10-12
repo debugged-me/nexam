@@ -17,6 +17,7 @@ import pool from '../../config/db.js';
 import { generate } from '../../services/aiProvider.js';
 import { retrieve } from '../../services/retriever.js';
 import { enqueue, updateProgress, isCancelled, markStopped } from '../../services/jobs.js';
+import { publishJobEvent } from '../../services/jobEvents.js';
 import { getNumber } from '../../services/settings.js';
 import { buildTosMatrix } from '../../services/tosAlignment.js';
 import { isValidGeneratedQuestion } from '../../services/generationValidation.js';
@@ -141,6 +142,7 @@ export default async function generateHandler(job) {
     if (result.dropped) droppedInvalid += result.dropped;
 
     // Persist this slot's questions right away.
+    const stored = [];
     for (const q of result.questions) {
       const questionId = uuid();
       await pool.query(
@@ -174,8 +176,21 @@ export default async function generateHandler(job) {
         userId,
         subjectId: tos.subject_id,
       });
+      stored.push({
+        id: questionId,
+        type: q.type,
+        stem: q.stem,
+        options: q.options || [],
+        answer: q.answer || null,
+        topic: q.topic || null,
+        bloom: q.bloom,
+        evidence: q.meta?.evidence || null,
+      });
     }
     generatedCount += result.questions.length;
+    // Live streams show the slot's drafts the moment they are stored. They
+    // are review-only there — approval still runs every server-side gate.
+    if (stored.length) publishJobEvent(job.id, { kind: 'drafts', items: stored });
 
     if (result.failed || result.questions.length !== needed) {
       failedSlots.push({

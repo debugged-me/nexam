@@ -131,7 +131,9 @@ existing installs upgrade automatically — don't rely on a fresh
 (`shellMeta.js`) and `Modal` applies it to its overlay so scoped styles keep
 matching. Any new portaled component (pickers, sheets, menus) must consume
 `PageScopeContext` the same way or its page-scoped styles silently stop
-applying. `ContextMenu` uses only global classes, so it is exempt.
+applying — wrap Radix portal content in `ScopedLayer`
+(`components/ScopedLayer.jsx`), as `Popover`, `HoverCard` and `Select` do.
+`ContextMenu` uses only global classes, so it is exempt.
 
 ### Table convention (`table.grid`)
 

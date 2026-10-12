@@ -7,6 +7,7 @@
  */
 import { v4 as uuid } from 'uuid';
 import pool from '../config/db.js';
+import { publishJobEvent } from './jobEvents.js';
 
 /**
  * Enqueue a job.
@@ -87,6 +88,7 @@ export async function updateProgress(jobId, progress) {
     `UPDATE ai_jobs SET progress = :progress WHERE id = :id AND status = 'running'`,
     { id: jobId, progress: JSON.stringify(progress) }
   );
+  publishJobEvent(jobId, { kind: 'progress', progress });
 }
 
 /**
@@ -101,6 +103,7 @@ export async function markDone(jobId, result = null) {
      WHERE id = :id AND status = 'running'`,
     { id: jobId, result: result ? JSON.stringify(result) : null }
   );
+  publishJobEvent(jobId, { kind: 'status' });
 }
 
 /** Mark a job failed with an error message; bump retries. */
@@ -115,6 +118,7 @@ export async function markFailed(jobId, error) {
      WHERE id = :id AND status IN ('queued', 'running')`,
     { id: jobId, error: String(error).slice(0, 2000) }
   );
+  publishJobEvent(jobId, { kind: 'status' });
 }
 
 /** True once a user has cancelled the job (status = 'cancelled'). */
@@ -135,6 +139,7 @@ export async function markStopped(jobId, result = null) {
     `UPDATE ai_jobs SET result = :result WHERE id = :id AND status = 'cancelled'`,
     { id: jobId, result: result ? JSON.stringify(result) : null }
   );
+  publishJobEvent(jobId, { kind: 'status' });
 }
 
 /**

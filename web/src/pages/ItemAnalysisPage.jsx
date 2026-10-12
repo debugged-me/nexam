@@ -199,6 +199,7 @@ export default function ItemAnalysisPage() {
             title={selected ? `Item ${selected.itemNumber}${selected.set ? ` · Set ${selected.set}` : ''}` : ''}
             subtitle={selected ? `${selected.correctCount}/${selected.totalResponses} correct · ${TYPE_LABELS[selected.type] || selected.type || ''}${selected.bloom ? ` · ${BLOOM_LABELS[selected.bloom] || selected.bloom}` : ''}` : ''}
             onClose={() => setSelected(null)}
+            side
           >
             {selected && (
               <div className="ia-detail">

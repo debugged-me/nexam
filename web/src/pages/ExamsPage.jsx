@@ -10,7 +10,7 @@ import '../styles/exams.css';
 import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import {
-  Plus, Pencil, Trash2, Info, Eye, Ellipsis, Search,
+  Plus, Pencil, Trash2, Info, Eye, Ellipsis, Search, FileCheck,
   Layers, ChevronUp, ChevronDown, Printer, MonitorSmartphone, Copy,
 } from 'lucide-react';
 import { useToast } from '../components/Toast.jsx';
@@ -358,14 +358,15 @@ export default function ExamsPage() {
         open={!!viewing}
         title={viewing?.title || 'Exam'}
         subtitle="Exam details"
+        icon={FileCheck}
+        accent={viewing ? groupColor(viewing.subject_id || viewing.subject_name) : undefined}
         onClose={() => setViewing(null)}
         fields={viewing ? [
-          { label: 'Title', value: viewing.title },
-          { label: 'Subject', value: viewing.subject_name },
-          { label: 'Format', value: viewing.format === 'print' ? 'Print' : 'Digital' },
-          { label: 'Status', value: <StatusPill status={viewing.status} small inline /> },
-          { label: 'Items', value: viewing.question_count || 0 },
-          viewing.duration_minutes ? { label: 'Duration', value: `${viewing.duration_minutes} min` } : null,
+          { label: 'Status', value: <StatusPill status={viewing.status} small inline />, kind: 'meta' },
+          { label: 'Subject', value: viewing.subject_name, kind: 'meta' },
+          { label: 'Format', value: viewing.format === 'print' ? 'Print' : 'Digital', kind: 'meta' },
+          { label: 'Items', value: viewing.question_count || 0, kind: 'stat' },
+          viewing.duration_minutes ? { label: 'Duration', value: `${viewing.duration_minutes} min`, kind: 'stat' } : null,
           { label: 'Updated', value: fmtDate(viewing.updated_at || viewing.created_at) },
         ].filter(Boolean) : []}
       />

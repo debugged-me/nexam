@@ -5,17 +5,18 @@
  */
 import { useContext, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { AnimatePresence, motion } from 'motion/react';
+import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
 import { X } from 'lucide-react';
 import { PageScopeContext } from './shellMeta.js';
 
 const FOCUSABLE = 'a[href], button:not([disabled]), input, select, textarea, [tabindex]:not([tabindex="-1"])';
 
-export default function Modal({ open, title, subtitle, onClose, children, footer, size = 'md' }) {
+export default function Modal({ open, title, subtitle, onClose, children, footer, size = 'md', side = false, icon: Icon, accent }) {
   // The overlay lives at document.body — carry the page's @scope class so
   // page-scoped styles keep matching the modal's contents.
   const scope = useContext(PageScopeContext);
   const cardRef = useRef(null);
+  const reduceMotion = useReducedMotion();
   // Callers pass inline onClose handlers — keep the latest in a ref so the
   // effect below doesn't re-run on every parent render (which used to snap
   // focus back to the close button on each keystroke).
@@ -59,7 +60,7 @@ export default function Modal({ open, title, subtitle, onClose, children, footer
     <AnimatePresence>
       {open && (
         <motion.div
-          className={`modal-overlay${scope ? ` ${scope}` : ''}`}
+          className={`modal-overlay${side ? ' modal-overlay--sheet' : ''}${scope ? ` ${scope}` : ''}`}
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
@@ -67,21 +68,40 @@ export default function Modal({ open, title, subtitle, onClose, children, footer
           onClick={(e) => { if (e.target === e.currentTarget) onClose?.(); }}
         >
           <motion.div
-            className={`modal-card modal-${size}`}
+            className={`modal-card ${side ? 'modal-sheet' : `modal-${size}`}`}
             role="dialog"
             aria-modal="true"
             aria-label={title}
             ref={cardRef}
             tabIndex={-1}
-            initial={{ opacity: 0, scale: 0.96, y: 6 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.97, y: 4 }}
-            transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
+            initial={side
+              ? (reduceMotion ? { opacity: 0 } : { opacity: 0, x: '100%' })
+              : { opacity: 0, scale: 0.96, y: 6 }}
+            animate={side
+              ? (reduceMotion ? { opacity: 1 } : { opacity: 1, x: 0 })
+              : { opacity: 1, scale: 1, y: 0 }}
+            exit={side
+              ? (reduceMotion ? { opacity: 0 } : { opacity: 0, x: '100%' })
+              : { opacity: 0, scale: 0.97, y: 4 }}
+            transition={side
+              ? { duration: 0.3, ease: [0.32, 0.72, 0, 1] }
+              : { duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
           >
             <div className="modal-header">
-              <div>
-                <h2 className="modal-title">{title}</h2>
-                {subtitle && <p className="modal-subtitle">{subtitle}</p>}
+              <div className="modal-headline">
+                {Icon && (
+                  <span
+                    className={`modal-icon${accent ? ' is-tinted' : ''}`}
+                    style={accent ? { '--ma': accent } : undefined}
+                    aria-hidden="true"
+                  >
+                    <Icon size={17} />
+                  </span>
+                )}
+                <div className="modal-headline-copy">
+                  <h2 className="modal-title">{title}</h2>
+                  {subtitle && <p className="modal-subtitle">{subtitle}</p>}
+                </div>
               </div>
               <button className="modal-close" onClick={onClose} aria-label="Close">
                 <X size={18} />

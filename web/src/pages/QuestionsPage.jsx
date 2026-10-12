@@ -13,7 +13,7 @@ import '../styles/questions.css';
 import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import {
-  Plus, Pencil, Trash2, Check, X, Search, Upload, Sparkles,
+  Plus, Pencil, Trash2, Check, X, Search, Upload, Sparkles, HelpCircle,
   Ellipsis, FileText, ListChecks, RotateCcw, FilterX, Layers, Copy, Eye, ListFilter,
   ChevronFirst, ChevronLeft, ChevronRight, ChevronLast,
 } from 'lucide-react';
@@ -1484,14 +1484,15 @@ export default function QuestionsPage() {
         open={!!viewing}
         title={viewing ? (viewing.stem || 'Question') : ''}
         subtitle="Question details"
+        icon={HelpCircle}
+        accent={viewing ? groupColor(viewing.subject_id || viewing.subject_name) : undefined}
         onClose={() => setViewing(null)}
         fields={viewing ? [
-          { label: 'Question', value: viewing.stem },
+          { label: 'Status', value: <StatusPill status={viewing.status} small inline />, kind: 'meta' },
+          { label: 'Type', value: TYPE_LABELS[viewing.type] || viewing.type, kind: 'meta' },
+          { label: 'Bloom', value: BLOOM_LABELS[viewing.bloom] || viewing.bloom, kind: 'meta' },
+          { label: 'Subject', value: viewing.subject_name, kind: 'meta' },
           { label: 'Topic', value: viewing.topic },
-          { label: 'Subject', value: viewing.subject_name },
-          { label: 'Bloom', value: BLOOM_LABELS[viewing.bloom] || viewing.bloom },
-          { label: 'Type', value: TYPE_LABELS[viewing.type] || viewing.type },
-          { label: 'Status', value: <StatusPill status={viewing.status} small inline /> },
           viewing.similarity_flag === 'flagged' ? { label: 'Similarity', value: 'Flagged as a possible duplicate' } : null,
           { label: 'Updated', value: fmtDateQ(viewing.updated_at || viewing.created_at) },
         ].filter(Boolean) : []}

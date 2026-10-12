@@ -691,13 +691,14 @@ export default function MaterialsPage() {
         open={!!viewing}
         title={viewing?.title || 'Material'}
         subtitle="Material details"
+        icon={FileText}
+        accent={viewing ? groupColor(matSubjectOf(viewing)?.id) : undefined}
         onClose={() => setViewing(null)}
         fields={viewing ? [
-          { label: 'Title', value: viewing.title },
-          { label: 'Subject', value: (() => { const s = matSubjectOf(viewing); return s ? `${s.name}${s.code ? ` (${s.code})` : ''}` : null; })() },
-          { label: 'Source', value: viewing.source_type },
-          { label: 'Chunks', value: viewing.chunk_count || 0 },
-          { label: 'Status', value: <StatusPill status={viewing.status} small inline /> },
+          { label: 'Status', value: <StatusPill status={viewing.status} small inline />, kind: 'meta' },
+          { label: 'Subject', value: (() => { const s = matSubjectOf(viewing); return s ? `${s.name}${s.code ? ` (${s.code})` : ''}` : null; })(), kind: 'meta' },
+          { label: 'Source', value: viewing.source_type, kind: 'meta' },
+          { label: 'Chunks', value: viewing.chunk_count || 0, kind: 'stat' },
           viewing.status === 'failed' ? { label: 'Error', value: viewing.error } : null,
           { label: 'Syllabus', value: Number(viewing.is_syllabus) ? 'Yes' : 'No' },
           { label: 'Added', value: fmtDate(viewing.created_at) },

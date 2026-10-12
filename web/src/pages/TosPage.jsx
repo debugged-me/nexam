@@ -382,14 +382,15 @@ export default function TosPage() {
         open={!!viewing}
         title={viewing?.title || 'Blueprint'}
         subtitle="Blueprint details"
+        icon={Layers}
+        accent={viewing ? groupColor(viewing.subject_id || viewing.subject_name) : undefined}
         onClose={() => setViewing(null)}
         fields={viewing ? [
-          { label: 'Title', value: viewing.title },
-          { label: 'Subject', value: viewing.subject_name },
-          { label: 'Status', value: <StatusPill status={viewing.status} small inline /> },
-          { label: 'Topics', value: viewing.topic_count != null ? Number(viewing.topic_count) : null },
-          { label: 'Items', value: viewing.total_items != null ? Number(viewing.total_items) : null },
-          { label: 'Bloom mix', value: viewing.bloom_weights ? BLOOM_ORDER.map((k) => `${BLOOM_LABELS[k]} ${Number(viewing.bloom_weights[k]) || 0}%`).join(' · ') : null },
+          { label: 'Status', value: <StatusPill status={viewing.status} small inline />, kind: 'meta' },
+          { label: 'Subject', value: viewing.subject_name, kind: 'meta' },
+          { label: 'Topics', value: viewing.topic_count != null ? Number(viewing.topic_count) : null, kind: 'stat' },
+          { label: 'Items', value: viewing.total_items != null ? Number(viewing.total_items) : null, kind: 'stat' },
+          { label: 'Bloom mix', value: viewing.bloom_weights, kind: 'bloom' },
           { label: 'Created', value: fmtDate(viewing.created_at) },
           { label: 'Updated', value: fmtDate(viewing.updated_at) },
         ] : []}

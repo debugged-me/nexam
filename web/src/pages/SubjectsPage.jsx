@@ -7,7 +7,7 @@ import '../styles/subjects.css';
 import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import {
-  Plus, Pencil, Trash2, Search, CheckSquare,
+  Plus, Pencil, Trash2, Search, CheckSquare, BookOpen,
   Eye, Check, Copy, Ellipsis, Info,
   ChevronUp, ChevronDown, ChevronFirst, ChevronLeft, ChevronRight, ChevronLast,
 } from 'lucide-react';
@@ -455,14 +455,14 @@ export default function SubjectsPage() {
         open={!!viewing}
         title={viewing?.name || 'Subject'}
         subtitle="Subject details"
+        icon={BookOpen}
         onClose={() => setViewing(null)}
         fields={viewing ? [
-          { label: 'Name', value: viewing.name },
-          { label: 'Code', value: viewing.code },
+          { label: 'Code', value: viewing.code, kind: 'meta' },
+          { label: 'Questions', value: viewing.question_count || 0, kind: 'stat' },
+          { label: 'Blueprints', value: viewing.tos_count || 0, kind: 'stat' },
+          { label: 'Exams', value: viewing.exam_count || 0, kind: 'stat' },
           { label: 'Description', value: viewing.description },
-          { label: 'Questions', value: viewing.question_count || 0 },
-          { label: 'Blueprints', value: viewing.tos_count || 0 },
-          { label: 'Exams', value: viewing.exam_count || 0 },
           { label: 'Created', value: fmtDate(viewing.created_at) },
         ] : []}
       />

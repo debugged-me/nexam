@@ -261,6 +261,31 @@ router.get('/', requireAuth, async (req, res, next) => {
       { uid: userId }
     );
 
+    // Weak items — questions students keep missing (mirrors the
+    // /analytics/attention criteria: ≥3 responses, under 50% correct).
+    const [[weakRow]] = await pool.query(
+      `SELECT COUNT(*) AS n FROM (
+         SELECT q.id
+         FROM scan_answers sa
+         JOIN scan_results sr ON sr.id = sa.scan_result_id
+         JOIN exams e ON e.id = sr.exam_id
+         JOIN subjects s ON s.id = e.subject_id
+         LEFT JOIN exam_set_questions esq
+           ON sr.exam_set_id IS NOT NULL
+          AND esq.exam_set_id = sr.exam_set_id
+          AND esq.sort_order = sa.item_number
+         LEFT JOIN exam_questions eq
+           ON sr.exam_set_id IS NULL
+          AND eq.exam_id = sr.exam_id
+          AND eq.sort_order = sa.item_number
+         JOIN questions q ON q.id = COALESCE(esq.question_id, eq.question_id)
+         WHERE s.instructor_id = :uid
+         GROUP BY q.id
+         HAVING COUNT(*) >= 3 AND SUM(sa.is_correct) / COUNT(*) < 0.5
+       ) weak`,
+      { uid: userId }
+    );
+
     // ── Daily activity series ────────────────────────
     const from = new Date(now.getTime() - (HISTORY_DAYS - 1) * 86400000);
     const [qDaily] = await pool.query(
@@ -298,6 +323,7 @@ router.get('/', requireAuth, async (req, res, next) => {
         pendingScans,
         gapTos,
         readyExams,
+        weakItems: weakRow?.n || 0,
         runningJobs: jobRow?.n || 0,
       },
     });

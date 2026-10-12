@@ -447,6 +447,30 @@
     overflow-wrap: anywhere;
 }
 
+/* Cited evidence — the exact span the AI claims grounded this draft, with
+   its source material and generator. Reviewers verify against this before
+   approving. */
+.rv-evidence { margin-top: var(--space-4); }
+.rv-evidence .rv-label { display: inline-flex; align-items: center; gap: 5px; }
+.rv-evidence blockquote {
+    margin: 0;
+    padding: 10px 12px;
+    border-left: 3px solid var(--gc-2);
+    border-radius: 0 var(--radius) var(--radius) 0;
+    background: color-mix(in srgb, var(--gc-2) 7%, var(--surface));
+    font-size: var(--text-sm);
+    line-height: 1.6;
+    color: var(--ink-2);
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+}
+.rv-evidence-meta {
+    display: block;
+    margin-top: 6px;
+    font-size: var(--text-xs);
+    color: var(--ink-faint);
+}
+
 .rv-note {
     margin-top: var(--space-4);
     padding: 10px 12px;

@@ -192,6 +192,7 @@ export default function DashboardPage() {
   const scanReviewCount = pendingScans.reduce((a, r) => a + count(r.n), 0);
   const gapTos = sig.gapTos || [];
   const readyExams = sig.readyExams || [];
+  const weakItems = count(sig.weakItems);
   const runningJobs = count(sig.runningJobs);
 
   const queue = [];
@@ -230,6 +231,18 @@ export default function DashboardPage() {
       copy: `${count(g.banked)} of ${count(g.total_items)} banked — generate the deficit or reuse from your bank.`,
       cta: 'Open blueprint',
       to: `/tos/${g.id}`,
+      draftsPreview: false,
+    });
+  }
+  if (weakItems) {
+    queue.push({
+      key: 'weak-items',
+      label: 'Needs attention',
+      tone: '',
+      headline: `${weakItems} question${weakItems === 1 ? ' keeps' : 's keep'} tripping students up.`,
+      copy: 'Correct rate is under 50% — reteach the topic or revise the item.',
+      cta: 'Open attention list',
+      to: '/analytics/attention',
       draftsPreview: false,
     });
   }

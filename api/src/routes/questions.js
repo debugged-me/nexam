@@ -123,7 +123,7 @@ router.get('/', async (req, res, next) => {
       `SELECT q.id, q.subject_id, q.tos_id, q.topic, q.bloom, q.ai_predicted_bloom,
               q.type, q.stem, q.options, q.answer, q.explanation,
               q.similarity_flag, q.similarity_score, q.similarity_checked_at, q.similarity_error,
-              q.source, q.status,
+              q.source, q.status, q.generation_meta,
               q.approved_by, q.approved_at, q.created_at, q.updated_at,
               s.name AS subject_name, s.code AS subject_code
        FROM questions q
@@ -133,14 +133,49 @@ router.get('/', async (req, res, next) => {
       params
     );
 
-    // Parse options JSON for each question
+    // Surface AI grounding on drafts — reviewers check the cited evidence
+    // span before approving. Only the evidence string and source title leave
+    // the server; raw chunk text stays private.
+    const chunkIds = new Set();
     for (const q of questions) {
       if (q.options) {
         try { q.options = JSON.parse(q.options); } catch { q.options = []; }
       } else {
         q.options = [];
       }
+      if (q.source === 'ai' && q.generation_meta) {
+        try {
+          const meta = typeof q.generation_meta === 'string'
+            ? JSON.parse(q.generation_meta) : q.generation_meta;
+          const evidence = typeof meta?.evidence === 'string' ? meta.evidence.replace(/\s+/g, ' ').trim() : '';
+          if (evidence) q.ai_evidence = evidence;
+          const generator = [meta?.provider, meta?.model].filter(Boolean).join(' · ');
+          if (generator) q.ai_generator = generator;
+          q._chunkIds = Array.isArray(meta?.chunkIds) ? meta.chunkIds.filter(Boolean) : [];
+          q._chunkIds.forEach((id) => chunkIds.add(id));
+        } catch {
+          q._chunkIds = [];
+        }
+      }
+      delete q.generation_meta;
     }
+
+    if (chunkIds.size) {
+      const [chunks] = await pool.query(
+        `SELECT mc.id, m.title
+         FROM material_chunks mc
+         JOIN materials m ON m.id = mc.material_id
+         WHERE mc.id IN (:ids)`,
+        { ids: [...chunkIds] }
+      );
+      const titleByChunk = new Map(chunks.map((c) => [c.id, c.title]));
+      for (const q of questions) {
+        if (!q._chunkIds) continue;
+        const titles = [...new Set(q._chunkIds.map((id) => titleByChunk.get(id)).filter(Boolean))];
+        if (titles.length) q.ai_source = titles.join(', ');
+      }
+    }
+    for (const q of questions) delete q._chunkIds;
 
     res.json({ questions });
   } catch (err) {

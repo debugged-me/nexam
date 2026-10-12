@@ -709,6 +709,19 @@ const COLUMN_TYPES = {
   'users.font': 'varchar(40)',
 };
 
+/**
+ * Idempotent data fixes, run after the DDL on every boot. Each must be a
+ * no-op once applied.
+ */
+const DATA_FIXES = [
+  // Blueprints drafted from a syllabus used to be titled "… (Auto-generated)",
+  // and exams built from them inherited it. Strip the tag from both.
+  `UPDATE tos SET title = TRIM(LEFT(title, CHAR_LENGTH(title) - CHAR_LENGTH(' (Auto-generated)')))
+   WHERE title LIKE '% (Auto-generated)'`,
+  `UPDATE exams SET title = TRIM(LEFT(title, CHAR_LENGTH(title) - CHAR_LENGTH(' (Auto-generated)')))
+   WHERE title LIKE '% (Auto-generated)'`,
+];
+
 export async function ensureSchema() {
   try {
     for (const stmt of DDL) {
@@ -718,6 +731,14 @@ export async function ensureSchema() {
         // Log and continue — one bad statement shouldn't block the rest.
         // eslint-disable-next-line no-console
         console.error('[schema] Statement failed:', e.message);
+      }
+    }
+    for (const stmt of DATA_FIXES) {
+      try {
+        await pool.query(stmt);
+      } catch (e) {
+        // eslint-disable-next-line no-console
+        console.error('[schema] Data fix failed:', e.message);
       }
     }
     // Type convergence: MODIFY only columns whose type actually differs —

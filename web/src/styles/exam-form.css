@@ -130,4 +130,25 @@
 .q-pick-meta { font-size: var(--text-xs); color: var(--ink-3); margin-top: 2px; }
 
 
+
+/* ---- Live blueprint check under the source picker ---------------------- */
+.src-check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 10px 0 0;
+  padding: 9px 12px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  color: var(--ink-3);
+  font-size: var(--text-sm);
+  line-height: 1.45;
+}
+.src-check svg { flex: none; }
+.src-check.is-ready { background: var(--green-50); color: var(--green-700); }
+.src-check.is-blocked { background: var(--amber-50); color: var(--amber-700); }
+.src-check a { color: inherit; font-weight: 600; text-decoration: underline; text-underline-offset: 2px; }
+.src-spin { animation: srcSpin 1s linear infinite; }
+@keyframes srcSpin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .src-spin { animation: none; } }
 }

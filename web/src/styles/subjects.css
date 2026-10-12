@@ -88,8 +88,8 @@
 .ds-search input:hover { background: var(--surface-3); }
 .ds-search input:focus {
   background: var(--surface);
-  border-color: var(--action-600);
-  box-shadow: 0 0 0 3px var(--ring-soft);
+  border-color: var(--ink-3);
+  box-shadow: none;
 }
 .ds-search kbd {
   position: absolute;

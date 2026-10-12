@@ -164,9 +164,9 @@ ${material.content.slice(0, 30000)}
 
   // ── Create the TOS ──────────────────────────────────
   const tosId = uuid();
-  const tosTitle = parsed.course_title
-    ? `${parsed.course_title} (Auto-generated)`
-    : `${material.title} (Auto-generated)`;
+  // Titled after the course itself — no "(Auto-generated)" tag; how a
+  // blueprint was drafted is the instructor's business, not its name's.
+  const tosTitle = parsed.course_title || material.title;
 
   await pool.query(
     `INSERT INTO tos (id, subject_id, title, total_items, bloom_weights)

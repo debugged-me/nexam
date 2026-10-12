@@ -182,7 +182,7 @@
     transition: background-color .13s ease, border-color .13s ease, color .13s ease;
 }
 .q-filter-select:hover { background-color: var(--surface-3); color: var(--ink); }
-.q-filter-select:focus { border-color: var(--line-strong); box-shadow: 0 0 0 3px var(--ring-soft); }
+.q-filter-select:focus { border-color: var(--ink-3); box-shadow: none; }
 .q-filter-select[data-active="true"] {
     background-color: var(--surface-2);
     border-color: var(--line-strong);

@@ -66,6 +66,10 @@ QR payload: `{ v, examId, setId, set, count, types[] }`.
 ## Security
 
 - Use parameterized MySQL queries and enforce ownership on every private ID.
+- Never put an apostrophe in SQL text, `--` comments included: mysql2 named
+  placeholders read it as a string quote and silently stop binding the
+  `:params` after it (blueprint assembly once matched every question to every
+  cell this way). `api/test/sqlComments.test.js` guards it.
 - Do not return passwords, hashes, OTPs, reset tokens, provider keys, or
   grounding material belonging to another instructor.
 - `Authorization: Bearer` is the normal credential. `?token=` query auth is

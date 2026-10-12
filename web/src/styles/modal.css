@@ -118,7 +118,7 @@
 .modal-body .form-control:focus-within {
   outline: none;
   box-shadow: none;
-  border-color: var(--line-strong);
+  border-color: var(--ink-3);
 }
 
 .modal-footer {

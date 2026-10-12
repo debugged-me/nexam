@@ -7,7 +7,7 @@ import '../styles/exam-form.css';
  */
 import { useEffect, useState, useCallback } from 'react';
 import { useParams, useNavigate, useSearchParams, Link } from 'react-router-dom';
-import { Check, Info, AlertTriangle } from 'lucide-react';
+import { Check, Info, AlertTriangle, CheckCircle2, Loader2 } from 'lucide-react';
 import { useToast } from '../components/Toast.jsx';
 import api, { ApiError } from '../lib/api.js';
 import AppShell from '../components/AppShell.jsx';
@@ -42,6 +42,8 @@ export default function ExamFormPage() {
   });
   const [saving, setSaving] = useState(false);
   const [shortages, setShortages] = useState([]); // topic × Bloom cells the bank can't fill
+  // Live readiness for the chosen blueprint: { tosId, ready, shortages, … }.
+  const [readiness, setReadiness] = useState(null);
 
   useEffect(() => {
     api.get('/subjects').then((data) => setSubjects(data.subjects)).catch(() => {});
@@ -84,6 +86,26 @@ export default function ExamFormPage() {
       })
       .catch(() => {});
   }, [isEdit, selectedTosId]);
+
+  // Check the blueprint the moment it is picked — same per-cell filter the
+  // assembly uses — so shortages show before the instructor submits.
+  useEffect(() => {
+    if (isEdit || !selectedTosId) return undefined;
+    let alive = true;
+    api.get(`/exams/blueprint-check/${encodeURIComponent(selectedTosId)}`, { quiet: true })
+      .then((d) => { if (alive) setReadiness({ tosId: selectedTosId, ...d }); })
+      // Unknown (network/server): don't block — submit still validates.
+      .catch(() => { if (alive) setReadiness({ tosId: selectedTosId, unknown: true }); });
+    return () => { alive = false; };
+  }, [isEdit, selectedTosId]);
+
+  // "Checking" is derived — the result for this blueprint hasn't arrived yet.
+  const loaded = readiness?.tosId === selectedTosId ? readiness : null;
+  const checking = !isEdit && !!selectedTosId && !loaded;
+  const check = loaded && !loaded.unknown ? loaded : null;
+  const blocked = !isEdit && !!selectedTosId && !!check && !check.ready;
+  // Shortages from the live check win; a 409 from submit is the fallback.
+  const shownShortages = check?.shortages?.length ? check.shortages : shortages;
 
   async function handleSave(e) {
     e.preventDefault();
@@ -167,24 +189,38 @@ export default function ExamFormPage() {
                       <span>
                         <strong>{tos.total_items} items</strong> from your approved question bank
                         {distribution && <> · {distribution}</>}
-                        {' '}— drafts are not pulled. Need more?{' '}
-                        <Link to={`/tos/${selectedTosId}`}>Generate questions on the blueprint</Link>.
+                        {' '}— drafts are not pulled.
                       </span>
                     </div>
                   )}
-                  {shortages.length > 0 && (
+                  {checking && (
+                    <p className="src-check" role="status"><Loader2 size={14} className="src-spin" aria-hidden="true" /> Checking your approved bank…</p>
+                  )}
+                  {check?.ready && (
+                    <p className="src-check is-ready" role="status">
+                      <CheckCircle2 size={15} aria-hidden="true" />
+                      Ready — every topic × Bloom cell can be filled from your approved, duplicate-checked questions.
+                    </p>
+                  )}
+                  {check && !check.ready && check.reason === 'invalid_matrix' && (
+                    <p className="src-check is-blocked" role="alert">
+                      <AlertTriangle size={15} aria-hidden="true" />
+                      This blueprint&apos;s topic allocations no longer add up — <Link to={`/tos/${selectedTosId}`}>open it</Link> to fix the item counts.
+                    </p>
+                  )}
+                  {shownShortages.length > 0 && (
                     <div className="form-alert" role="alert">
                       <AlertTriangle size={18} aria-hidden="true" />
                       <div>
-                        <strong>Not enough approved questions to fill this blueprint.</strong>
-                        <span>Every topic × Bloom cell must be fully stocked:</span>
+                        <strong>Not enough approved questions to fill this blueprint yet.</strong>
+                        <span>{shownShortages.length} topic × Bloom cell{shownShortages.length === 1 ? ' is' : 's are'} short:</span>
                         <ul className="form-alert-list">
-                          {shortages.slice(0, 8).map((s, i) => (
+                          {shownShortages.slice(0, 8).map((s, i) => (
                             <li key={i}>
                               {s.topic} — {BLOOM_LABELS[s.bloom] || s.bloom}: needs {s.needed}, has {s.available}
                             </li>
                           ))}
-                          {shortages.length > 8 && <li>…and {shortages.length - 8} more cells</li>}
+                          {shownShortages.length > 8 && <li>…and {shownShortages.length - 8} more cells</li>}
                         </ul>
                         <span>
                           Approve drafts in <Link to="/questions/review">Review drafts</Link>, or{' '}
@@ -264,7 +300,12 @@ export default function ExamFormPage() {
                   </div>
 
               <div className="form-actions form-actions--sticky" data-tour="exam-save">
-                <button type="submit" className="btn btn-primary" disabled={saving}>
+                <button
+                  type="submit"
+                  className="btn btn-primary"
+                  disabled={saving || blocked || checking}
+                  title={blocked ? 'Fill the short cells first — see the list above' : undefined}
+                >
                   {saving ? <span className="btn-spinner" /> : <Check size={16} />}
                   {isEdit ? 'Update exam' : (selectedTosId ? 'Generate exam' : 'Create blank exam')}
                 </button>

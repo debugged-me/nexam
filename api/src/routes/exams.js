@@ -29,7 +29,24 @@ const EXAM_STATUSES = ['draft', 'published'];
 
 const SUPPORTED_QUESTION_TYPES = ['mcq', 'true_false', 'matching', 'identification'];
 
-async function planQuestionsForTos(tos, userId) {
+// Which bank questions may fill a blueprint cell. Auto-pick stays strictly
+// similarity-verified: an unverified (outage-bypassed) item may enter an exam
+// only by explicit selection on the exam page, never silently by assembly.
+// Shared by assembly and the read-only readiness check so the two can never
+// disagree. NOTE: never put an apostrophe inside this SQL, comments included:
+// mysql2 named placeholders read it as a string quote and silently stop
+// binding :topic, :bloom and :needed (that bug let every cell "match").
+const ELIGIBLE_FOR_CELL = `
+  q.subject_id = :subjectId AND q.created_by = :userId
+  AND q.status = 'active' AND q.type IN ('mcq','true_false','matching','identification')
+  AND q.similarity_checked_at IS NOT NULL AND q.similarity_error IS NULL
+  AND q.similarity_flag = 'none'
+  AND q.topic = :topic AND q.bloom = :bloom
+  AND (q.tos_id = :tosId OR EXISTS (
+    SELECT 1 FROM question_tos qt WHERE qt.question_id = q.id AND qt.tos_id = :tosId
+  ))`;
+
+async function tosSlots(tos) {
   const [topics] = await pool.query(
     `SELECT * FROM tos_topics WHERE tos_id = :tosId ORDER BY sort_order ASC`,
     { tosId: tos.id }
@@ -37,23 +54,17 @@ async function planQuestionsForTos(tos, userId) {
   const weights = typeof tos.bloom_weights === 'string'
     ? JSON.parse(tos.bloom_weights || '{}') : tos.bloom_weights;
   const { slots } = buildTosMatrix(topics, weights, Number(tos.total_items));
+  return { topics, weights, slots };
+}
+
+async function planQuestionsForTos(tos, userId) {
+  const { topics, weights, slots } = await tosSlots(tos);
   const questions = [];
   const shortages = [];
 
   for (const slot of slots) {
     const [rows] = await pool.query(
-      `SELECT q.* FROM questions q
-       WHERE q.subject_id = :subjectId AND q.created_by = :userId
-         AND q.status = 'active' AND q.type IN ('mcq','true_false','matching','identification')
-         -- Auto-pick stays strictly similarity-verified: an unverified
-         -- (outage-bypassed) item may enter an exam only by the instructor's
-         -- explicit selection on the exam page, never silently by assembly.
-         AND q.similarity_checked_at IS NOT NULL AND q.similarity_error IS NULL
-         AND q.similarity_flag = 'none'
-         AND q.topic = :topic AND q.bloom = :bloom
-         AND (q.tos_id = :tosId OR EXISTS (
-           SELECT 1 FROM question_tos qt WHERE qt.question_id = q.id AND qt.tos_id = :tosId
-         ))
+      `SELECT q.* FROM questions q WHERE ${ELIGIBLE_FOR_CELL}
        ORDER BY RAND() LIMIT :needed`,
       {
         subjectId: tos.subject_id, userId, topic: slot.topic,
@@ -66,6 +77,23 @@ async function planQuestionsForTos(tos, userId) {
     questions.push(...rows);
   }
   return { topics, weights, questions, shortages };
+}
+
+/** Per-cell availability without picking anything — what assembly would hit. */
+async function checkTosReadiness(tos, userId) {
+  const { slots } = await tosSlots(tos);
+  const shortages = [];
+  for (const slot of slots) {
+    const [[row]] = await pool.query(
+      `SELECT COUNT(*) AS n FROM questions q WHERE ${ELIGIBLE_FOR_CELL}`,
+      { subjectId: tos.subject_id, userId, topic: slot.topic, bloom: slot.bloom, tosId: tos.id }
+    );
+    const available = Number(row?.n || 0);
+    if (available < slot.count) {
+      shortages.push({ topic: slot.topic, bloom: slot.bloom, needed: slot.count, available });
+    }
+  }
+  return { cells: slots.length, shortages };
 }
 
 function circulationError(question) {
@@ -270,6 +298,34 @@ router.post('/', requireAuth, async (req, res, next) => {
 });
 
 /** GET /api/exams/:id — single exam with questions. */
+/**
+ * GET /api/exams/blueprint-check/:tosId — can this finalized blueprint be
+ * assembled right now? Read-only: counts eligible questions per topic × Bloom
+ * cell with the exact filter assembly uses, so the form can warn before the
+ * instructor submits.
+ */
+router.get('/blueprint-check/:tosId', requireAuth, async (req, res, next) => {
+  try {
+    const [rows] = await pool.query(
+      `SELECT t.* FROM tos t JOIN subjects s ON s.id = t.subject_id
+       WHERE t.id = :id AND s.instructor_id = :uid`,
+      { id: req.params.tosId, uid: req.user.id }
+    );
+    const tos = rows[0];
+    if (!tos) return res.status(404).json({ error: 'Blueprint not found.' });
+    if (tos.status !== 'finalized') {
+      return res.json({ ready: false, reason: 'not_finalized', total: Number(tos.total_items), shortages: [] });
+    }
+    let check;
+    try {
+      check = await checkTosReadiness(tos, req.user.id);
+    } catch (err) {
+      return res.json({ ready: false, reason: 'invalid_matrix', error: err.message, total: Number(tos.total_items), shortages: [] });
+    }
+    res.json({ ready: check.shortages.length === 0, total: Number(tos.total_items), cells: check.cells, shortages: check.shortages });
+  } catch (err) { next(err); }
+});
+
 router.get('/:id', requireAuth, async (req, res, next) => {
   try {
     const [examRows] = await pool.query(

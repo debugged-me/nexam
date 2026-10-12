@@ -73,7 +73,7 @@
 }
 
 .rv-select:hover { border-color: var(--line-strong); color: var(--ink); }
-.rv-select:focus-visible { border-color: var(--brand-accent); box-shadow: 0 0 0 3px var(--ring); }
+.rv-select:focus-visible { border-color: var(--ink-3); box-shadow: none; outline: none; }
 .rv-select[data-active="true"] {
     background-color: var(--surface-2);
     border-color: var(--line-strong);

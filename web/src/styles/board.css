@@ -249,7 +249,7 @@ tr:hover .b-status { border-color: color-mix(in srgb, var(--st, var(--st-gray)) 
   transition: border-color .13s ease, box-shadow .13s ease, background-color .13s ease;
 }
 .b-groupby select:hover { background-color: var(--surface-2); }
-.b-groupby select:focus-visible { border-color: var(--line-strong); box-shadow: 0 0 0 3px var(--ring-soft); }
+.b-groupby select:focus-visible { border-color: var(--ink-3); box-shadow: none; outline: none; }
 .b-groupby select[data-active="true"] { background-color: var(--surface-3); color: var(--ink); }
 
 /* ==========================================================================
@@ -448,8 +448,8 @@ tr:hover .g-entity-mark { background: color-mix(in srgb, var(--gc, var(--surface
 .ds-search input:hover { background: var(--surface-3); }
 .ds-search input:focus {
     background: var(--surface);
-    border-color: var(--action-600);
-    box-shadow: 0 0 0 3px var(--ring-soft);
+    border-color: var(--ink-3);
+    box-shadow: none;
 }
 
 /* The "/" hint disappears once the field is in use. */
@@ -1347,7 +1347,7 @@ table.grid td.col-actions {
 }
 
 .ds-perpage select:hover { background: var(--surface-2); }
-.ds-perpage select:focus-visible { border-color: var(--line-strong); box-shadow: 0 0 0 3px var(--ring-soft); }
+.ds-perpage select:focus-visible { border-color: var(--ink-3); box-shadow: none; outline: none; }
 
 .ds-pager { display: flex; align-items: center; gap: 2px; }
 

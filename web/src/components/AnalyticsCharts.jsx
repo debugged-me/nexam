@@ -61,15 +61,19 @@ function ChartFigure({ label, columns, rows, height, children }) {
   return (
     <figure className="chart-figure" style={{ height, margin: 0 }} role="img" aria-label={label}>
       {children}
-      <table className="sr-only">
-        <caption>{label}</caption>
-        <thead><tr>{columns.map((c) => <th key={c} scope="col">{c}</th>)}</tr></thead>
-        <tbody>
-          {rows.map((r, i) => (
-            <tr key={i}>{r.map((cell, j) => <td key={j}>{cell}</td>)}</tr>
-          ))}
-        </tbody>
-      </table>
+      {/* Tables ignore the 1px sr-only width, so a wide one widened the page
+          on phones — a clipped wrapper hides it while keeping table semantics. */}
+      <div className="sr-only">
+        <table>
+          <caption>{label}</caption>
+          <thead><tr>{columns.map((c) => <th key={c} scope="col">{c}</th>)}</tr></thead>
+          <tbody>
+            {rows.map((r, i) => (
+              <tr key={i}>{r.map((cell, j) => <td key={j}>{cell}</td>)}</tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </figure>
   );
 }

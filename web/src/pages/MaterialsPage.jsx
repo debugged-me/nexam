@@ -15,12 +15,12 @@ import '../styles/materials.css';
  * guess that is always shown and always overridable, because the syllabus
  * flag is what unlocks TOS generation.
  */
-import { useEffect, useState, useCallback, useRef } from 'react';
+import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import {
   Upload, Link2, Video, FileText, Trash2, RotateCw, FileStack, Sparkles,
   BookOpen, Loader2, CheckCircle2, AlertCircle, RefreshCw, X, Copy, Ellipsis, Info,
-  Download,
+  Download, Search, ListFilter, Layers,
 } from 'lucide-react';
 import { useToast } from '../components/Toast.jsx';
 import { useContextMenu, useCopyText } from '../components/ContextMenu.jsx';
@@ -32,7 +32,9 @@ import AppShell from '../components/AppShell.jsx';
 import { TableSkeleton } from '../components/Loaders.jsx';
 import { animateRows } from '../lib/animRows.js';
 import EmptyStateArt from '../components/EmptyStateArt.jsx';
-import { StatusPill, groupColor } from '../components/Board.jsx';
+import { StatusPill, StatCard, groupColor } from '../components/Board.jsx';
+import Select from '../components/Select.jsx';
+import Tooltip from '../components/Tooltip.jsx';
 
 const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:3000/api';
 
@@ -46,6 +48,17 @@ function fmtDate(iso) {
   if (Number.isNaN(d.getTime())) return null;
   return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 }
+
+/** Display names for source types — the list says "PDF", not "pdf". */
+const SOURCE_LABELS = { pdf: 'PDF', docx: 'Word', pptx: 'Slides', text: 'Text', url: 'Web page', youtube: 'YouTube', file: 'File' };
+// Radix Select reserves '' — "all" is a real value for the filters.
+const ALL = 'all';
+const STATUS_OPTIONS = [
+  { value: ALL, label: 'All statuses' },
+  { value: 'processed', label: 'Ready' },
+  { value: 'pending', label: 'Processing' },
+  { value: 'failed', label: 'Failed' },
+];
 
 /** Filenames that obviously name a syllabus — a hint, never a silent decision. */
 const SYLLABUS_HINT = /syllab|course[\s_-]*outline/i;
@@ -101,6 +114,9 @@ export default function MaterialsPage() {
   const [viewing, setViewing] = useState(null);
   const [viewContent, setViewContent] = useState(null);
   const [reader, setReader] = useState(null);
+  const [query, setQuery] = useState('');
+  const [subjectFilter, setSubjectFilter] = useState(ALL);
+  const [statusFilter, setStatusFilter] = useState(ALL);
   const fileInput = useRef(null);
   const dragDepth = useRef(0);
 
@@ -454,7 +470,7 @@ export default function MaterialsPage() {
     const canGenerate = Boolean(Number(m.is_syllabus)) && m.status === 'processed';
     openMenu(e, [
       { label: 'View details', icon: Info, onClick: () => openView(m) },
-      ...(canGenerate ? [{ label: 'Auto-generate Blueprint', icon: Sparkles, onClick: () => handleGenerateTos(m) }] : []),
+      ...(canGenerate ? [{ label: 'Generate blueprint', icon: Sparkles, onClick: () => handleGenerateTos(m) }] : []),
       { label: m.status === 'failed' ? 'Retry processing' : 'Reprocess', icon: RotateCw, onClick: () => handleReprocess(m) },
       'sep',
       { label: 'Copy title', icon: Copy, onClick: () => copyText(m.title, 'Title') },
@@ -468,6 +484,49 @@ export default function MaterialsPage() {
   const subjectName = subjects.find((s) => String(s.id) === String(form.subject_id));
   const matSubjectOf = (m) => subjects.find((s) => String(s.id) === String(m.subject_id));
   const queueReady = queue.filter((it) => it.state === 'queued' || it.state === 'error').length;
+  const openUpload = () => { setUploadMode('file'); setUploadOpen(true); };
+
+  // KPI row — what the AI can actually draw on, and what still needs a hand.
+  const stats = useMemo(() => (materials || []).reduce((acc, m) => ({
+    ready: acc.ready + (m.status === 'processed' ? 1 : 0),
+    pending: acc.pending + (m.status === 'pending' ? 1 : 0),
+    failed: acc.failed + (m.status === 'failed' ? 1 : 0),
+    passages: acc.passages + (Number(m.chunk_count) || 0),
+  }), { ready: 0, pending: 0, failed: 0, passages: 0 }), [materials]);
+
+  const subjectOptions = useMemo(() => {
+    const used = new Set((materials || []).map((m) => String(m.subject_id)));
+    return [
+      { value: ALL, label: 'All subjects' },
+      ...subjects.filter((s) => used.has(String(s.id))).map((s) => ({ value: String(s.id), label: s.code ? `${s.code} — ${s.name}` : s.name })),
+    ];
+  }, [materials, subjects]);
+
+  const filteredMaterials = useMemo(() => {
+    const needle = query.trim().toLowerCase();
+    return (materials || []).filter((m) => {
+      if (subjectFilter !== ALL && String(m.subject_id) !== subjectFilter) return false;
+      if (statusFilter !== ALL && m.status !== statusFilter) return false;
+      return !needle || String(m.title || '').toLowerCase().includes(needle);
+    });
+  }, [materials, query, subjectFilter, statusFilter]);
+
+  // Grouped by subject once there is more than one — a single band would
+  // only repeat what every row already says.
+  const groups = useMemo(() => {
+    const map = new Map();
+    for (const m of filteredMaterials) {
+      const key = String(m.subject_id);
+      if (!map.has(key)) {
+        const subj = subjects.find((x) => String(x.id) === key);
+        map.set(key, { key, name: subj ? subj.name : 'Unknown subject', code: subj?.code || '', rows: [] });
+      }
+      map.get(key).rows.push(m);
+    }
+    return [...map.values()].sort((a, b) => a.name.localeCompare(b.name));
+  }, [filteredMaterials, subjects]);
+  const showGroups = groups.length > 1;
+  const filtering = !!query.trim() || subjectFilter !== ALL || statusFilter !== ALL;
 
   return (
     <AppShell pageClass="materials" activeNav="materials" pageTitle="Materials">
@@ -477,7 +536,7 @@ export default function MaterialsPage() {
               <Loader2 size={16} className="mat-spin" />
               <span>
                 {pendingCount} material{pendingCount === 1 ? '' : 's'} still processing. Text extraction and embedding
-                run in the background — the <strong>Auto-generate Blueprint</strong> button appears on a syllabus once
+                run in the background — <strong>Generate blueprint</strong> appears on a syllabus once
                 it finishes. {pollExhausted ? 'Auto-refresh has paused — use Refresh to check again.' : 'This list refreshes itself.'}
               </span>
             </div>
@@ -490,83 +549,142 @@ export default function MaterialsPage() {
               <EmptyStateArt art="docs" tone={6} />
               <h3>No materials yet</h3>
               <p>Upload PDFs, DOCX, PPTX, URLs, or YouTube transcripts to ground RAG question generation. You can also drag files straight onto this page.</p>
-              <button className="btn btn-primary" onClick={() => { setUploadMode('file'); setUploadOpen(true); }} data-tour="materials-upload">
+              <button className="btn btn-primary" onClick={openUpload} data-tour="materials-upload">
                 <Upload size={16} /> Upload first material
               </button>
             </div>
           ) : (
-            <div className="mat-list" ref={animateRows} data-tour="materials-list">
+            <>
+            <div className="stats-grid">
+              <StatCard icon={FileStack} tint="blue" value={materials.length} label="Materials" />
+              <StatCard icon={CheckCircle2} tint="green" value={stats.ready} label="Ready for AI" />
+              {stats.failed > 0
+                ? <StatCard icon={AlertCircle} tint="red" value={stats.failed} label="Failed — retry" />
+                : <StatCard icon={Loader2} tint="amber" value={stats.pending} label="Processing" />}
+              <StatCard icon={Layers} tint="cyan" value={stats.passages} label="Passages indexed" />
+            </div>
+
+            <section className="mat-list" data-tour="materials-list">
               <div className="mat-list-bar" data-tour="materials-head">
-                <p className="mat-droptip" data-tour="materials-tip">
-                  <Upload size={13} /> Tip: drag files anywhere onto this page — several at once — to queue them for upload.
-                </p>
+                <label className="ds-search mat-search" htmlFor="materials-search">
+                  <Search size={15} aria-hidden="true" />
+                  <span className="sr-only">Search materials</span>
+                  <input
+                    id="materials-search"
+                    type="search"
+                    autoComplete="off"
+                    placeholder="Search materials…"
+                    value={query}
+                    onChange={(e) => setQuery(e.target.value)}
+                  />
+                </label>
+                {subjectOptions.length > 2 && (
+                  <Select value={subjectFilter} onChange={setSubjectFilter} options={subjectOptions} label="Filter by subject" icon={BookOpen} />
+                )}
+                <Select value={statusFilter} onChange={setStatusFilter} options={STATUS_OPTIONS} label="Filter by status" icon={ListFilter} />
                 <div className="mat-toolbar-actions">
-                  <button className="btn btn-outline btn-sm" onClick={handleRefresh} disabled={refreshing} title="Refresh list">
-                    <RefreshCw size={15} className={refreshing ? 'mat-spin' : undefined} /> Refresh
-                  </button>
-                  <button className="btn btn-primary btn-sm" onClick={() => { setUploadMode('file'); setUploadOpen(true); }} data-tour="materials-upload">
+                  <Tooltip label="Refresh list">
+                    <button type="button" className="mat-icon-btn" onClick={handleRefresh} disabled={refreshing} aria-label="Refresh list">
+                      <RefreshCw size={15} className={refreshing ? 'mat-spin' : undefined} />
+                    </button>
+                  </Tooltip>
+                  <button className="btn btn-primary btn-sm" onClick={openUpload} data-tour="materials-upload">
                     <Upload size={15} /> Upload material
                   </button>
                 </div>
               </div>
-              {materials.map((m, i) => {
-                const Icon = SOURCE_ICONS[m.source_type] || FileText;
-                const matSubject = matSubjectOf(m);
-                return (
-                  <div key={m.id} className="mat-card" style={{ '--gc': groupColor(m.subject_id), '--i': Math.min(i, 8) }} onContextMenu={(e) => materialMenu(e, m)}>
-                    <div className="mat-card-main">
-                      <span className="mat-filetype" data-type={m.source_type} aria-hidden="true">
-                        <Icon size={15} />
-                        <b>{String(m.source_type || 'file').toUpperCase().slice(0, 4)}</b>
-                      </span>
-                      <div className="mat-card-body">
-                        <div className="mat-card-title">
-                          <span className="mat-card-name">{m.title}</span>
-                          <StatusPill status={m.status} small />
-                          {Boolean(Number(m.is_syllabus)) && <span className="mat-syl-tag">Syllabus</span>}
-                        </div>
-                        <div className="mat-card-meta">
-                          {matSubject ? `${matSubject.code || matSubject.name} · ` : ''}
-                          {m.source_type} · {m.chunk_count || 0} chunks
-                        </div>
-                        {m.title && m.title.length > 90 && (
-                          <button type="button" className="mat-readmore" onClick={() => openView(m)}>Read more</button>
-                        )}
-                        {m.status === 'pending' && (
-                          <div className="mat-card-progress">
-                            <Loader2 size={13} className="mat-spin" />
-                            {m.is_syllabus
-                              ? 'Processing — the Auto-generate Blueprint button appears here when it is ready.'
-                              : 'Processing — chunks and embeddings are being built.'}
+
+              {groups.length === 0 ? (
+                <div className="ds-noresults mat-noresults">
+                  <span className="ds-noresults-title">No materials match</span>
+                  <span className="ds-noresults-sub">
+                    {filtering && <button type="button" onClick={() => { setQuery(''); setSubjectFilter(ALL); setStatusFilter(ALL); }}>Clear filters</button>}
+                  </span>
+                </div>
+              ) : groups.map((g) => (
+                <div key={g.key} className="mat-group" style={{ '--gc': groupColor(g.key) }}>
+                  {showGroups && (
+                    <div className="mat-group-head">
+                      <span className="mat-group-dot" aria-hidden="true" />
+                      <span className="mat-group-name">{g.name}</span>
+                      {g.code && <span className="g-code">{g.code}</span>}
+                      <span className="mat-group-count">{g.rows.length}</span>
+                    </div>
+                  )}
+                  <ul className="mat-rows" ref={animateRows}>
+                    {g.rows.map((m, i) => {
+                      const Icon = SOURCE_ICONS[m.source_type] || FileText;
+                      const matSubject = matSubjectOf(m);
+                      const isSyllabus = Boolean(Number(m.is_syllabus));
+                      const canGenerate = isSyllabus && m.status === 'processed';
+                      return (
+                        <li key={m.id} className="mat-card" style={{ '--gc': groupColor(m.subject_id), '--i': Math.min(i, 8) }} onContextMenu={(e) => materialMenu(e, m)}>
+                          <div className="mat-card-main">
+                            <span className="mat-filetype" data-type={m.source_type} aria-hidden="true">
+                              <Icon size={15} />
+                              <b>{String(m.source_type || 'file').toUpperCase().slice(0, 4)}</b>
+                            </span>
+                            <div className="mat-card-body">
+                              <button type="button" className="mat-card-name" onClick={() => openView(m)} title={m.title}>
+                                {m.title}
+                              </button>
+                              <div className="mat-card-meta">
+                                {!showGroups && matSubject && <span>{matSubject.code || matSubject.name}</span>}
+                                <span>{SOURCE_LABELS[m.source_type] || m.source_type}</span>
+                                {m.status === 'processed' && <span>{Number(m.chunk_count) || 0} passage{Number(m.chunk_count) === 1 ? '' : 's'}</span>}
+                                {fmtDate(m.created_at) && <span>Added {fmtDate(m.created_at)}</span>}
+                              </div>
+                              {m.status === 'pending' && (
+                                <div className="mat-card-progress">
+                                  <Loader2 size={13} className="mat-spin" />
+                                  {isSyllabus
+                                    ? 'Processing — "Generate blueprint" appears here when it is ready.'
+                                    : 'Processing — passages and embeddings are being built.'}
+                                </div>
+                              )}
+                              {m.status === 'failed' && (
+                                <div className="mat-card-error" role="alert">
+                                  <AlertCircle size={13} />
+                                  <span>{m.error || 'Processing failed.'}</span>
+                                  <button className="mat-retry" onClick={() => handleReprocess(m)}>
+                                    <RotateCw size={12} /> Retry
+                                  </button>
+                                </div>
+                              )}
+                            </div>
                           </div>
-                        )}
-                        {m.status === 'failed' && (
-                          <div className="mat-card-error" role="alert">
-                            <AlertCircle size={13} />
-                            <span>{m.error || 'Processing failed.'}</span>
-                            <button className="mat-retry" onClick={() => handleReprocess(m)}>
-                              <RotateCw size={12} /> Retry
+                          <div className="mat-card-actions">
+                            {isSyllabus && <span className="mat-syl-tag">Syllabus</span>}
+                            <StatusPill status={m.status} small />
+                            {canGenerate && (
+                              <button type="button" className="btn btn-outline btn-sm mat-gen" onClick={() => handleGenerateTos(m)}>
+                                <Sparkles size={14} /> Generate blueprint
+                              </button>
+                            )}
+                            {/* Same floating menu as right-click — uniform with other pages. */}
+                            <button
+                              type="button"
+                              className="g-menu"
+                              onClick={(e) => materialMenu(e, m)}
+                              title="Actions"
+                              aria-label={`Actions for ${m.title}`}
+                            >
+                              <Ellipsis size={15} />
                             </button>
                           </div>
-                        )}
-                      </div>
-                    </div>
-                    <div className="mat-card-actions">
-                      {/* Same floating menu as right-click — uniform with other pages. */}
-                      <button
-                        type="button"
-                        className="g-menu"
-                        onClick={(e) => materialMenu(e, m)}
-                        title="Actions"
-                        aria-label={`Actions for ${m.title}`}
-                      >
-                        <Ellipsis size={15} />
-                      </button>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </div>
+              ))}
+
+              <button type="button" className="mat-dropzone" onClick={openUpload} data-tour="materials-tip">
+                <Upload size={15} aria-hidden="true" />
+                <span><strong>Drop files anywhere on this page</strong> — several at once — or click to upload. PDF, Word, slides, text, links and YouTube.</span>
+              </button>
+            </section>
+            </>
           )}
 
       {/* Page-wide drag feedback. pointer-events:none so it never swallows a drop. */}

@@ -210,7 +210,7 @@ export function FlagArt() {
   return (
     <svg {...svg}>
       <path d="M70 22l36 62H34z" fill="var(--surface)" stroke={P.stroke} strokeWidth="2" strokeLinejoin="round" />
-      <path d="M70 22l36 62H34z" className="eart-pulse" fill="none" stroke={P.wash} strokeWidth="2" opacity=".4" transform="scale(1.06)" transform-origin="70 60" />
+      <path d="M70 22l36 62H34z" className="eart-pulse" fill="none" stroke={P.wash} strokeWidth="2" opacity=".4" transform="scale(1.06)" transformOrigin="70 60" />
       <path d="M70 44v18" {...line} stroke={P.wash} strokeWidth="3" />
       <circle cx="70" cy="74" r="3.4" fill={P.wash} className="eart-twinkle" />
       <circle cx="112" cy="30" r="3" className="eart-twinkle eart-delay-1" fill={P.faint} />

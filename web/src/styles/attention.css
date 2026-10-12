@@ -2,6 +2,8 @@
 @scope (.page--attention) {
 
 .attn-header { gap: 10px; }
+.attn-header .card-title { display: inline-flex; align-items: center; gap: 8px; }
+.attn-header .card-title-icon { flex: none; color: var(--amber-600); }
 .attn-header-right {
     display: flex;
     align-items: center;

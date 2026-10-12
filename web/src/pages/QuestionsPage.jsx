@@ -20,7 +20,9 @@ import { useToast } from '../components/Toast.jsx';
 import { useContextMenu, useCopyText } from '../components/ContextMenu.jsx';
 import { useConfirm } from '../components/ConfirmDialog.jsx';
 import Modal from '../components/Modal.jsx';
-import DetailsModal from '../components/DetailsModal.jsx';
+import QuestionPreview from '../components/QuestionPreview.jsx';
+import EvidenceViewer from '../components/EvidenceViewer.jsx';
+import RichText from '../components/RichText.jsx';
 import api, { ApiError } from '../lib/api.js';
 import useJobs, { isActiveJob } from '../lib/useJobs.js';
 import AppShell from '../components/AppShell.jsx';
@@ -40,45 +42,29 @@ const BLOOM_LEVELS = { remember: 1, understand: 2, apply: 3, analyze: 4, evaluat
 // Display labels only. The keys are the wire values shared with the API, the
 // OMR scoring service and the Flutter app — never rename a key.
 const TYPE_LABELS = { mcq: 'Multiple choice', true_false: 'True / false', matching: 'Matching type', identification: 'Fill in the blank' };
-const STATUS_MIX = [
-  ['active', 'Active', 'var(--green-600)'],
-  ['draft', 'Drafts', 'var(--amber-600)'],
-  ['rejected', 'Rejected', 'var(--red-600)'],
+// Status tabs over the table. '' is the default view — the working bank,
+// approved questions plus drafts. Rejected items are kept (soft status) but
+// sit behind their own tab instead of filling the first page.
+const STATUS_TABS = [
+  { value: '', label: 'Current', title: 'Approved questions and drafts — everything except rejected' },
+  { value: 'active', label: 'Approved' },
+  { value: 'draft', label: 'Drafts' },
+  { value: 'rejected', label: 'Rejected' },
 ];
+const SOURCE_LABELS = { ai: 'AI-generated', import: 'Imported', manual: 'Written or reused' };
 
-/** Bank mix strip — status segments, Bloom coverage columns, type counts.
- *  Reflects the currently loaded (filtered) list. */
+/** Mix strip beside the status tabs — Bloom coverage columns and type
+ *  counts for the rows the current tab and filters show. */
 function BankMix({ questions }) {
-  const byStatus = {}, byBloom = {}, byType = {};
+  const byBloom = {}, byType = {};
   questions.forEach((q) => {
-    byStatus[q.status] = (byStatus[q.status] || 0) + 1;
     if (q.bloom) byBloom[q.bloom] = (byBloom[q.bloom] || 0) + 1;
     if (q.type) byType[q.type] = (byType[q.type] || 0) + 1;
   });
   const bloomMax = Math.max(1, ...BLOOM_ORDER.map((b) => byBloom[b] || 0));
-  const segLabel = STATUS_MIX.map(([k, label]) => `${byStatus[k] || 0} ${label.toLowerCase()}`).join(', ');
+  const bloomLabel = BLOOM_ORDER.map((b) => `${byBloom[b] || 0} ${BLOOM_LABELS[b].toLowerCase()}`).join(', ');
   return (
-    <div className="qmix" role="img" aria-label={`Bank mix — ${segLabel}`}>
-      <div className="qmix-main">
-        <div className="qmix-seg">
-          {STATUS_MIX.map(([k, label, color]) => (byStatus[k] || 0) > 0 && (
-            <span
-              key={k}
-              className="qmix-seg-fill"
-              style={{ flexGrow: byStatus[k], background: color }}
-              title={`${label}: ${byStatus[k]}`}
-            />
-          ))}
-        </div>
-        <div className="qmix-legend">
-          {STATUS_MIX.map(([k, label, color]) => (
-            <span key={k} className="qmix-key">
-              <i className="qmix-dot" style={{ background: color }} aria-hidden="true" />
-              {label} <strong>{byStatus[k] || 0}</strong>
-            </span>
-          ))}
-        </div>
-      </div>
+    <div className="qmix" role="img" aria-label={`Bloom mix — ${bloomLabel}`}>
       <div className="qmix-bloom">
         {BLOOM_ORDER.map((b, i) => (
           <span key={b} className="qmix-bloom-col" title={`${BLOOM_LABELS[b]}: ${byBloom[b] || 0}`}>
@@ -153,7 +139,7 @@ function questionsPath(filters) {
   if (filters.subject_id) params.set('subject_id', filters.subject_id);
   if (filters.bloom) params.set('bloom', filters.bloom);
   if (filters.type) params.set('type', filters.type);
-  if (filters.status) params.set('status', filters.status);
+  // Status is filtered client-side so every tab can show its count.
   if (filters.tos_id) params.set('tos_id', filters.tos_id);
   return `/questions?${params}`;
 }
@@ -390,8 +376,9 @@ export default function QuestionsPage() {
     return [...seen].sort((a, b) => a.localeCompare(b));
   }, [questions, filters.topic]);
 
-  // Client-side search + topic filter (mirrors DataTables search)
-  const filteredQuestions = useMemo(() => {
+  // Client-side search + topic filter (mirrors DataTables search). Status is
+  // applied after, so the tab counts reflect every other active filter.
+  const baseQuestions = useMemo(() => {
     if (!questions) return null;
     let rows = questions;
     if (filters.topic) rows = rows.filter((item) => (item.topic || '') === filters.topic);
@@ -405,7 +392,24 @@ export default function QuestionsPage() {
     return rows;
   }, [questions, search, filters.topic]);
 
-  const activeFilterCount = [filters.subject_id, filters.bloom, filters.type, filters.status, filters.tos_id, filters.topic].filter(Boolean).length;
+  const statusCounts = useMemo(() => {
+    const counts = { '': 0, active: 0, draft: 0, rejected: 0 };
+    (baseQuestions || []).forEach((q) => {
+      counts[q.status] = (counts[q.status] || 0) + 1;
+      if (q.status !== 'rejected') counts[''] += 1;
+    });
+    return counts;
+  }, [baseQuestions]);
+
+  const filteredQuestions = useMemo(() => {
+    if (!baseQuestions) return null;
+    return filters.status
+      ? baseQuestions.filter((q) => q.status === filters.status)
+      : baseQuestions.filter((q) => q.status !== 'rejected');
+  }, [baseQuestions, filters.status]);
+
+  // The status tabs show their own state, so they don't count as a filter.
+  const activeFilterCount = [filters.subject_id, filters.bloom, filters.type, filters.tos_id, filters.topic].filter(Boolean).length;
 
   // When the list is filtered to one subject — or grouped by subject, where
   // the band already says it — the column only repeats that subject; drop it
@@ -416,10 +420,11 @@ export default function QuestionsPage() {
     return new Set(questions.map((q) => q.subject_id || 'none')).size === 1;
   }, [questions]);
   const showSubject = !filters.subject_id && groupBy !== 'subject' && !singleSubject;
-  const COLS = showSubject ? 8 : 7;
+  const COLS = showSubject ? 7 : 6;
 
+  // Clearing filters keeps the status tab — it is a view, not a filter.
   const clearFilters = useCallback(() => {
-    setFilters(DEFAULT_FILTERS);
+    setFilters((current) => ({ ...DEFAULT_FILTERS, status: current.status }));
     setSearch('');
   }, []);
 
@@ -822,33 +827,25 @@ export default function QuestionsPage() {
             <span className="sr-only">Select “{stem.slice(0, 60)}”</span>
           </label>
         </td>
-        <td>
+        <td className="col-primary">
           <span className="g-primary">
             <button
               type="button"
-              className="g-title"
+              className="g-title q-stem"
               title={stem}
-              onClick={() => openEdit(q)}
-              style={{ textAlign: 'left', cursor: 'pointer' }}
+              onClick={() => setViewing(q)}
             >
-              {stem}
+              <RichText text={stem} />
             </button>
-            {q.similarity_flag === 'flagged' && (
-              <Link to={`/questions/${q.id}/similarity`} className="sim-flag" title="Possible duplicate — click to review">
-                <FileText size={12} /> Similar
-              </Link>
-            )}
-            {(q.topic || stem.length > 70) && (
-              <span className="g-meta">
-                {q.topic}
-                {stem.length > 70 && (
-                  <>
-                    {q.topic ? ' · ' : ''}
-                    <button type="button" className="g-more" onClick={() => setViewing(q)}>Read more</button>
-                  </>
-                )}
-              </span>
-            )}
+            <span className="g-meta q-meta">
+              <span>{TYPE_LABELS[q.type] || q.type}</span>
+              {q.topic && <span title={q.topic}>{q.topic}</span>}
+              {q.similarity_flag === 'flagged' && (
+                <Link to={`/questions/${q.id}/similarity`} className="sim-flag" title="Possible duplicate — click to review">
+                  <FileText size={12} /> Similar
+                </Link>
+              )}
+            </span>
           </span>
         </td>
         {showSubject && (
@@ -866,9 +863,6 @@ export default function QuestionsPage() {
           ) : (
             <span className="g-mute">—</span>
           )}
-        </td>
-        <td className="g-text" data-filter={TYPE_LABELS[q.type] || q.type}>
-          {TYPE_LABELS[q.type] || q.type}
         </td>
         <td data-order={status.order} data-filter={status.label}>
           <StatusPill status={q.status} />
@@ -900,10 +894,25 @@ export default function QuestionsPage() {
         <tbody>
           <tr>
             <td colSpan={COLS} className="ds-noresults">
-              <span className="ds-noresults-title">No questions found</span>
-              <span className="ds-noresults-sub">
-                <button type="button" onClick={clearFilters}>Clear filters</button>
-              </span>
+              {activeFilterCount || search ? (
+                <>
+                  <span className="ds-noresults-title">No questions found</span>
+                  <span className="ds-noresults-sub">
+                    <button type="button" onClick={clearFilters}>Clear filters</button>
+                  </span>
+                </>
+              ) : (
+                <>
+                  <span className="ds-noresults-title">
+                    {filters.status === 'draft' ? 'No drafts waiting' : filters.status === 'rejected' ? 'Nothing rejected' : filters.status === 'active' ? 'No approved questions yet' : 'Every question here is rejected'}
+                  </span>
+                  <span className="ds-noresults-sub">
+                    {filters.status
+                      ? <button type="button" onClick={() => updateFilters({ ...filters, status: '' })}>Show current questions</button>
+                      : <button type="button" onClick={() => updateFilters({ ...filters, status: 'rejected' })}>Show rejected</button>}
+                  </span>
+                </>
+              )}
             </td>
           </tr>
         </tbody>
@@ -952,7 +961,7 @@ export default function QuestionsPage() {
 
       {filteredQuestions === null ? (
         <TableSkeleton />
-      ) : filteredQuestions.length === 0 && !activeFilterCount && !search ? (
+      ) : (questions || []).length === 0 && !activeFilterCount && !search ? (
         activeCount > 0 ? (
           <JobsActivityPanel
             jobs={jobs}
@@ -1081,7 +1090,25 @@ export default function QuestionsPage() {
             </div>
           )}
 
-          {questions && questions.length > 0 && <BankMix questions={questions} />}
+          <div className="q-statusbar">
+            <div className="q-tabs" role="group" aria-label="Show questions by status" data-tour="questions-status">
+              {STATUS_TABS.map((t) => (
+                <button
+                  key={t.value || 'current'}
+                  type="button"
+                  className="q-tab"
+                  data-status={t.value || 'current'}
+                  aria-pressed={filters.status === t.value}
+                  title={t.title}
+                  onClick={() => updateFilters({ ...filters, status: t.value })}
+                >
+                  {t.label}
+                  <span className="q-tab-count">{statusCounts[t.value] || 0}</span>
+                </button>
+              ))}
+            </div>
+            {rows.length > 0 && <BankMix questions={rows} />}
+          </div>
 
           {/* Grid */}
           <div className="dataset-scroll" data-tour="questions-table">
@@ -1102,13 +1129,12 @@ export default function QuestionsPage() {
                       <span className="sr-only">Select all matching rows</span>
                     </label>
                   </th>
-                  <th className="col-primary wp-27" data-name="Question" data-locked>Question</th>
+                  <th className={`col-primary ${showSubject ? 'wp-45' : 'wp-55'}`} data-name="Question" data-locked>Question</th>
                   {showSubject && <th className="wp-10" data-name="Subject">Subject</th>}
                   <th className="wp-14" data-name="Bloom">Bloom</th>
-                  <th className="wp-14" data-name="Type">Type</th>
                   <th className="wp-11" data-name="Status">Status</th>
-                  <th className="wp-10" data-name="Updated">Updated</th>
-                  <th className="col-actions wp-10">Actions</th>
+                  <th className="wp-11" data-name="Updated">Updated</th>
+                  <th className="col-actions wp-5"><span className="sr-only">Actions</span></th>
                 </tr>
               </thead>
               {renderQuestionRows()}
@@ -1167,16 +1193,6 @@ export default function QuestionsPage() {
               onChange={(e) => updateFilters({ ...filters, topic: e.target.value })}>
               <option value="">All topics</option>
               {topicOptions.map((t) => <option key={t} value={t}>{t}</option>)}
-            </select>
-          </div>
-          <div className="form-group">
-            <label className="form-label" htmlFor="qf-status">Status</label>
-            <select id="qf-status" className="form-control form-select" value={filters.status}
-              onChange={(e) => updateFilters({ ...filters, status: e.target.value })}>
-              <option value="">All statuses</option>
-              <option value="active">Active</option>
-              <option value="draft">Draft</option>
-              <option value="rejected">Rejected</option>
             </select>
           </div>
           <div className="form-group">
@@ -1534,29 +1550,68 @@ export default function QuestionsPage() {
         )}
       </Modal>
 
-      <DetailsModal
+      {/* Preview sheet — the full question with its answer marked, the AI
+          grounding check, and the actions that decide its status. */}
+      <Modal
         open={!!viewing}
-        title={viewing ? (viewing.stem || 'Question') : ''}
-        subtitle="Question details"
+        side
+        title="Question preview"
+        subtitle={viewing ? [viewing.subject_name, viewing.topic].filter(Boolean).join(' · ') || 'Question' : ''}
         icon={HelpCircle}
         accent={viewing ? groupColor(viewing.subject_id || viewing.subject_name) : undefined}
         onClose={() => setViewing(null)}
-        fields={viewing ? [
-          { label: 'Status', value: <StatusPill status={viewing.status} small inline />, kind: 'meta' },
-          { label: 'Type', value: TYPE_LABELS[viewing.type] || viewing.type, kind: 'meta' },
-          { label: 'Bloom', value: BLOOM_LABELS[viewing.bloom] || viewing.bloom, kind: 'meta' },
-          { label: 'Subject', value: viewing.subject_name, kind: 'meta' },
-          { label: 'Topic', value: viewing.topic },
-          viewing.similarity_flag === 'flagged' ? { label: 'Similarity', value: 'Flagged as a possible duplicate' } : null,
-          viewing.source === 'ai' && viewing.ai_evidence ? {
-            label: 'Cited evidence',
-            value: viewing.ai_evidence,
-            kind: 'block',
-            badge: [viewing.ai_source, viewing.ai_generator].filter(Boolean).join(' · ') || undefined,
-          } : null,
-          { label: 'Updated', value: fmtDateQ(viewing.updated_at || viewing.created_at) },
-        ].filter(Boolean) : []}
-      />
+        footer={viewing && (
+          <>
+            <button type="button" className="btn btn-outline" onClick={() => { const q = viewing; setViewing(null); openEdit(q); }}>
+              <Pencil size={15} /> Edit
+            </button>
+            {viewing.status !== 'rejected' && (
+              <button type="button" className="btn btn-outline" onClick={() => { const q = viewing; setViewing(null); handleReject(q); }}>
+                <X size={15} /> Reject
+              </button>
+            )}
+            {viewing.status === 'draft' && (
+              <button type="button" className="btn btn-primary" onClick={() => { const q = viewing; setViewing(null); handleApprove(q); }}>
+                <Check size={15} /> Approve
+              </button>
+            )}
+            {viewing.status === 'rejected' && (
+              <button type="button" className="btn btn-primary" onClick={() => { const q = viewing; setViewing(null); handleApprove(q); }}>
+                <RotateCcw size={15} /> Restore
+              </button>
+            )}
+          </>
+        )}
+      >
+        {viewing && (
+          <div className="q-preview">
+            <div className="q-preview-meta">
+              <StatusPill status={viewing.status} small inline />
+              <span className="q-preview-chip">{TYPE_LABELS[viewing.type] || viewing.type}</span>
+              {BLOOM_LEVELS[viewing.bloom] && (
+                <span className="g-bloom" data-level={BLOOM_LEVELS[viewing.bloom]}>{BLOOM_LABELS[viewing.bloom]}</span>
+              )}
+            </div>
+            {viewing.similarity_flag === 'flagged' && (
+              <Link to={`/questions/${viewing.id}/similarity`} className="q-preview-alert">
+                <FileText size={15} aria-hidden="true" />
+                <span>
+                  <strong>Possible duplicate of a bank question</strong>
+                  {viewing.similarity_score != null && ` — ${(Number(viewing.similarity_score) * 100).toFixed(0)}% similar`}
+                </span>
+                <span className="q-preview-alert-cta">Compare</span>
+              </Link>
+            )}
+            <QuestionPreview question={viewing} />
+            {viewing.source === 'ai' && <EvidenceViewer key={viewing.id} question={viewing} />}
+            <dl className="q-preview-facts">
+              <div><dt>Source</dt><dd>{SOURCE_LABELS[viewing.source] || viewing.source || '—'}</dd></div>
+              <div><dt>Updated</dt><dd>{fmtDateQ(viewing.updated_at || viewing.created_at) || '—'}</dd></div>
+              {viewing.approved_at && <div><dt>Approved</dt><dd>{fmtDateQ(viewing.approved_at)}</dd></div>}
+            </dl>
+          </div>
+        )}
+      </Modal>
       {menuEl}
     </AppShell>
   );

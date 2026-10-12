@@ -33,6 +33,7 @@ import { CardsSkeleton } from '../components/Loaders.jsx';
 import { JobsActivityPanel } from '../components/JobsList.jsx';
 import EvidenceViewer from '../components/EvidenceViewer.jsx';
 import RichText from '../components/RichText.jsx';
+import { cleanOptionText, resolveAnswerIndex, matchingLetters, trueFalseAnswer } from '../lib/questionAnswers.js';
 
 const BLOOM_LABELS = { remember: 'Remember', understand: 'Understand', apply: 'Apply', analyze: 'Analyze', evaluate: 'Evaluate', create: 'Create' };
 const BLOOM_ORDER = ['remember', 'understand', 'apply', 'analyze', 'evaluate', 'create'];
@@ -49,69 +50,18 @@ const TYPE_LABELS = { mcq: 'Multiple choice', true_false: 'True / false', matchi
 // one type rather than destroying data behind the instructor's back.
 const PUT_SAFE_TYPES = new Set(['mcq', 'true_false', 'identification']);
 
-/** Normalise free text for tolerant answer matching (mirrors scoring.js). */
-function normText(s) {
-  return String(s ?? '').toLowerCase().replace(/\s+/g, ' ').trim();
-}
-
-/** Strip a leading option label so 'B) Paris' compares equal to 'Paris'. */
-function cleanOptionText(opt) {
-  return String(opt ?? '').replace(/^\s*[A-Za-z]\s*[).:-]\s*/, '').trim();
-}
-
-/**
- * Index of the option the stored answer points at, or -1.
- * Accepts the canonical bare letter ('B'), the legacy 'B) Paris' shape, and
- * the option text itself — the same three forms scoring.js tolerates.
- */
-function resolveAnswerIndex(options, answer) {
-  if (!Array.isArray(options) || options.length === 0 || !answer) return -1;
-  const raw = String(answer).trim();
-
-  if (/^[A-Za-z]$/.test(raw)) {
-    const idx = raw.toUpperCase().charCodeAt(0) - 65;
-    return idx >= 0 && idx < options.length ? idx : -1;
-  }
-
-  const labelled = raw.match(/^([A-Za-z])\s*[).:-]\s*(.+)$/);
-  if (labelled) {
-    const byText = options.findIndex((o) => normText(cleanOptionText(o)) === normText(labelled[2]));
-    if (byText >= 0) return byText;
-    const idx = labelled[1].toUpperCase().charCodeAt(0) - 65;
-    if (idx >= 0 && idx < options.length) return idx;
-  }
-
-  return options.findIndex((o) => normText(cleanOptionText(o)) === normText(raw));
-}
-
-/**
- * Response letter assigned to each matching premise.
- * Reads the stored '1-B, 2-A, 3-D' shape first, then the canonical
- * comma-joined 'B,A,D,C' form used on the OMR wire.
- */
-function matchingLetters(answer, count) {
-  const out = new Array(count).fill(null);
-  const re = /(\d+)\s*[-–—:.]\s*([A-Za-z])/g;
-  let m;
-  while ((m = re.exec(String(answer ?? ''))) !== null) {
-    const i = parseInt(m[1], 10) - 1;
-    if (i >= 0 && i < count) out[i] = m[2].toUpperCase();
-  }
-  if (out.every((v) => v === null)) {
-    String(answer ?? '').split(',').forEach((piece, i) => {
-      const letter = piece.trim().toUpperCase();
-      if (i < count && /^[A-Z]$/.test(letter)) out[i] = letter;
-    });
-  }
-  return out;
-}
-
-/** True / False / null for whichever legacy shape the answer was stored in. */
-function trueFalseAnswer(answer) {
-  const v = String(answer ?? '').trim().toUpperCase();
-  if (v === 'T' || v === 'TRUE') return 'True';
-  if (v === 'F' || v === 'FALSE') return 'False';
-  return null;
+// Side-list status per draft: a decision made this session wins; otherwise
+// the duplicate-check state that decides whether it can be approved yet.
+const QUEUE_STATE_LABELS = {
+  approved: 'Approved', rejected: 'Rejected', flagged: 'Duplicate?',
+  failed: 'Check failed', checking: 'Checking', ready: 'Ready',
+};
+function queueState(q, decision) {
+  if (decision) return decision;
+  if (q.similarity_flag === 'flagged') return 'flagged';
+  if (q.similarity_error) return 'failed';
+  if (!q.similarity_checked_at) return 'checking';
+  return 'ready';
 }
 
 /**
@@ -287,6 +237,17 @@ export default function ReviewQueuePage() {
     () => (queue || []).filter((q) => !decisions[q.id] && q.similarity_error).map((q) => q.id),
     [queue, decisions]
   );
+
+  const queueListRef = useRef(null);
+  useEffect(() => {
+    const list = queueListRef.current;
+    const el = list?.querySelector('[aria-current="true"]');
+    if (!list || !el) return;
+    if (el.offsetTop < list.scrollTop) list.scrollTop = el.offsetTop - 8;
+    else if (el.offsetTop + el.offsetHeight > list.scrollTop + list.clientHeight) {
+      list.scrollTop = el.offsetTop + el.offsetHeight - list.clientHeight + 8;
+    }
+  }, [cursor, queue]);
 
   const total = queue?.length || 0;
   const decidedCount = total - tally.remaining;
@@ -760,6 +721,38 @@ export default function ReviewQueuePage() {
 
           {undoBar}
 
+          <div className="rv-workspace">
+          {/* Queue overview — wide screens only. Jumping is disabled mid-edit
+              or mid-save so the edit form never lands on another draft. */}
+          <aside className="rv-queue" aria-label="Drafts in this queue">
+            <div className="rv-queue-head">
+              <span>Queue</span>
+              <span className="rv-queue-left">{tally.remaining} left</span>
+            </div>
+            <ol className="rv-queue-list" ref={queueListRef}>
+              {queue.map((q, i) => {
+                const state = queueState(q, decisions[q.id]);
+                return (
+                  <li key={q.id}>
+                    <button
+                      type="button"
+                      className="rv-queue-item"
+                      data-state={state}
+                      aria-current={i === cursor ? 'true' : undefined}
+                      onClick={() => setCursor(i)}
+                      disabled={busy || !!editing}
+                      title={editing ? 'Finish or cancel the edit first' : undefined}
+                    >
+                      <span className="rv-queue-num">{i + 1}</span>
+                      <span className="rv-queue-stem">{shorten(q.stem)}</span>
+                      <span className="rv-queue-state">{QUEUE_STATE_LABELS[state]}</span>
+                    </button>
+                  </li>
+                );
+              })}
+            </ol>
+          </aside>
+          <div className="rv-work">
           {tally.remaining === 0 ? (
             <div className="rv-panel">
               <div className="empty-state">
@@ -911,6 +904,8 @@ export default function ReviewQueuePage() {
               <p className="placeholder">Nothing selected — <button type="button" className="rv-linkbtn" onClick={skip}>jump to the next draft</button>.</p>
             </div>
           )}
+          </div>
+          </div>
         </>
       )}
 

@@ -1059,6 +1059,9 @@ a.g-link:hover { color: var(--action-600); text-decoration: underline; text-unde
     flex: 0 0 auto;
     border-radius: 2px;
     background: var(--line-strong);
+    /* The low end of the ramp (Remember) is near-white on a white row — a
+       hairline keeps every swatch visible without bending the scale. */
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--bloom-6) 30%, transparent);
 }
 
 .g-bloom[data-level="1"]::before { background: var(--bloom-1); }
@@ -1119,6 +1122,8 @@ a.g-link:hover { color: var(--action-600); text-decoration: underline; text-unde
 .wp-32  { width: 32%; }
 .wp-33  { width: 33%; }
 .wp-36  { width: 36%; }
+.wp-45  { width: 45%; }
+.wp-55  { width: 55%; }
 
 /* DataTables' sortable-header selector outranks a single class, so the ladder
    is repeated at its specificity for the columns that end up sortable. */
@@ -1139,6 +1144,8 @@ table.grid.dataTable thead > tr > th.wp-31 { width: 31%; }
 table.grid.dataTable thead > tr > th.wp-32 { width: 32%; }
 table.grid.dataTable thead > tr > th.wp-33 { width: 33%; }
 table.grid.dataTable thead > tr > th.wp-36 { width: 36%; }
+table.grid.dataTable thead > tr > th.wp-45 { width: 45%; }
+table.grid.dataTable thead > tr > th.wp-55 { width: 55%; }
 
 /* ==========================================================================
    Selection column

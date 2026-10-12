@@ -19,6 +19,8 @@ import { useConfirm } from '../components/ConfirmDialog.jsx';
 import { useContextMenu, useCopyText } from '../components/ContextMenu.jsx';
 import Modal from '../components/Modal.jsx';
 import ExamPaper from '../components/ExamPaper.jsx';
+import ExamQuestionList from '../components/ExamQuestionList.jsx';
+import QuestionPreview from '../components/QuestionPreview.jsx';
 import api, { ApiError, getToken } from '../lib/api.js';
 import AppShell from '../components/AppShell.jsx';
 import { CardsSkeleton } from '../components/Loaders.jsx';
@@ -82,6 +84,7 @@ export default function ExamDetailPage() {
   const [omrNonce, setOmrNonce] = useState(0);      // bumps the iframe after a re-render
   const [omrBusy, setOmrBusy] = useState(false);
   const omrFrameRef = useRef(null);
+  const [previewQ, setPreviewQ] = useState(null);
   const [results, setResults] = useState(null);
   const [itemStats, setItemStats] = useState([]);
   const { menuEl, openMenu } = useContextMenu();
@@ -297,7 +300,7 @@ export default function ExamDetailPage() {
   }
 
   if (!data) return <AppShell pageClass="exam-detail" activeNav="exams" pageTitle="Exam"><CardsSkeleton tiles={3} /></AppShell>;
-  const { exam, questions, tos, sets } = data;
+  const { exam, questions, tos, tosMatrix, sets } = data;
   const published = exam.status === 'published';
   const print = exam.format === 'print';
   const totalScans = parseInt(results?.stats?.total_scans || 0, 10);
@@ -316,6 +319,15 @@ export default function ExamDetailPage() {
   const printQuestions = setDef?.question_ids?.length
     ? setDef.question_ids.map((qid) => questions.find((q) => q.id === qid)).filter(Boolean)
     : questions;
+
+  function questionMenu(e, q) {
+    openMenu(e, [
+      { label: 'Preview', icon: Eye, onClick: () => setPreviewQ(q) },
+      { label: 'Copy stem', icon: Copy, onClick: () => copyText(q.stem, 'Question stem') },
+      'sep',
+      { label: 'Remove from exam', icon: Trash2, danger: true, onClick: () => handleRemoveQ(q.id) },
+    ]);
+  }
 
   // Lifecycle rail — the first unfinished stage is "current".
   const tone = statusOf(exam.status);
@@ -439,16 +451,21 @@ export default function ExamDetailPage() {
             </Reveal>
           )}
 
-          <div className="card" data-tour="exam-questions">
+          <div className="card eq-card" data-tour="exam-questions">
             <div className="card-header">
-              <span className="card-title">Questions</span>
+              <div>
+                <span className="card-title">Questions</span>
+                {questions.length > 0 && (
+                  <p className="card-sub">
+                    {questions.length} item{questions.length === 1 ? '' : 's'}
+                    {tos?.total_items ? ` of ${Number(tos.total_items)} planned` : ''} · click one to preview
+                  </p>
+                )}
+              </div>
               {questions.length > 0 && (
-                <>
-                  <span className="text-muted meta-sm">{questions.length} total</span>
-                  <button className="btn btn-outline btn-sm" onClick={openPicker}>
-                    <Plus size={14} /> Add questions
-                  </button>
-                </>
+                <button className="btn btn-outline btn-sm" onClick={openPicker}>
+                  <Plus size={14} /> Add questions
+                </button>
               )}
             </div>
             {questions.length === 0 ? (
@@ -461,42 +478,13 @@ export default function ExamDetailPage() {
                 </button>
               </div>
             ) : (
-              <div className="table-wrap table-bare">
-                <table className="data-table">
-                  <caption className="sr-only">Questions included in {exam.title}</caption>
-                  <thead>
-                    <tr>
-                      <th className="col-num">#</th>
-                      <th>Question</th>
-                      <th>Type</th>
-                      <th>Bloom</th>
-                      <th style={{ width: 50 }}><span className="sr-only">Actions</span></th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {questions.map((q, i) => (
-                      <tr key={q.id} onContextMenu={(e) => openMenu(e, [
-                        { label: 'Copy stem', icon: Copy, onClick: () => copyText(q.stem, 'Question stem') },
-                        'sep',
-                        { label: 'Remove from exam', icon: Trash2, danger: true, onClick: () => handleRemoveQ(q.id) },
-                      ])}>
-                        <td className="text-muted">{i + 1}</td>
-                        <td className="cell-medium">{q.stem}</td>
-                        <td><span className="badge badge-gray">{TYPE_LABELS[q.type] || q.type}</span></td>
-                        <td>{q.bloom
-                          ? <span className="badge badge-purple">{BLOOM_LABELS[q.bloom] || q.bloom}</span>
-                          : <span className="g-mute">—</span>}
-                        </td>
-                        <td>
-                          <button className="action-icon danger" onClick={() => handleRemoveQ(q.id)} title="Remove question">
-                            <Trash2 size={15} />
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+              <ExamQuestionList
+                questions={questions}
+                tosMatrix={tosMatrix}
+                onPreview={setPreviewQ}
+                onRemove={(q) => handleRemoveQ(q.id)}
+                onMenu={questionMenu}
+              />
             )}
           </div>
         </div>
@@ -544,6 +532,26 @@ export default function ExamDetailPage() {
         </aside>
       </div>
       </div>{/* /print-skip */}
+
+      <Modal
+        open={!!previewQ}
+        side
+        title={previewQ ? `Question ${questions.findIndex((q) => q.id === previewQ.id) + 1}` : 'Question'}
+        subtitle={previewQ?.topic || exam.subject_name}
+        icon={FileText}
+        accent={accent}
+        onClose={() => setPreviewQ(null)}
+        footer={previewQ && (
+          <>
+            <button type="button" className="btn btn-outline is-danger" onClick={() => { const q = previewQ; setPreviewQ(null); handleRemoveQ(q.id); }}>
+              <Trash2 size={15} /> Remove from exam
+            </button>
+            <button type="button" className="btn btn-primary" onClick={() => setPreviewQ(null)}>Done</button>
+          </>
+        )}
+      >
+        {previewQ && <QuestionPreview question={previewQ} />}
+      </Modal>
 
       <Modal open={pickerOpen} title="Add questions" subtitle={`From ${exam.subject_code || exam.subject_name}`} onClose={() => setPickerOpen(false)} size="lg"
         footer={<>

@@ -6,8 +6,8 @@ import '../styles/ai-eval.css';
  * GET /api/ai-eval/summary (generation, similarity, extraction, provider
  * usage, distributions, and the Bloom confusion matrix).
  */
-import { useEffect, useState, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useEffect, useState, useCallback, useRef } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   ArrowLeft, Sparkles, CheckCircle, CopyCheck, FileSearch,
   Target, Crosshair, Search, GitMerge,
@@ -23,6 +23,12 @@ import { PageLoader } from '../components/Loaders.jsx';
 const BLOOM_LEVEL = { remember: 1, understand: 2, apply: 3, analyze: 4, evaluate: 5, create: 6 };
 const TYPE_LABELS = { mcq: 'Multiple choice', true_false: 'True / false', matching: 'Matching type', identification: 'Fill in the blank' };
 
+// Two views under the scorecard; ?tab=bloom deep-links the second.
+const TABS = [
+  { id: 'generation', label: 'Generation & extraction' },
+  { id: 'bloom', label: 'Bloom classification' },
+];
+
 function pct(v, digits = 1) {
   return ((Number(v) || 0) * 100).toFixed(digits);
 }
@@ -31,6 +37,21 @@ export default function AiEvalPage() {
   const toast = useToast();
   const navigate = useNavigate();
   const [data, setData] = useState(() => api.peek('/ai-eval/summary') ?? null);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const tab = searchParams.get('tab') === 'bloom' ? 'bloom' : 'generation';
+  const tabRefs = useRef({});
+  const selectTab = (id, focus = false) => {
+    setSearchParams(id === 'bloom' ? { tab: 'bloom' } : {}, { replace: true });
+    if (focus) tabRefs.current[id]?.focus();
+  };
+  // WAI-ARIA tabs: arrows move between tabs, Home/End jump to the ends.
+  const onTabKey = (e) => {
+    const i = TABS.findIndex((t) => t.id === tab);
+    const next = { ArrowRight: i + 1, ArrowLeft: i - 1, Home: 0, End: TABS.length - 1 }[e.key];
+    if (next === undefined) return;
+    e.preventDefault();
+    selectTab(TABS[(next + TABS.length) % TABS.length].id, true);
+  };
 
   const load = useCallback(() => {
     api.get('/ai-eval/summary')
@@ -93,6 +114,31 @@ export default function AiEvalPage() {
           label="Extraction Accuracy" hint={`${ext.processed || 0} of ${ext.totalMaterials || 0} materials processed`} />
       </div>
 
+      <div className="ae-tabs" role="tablist" aria-label="Evaluation views">
+        {TABS.map((t) => (
+          <button
+            key={t.id}
+            ref={(el) => { tabRefs.current[t.id] = el; }}
+            type="button"
+            role="tab"
+            id={`ae-tab-${t.id}`}
+            aria-selected={tab === t.id}
+            aria-controls={`ae-panel-${t.id}`}
+            tabIndex={tab === t.id ? 0 : -1}
+            className="ae-tab"
+            onClick={() => selectTab(t.id)}
+            onKeyDown={onTabKey}
+            // The guided tour's confusion-matrix step lands on this tab while
+            // the matrix itself is out of view.
+            data-tour={t.id === 'bloom' && tab !== 'bloom' ? 'aieval-matrix' : undefined}
+          >
+            {t.label}
+          </button>
+        ))}
+      </div>
+
+      {tab === 'generation' && (
+      <div role="tabpanel" id="ae-panel-generation" aria-labelledby="ae-tab-generation" className="ae-panel">
       <div className="detail-grid-2 mb-3" data-tour="aieval-cards">
         <div className="card">
           <div className="card-header"><span className="card-title">Question Generation</span></div>
@@ -156,28 +202,30 @@ export default function AiEvalPage() {
         </div>
       </div>
 
-      <div className="detail-grid-2 mb-3">
-        <div className="card">
-          <div className="card-header"><span className="card-title">Bloom Level Distribution (AI-generated)</span></div>
-          {bloomRows.length === 0 ? (
-            <div className="empty-state empty-state-md"><EmptyStateArt size={88} art="spark" tone={1} /><p>No AI-generated questions yet.</p></div>
-          ) : (
-            <div className="card-body">
-              <CountsBarChart rows={bloomRows} />
-            </div>
-          )}
-        </div>
+      <div className="card mb-3">
+        <div className="card-header"><span className="card-title">Question Type Distribution</span></div>
+        {typeRows.length === 0 ? (
+          <div className="empty-state empty-state-md"><EmptyStateArt size={88} art="spark" tone={1} /><p>No AI-generated questions yet.</p></div>
+        ) : (
+          <div className="card-body">
+            <CountsBarChart rows={typeRows} />
+          </div>
+        )}
+      </div>
+      </div>
+      )}
 
-        <div className="card">
-          <div className="card-header"><span className="card-title">Question Type Distribution</span></div>
-          {typeRows.length === 0 ? (
-            <div className="empty-state empty-state-md"><EmptyStateArt size={88} art="spark" tone={1} /><p>No AI-generated questions yet.</p></div>
-          ) : (
-            <div className="card-body">
-              <CountsBarChart rows={typeRows} />
-            </div>
-          )}
-        </div>
+      {tab === 'bloom' && (
+      <div role="tabpanel" id="ae-panel-bloom" aria-labelledby="ae-tab-bloom" className="ae-panel">
+      <div className="card mb-3">
+        <div className="card-header"><span className="card-title">Bloom Level Distribution (AI-generated)</span></div>
+        {bloomRows.length === 0 ? (
+          <div className="empty-state empty-state-md"><EmptyStateArt size={88} art="spark" tone={1} /><p>No AI-generated questions yet.</p></div>
+        ) : (
+          <div className="card-body">
+            <CountsBarChart rows={bloomRows} />
+          </div>
+        )}
       </div>
 
       <div className="card mb-3" data-tour="aieval-matrix">
@@ -267,6 +315,8 @@ export default function AiEvalPage() {
           )}
         </div>
       </div>
+      </div>
+      )}
     </AppShell>
   );
 }

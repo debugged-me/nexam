@@ -147,7 +147,7 @@ export default function AttentionPage() {
           <div className="card-header attn-header">
             <span className="card-title">
               <AlertTriangle size={15} className="card-title-icon" />
-              {items.length} item{items.length === 1 ? '' : 's'} below threshold
+              {items.length ? `${items.length} item${items.length === 1 ? '' : 's'} below threshold` : 'No items below threshold'}
             </span>
             <div className="attn-header-right">
               {worst !== null && (

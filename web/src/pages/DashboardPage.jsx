@@ -15,11 +15,15 @@ import {
   PanelsTopLeft,
   ArrowUpRight,
   CircleCheck,
+  ClipboardCheck,
+  AlertTriangle,
+  ScanLine,
+  Flag,
+  Send,
 } from 'lucide-react';
 import { useAuth } from '../features/auth/AuthContext.jsx';
 import AppShell from '../components/AppShell.jsx';
 import KpiCard from '../components/KpiCard.jsx';
-import ActivityHeatmap from '../components/ActivityHeatmap.jsx';
 import { CardsSkeleton } from '../components/Loaders.jsx';
 import { StatusPill } from '../components/Board.jsx';
 import api, { ApiError } from '../lib/api.js';
@@ -37,6 +41,20 @@ function formatDate(value) {
     ? 'No date'
     : date.toLocaleDateString('en', { month: 'short', day: 'numeric' });
 }
+
+/** One icon per to-do kind (keys from the queue below; ids stripped). */
+const TODO_ICONS = {
+  scans: ScanLine,
+  failed: AlertTriangle,
+  drafts: ClipboardCheck,
+  gap: PanelsTopLeft,
+  weak: Flag,
+  ready: Send,
+  exam: FileText,
+  shortfall: Sparkles,
+  next: CircleCheck,
+  clear: CircleCheck,
+};
 
 const TYPE_LABELS = {
   mcq: 'Multiple choice',
@@ -331,11 +349,11 @@ export default function DashboardPage() {
       draftsPreview: false,
     });
   }
-  const focus = queue[0];
-  // Beyond the focus card: 3 visible by default, the rest behind an expander
-  // so a long queue never silently drops work the header counted.
-  const alsoQueued = queueExpanded ? queue.slice(1) : queue.slice(1, 4);
+  // The whole queue is the page's main list: four rows by default, the rest
+  // behind an expander so a long queue never silently drops work it counted.
+  const shownQueue = queueExpanded ? queue : queue.slice(0, 4);
   const hiddenCount = queueExpanded ? 0 : Math.max(0, queue.length - 4);
+  const caughtUp = queue.length === 1 && queue[0].key === 'clear';
   const actions = [
     { label: 'Build an exam', hint: 'Guided, start to finish', to: '/wizard', icon: Sparkles, tint: 2 },
     { label: 'Add materials', hint: 'Upload course notes', to: '/materials?upload=1', icon: FolderOpen, tint: 3 },
@@ -364,7 +382,6 @@ export default function DashboardPage() {
       to: '/questions',
       icon: CircleHelp,
       tint: 2,
-      hero: true,
       delta: deltaChip(deltas.questions),
       spark: daily.map((d) => d.q || 0),
     },
@@ -400,37 +417,60 @@ export default function DashboardPage() {
               i={i}
               icon={metric.icon}
               tint={metric.tint}
-              hero={metric.hero}
               value={metric.value}
               label={metric.label}
               hint={metric.hint}
               delta={metric.delta}
               spark={metric.spark}
-              sparkColor={metric.hero ? 'rgba(255,255,255,.9)' : `var(--gc-${metric.tint})`}
+              sparkColor={`var(--gc-${metric.tint})`}
             />
           ))}
         </div>
 
         <div className="dash-main">
           <div className="dash-col">
-            <section className="dash-card" aria-labelledby="dash-activity-title" data-tour="dash-activity">
+            <section className="dash-card dash-todo" aria-labelledby="dash-todo-title" data-tour="dash-focus">
               <header className="dash-card-head">
-                <h2 id="dash-activity-title">Workspace activity</h2>
-                <span className="dash-chart-range">{chartRange}</span>
+                <h2 id="dash-todo-title">Your to-do</h2>
+                <span className="dash-chart-range">
+                  {caughtUp ? 'All caught up' : `${queue.length} item${queue.length === 1 ? '' : 's'}, most urgent first`}
+                </span>
               </header>
-              <div className="dash-bars" role="img" aria-label="Question and exam activity">
-                {bars.map((b, i) => (
-                  <div className="dash-bar-col" key={i}>
-                    <i
-                      className={`dash-bar ${i === bars.length - 1 ? 'is-current' : b.v ? '' : 'is-empty'}`}
-                      style={{ height: b.v ? `${Math.max((b.v / chartMax) * 100, 8)}%` : '4%' }}
-                      title={`${sparse ? b.label : `Week of ${b.label}`}: ${b.v} item${b.v === 1 ? '' : 's'}`}
-                    />
-                    <small>{b.label}</small>
-                  </div>
-                ))}
-              </div>
-              <ActivityHeatmap series={daily} />
+              <ol className="dash-todo-list">
+                {shownQueue.map((item, idx) => {
+                  const Icon = TODO_ICONS[item.key.replace(/-.*$/, '')] || TODO_ICONS[item.key] || CircleCheck;
+                  return (
+                    <li key={item.key} className="dash-todo-item" data-tone={item.tone ? 'urgent' : undefined} data-first={idx === 0 || undefined}>
+                      <span className="dash-todo-icon" aria-hidden="true"><Icon size={16} /></span>
+                      <div className="dash-todo-body">
+                        <span className="dash-todo-label">{item.label}</span>
+                        <strong>{item.headline}</strong>
+                        <p>{item.copy}</p>
+                        {item.draftsPreview && recentDrafts.length > 0 && (
+                          <ul className="dash-todo-drafts">
+                            {recentDrafts.map((q) => (
+                              <li key={q.id}>
+                                <Link to="/questions/review">
+                                  <span>{String(q.stem || '').replace(/\s+/g, ' ').trim()}</span>
+                                  <small>{q.subject_name || 'Question'}{q.type ? ` · ${TYPE_LABELS[q.type] || q.type}` : ''}</small>
+                                </Link>
+                              </li>
+                            ))}
+                          </ul>
+                        )}
+                      </div>
+                      <Link to={item.to} className={`btn btn-sm dash-todo-cta ${idx === 0 ? 'btn-primary' : 'btn-outline'}`}>
+                        {item.cta} <ArrowRight size={14} />
+                      </Link>
+                    </li>
+                  );
+                })}
+              </ol>
+              {hiddenCount > 0 && (
+                <button type="button" className="dash-card-foot dash-queue-toggle" onClick={() => setQueueExpanded(true)}>
+                  <ChevronDown size={15} /> Show {hiddenCount} more
+                </button>
+              )}
             </section>
 
             <section className="dash-card" aria-labelledby="dash-exams-title" data-tour="dash-exams">
@@ -568,82 +608,6 @@ export default function DashboardPage() {
           </div>
 
           <div className="dash-col">
-            <section className="dash-card" aria-labelledby="dash-focus-title" data-tour="dash-focus">
-              <header className="dash-card-head">
-                <h2 id="dash-focus-title">Next up</h2>
-                {queue.length > 1 && (
-                  <span className="dash-text-link">{queue.length} things</span>
-                )}
-              </header>
-              <div className="dash-focus-body">
-                <span className={`dash-focus-label ${focus.tone}`}>
-                  {focus.label}
-                </span>
-                <h3>{focus.headline}</h3>
-                <p>{focus.copy}</p>
-                {focus.draftsPreview && recentDrafts.length > 0 && (
-                  <div className="dash-focus-drafts">
-                    {recentDrafts.map((q) => (
-                      <Link key={q.id} to="/questions/review" className="dash-row">
-                        <span className="dash-row-label">
-                          <span>
-                            <strong className="is-clamp">
-                              {String(q.stem || '').replace(/\s+/g, ' ').trim()}
-                            </strong>
-                            <small>
-                              {q.subject_name || 'Question'}
-                              {q.type ? ` · ${TYPE_LABELS[q.type] || q.type}` : ''}
-                            </small>
-                          </span>
-                        </span>
-                        <span className="dash-row-value">
-                          <ChevronRight size={14} />
-                        </span>
-                      </Link>
-                    ))}
-                  </div>
-                )}
-                <Link to={focus.to} className="btn btn-primary">
-                  {focus.cta}
-                  <ArrowRight size={15} />
-                </Link>
-              </div>
-              {alsoQueued.length > 0 && (
-                <div className="dash-next-more">
-                  {alsoQueued.map((item) => (
-                    <Link key={item.key} to={item.to} className="dash-row">
-                      <span className="dash-row-label">
-                        <span>
-                          <strong>{item.headline}</strong>
-                          <small>{item.label}</small>
-                        </span>
-                      </span>
-                      <span className="dash-row-value">
-                        <ChevronRight size={14} />
-                      </span>
-                    </Link>
-                  ))}
-                  {hiddenCount > 0 && (
-                    <button
-                      type="button"
-                      className="dash-row dash-queue-toggle"
-                      onClick={() => setQueueExpanded(true)}
-                    >
-                      <span className="dash-row-label">
-                        <span>
-                          <strong>{hiddenCount} more thing{hiddenCount === 1 ? '' : 's'} need{hiddenCount === 1 ? 's' : ''} you</strong>
-                          <small>Show the rest</small>
-                        </span>
-                      </span>
-                      <span className="dash-row-value">
-                        <ChevronDown size={14} />
-                      </span>
-                    </button>
-                  )}
-                </div>
-              )}
-            </section>
-
             <section className="dash-card" aria-labelledby="dash-actions-title" data-tour="dash-actions">
               <header className="dash-card-head">
                 <h2 id="dash-actions-title">Quick actions</h2>
@@ -698,16 +662,16 @@ export default function DashboardPage() {
                   <i className="is-other" style={{ flexGrow: other }} />
                 </span>
               </div>
-              <div className="dash-row is-static">
+              <div className="dash-row is-block is-static">
                 <span className="dash-row-label">
                   <span>
                     <strong>By status</strong>
                   </span>
                 </span>
-                <span className="dash-row-value">
+                <span className="dash-row-value dash-status-links">
                   <Link className="dash-mini-link" to="/questions?status=active">
                     <i className="is-active" />
-                    {approved} active
+                    {approved} approved
                   </Link>
                   <Link className="dash-mini-link" to="/questions?status=draft">
                     <i className="is-draft" />
@@ -741,6 +705,27 @@ export default function DashboardPage() {
                   </span>
                   {bloomCovered}/6
                 </span>
+              </div>
+            </section>
+            <section className="dash-card" aria-labelledby="dash-activity-title" data-tour="dash-activity">
+              <header className="dash-card-head">
+                <h2 id="dash-activity-title">Activity</h2>
+                <span className="dash-chart-range">{chartRange}</span>
+              </header>
+              <div className="dash-bars dash-bars--compact" role="img" aria-label="Question and exam activity">
+                {bars.map((b, i) => (
+                  <div className="dash-bar-col" key={i}>
+                    <i
+                      className={`dash-bar ${i === bars.length - 1 ? 'is-current' : b.v ? '' : 'is-empty'}`}
+                      style={{ height: b.v ? `${Math.max((b.v / chartMax) * 100, 8)}%` : '4%' }}
+                      title={`${sparse ? b.label : `Week of ${b.label}`}: ${b.v} item${b.v === 1 ? '' : 's'}`}
+                    />
+                  </div>
+                ))}
+              </div>
+              <div className="dash-bars-axis" aria-hidden="true">
+                <span>{bars[0]?.label}</span>
+                <span>{bars[bars.length - 1]?.label}</span>
               </div>
             </section>
           </div>

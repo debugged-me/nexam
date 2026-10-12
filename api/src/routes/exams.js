@@ -293,10 +293,24 @@ router.get('/:id', requireAuth, async (req, res, next) => {
 
     // Load TOS if linked
     let tos = null;
+    let tosMatrix = null;
     if (exam.tos_id) {
       const [tosRows] = await pool.query(`SELECT * FROM tos WHERE id = :id`, { id: exam.tos_id });
       tos = tosRows[0];
       if (tos?.bloom_weights) { try { tos.bloom_weights = JSON.parse(tos.bloom_weights); } catch {} }
+      // The planned topic × Bloom cells — the same matrix assembly enforces —
+      // so the page can show have/need per cell. A blueprint that no longer
+      // allocates cleanly just omits the grid.
+      if (tos) {
+        const [topics] = await pool.query(
+          `SELECT title, item_count FROM tos_topics WHERE tos_id = :tosId ORDER BY sort_order ASC`,
+          { tosId: tos.id }
+        );
+        try {
+          const { slots } = buildTosMatrix(topics, tos.bloom_weights || {}, Number(tos.total_items));
+          tosMatrix = { topics: topics.map((t) => t.title), slots };
+        } catch { tosMatrix = null; }
+      }
     }
 
     // Generated sets — the frontend uses this to decide whether to show
@@ -321,7 +335,7 @@ router.get('/:id', requireAuth, async (req, res, next) => {
       if (row.question_id) s.question_ids.push(row.question_id);
     }
 
-    res.json({ exam, questions, tos, sets: [...setMap.values()] });
+    res.json({ exam, questions, tos, tosMatrix, sets: [...setMap.values()] });
   } catch (err) { next(err); }
 });
 

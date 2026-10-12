@@ -231,58 +231,150 @@
     .q-dataset .dataset-bar-trail .btn { flex: 1; }
 }
 
-/* ---- Bank mix strip -----------------------------------------------------
-   One slim row: status segments + legend, Bloom coverage columns, types. */
+/* ---- Status tabs + mix strip --------------------------------------------
+   One row under the toolbar: status tabs (with counts) on the left, the
+   Bloom/type mix of the visible rows on the right. Flat — it sits inside
+   the raised dataset surface. */
+.q-statusbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 8px 20px;
+    padding: 8px var(--grid-x, 12px);
+    border-bottom: 1px solid var(--line);
+}
+.q-tabs {
+    display: inline-flex;
+    flex-wrap: wrap;
+    gap: 2px;
+    padding: 2px;
+    border-radius: var(--radius-sm);
+    background: var(--surface-2);
+}
+.q-tab {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    min-height: 30px;
+    padding: 0 10px;
+    border: 0;
+    border-radius: var(--radius-xs);
+    background: transparent;
+    color: var(--ink-3);
+    font: 500 .8125rem/1 var(--font-body);
+    white-space: nowrap;
+    cursor: pointer;
+}
+.q-tab:hover { color: var(--ink); }
+.q-tab[aria-pressed="true"] {
+    background: var(--surface);
+    color: var(--ink);
+    box-shadow: 0 0 0 1px var(--line), var(--shadow-sm);
+}
+.q-tab-count {
+    min-width: 20px;
+    padding: 2px 6px;
+    border-radius: 99px;
+    background: var(--surface-3);
+    color: var(--ink-3);
+    font-size: .6875rem;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    text-align: center;
+}
+.q-tab[data-status="draft"] .q-tab-count { background: var(--amber-50); color: var(--amber-700); }
+.q-tab[data-status="active"] .q-tab-count { background: var(--green-50); color: var(--green-700); }
+.q-tab[data-status="rejected"] .q-tab-count { background: var(--red-50); color: var(--red-700); }
+
 .qmix {
     display: flex;
     align-items: center;
-    gap: 20px;
+    gap: 16px;
     flex-wrap: wrap;
-    margin: 2px 0 12px;
-    padding: 10px 14px;
-    border: 1px solid var(--line);
-    border-radius: var(--radius-lg);
-    background: var(--surface);
-    box-shadow: var(--shadow-sm);
 }
-.qmix-main { flex: 1 1 260px; min-width: 200px; }
-.qmix-seg {
-    display: flex;
-    height: 8px;
-    border-radius: 5px;
-    overflow: hidden;
-    background: color-mix(in srgb, var(--ink) 6%, transparent);
-}
-.qmix-seg-fill { display: block; height: 100%; transition: flex-grow .4s var(--ease, ease); }
-.qmix-legend {
-    display: flex;
-    gap: 14px;
-    margin-top: 7px;
-    font-size: .7rem;
-    color: var(--ink-3);
-}
-.qmix-key { display: inline-flex; align-items: center; gap: 5px; font-weight: 500; }
-.qmix-key strong { color: var(--ink-2); font-variant-numeric: tabular-nums; }
-.qmix-dot { width: 7px; height: 7px; border-radius: 50%; }
 .qmix-bloom {
     display: flex;
     align-items: flex-end;
-    gap: 4px;
-    height: 34px;
-    padding: 2px 0;
+    gap: 3px;
+    height: 24px;
 }
 .qmix-bloom-col {
     display: flex;
     align-items: flex-end;
-    width: 10px;
+    width: 8px;
     height: 100%;
-    border-radius: 3px;
-    background: color-mix(in srgb, var(--ink) 6%, transparent);
     overflow: hidden;
+    border-radius: 2px;
+    background: color-mix(in srgb, var(--ink) 6%, transparent);
 }
-.qmix-bloom-col i { display: block; width: 100%; border-radius: 3px 3px 0 0; transition: height .5s var(--ease, ease); }
+.qmix-bloom-col i { display: block; width: 100%; border-radius: 2px 2px 0 0; transition: height .5s var(--ease, ease); }
 .qmix-types { display: flex; gap: 12px; flex-wrap: wrap; font-size: .7rem; color: var(--ink-3); }
 .qmix-type strong { color: var(--ink-2); font-variant-numeric: tabular-nums; }
+
+/* ---- Question cell: the stem gets two lines, meta underneath ------------ */
+.q-dataset table.grid tbody td.col-primary { height: auto; padding-block: 9px; white-space: normal; }
+.q-dataset .q-stem {
+    display: -webkit-box;
+    overflow: hidden;
+    line-height: 1.45;
+    text-align: left;
+    white-space: normal;
+    cursor: pointer;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+}
+.q-dataset .q-stem:hover { color: var(--action-700); }
+.q-dataset .q-stem:focus-visible { outline: 2px solid var(--action-600); outline-offset: 2px; border-radius: 2px; }
+.q-dataset .q-meta { display: flex; align-items: center; gap: 0; margin-top: 3px; min-width: 0; }
+.q-dataset .q-meta > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.q-dataset .q-meta > span + span::before { content: "·"; margin: 0 6px; color: var(--line-strong); }
+.q-dataset .q-meta > span:first-child { flex: none; }
+
+/* ---- Preview sheet (portaled; Modal carries this page scope) ------------ */
+.q-preview { display: flex; flex-direction: column; gap: 16px; }
+.q-preview-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; font-size: var(--text-xs); }
+.q-preview-chip {
+    padding: 2px 8px;
+    border-radius: 99px;
+    background: var(--surface-2);
+    color: var(--ink-3);
+    font-weight: 500;
+}
+.q-preview-alert {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    border: 1px solid var(--amber-100);
+    border-radius: var(--radius);
+    background: var(--amber-50);
+    color: var(--amber-700);
+    font-size: var(--text-sm);
+    text-decoration: none;
+}
+.q-preview-alert:hover { text-decoration: none; border-color: var(--amber-600); }
+.q-preview-alert-cta { margin-left: auto; font-weight: 600; white-space: nowrap; }
+.q-preview-facts {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    gap: 10px;
+    margin: 0;
+    padding-top: 14px;
+    border-top: 1px solid var(--line);
+}
+.q-preview-facts dt { color: var(--ink-faint); font-size: var(--text-xs); }
+.q-preview-facts dd { margin: 2px 0 0; color: var(--ink-2); font-size: var(--text-sm); font-weight: 500; }
+
+@media (max-width: 991px) {
+    .q-tab { min-height: 44px; }
+}
+@media (max-width: 599px) {
+    .q-statusbar { align-items: stretch; }
+    .q-tabs { display: grid; grid-template-columns: repeat(2, 1fr); width: 100%; }
+    .q-tab { justify-content: space-between; }
+    .qmix { display: none; }
+}
 
 /* The review call-to-action carries a count, so it must not shrink away. */
 .q-review-cta { white-space: nowrap; }

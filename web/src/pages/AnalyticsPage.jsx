@@ -156,6 +156,9 @@ export default function AnalyticsPage() {
   // ── Index view ───────────────────────────────────────
   const o = overview.overview || {};
   const examAverages = overview.examAverages || [];
+  // Exams without a single scan have nothing to average — leaving them in
+  // rendered an empty table instead of the empty state.
+  const scoredExams = examAverages.filter((ea) => ea.avg_score || ea.scan_count);
   const recentScans = overview.recentScans || [];
   const themes = overview.themes || [];
   const blooms = overview.bloomLevels || [];
@@ -411,8 +414,15 @@ export default function AnalyticsPage() {
           <div className="card-header">
             <span className="card-title">Exam Averages</span>
           </div>
-          {examAverages.length === 0 ? (
-            <div className="empty-state empty-state-md"><EmptyStateArt size={88} art="scan" /><p>No scan data yet.</p></div>
+          {scoredExams.length === 0 ? (
+            <div className="empty-state empty-state-md">
+              <EmptyStateArt size={88} art="scan" />
+              <p>
+                No scanned sheets yet. Print an exam's OMR sheets, then scan them with the Nexam mobile app —
+                averages appear here per exam.
+              </p>
+              <Link to="/exams" className="btn btn-outline btn-sm">Open exams</Link>
+            </div>
           ) : (
             <div className="table-wrap table-bare">
               <table className="data-table">
@@ -420,8 +430,7 @@ export default function AnalyticsPage() {
                   <tr><th>Exam</th><th>Scans</th><th>Average</th><th>Range</th></tr>
                 </thead>
                 <tbody>
-                  {examAverages.map((ea) => {
-                    if (!ea.avg_score && !ea.scan_count) return null;
+                  {scoredExams.map((ea) => {
                     const avg = ea.avg_score !== null ? Number(ea.avg_score) : null;
                     return (
                       <tr key={ea.id}>

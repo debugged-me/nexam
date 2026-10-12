@@ -178,7 +178,7 @@ that render every row.
 
 - `table-layout: fixed` distributes surplus width across **every** column.
   The only safe column-sizing pattern is the `.wp-*` percent ladder
-  (`.wp-4` … `.wp-36`) summing to exactly 100. Never mix px columns with an
+  (`.wp-4` … `.wp-55`) summing to exactly 100. Never mix px columns with an
   auto column — the surplus fattens every fixed column and overflows.
 - `table.grid` gets `min-width` (per-page, ~880px) only inside a
   `max-width` media query so narrow screens scroll horizontally in

@@ -172,8 +172,10 @@
   color: var(--ink);
 }
 
-.confusion-matrix-table .cm-diagonal {
-  background: color-mix(in srgb, var(--success) 18%, transparent);
+/* Must outrank the shared zebra rule (.data-table tbody tr:nth-child(even) > td),
+   or every other diagonal cell loses its highlight. */
+.confusion-matrix-table tbody tr > td.cm-cell.cm-diagonal {
+  background: color-mix(in srgb, var(--success) 18%, var(--surface));
   font-weight: 700;
 }
 
@@ -182,4 +184,38 @@
 }
 
 
+
+/* ---- View tabs under the scorecard -------------------------------------- */
+.ae-tabs {
+  display: flex;
+  gap: 4px;
+  margin: 0 0 16px;
+  border-bottom: 1px solid var(--line);
+  overflow-x: auto;
+}
+.ae-tab {
+  position: relative;
+  min-height: 42px;
+  padding: 0 14px;
+  border: 0;
+  background: transparent;
+  color: var(--ink-3);
+  font: 500 var(--text-sm)/1 var(--font-body);
+  white-space: nowrap;
+  cursor: pointer;
+}
+.ae-tab:hover { color: var(--ink); }
+.ae-tab[aria-selected="true"] { color: var(--ink); font-weight: 600; }
+.ae-tab[aria-selected="true"]::after {
+  content: '';
+  position: absolute;
+  right: 10px;
+  bottom: -1px;
+  left: 10px;
+  height: 2px;
+  border-radius: 2px 2px 0 0;
+  background: var(--action-600);
+}
+.ae-tab:focus-visible { outline: 2px solid var(--action-600); outline-offset: -2px; border-radius: var(--radius-xs); }
+@media (max-width: 991px) { .ae-tab { min-height: 44px; } }
 }

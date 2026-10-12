@@ -81,6 +81,16 @@ export const env = {
       apiKey: process.env.GROQ_API_KEY || '',
       model: process.env.GROQ_MODEL || 'openai/gpt-oss-120b',
     },
+    // Local embedding fallback (transformers.js, in-process ONNX on CPU).
+    // Free + offline — the mirror/fallback when Gemini embeddings are down.
+    // cacheDir defaults to <api>/storage/models; set LOCAL_EMBED_OFFLINE=1 on
+    // hosts that should never reach HuggingFace (ship storage/models with the
+    // deploy instead).
+    local: {
+      embedModel: process.env.LOCAL_EMBED_MODEL || 'Xenova/all-MiniLM-L6-v2',
+      cacheDir: process.env.LOCAL_EMBED_CACHE || '',
+      offline: process.env.LOCAL_EMBED_OFFLINE === '1',
+    },
     worker: {
       pollInterval: parseInt(process.env.WORKER_POLL_INTERVAL || '5000', 10),
       concurrency: parseInt(process.env.WORKER_CONCURRENCY || '2', 10),

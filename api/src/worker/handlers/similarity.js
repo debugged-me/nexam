@@ -56,18 +56,27 @@ export default async function similarityHandler(job) {
   }
   if (question.answer) embedText += ' ' + question.answer;
 
-  // Get the similarity threshold from settings
-  const threshold = await getNumber('similarity_threshold', 0.85);
+  // Get the similarity threshold from settings — local embeddings score
+  // paraphrases lower than Gemini, so the mirror has its own (looser) bar.
+  const geminiThreshold = await getNumber('similarity_threshold', 0.85);
 
   // Embed the query text (does NOT add the draft to the index) and search
-  // the index of active questions.
-  const vector = await embedQuery(embedText);
-  const rawCandidates = await searchQuestionsByVector(
+  // the index of active questions. The provider that produced the vector
+  // decides which index space is searched — they are not comparable. If that
+  // index is missing or corrupt, the store re-embeds and searches the other
+  // space, reporting the provider it actually used — the threshold follows it.
+  const { vector, provider } = await embedQuery(embedText);
+  const { hits: rawCandidates, provider: searchedProvider } = await searchQuestionsByVector(
     INSTITUTION_QUESTION_INDEX,
     vector,
     10,
-    questionId
+    questionId,
+    provider,
+    embedText
   );
+  const threshold = searchedProvider === 'local'
+    ? await getNumber('similarity_threshold_local', 0.70)
+    : geminiThreshold;
 
   // SQL-filter: candidates must be real, active institution-bank questions.
   // This drops stale vectors from deleted/draft/rejected questions.
@@ -95,7 +104,7 @@ export default async function similarityHandler(job) {
        WHERE id = :id`,
       { id: questionId }
     );
-    return { questionId, flag: 'none', comparisons: 0 };
+    return { questionId, flag: 'none', comparisons: 0, provider: searchedProvider };
   }
 
   // Filter candidates by threshold
@@ -156,6 +165,7 @@ export default async function similarityHandler(job) {
       flag: 'flagged',
       maxScore: parseFloat(maxScore.toFixed(4)),
       similarCount: similarPairs.length,
+      provider: searchedProvider,
     };
   }
 
@@ -170,5 +180,6 @@ export default async function similarityHandler(job) {
     flag: 'none',
     maxScore: parseFloat(maxScore.toFixed(4)),
     comparisons: candidates.length,
+    provider: searchedProvider,
   };
 }

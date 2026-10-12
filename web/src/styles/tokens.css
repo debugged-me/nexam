@@ -131,10 +131,12 @@
 :root {
   /* ---- Font roles ----
      Default = the device system face (SF Pro on macOS/iOS, Segoe UI on
-     Windows, Roboto on Android). data-font on <html> overrides both roles —
+     Windows, Roboto on Android) — the real OS font first for native
+     optical sizing and weights, bundled SF Pro files as fallback on
+     non-Apple platforms. data-font on <html> overrides both roles —
      set by lib/theme.js from the account's saved preference. */
-  --font-display: "SF Pro Display", "SF Pro Text", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  --font-body: "SF Pro Text", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-display: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Segoe UI", Roboto, sans-serif;
+  --font-body: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, sans-serif;
 
   /* ---- Motion ---- one easing + duration ramp for every animation ---- */
   --ease-enter: cubic-bezier(.16, 1, .3, 1);    /* arrivals — overshoot-free decel */
@@ -302,6 +304,14 @@
 :root[data-font='sora'] {
   --font-display: "Sora", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   --font-body: "Sora", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+/* Sora display + SF Pro body — geometric presence on headlines and KPI
+   numerals, compact text face for tables, forms, and long reading.
+   Native system face first so macOS renders true SF Pro (bundled files
+   are the non-Apple fallback). */
+:root[data-font='duo'] {
+  --font-display: "Sora", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-body: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, sans-serif;
 }
 :root[data-font='googlesans'] {
   --font-display: "Google Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;

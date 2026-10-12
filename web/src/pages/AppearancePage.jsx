@@ -42,6 +42,11 @@ const FONT_OPTIONS = [
     description: 'Apple\u2019s system face — the macOS feel, bundled for any device.',
   },
   {
+    key: 'duo',
+    label: 'Sora + SF Pro',
+    description: 'Sora headlines and numerals, SF Pro body — both voices at once.',
+  },
+  {
     key: 'googlesans',
     label: 'Google Sans',
     description: 'Friendly product sans with a soft, rounded voice.',

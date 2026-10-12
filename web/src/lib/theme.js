@@ -15,7 +15,7 @@
 import { useSyncExternalStore } from 'react';
 
 export const THEME_MODES = ['light', 'dark', 'system'];
-export const FONTS = ['system', 'sora', 'googlesans', 'inter'];
+export const FONTS = ['system', 'sora', 'duo', 'googlesans', 'inter'];
 export const TEXT_SIZES = ['compact', 'default', 'large'];
 
 const GLOBAL_KEY = 'nexam.theme';        // last applied mode — boot cache

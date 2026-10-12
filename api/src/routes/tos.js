@@ -117,7 +117,23 @@ router.get('/', async (req, res, next) => {
     // surplus in one cell never covers another) — the "N of M banked" the
     // list shows, and the same figure the Generate button works from.
     const coverage = await blueprintCoverage(req.user.id, tosList);
-    for (const t of tosList) t.banked = coverage.get(t.id)?.covered || 0;
+    // Exams assembled from each blueprint, so the list can say what is next.
+    const [examRows] = await pool.query(
+      `SELECT e.tos_id, COUNT(*) AS n, SUM(e.status = 'published') AS published
+       FROM exams e
+       WHERE e.created_by = :uid AND e.tos_id IS NOT NULL
+       GROUP BY e.tos_id`,
+      { uid: req.user.id }
+    );
+    const examsByTos = new Map(examRows.map((r) => [r.tos_id, r]));
+    for (const t of tosList) {
+      const cov = coverage.get(t.id);
+      t.banked = cov?.covered || 0;
+      t.missing = cov ? cov.missing : Number(t.total_items) || 0;
+      t.ready = cov?.ready || 0;
+      t.exam_count = Number(examsByTos.get(t.id)?.n) || 0;
+      t.published_count = Number(examsByTos.get(t.id)?.published) || 0;
+    }
 
     // Parse bloom_weights JSON
     for (const t of tosList) {

@@ -2,36 +2,149 @@ import '../styles/tos.css';
 /**
  * TosPage — list of TOS blueprints with create/edit/delete.
  *
- * Uses the shared list header, empty state, grid, row actions, and a
- * modal form using .form-section / .bloom-grid.
+ * Each row shows how much of the plan is banked (per topic × Bloom cell, the
+ * same count the blueprint page generates from), the Bloom mix, exams built
+ * from it, and the one next step that moves it on (lib/blueprintProgress.js).
+ * Desktop is a grouped table; under 1200px the secondary columns drop; under
+ * 768px every blueprint becomes a card so nothing scrolls sideways.
  */
 import { useEffect, useState, useCallback, useMemo } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { Plus, Pencil, Trash2, Info, Eye, Ellipsis, FilePlus2, Upload, Check, Layers, Copy, PanelsTopLeft, FileCheck, PenLine, Database } from 'lucide-react';
+import {
+  Plus, Pencil, Trash2, Info, Eye, Ellipsis, FilePlus2, Upload, Check, Layers, Copy, PanelsTopLeft,
+  FileCheck, Database, Search, Filter, ArrowRight, ListPlus, Lock, Sparkles, ClipboardCheck,
+  CircleCheck, ChevronDown,
+} from 'lucide-react';
 import { useToast } from '../components/Toast.jsx';
 import { useContextMenu, useCopyText } from '../components/ContextMenu.jsx';
 import { useConfirm } from '../components/ConfirmDialog.jsx';
+import { useGridTable } from '../components/DataTable.jsx';
 import Modal from '../components/Modal.jsx';
 import DetailsModal from '../components/DetailsModal.jsx';
+import HoverCard from '../components/HoverCard.jsx';
+import Select from '../components/Select.jsx';
 import api, { ApiError } from '../lib/api.js';
 import AppShell from '../components/AppShell.jsx';
 import { TableSkeleton } from '../components/Loaders.jsx';
 import EmptyStateArt from '../components/EmptyStateArt.jsx';
 import { animateRows } from '../lib/animRows.js';
+import { timeAgo } from '../lib/time.js';
+import { useMediaQuery } from '../lib/useMediaQuery.js';
+import {
+  BLOOM_ORDER, BLOOM_LABELS, blueprintCoverage, blueprintNextStep, bloomMix, coverageCaption,
+} from '../lib/blueprintProgress.js';
 import {
   StatusPill, BoardGroupHead,
   GroupChip, groupColor, statusOf, statusMeta, STATUS_ORDER, StatCard,
 } from '../components/Board.jsx';
 
-const BLOOM_LABELS = { remember: 'Remember', understand: 'Understand', apply: 'Apply', analyze: 'Analyze', evaluate: 'Evaluate', create: 'Create' };
-const BLOOM_ORDER = ['remember', 'understand', 'apply', 'analyze', 'evaluate', 'create'];
 const DEFAULT_BLOOM = { remember: 15, understand: 20, apply: 20, analyze: 20, evaluate: 15, create: 10 };
+const FINDER_FROM = 6; // search + filter join the toolbar once the list is this long
+
+const NEXT_ICONS = {
+  topics: ListPlus, finalize: Lock, generate: Sparkles, review: ClipboardCheck, exam: FilePlus2, exams: CircleCheck,
+};
+const FILTERS = [
+  { value: 'all', label: 'All blueprints' },
+  { value: 'attention', label: 'Needs work' },
+  { value: 'finalized', label: 'Finalized' },
+  { value: 'draft', label: 'Drafts' },
+];
+
+const parseDate = (iso) => Date.parse(String(iso || '').replace(' ', 'T')) || 0;
+
+// Sortable columns for useGridTable — cells are rendered by hand below.
+const COLUMNS = [
+  { id: 'title', accessorFn: (t) => String(t.title || '').toLowerCase() },
+  { id: 'subject', accessorFn: (t) => String(t.subject_name || '').toLowerCase() },
+  { id: 'status', accessorFn: (t) => (statusOf(t.status) === 'finalized' ? 1 : 0) },
+  { id: 'coverage', accessorFn: (t) => { const c = blueprintCoverage(t); return c.total ? c.covered / c.total : -1; } },
+  { id: 'exams', accessorFn: (t) => Number(t.exam_count) || 0 },
+  { id: 'updated', accessorFn: (t) => parseDate(t.updated_at || t.created_at) },
+];
 
 function fmtDate(iso) {
   if (!iso) return '—';
-  const d = new Date(iso.replace(' ', 'T'));
+  const d = new Date(String(iso).replace(' ', 'T'));
   if (Number.isNaN(d.getTime())) return '—';
   return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+}
+
+/** "3 hr ago" this week, then "Oct 5" (the year only when it differs). */
+function touchedText(iso) {
+  const d = new Date(String(iso || '').replace(' ', 'T'));
+  if (Number.isNaN(d.getTime())) return '—';
+  const opts = d.getFullYear() === new Date().getFullYear()
+    ? { month: 'short', day: 'numeric' }
+    : { month: 'short', day: 'numeric', year: 'numeric' };
+  return timeAgo(d.toISOString()) || d.toLocaleDateString('en-US', opts);
+}
+
+/** Six-segment Bloom bar; on desktop a hover card lists the percentages. */
+function BloomMix({ weights, interactive = true }) {
+  const mix = bloomMix(weights);
+  const summary = mix.map((m) => `${m.label} ${m.pct}%`).join(', ');
+  const bar = (
+    <span className="bp-bloom" tabIndex={interactive ? 0 : undefined} role="img" aria-label={`Bloom mix: ${summary}`}>
+      {mix.map((m) => m.pct > 0 && <i key={m.key} data-level={m.level} style={{ flexGrow: m.pct }} />)}
+    </span>
+  );
+  if (!interactive) return bar;
+  return (
+    <HoverCard trigger={bar}>
+      <span className="bp-hover-title">Bloom mix</span>
+      <ul className="bp-bloom-list">
+        {mix.map((m) => (
+          <li key={m.key} data-empty={!m.pct || undefined}>
+            <i data-level={m.level} aria-hidden="true" />
+            <span>{m.label}</span>
+            <strong>{m.pct}%</strong>
+          </li>
+        ))}
+      </ul>
+    </HoverCard>
+  );
+}
+
+/** Banked / planned with a two-tone bar: approved, then awaiting approval. */
+function Coverage({ t }) {
+  const cov = blueprintCoverage(t);
+  // The title meta already says "no topics yet".
+  if (cov.state === 'none') return <span className="bp-cov-none" aria-label="Nothing planned yet">—</span>;
+  const pct = (n) => `${(n / cov.total) * 100}%`;
+  return (
+    <span className="bp-cov" data-state={cov.state}>
+      <span className="bp-cov-head">
+        <strong>{cov.covered}<span>/{cov.total}</span></strong>
+        <span className="bp-cov-cap">{coverageCaption(cov)}</span>
+      </span>
+      <span
+        className="bp-cov-bar"
+        role="img"
+        aria-label={`${cov.ready} approved, ${cov.pending} awaiting approval, ${cov.missing} still to generate, of ${cov.total} planned`}
+      >
+        <i className="is-ready" style={{ width: pct(cov.ready) }} />
+        <i className="is-pending" style={{ width: pct(cov.pending) }} />
+      </span>
+    </span>
+  );
+}
+
+function NextStep({ t, block = false }) {
+  const step = blueprintNextStep(t);
+  const Icon = NEXT_ICONS[step.key] || ArrowRight;
+  return (
+    <Link
+      to={step.to}
+      className={`bp-next${step.done ? ' is-done' : ''}${block ? ' is-block' : ''}`}
+      data-step={step.key}
+      title={step.hint}
+    >
+      <Icon size={14} aria-hidden="true" />
+      <span>{step.label}</span>
+      {block && <ArrowRight size={14} aria-hidden="true" className="bp-next-arrow" />}
+    </Link>
+  );
 }
 
 export default function TosPage() {
@@ -48,11 +161,38 @@ export default function TosPage() {
   const [saving, setSaving] = useState(false);
   const [groupBy, setGroupBy] = useState('subject'); // subject | none
   const [collapsed, setCollapsed] = useState(() => new Set());
+  const [query, setQuery] = useState('');
+  const [filter, setFilter] = useState('all');
+  const asCards = useMediaQuery('(max-width: 767px)');
+
+  // Page-owned filter first; the grid then applies search + sort.
+  const filtered = useMemo(() => (tosList || []).filter((t) => {
+    if (filter === 'finalized') return statusOf(t.status) === 'finalized';
+    if (filter === 'draft') return statusOf(t.status) !== 'finalized';
+    // Anything whose next step is still preparation (not building exams).
+    if (filter === 'attention') return !['exam', 'exams'].includes(blueprintNextStep(t).key);
+    return true;
+  }), [tosList, filter]);
+
+  const grid = useGridTable({
+    data: filtered,
+    columns: COLUMNS,
+    initialSorting: [{ id: 'updated', desc: true }],
+    globalFilter: query,
+    globalFilterFn: (row, _col, value) =>
+      `${row.original.title || ''} ${row.original.subject_name || ''}`
+        .toLowerCase()
+        .includes(String(value).trim().toLowerCase()),
+    resetKey: filter,
+    paginate: false, // grouped board — every row renders
+  });
+  const rows = grid.pageRows;
+  const { sortClass, sortHandler, renderSortArrow } = grid;
 
   const tosGroups = useMemo(() => {
-    if (!tosList || !tosList.length || groupBy === 'none') return null;
+    if (!rows.length || groupBy === 'none') return null;
     const map = new Map();
-    for (const t of tosList) {
+    for (const t of rows) {
       const key = t.subject_id || t.subject_name || 'none';
       if (!map.has(key)) {
         map.set(key, { key, title: t.subject_name || 'No subject', color: groupColor(key), rows: [] });
@@ -60,7 +200,7 @@ export default function TosPage() {
       map.get(key).rows.push(t);
     }
     return [...map.values()].sort((a, b) => a.title.localeCompare(b.title));
-  }, [tosList, groupBy]);
+  }, [rows, groupBy]);
 
   // Grouped by subject the Subject column only repeats the band title — drop
   // it and let every other column take the width (same trick as Questions).
@@ -70,17 +210,22 @@ export default function TosPage() {
     return new Set(tosList.map((t) => t.subject_id || 'none')).size === 1;
   }, [tosList]);
   const showSubject = groupBy !== 'subject' && !singleSubject;
+  const colCount = showSubject ? 8 : 7;
+  const showFinder = (tosList?.length || 0) >= FINDER_FROM || !!query || filter !== 'all';
 
-  // KPI row — blueprint counts plus overall banked coverage across the list.
+  // KPI row — counts plus banked coverage across the whole list.
   const tosStats = useMemo(() => (tosList || []).reduce(
     (acc, t) => {
-      if (statusOf(t.status) === 'finalized') acc.finalized += 1;
-      else acc.drafts += 1;
-      acc.banked += Number(t.banked) || 0;
-      acc.items += Number(t.total_items) || 0;
+      const cov = blueprintCoverage(t);
+      if (statusOf(t.status) === 'finalized') {
+        acc.finalized += 1;
+        if (cov.state === 'ready') acc.ready += 1;
+      }
+      acc.banked += cov.covered;
+      acc.items += cov.total;
       return acc;
     },
-    { finalized: 0, drafts: 0, banked: 0, items: 0 },
+    { finalized: 0, ready: 0, banked: 0, items: 0 },
   ), [tosList]);
 
   function toggleGroup(key) {
@@ -195,44 +340,26 @@ export default function TosPage() {
   }
 
   function renderTosRow(t) {
-    const topics = t.topic_count != null ? Number(t.topic_count) : 0;
-    const items = Number(t.total_items);
+    const topics = Number(t.topic_count) || 0;
+    const items = Number(t.total_items) || 0;
     const touched = t.updated_at || t.created_at;
+    const exams = Number(t.exam_count) || 0;
+    const published = Number(t.published_count) || 0;
     return (
       <tr key={t.id} data-id={t.id} className="b-row" onContextMenu={(e) => tosMenu(e, t)}>
-        <td>
+        <td className="col-primary">
           <span className="g-primary">
-            <Link to={`/tos/${t.id}`} className="g-title">{t.title}</Link>
-            <span className="g-meta">
-              {topics
-                ? `${topics} ${topics === 1 ? 'topic' : 'topics'} · ${items} items`
-                : 'No topics defined yet'}
-              {topics > 0 && (
-                <>
-                  {' · '}
-                  <span className={t.banked >= items ? 'g-meta-met' : 'g-meta-short'}>
-                    {Math.min(Number(t.banked || 0), items)} of {items} banked
-                  </span>
-                  <span className="g-prog" aria-hidden="true">
-                    <span
-                      className="g-prog-fill"
-                      data-met={Number(t.banked || 0) >= items}
-                      style={{ width: `${Math.min(100, (Number(t.banked || 0) / items) * 100)}%` }}
-                    />
-                  </span>
-                </>
-              )}
-              {t.title && t.title.length > 40 && (
-                <>
-                  {' · '}
-                  <button type="button" className="g-more" onClick={() => setViewing(t)}>Read more</button>
-                </>
-              )}
+            <Link to={`/tos/${t.id}`} className="g-title" title={t.title}>{t.title}</Link>
+            <span className="bp-meta">
+              <span className="bp-meta-status"><StatusPill status={t.status} small /></span>
+              {showSubject && t.subject_name && <span className="bp-meta-subject">{t.subject_name}</span>}
+              <span>{topics ? `${topics} topic${topics === 1 ? '' : 's'} · ${items} items` : `${items} items · no topics yet`}</span>
+              <BloomMix weights={t.bloom_weights} />
             </span>
           </span>
         </td>
         {showSubject && (
-          <td>
+          <td className="bp-c-opt">
             {t.subject_name ? (
               <GroupChip color={groupColor(t.subject_id || t.subject_name)}>{t.subject_name}</GroupChip>
             ) : (
@@ -240,12 +367,18 @@ export default function TosPage() {
             )}
           </td>
         )}
-        <td data-order={statusOf(t.status)}><StatusPill status={t.status} /></td>
-        <td className="is-num">
-          <span className={`g-count${topics ? '' : ' is-zero'}`}>{topics || '—'}</span>
+        <td className="bp-c-opt" data-order={statusOf(t.status)}><StatusPill status={t.status} /></td>
+        <td><Coverage t={t} /></td>
+        <td className="is-num bp-c-opt">
+          {exams ? (
+            <span className="bp-exams">
+              <span className="g-count">{exams}</span>
+              {published > 0 && <span className="bp-exams-sub" title={`${published} published`}>{published} live</span>}
+            </span>
+          ) : <span className="g-mute">—</span>}
         </td>
-        <td className="is-num"><span className="g-count">{items}</span></td>
-        <td className="g-mute">{fmtDate(touched)}</td>
+        <td className="g-mute bp-c-opt" title={fmtDate(touched)}>{touchedText(touched)}</td>
+        <td><NextStep t={t} /></td>
         <td className="col-actions">
           {/* Same floating menu as right-click — uniform with Subjects/Questions. */}
           <button
@@ -262,6 +395,44 @@ export default function TosPage() {
     );
   }
 
+  function renderTosCard(t) {
+    const topics = Number(t.topic_count) || 0;
+    const items = Number(t.total_items) || 0;
+    const exams = Number(t.exam_count) || 0;
+    const touched = t.updated_at || t.created_at;
+    return (
+      <li key={t.id} className="bp-card" style={{ '--gc': groupColor(t.subject_id || t.subject_name) }} onContextMenu={(e) => tosMenu(e, t)}>
+        <div className="bp-card-top">
+          <StatusPill status={t.status} small />
+          <span className="bp-card-when">{touchedText(touched)}</span>
+          <button type="button" className="g-menu" onClick={(e) => tosMenu(e, t)} aria-label={`Actions for ${t.title}`}>
+            <Ellipsis size={16} />
+          </button>
+        </div>
+        <Link to={`/tos/${t.id}`} className="bp-card-title">{t.title}</Link>
+        <span className="bp-meta">
+          {showSubject && t.subject_name && <GroupChip color={groupColor(t.subject_id || t.subject_name)}>{t.subject_name}</GroupChip>}
+          <span>
+            {topics ? `${topics} topic${topics === 1 ? '' : 's'} · ${items} items` : `${items} items · no topics yet`}
+            {exams > 0 && ` · ${exams} exam${exams === 1 ? '' : 's'}`}
+          </span>
+        </span>
+        <BloomMix weights={t.bloom_weights} interactive={false} />
+        {topics > 0 && <Coverage t={t} />}
+        <NextStep t={t} block />
+      </li>
+    );
+  }
+
+  const openNew = () => setEditing({ title: '', subject_id: subjects[0]?.id || '', total_items: 50, bloom_weights: { ...DEFAULT_BLOOM } });
+  const clearFinder = () => { setQuery(''); setFilter('all'); };
+  const noMatch = (
+    <div className="bp-nomatch">
+      <p>No blueprints match{query ? ` “${query.trim()}”` : ''}.</p>
+      <button type="button" className="btn btn-outline btn-sm" onClick={clearFinder}>Clear search and filter</button>
+    </div>
+  );
+
   return (
     <AppShell pageClass="tos" activeNav="tos" pageTitle="Blueprints (TOS)" wide>
 
@@ -276,22 +447,39 @@ export default function TosPage() {
             <Link to="/materials?upload=1" className="btn btn-outline">
               <Upload size={16} /> Upload Syllabus
             </Link>
-            <button className="btn btn-primary" data-tour="tos-new" onClick={() => setEditing({ title: '', subject_id: subjects[0]?.id || '', total_items: 50, bloom_weights: { ...DEFAULT_BLOOM } })}>
+            <button className="btn btn-primary" data-tour="tos-new" onClick={openNew}>
               <Plus size={16} /> New Blueprint
             </button>
           </div>
         </div>
       ) : (
         <>
-        <div className="stats-grid">
+        <div className="stats-grid bp-stats">
           <StatCard icon={PanelsTopLeft} tint="blue" value={tosList.length} label="Blueprints" />
           <StatCard icon={FileCheck} tint="green" value={tosStats.finalized} label="Finalized" />
-          <StatCard icon={PenLine} tint="amber" value={tosStats.drafts} label="Drafts" />
+          <StatCard icon={FilePlus2} tint="purple" value={tosStats.ready} label="Exam-ready" />
           <StatCard icon={Database} tint="cyan" value={tosStats.items ? `${tosStats.banked} / ${tosStats.items}` : '—'} label="Items banked" />
         </div>
-        <div className="dataset">
+        <div className="dataset" data-view={asCards ? 'cards' : 'table'}>
           <div className="dataset-bar">
             <div className="dataset-bar-lead">
+              {showFinder && (
+                <>
+                  <label className="ds-search" htmlFor="tos-search">
+                    <Search size={15} />
+                    <span className="sr-only">Search blueprints</span>
+                    <input
+                      id="tos-search"
+                      type="search"
+                      autoComplete="off"
+                      placeholder="Search by title or subject…"
+                      value={query}
+                      onChange={(e) => setQuery(e.target.value)}
+                    />
+                  </label>
+                  <Select value={filter} onChange={setFilter} options={FILTERS} label="Filter blueprints" icon={Filter} />
+                </>
+              )}
               <span className="b-groupby">
                 <Layers size={14} aria-hidden="true" />
                 <select
@@ -306,23 +494,46 @@ export default function TosPage() {
               </span>
             </div>
             <div className="dataset-bar-trail">
-              <button className="btn btn-primary btn-sm" data-tour="tos-new" onClick={() => setEditing({ title: '', subject_id: subjects[0]?.id || '', total_items: 50, bloom_weights: { ...DEFAULT_BLOOM } })}>
+              <button className="btn btn-primary btn-sm" data-tour="tos-new" onClick={openNew}>
                 <Plus size={14} /> New Blueprint
               </button>
             </div>
           </div>
+
+          {rows.length === 0 ? noMatch : asCards ? (
+            <div className="bp-cards" data-tour="tos-table">
+              {tosGroups ? tosGroups.map((g) => {
+                const isCollapsed = collapsed.has(g.key);
+                return (
+                  <section key={g.key} className="bp-card-group" style={{ '--gc': g.color }}>
+                    <button type="button" className="bp-card-group-head" aria-expanded={!isCollapsed} onClick={() => toggleGroup(g.key)}>
+                      <ChevronDown size={15} aria-hidden="true" className="bp-caret" />
+                      <span className="bp-card-group-name">{g.title}</span>
+                      <span className="b-group-count">{g.rows.length}</span>
+                    </button>
+                    {!isCollapsed && <ul className="bp-card-list" ref={animateRows}>{g.rows.map(renderTosCard)}</ul>}
+                  </section>
+                );
+              }) : (
+                <ul className="bp-card-list" ref={animateRows}>{rows.map(renderTosCard)}</ul>
+              )}
+            </div>
+          ) : (
           <div className="dataset-scroll" data-tour="tos-table">
-        <table className="grid datatable">
+        <table className="grid datatable bp-table" data-subject={showSubject || undefined}>
           <caption className="sr-only">Table of Specification blueprints in your workspace</caption>
           <thead>
             <tr>
-              <th className="col-primary wp-33">Blueprint</th>
-              {showSubject && <th className="wp-14">Subject</th>}
-              <th className="wp-12">Status</th>
-              <th className="is-num wp-10">Topics</th>
-              <th className="is-num wp-9">Items</th>
-              <th className="wp-12">Updated</th>
-              <th className="col-actions wp-10">Actions</th>
+              <th className={`col-primary bp-c-title ${showSubject ? 'wp-22' : 'wp-32'} ${sortClass('title')}`} onClick={sortHandler('title')}>
+                Blueprint{renderSortArrow('title')}
+              </th>
+              {showSubject && <th className={`wp-12 bp-c-opt ${sortClass('subject')}`} onClick={sortHandler('subject')}>Subject{renderSortArrow('subject')}</th>}
+              <th className={`wp-10 bp-c-opt ${sortClass('status')}`} onClick={sortHandler('status')}>Status{renderSortArrow('status')}</th>
+              <th className={`${showSubject ? 'wp-16' : 'wp-17'} bp-c-cov ${sortClass('coverage')}`} onClick={sortHandler('coverage')}>Banked{renderSortArrow('coverage')}</th>
+              <th className={`is-num wp-8 bp-c-opt ${sortClass('exams')}`} onClick={sortHandler('exams')}>Exams{renderSortArrow('exams')}</th>
+              <th className={`${showSubject ? 'wp-10' : 'wp-11'} bp-c-opt ${sortClass('updated')}`} onClick={sortHandler('updated')}>Updated{renderSortArrow('updated')}</th>
+              <th className="wp-17 bp-c-next">Next step</th>
+              <th className="col-actions wp-5 bp-c-act"><span className="sr-only">Actions</span></th>
             </tr>
           </thead>
           {tosGroups ? tosGroups.map((g) => {
@@ -331,17 +542,18 @@ export default function TosPage() {
             for (const t of g.rows) { const k = statusOf(t.status); counts[k] = (counts[k] || 0) + 1; }
             return (
               <tbody key={g.key} ref={animateRows} className={`b-group${isCollapsed ? ' is-collapsed' : ''}`} style={{ '--gc': g.color }}>
-                <BoardGroupHead color={g.color} title={g.title} count={g.rows.length} meta={statusMeta(counts, STATUS_ORDER.tos) || undefined} colSpan={6} collapsed={isCollapsed} onToggle={() => toggleGroup(g.key)} />
+                <BoardGroupHead color={g.color} title={g.title} count={g.rows.length} meta={statusMeta(counts, STATUS_ORDER.tos) || undefined} colSpan={colCount} collapsed={isCollapsed} onToggle={() => toggleGroup(g.key)} />
                 {g.rows.map(renderTosRow)}
               </tbody>
             );
           }) : (
             <tbody ref={animateRows}>
-              {tosList.map(renderTosRow)}
+              {rows.map(renderTosRow)}
             </tbody>
           )}
         </table>
           </div>
+          )}
         </div>
         </>
       )}
@@ -424,6 +636,8 @@ export default function TosPage() {
           { label: 'Subject', value: viewing.subject_name, kind: 'meta' },
           { label: 'Topics', value: viewing.topic_count != null ? Number(viewing.topic_count) : null, kind: 'stat' },
           { label: 'Items', value: viewing.total_items != null ? Number(viewing.total_items) : null, kind: 'stat' },
+          { label: 'Banked', value: `${blueprintCoverage(viewing).covered} of ${blueprintCoverage(viewing).total}` },
+          { label: 'Exams built', value: Number(viewing.exam_count) || 0 },
           { label: 'Bloom mix', value: viewing.bloom_weights, kind: 'bloom' },
           { label: 'Created', value: fmtDate(viewing.created_at) },
           { label: 'Updated', value: fmtDate(viewing.updated_at) },

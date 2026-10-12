@@ -101,6 +101,35 @@ existing installs upgrade automatically — don't rely on a fresh
 `schema.sql` import. Tables added this way include `password_reset_tokens`,
 `audit_log`, `login_logs`, captcha/AI settings, and `users.theme`.
 
+## Vector search & similarity
+
+Two embedding providers feed HNSW indexes under `api/storage/vectors/`:
+
+- **Gemini** (primary, 3072-dim) via LangChain; **local MiniLM**
+  (`Xenova/all-MiniLM-L6-v2`, 384-dim) via `@huggingface/transformers` as a
+  fallback/shadow. First local use downloads ~90 MB into
+  `api/storage/models/` — both dirs are gitignored and safe to delete
+  (they rebuild).
+- Provider vectors never mix: every index has a `<name>-local` sibling.
+  Reads fall back Gemini → local; writes go to whichever provider(s) are
+  reachable. `checkedEmbeddings` validates output and retries per-text —
+  `embedDocuments` can silently return empty vectors on batch failure.
+- The institution question index (`questions/_institution`) holds **active
+  objective questions only**; material chunk indexes stay
+  subject-scoped/private.
+- Drift self-heals: `worker/reconcile.js` sweeps every
+  `WORKER_RECONCILE_INTERVAL` (15 min default) comparing index ID sets to
+  canonical SQL. Manual rebuilds: `node scripts/rebuild-question-index.js`
+  (`--space=gemini|local`) and `scripts/rebuild-chunk-indexes.js`.
+- Thresholds are runtime settings: `similarity_threshold` (Gemini, 0.85)
+  and `similarity_threshold_local` (0.85 — MiniLM scores same-topic items
+  high; 0.70 floods false flags).
+- Dev gotcha: `api/nodemon.json` restricts nodemon to `src/**` — widening
+  it makes vector writes under `storage/` restart the API mid-request
+  (the 502 bug). Don't remove it.
+- Escape hatch: `similarity_error` drafts are approvable via
+  `allowSimilarityFailure`; pending checks and flagged matches still block.
+
 ## Email
 
 - All transactional mail uses the branded templates in

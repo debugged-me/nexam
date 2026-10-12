@@ -591,7 +591,7 @@ export default function ReviewQueuePage() {
   // ── Render ─────────────────────────────────────────
 
   const undoBar = lastAction && (
-    <div className="rv-undo" role="status">
+    <div className={`rv-undo ${lastAction.action === 'approved' ? 'is-approved' : 'is-rejected'}`} role="status">
       <span className={`rv-undo-mark ${lastAction.action === 'approved' ? 'is-approved' : 'is-rejected'}`}>
         {lastAction.action === 'approved' ? <Check size={15} /> : <X size={15} />}
       </span>

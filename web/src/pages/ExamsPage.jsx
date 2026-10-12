@@ -2,16 +2,16 @@ import '../styles/exams.css';
 /**
  * ExamsPage — exam board grouped like a Monday board (adaptive list).
  *
- * Rows group by subject (default) or status. Each exam shows its format,
- * blueprint, items, results so far (sheets scanned + class average) and the
- * one next step from lib/examProgress.js. ≥1200px the full table; 768–1199px
+ * Rows group by subject (default) or status. Each exam shows its blueprint,
+ * items and optional OMR results (sheets scanned + class average).
+ * ≥1200px the full table; 768–1199px
  * the secondary columns drop; <768px every exam is a card.
  */
 import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import {
-  Plus, Pencil, Trash2, Info, Eye, Ellipsis, Search, FileCheck, Layers, Printer,
-  MonitorSmartphone, Copy, FileText, ListPlus, Files, Send, ScanLine, ClipboardCheck,
+  Plus, Pencil, Trash2, Info, Eye, Ellipsis, Search, FileCheck, Layers,
+  Copy, FileText, ScanLine,
   ChartColumn, Gauge, PanelsTopLeft,
 } from 'lucide-react';
 import { useToast } from '../components/Toast.jsx';
@@ -21,22 +21,19 @@ import api, { ApiError } from '../lib/api.js';
 import { vtNavigate } from '../lib/viewTransitions.js';
 import { timeAgo } from '../lib/time.js';
 import { useMediaQuery } from '../lib/useMediaQuery.js';
-import { examNextStep, examResults, isPublished } from '../lib/examProgress.js';
+import { examResults, isPublished } from '../lib/examProgress.js';
 import DetailsModal from '../components/DetailsModal.jsx';
 import AppShell from '../components/AppShell.jsx';
 import { TableSkeleton } from '../components/Loaders.jsx';
 import { animateRows } from '../lib/animRows.js';
 import EmptyStateArt from '../components/EmptyStateArt.jsx';
 import {
-  StatusPill, BoardGroupHead, NextStepLink, CardGroup,
+  StatusPill, BoardGroupHead, CardGroup,
   GroupChip, groupColor, statusOf, statusMeta, STATUS_LABELS, STATUS_ORDER, StatCard,
 } from '../components/Board.jsx';
 import { useGridTable } from '../components/DataTable.jsx';
 
 const EXAM_STATUSES = STATUS_ORDER.exam;
-const NEXT_ICONS = {
-  assemble: ListPlus, sets: Files, publish: Send, scan: ScanLine, review: ClipboardCheck, results: ChartColumn,
-};
 
 // Sort accessors — id matches the column the header toggles.
 const EXAM_COLUMNS = [
@@ -74,12 +71,10 @@ function statusCounts(list) {
   return counts;
 }
 
-const stepFor = (e) => { const step = examNextStep(e); return { ...step, icon: NEXT_ICONS[step.key] }; };
-
 /** Sheets scanned + class average against the pass mark. */
 function Results({ e }) {
   const r = examResults(e);
-  if (!r) return <span className="ex-res-none">No scans yet</span>;
+  if (!r) return <span className="ex-res-none" aria-label="No OMR results">—</span>;
   return (
     <span className="ex-res" data-passing={r.avg == null ? undefined : r.passing}>
       <span className="ex-res-head">
@@ -199,7 +194,7 @@ export default function ExamsPage() {
     return new Set(exams.map((e) => e.subject_id || 'none')).size === 1;
   }, [exams]);
   const showSubject = groupBy !== 'subject' && !singleSubject;
-  const colSpan = showSubject ? 8 : 7;
+  const colSpan = showSubject ? 7 : 6;
 
   function toggleGroup(key) {
     setCollapsed((prev) => {
@@ -236,16 +231,11 @@ export default function ExamsPage() {
     vtNavigate(navigate, `/exams/${id}`, { sharedEl: ev.currentTarget });
   }
 
-  /** Format · duration · blueprint — shared by rows and cards. */
+  /** Items · duration · blueprint — shared by rows and cards. */
   function examFacts(e, { withItems = false } = {}) {
-    const print = e.format === 'print';
     const count = e.question_count || 0;
     return (
       <>
-        <span className="row-meta-icon">
-          {print ? <Printer size={13} aria-hidden="true" /> : <MonitorSmartphone size={13} aria-hidden="true" />}
-          {print ? 'Print' : 'Digital'}
-        </span>
         {withItems && <span>{count} {count === 1 ? 'item' : 'items'}</span>}
         {!withItems && <span className="ex-meta-items">{count} {count === 1 ? 'item' : 'items'}</span>}
         {e.duration_minutes ? <span>{e.duration_minutes} min</span> : null}
@@ -292,7 +282,6 @@ export default function ExamsPage() {
         </td>
         <td><Results e={e} /></td>
         <td className="g-mute col-opt" title={fmtDate(touched)}>{touchedText(touched)}</td>
-        <td><NextStepLink step={stepFor(e)} /></td>
         <td className="col-actions">
           {/* Same floating menu as right-click — uniform with Subjects/Questions. */}
           <button
@@ -325,7 +314,6 @@ export default function ExamsPage() {
           {examFacts(e, { withItems: true })}
         </span>
         {examResults(e) && <Results e={e} />}
-        <NextStepLink step={stepFor(e)} block />
       </li>
     );
   }
@@ -353,11 +341,12 @@ export default function ExamsPage() {
         </div>
       ) : (
         <>
+        <p className="ex-delivery-note">Print exam papers or export to an LMS. For optional OMR grading, scan completed answer sheets with the Nexam mobile app.</p>
         <div className="stats-grid stats-4">
           <StatCard icon={FileText} tint="blue" value={exams.length} label="Exams" />
           <StatCard icon={FileCheck} tint="green" value={examStats.published} label="Published" />
-          <StatCard icon={ScanLine} tint="purple" value={examStats.scans} label="Sheets scanned" />
-          <StatCard icon={Gauge} tint="cyan" value={overallAvg == null ? '—' : `${overallAvg}%`} label="Average score" />
+          <StatCard icon={ScanLine} tint="purple" value={examStats.scans} label="OMR sheets scanned" />
+          <StatCard icon={Gauge} tint="cyan" value={overallAvg == null ? '—' : `${overallAvg}%`} label="OMR average score" />
         </div>
         <section className="dataset" data-density="comfortable">
           <div className="dataset-bar" data-tour="exams-toolbar">
@@ -413,13 +402,12 @@ export default function ExamsPage() {
               <caption className="sr-only">Exams in your workspace</caption>
               <thead>
                 <tr>
-                  <th className={`col-primary ex-c-title ${showSubject ? 'wp-20' : 'wp-31'} ${sortClass('exam')}`} onClick={sortHandler('exam')} data-name="Exam" data-locked>Exam{renderSortArrow('exam')}</th>
-                  {showSubject && <th className={`wp-12 col-opt ${sortClass('subject')}`} onClick={sortHandler('subject')} data-name="Subject">Subject{renderSortArrow('subject')}</th>}
-                  <th className={`${showSubject ? 'wp-10' : 'wp-11'} col-opt ${sortClass('status')}`} onClick={sortHandler('status')} data-name="Status">Status{renderSortArrow('status')}</th>
+                  <th className={`col-primary ex-c-title ${showSubject ? 'wp-31' : 'wp-45'} ${sortClass('exam')}`} onClick={sortHandler('exam')} data-name="Exam" data-locked>Exam{renderSortArrow('exam')}</th>
+                  {showSubject && <th className={`wp-14 col-opt ${sortClass('subject')}`} onClick={sortHandler('subject')} data-name="Subject">Subject{renderSortArrow('subject')}</th>}
+                  <th className={`wp-12 col-opt ${sortClass('status')}`} onClick={sortHandler('status')} data-name="Status">Status{renderSortArrow('status')}</th>
                   <th className={`is-num wp-8 col-opt ${sortClass('items')}`} onClick={sortHandler('items')} data-name="Items">Items{renderSortArrow('items')}</th>
-                  <th className={`wp-14 ex-c-res ${sortClass('results')}`} onClick={sortHandler('results')} data-name="Results">Results{renderSortArrow('results')}</th>
-                  <th className={`wp-11 col-opt ${sortClass('updated')}`} onClick={sortHandler('updated')} data-name="Updated">Updated{renderSortArrow('updated')}</th>
-                  <th className="wp-20 ex-c-next" data-name="Next step">Next step</th>
+                  <th className={`wp-17 ex-c-res ${sortClass('results')}`} onClick={sortHandler('results')} data-name="OMR results">OMR results{renderSortArrow('results')}</th>
+                  <th className={`wp-13 col-opt ${sortClass('updated')}`} onClick={sortHandler('updated')} data-name="Updated">Updated{renderSortArrow('updated')}</th>
                   <th className="col-actions wp-5 ex-c-act"><span className="sr-only">Actions</span></th>
                 </tr>
               </thead>
@@ -463,12 +451,12 @@ export default function ExamsPage() {
         fields={viewing ? [
           { label: 'Status', value: <StatusPill status={viewing.status} small inline />, kind: 'meta' },
           { label: 'Subject', value: viewing.subject_name, kind: 'meta' },
-          { label: 'Format', value: viewing.format === 'print' ? 'Print' : 'Digital', kind: 'meta' },
+          { label: 'Preferred format', value: viewing.format === 'print' ? 'Print' : 'LMS export', kind: 'meta' },
           { label: 'Items', value: viewing.question_count || 0, kind: 'stat' },
           viewing.duration_minutes ? { label: 'Duration', value: `${viewing.duration_minutes} min`, kind: 'stat' } : null,
           viewing.tos_title ? { label: 'Blueprint', value: viewing.tos_title } : null,
-          { label: 'Sheets scanned', value: Number(viewing.scan_count) || 0 },
-          viewing.avg_score != null ? { label: 'Class average', value: `${Math.round(Number(viewing.avg_score))}%` } : null,
+          { label: 'OMR sheets scanned', value: Number(viewing.scan_count) || 0 },
+          viewing.avg_score != null ? { label: 'OMR class average', value: `${Math.round(Number(viewing.avg_score))}%` } : null,
           { label: 'Updated', value: fmtDate(viewing.updated_at || viewing.created_at) },
         ].filter(Boolean) : []}
       />

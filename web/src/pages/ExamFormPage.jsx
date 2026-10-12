@@ -250,18 +250,17 @@ export default function ExamFormPage() {
                     </div>
                     <div className="form-row">
                       <div className="form-group">
-                        <label className="form-label" htmlFor="format">Format <span className="req">*</span></label>
+                        <label className="form-label" htmlFor="format">Preferred format <span className="req">*</span></label>
                         <select id="format" name="format" className="form-control form-select" required
                           value={form.format} onChange={(e) => setForm({ ...form, format: e.target.value })}>
-                          {/* Wire values stay 'print' / 'digital' — both the Node API
-                              (EXAM_FORMATS) and the Node API validate them.
-                              Only the labels describe what each one actually produces. */}
+                          {/* Preserve the API values; this preference does not restrict available outputs. */}
                           <option value="print">Print — paper exam</option>
-                          <option value="digital">LMS export — no paper</option>
+                          <option value="digital">LMS export — GIFT / Canvas XML</option>
                         </select>
                         <small className="form-hint">
-                          Print: PDF papers, answer keys, and OMR sheets. LMS export: a GIFT or Canvas XML file
-                          you upload yourself — Nexam doesn't run exams online.
+                          Both preferences support printed papers, optional OMR sheets, and LMS exports.
+                          Scan OMR sheets with the Nexam mobile app. Upload GIFT or Canvas XML files to your LMS;
+                          Nexam doesn't run exams online.
                         </small>
                       </div>
                       <div className="form-group">

@@ -329,14 +329,16 @@ export default function ExamDetailPage() {
     ]);
   }
 
-  // Lifecycle rail — the first unfinished stage is "current".
+  // Preparation ends at publishing. OMR progress appears only when scans exist.
   const tone = statusOf(exam.status);
   const railStages = [
     { label: 'Assembled', sub: `${questions.length} item${questions.length === 1 ? '' : 's'}`, done: questions.length > 0 },
     { label: 'Sets generated', sub: hasSets ? `${sets.length} set${sets.length === 1 ? '' : 's'}` : undefined, done: hasSets },
     { label: 'Published', sub: published || tone === 'live' ? exam.status : 'draft', done: published || tone === 'live' },
-    { label: 'Scanned', sub: totalScans ? `${totalScans} sheet${totalScans === 1 ? '' : 's'}` : undefined, done: totalScans > 0 },
-    { label: 'Reviewed', sub: totalScans ? (reviewOpen ? `${reviewOpen} to confirm` : 'all confirmed') : undefined, done: totalScans > 0 && reviewOpen === 0 },
+    ...(totalScans > 0 ? [
+      { label: 'OMR scanned', sub: `${totalScans} sheet${totalScans === 1 ? '' : 's'}`, done: true },
+      { label: 'OMR reviewed', sub: reviewOpen ? `${reviewOpen} to confirm` : 'all confirmed', done: reviewOpen === 0 },
+    ] : []),
   ];
   const railNext = railStages.findIndex((s) => !s.done);
   const railSteps = railStages.map((s, i) => ({
@@ -379,6 +381,7 @@ export default function ExamDetailPage() {
 
       <div data-tour="exam-pipeline">
         <StageRail steps={railSteps} />
+        <p className="exam-delivery-note">Print exam papers or export to an LMS. OMR grading is optional: print the OMR sheets and scan completed answers with the Nexam mobile app.</p>
       </div>
 
       <div className="exam-detail-layout">
@@ -390,7 +393,7 @@ export default function ExamDetailPage() {
                 <article key={label} className="print-pack">
                   <header className="print-pack-head">
                     <span className="print-pack-set">Set {label}</span>
-                    <span className="print-pack-meta">{questions.length} {questions.length === 1 ? 'item' : 'items'}{print ? ' · print' : ' · digital'}</span>
+                    <span className="print-pack-meta">{questions.length} {questions.length === 1 ? 'item' : 'items'}</span>
                     <QrCode size={18} className="print-pack-qr" aria-hidden="true" />
                   </header>
                   <div className="print-pack-files">
@@ -421,7 +424,7 @@ export default function ExamDetailPage() {
           {parseInt(results?.stats?.total_scans || 0, 10) > 0 && (
             <Reveal className="card" data-tour="exam-results">
               <div className="card-header">
-                <span className="card-title">Results at a glance</span>
+                <span className="card-title">OMR results at a glance</span>
                 <Link className="btn btn-outline btn-sm" to={`/analytics/exam/${exam.id}`}>Full analysis</Link>
               </div>
               <div className="exam-results-grid">
@@ -498,8 +501,8 @@ export default function ExamDetailPage() {
                 <div className="detail-row"><dt>Subject</dt><dd><GroupChip color={accent}>{exam.subject_name}</GroupChip></dd></div>
               )}
               <div className="detail-row">
-                <dt>Format</dt>
-                <dd>{print ? <Printer size={13} /> : <Monitor size={13} />} {print ? 'Print' : 'Digital'}</dd>
+                <dt>Preferred format</dt>
+                <dd>{print ? <Printer size={13} /> : <Monitor size={13} />} {print ? 'Print' : 'LMS export'}</dd>
               </div>
               {exam.duration_minutes && (
                 <div className="detail-row"><dt>Duration</dt><dd><Clock size={13} /> {exam.duration_minutes} min</dd></div>

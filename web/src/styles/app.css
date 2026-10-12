@@ -1572,6 +1572,31 @@ select.form-control:not([multiple]) {
 .sidebar-nav { gap: 19px; padding: 8px 12px 20px; }
 .nav-group { display: grid; gap: 2px; }
 .nav-group-label { padding: 0 10px; margin: 0 0 7px; font-size: .61rem; color: var(--sb-title); font-weight: 550; letter-spacing: .085em; text-transform: uppercase; }
+/* Accent rule after each section label. Flex only places the line; the text
+   keeps its exact position and the label its height. Follows the accent
+   palette via --action-*: draws in once, then a soft light sweeps along it. */
+.nav-group-label { display: flex; align-items: center; gap: 10px; }
+.nav-group-label::after {
+  content: '';
+  flex: 1 1 auto;
+  height: 1px;
+  border-radius: 1px;
+  background:
+    linear-gradient(90deg, transparent, var(--action-600), transparent) -70% 0 / 40% 100% no-repeat,
+    linear-gradient(90deg, color-mix(in srgb, var(--action-400) 70%, transparent), color-mix(in srgb, var(--action-400) 12%, transparent));
+  transform-origin: left center;
+  animation: nav-rule-in .7s cubic-bezier(.2, .7, .2, 1) both, nav-rule-sweep 5s ease-in-out 1.2s infinite;
+}
+.nav-group:nth-child(3) .nav-group-label::after { animation-delay: .08s, 1.5s; }
+.nav-group:nth-child(4) .nav-group-label::after { animation-delay: .16s, 1.8s; }
+@keyframes nav-rule-in { from { transform: scaleX(0); opacity: 0; } }
+@keyframes nav-rule-sweep {
+  0% { background-position: -70% 0, 0 0; }
+  45%, 100% { background-position: 170% 0, 0 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .nav-group-label::after { animation: none; }
+}
 .nav-item { min-height: 35px; border-radius: 7px; font-size: .78rem; gap: 9px; }
 .sidebar-create { padding: 0 12px 14px; }
 .sidebar-create .nav-item > svg:last-child { margin-left: auto; width: 13px !important; }

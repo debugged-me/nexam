@@ -57,12 +57,31 @@ const THEME_CHOICES = [
 ];
 
 const SIDEBAR_COLLAPSED_KEY = 'nexam.sidebar.collapsed';
+const SIDEBAR_WIDTH_KEY = 'nexam.sidebar.width';
+const SIDEBAR_MIN = 200;
+const SIDEBAR_MAX = 340;
+const SIDEBAR_DEFAULT = 240;
+const SIDEBAR_RAIL = 72;
+const SIDEBAR_SNAP = 150; // release a drag below this → collapse to the rail
 
 function readSidebarCollapsed() {
   try {
     return localStorage.getItem(SIDEBAR_COLLAPSED_KEY) === 'true';
   } catch {
     return false;
+  }
+}
+
+function clampSidebarWidth(w) {
+  return Math.min(SIDEBAR_MAX, Math.max(SIDEBAR_MIN, w));
+}
+
+function readSidebarWidth() {
+  try {
+    const v = parseInt(localStorage.getItem(SIDEBAR_WIDTH_KEY), 10);
+    return Number.isFinite(v) ? clampSidebarWidth(v) : SIDEBAR_DEFAULT;
+  } catch {
+    return SIDEBAR_DEFAULT;
   }
 }
 
@@ -77,6 +96,10 @@ export default function AppLayout() {
   const [meta, setMeta] = useState({});
   const [mobileOpen, setMobileOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(readSidebarCollapsed);
+  const [sidebarWidth, setSidebarWidth] = useState(readSidebarWidth);
+  const [sidebarResizing, setSidebarResizing] = useState(false);
+  const sidebarDrag = useRef(null);
+  const shellRef = useRef(null);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [commandOpen, setCommandOpen] = useState(false);
   const userMenuRef = useRef(null);
@@ -107,12 +130,98 @@ export default function AppLayout() {
   const title = activeKey === 'dashboard' ? 'Overview' : meta.pageTitle || section;
   const [pickerOpen, setPickerOpen] = useState(false);
 
-  function toggleSidebar() {
-    const next = !sidebarCollapsed;
+  function persistSidebarWidth(w) {
+    try {
+      localStorage.setItem(SIDEBAR_WIDTH_KEY, String(w));
+    } catch { /* private mode — session only */ }
+  }
+
+  function setSidebarCollapsedStored(next) {
     setSidebarCollapsed(next);
     try {
       localStorage.setItem(SIDEBAR_COLLAPSED_KEY, String(next));
-    } catch { /* Keep the current choice in memory when storage is unavailable. */ }
+    } catch { /* private mode — session only */ }
+  }
+
+  /* During a drag we mutate --sidebar-width and the collapsed class directly
+     on the shell element — committing to React state only on release. A
+     setState per pointermove would re-render the whole routed page (tables,
+     charts) every frame and read as a laggy resize. */
+  function onSidebarResizeStart(e) {
+    if (e.button !== 0) return;
+    e.preventDefault();
+    sidebarDrag.current = {
+      startX: e.clientX,
+      startW: sidebarCollapsed ? SIDEBAR_RAIL : sidebarWidth,
+      w: sidebarWidth,
+      preview: sidebarCollapsed,
+    };
+    e.currentTarget.setPointerCapture(e.pointerId);
+    setSidebarResizing(true);
+  }
+
+  function onSidebarResizeMove(e) {
+    const d = sidebarDrag.current;
+    if (!d) return;
+    const raw = d.startW + e.clientX - d.startX;
+    d.preview = raw < SIDEBAR_SNAP;
+    shellRef.current?.classList.toggle('app-shell--sidebar-collapsed', d.preview);
+    if (d.preview) {
+      // The collapsed class sets the rail width via the same var — an inline
+      // value would win, so clear it while previewing the rail.
+      shellRef.current?.style.removeProperty('--sidebar-width');
+    } else {
+      d.w = clampSidebarWidth(raw);
+      shellRef.current?.style.setProperty('--sidebar-width', `${d.w}px`);
+    }
+    e.currentTarget.setAttribute('aria-valuenow', String(d.preview ? SIDEBAR_RAIL : d.w));
+  }
+
+  function onSidebarResizeEnd() {
+    const d = sidebarDrag.current;
+    if (!d) return;
+    sidebarDrag.current = null;
+    setSidebarResizing(false);
+    if (d.preview) {
+      shellRef.current?.style.removeProperty('--sidebar-width');
+      setSidebarCollapsedStored(true);
+    } else {
+      if (sidebarCollapsed) setSidebarCollapsedStored(false);
+      setSidebarWidth(d.w);
+      persistSidebarWidth(d.w);
+    }
+  }
+
+  function onSidebarResizeKey(e) {
+    if (sidebarCollapsed) {
+      if (e.key === 'ArrowRight' || e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        setSidebarCollapsedStored(false);
+      }
+      return;
+    }
+    const step = e.shiftKey ? 24 : 8;
+    let next = null;
+    if (e.key === 'ArrowLeft') next = sidebarWidth - step;
+    else if (e.key === 'ArrowRight') next = sidebarWidth + step;
+    else if (e.key === 'Home') next = SIDEBAR_MIN;
+    else if (e.key === 'End') next = SIDEBAR_MAX;
+    if (next === null) return;
+    e.preventDefault();
+    if (next < SIDEBAR_MIN) { setSidebarCollapsedStored(true); return; }
+    const w = clampSidebarWidth(next);
+    setSidebarWidth(w);
+    persistSidebarWidth(w);
+  }
+
+  function resetSidebarWidth() {
+    if (sidebarCollapsed) { setSidebarCollapsedStored(false); return; }
+    setSidebarWidth(SIDEBAR_DEFAULT);
+    persistSidebarWidth(SIDEBAR_DEFAULT);
+  }
+
+  function toggleSidebar() {
+    setSidebarCollapsedStored(!sidebarCollapsed);
   }
 
   useEffect(() => {
@@ -203,7 +312,11 @@ export default function AppLayout() {
 
   return (
     <RadixTooltip.Provider delayDuration={300} skipDelayDuration={150}>
-    <div className={`app-shell${sidebarCollapsed ? ' app-shell--sidebar-collapsed' : ''}`}>
+    <div
+      ref={shellRef}
+      className={`app-shell${sidebarCollapsed ? ' app-shell--sidebar-collapsed' : ''}${sidebarResizing ? ' app-shell--sidebar-resizing' : ''}`}
+      style={sidebarCollapsed ? undefined : { '--sidebar-width': `${sidebarWidth}px` }}
+    >
       <a href="#workspace-content" className="skip-link">
         Skip to content
       </a>
@@ -311,6 +424,23 @@ export default function AppLayout() {
           </span>
           <Settings2 size={16} aria-hidden="true" />
         </SidebarLink>
+        <div
+          className="sidebar-resize"
+          role="separator"
+          aria-orientation="vertical"
+          aria-label={sidebarCollapsed ? 'Expand sidebar' : 'Resize sidebar'}
+          aria-valuenow={sidebarCollapsed ? SIDEBAR_RAIL : sidebarWidth}
+          aria-valuemin={SIDEBAR_RAIL}
+          aria-valuemax={SIDEBAR_MAX}
+          tabIndex={0}
+          title={sidebarCollapsed ? 'Drag to expand' : 'Drag to resize · drag past the edge to collapse · double-click to reset'}
+          onPointerDown={onSidebarResizeStart}
+          onPointerMove={onSidebarResizeMove}
+          onPointerUp={onSidebarResizeEnd}
+          onPointerCancel={onSidebarResizeEnd}
+          onKeyDown={onSidebarResizeKey}
+          onDoubleClick={resetSidebarWidth}
+        />
       </aside>
       {mobileOpen && (
         <div

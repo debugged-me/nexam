@@ -1585,3 +1585,36 @@ select.form-control:not([multiple]) {
   text-align: left;
   word-break: break-word;
 }
+
+/* ==========================================================================
+   Sidebar drag-resize — desktop only; the handle is not rendered under the
+   collapsed icon rail or the mobile drawer.
+   ========================================================================== */
+.sidebar-resize {
+  position: absolute;
+  top: 0;
+  right: -4px;
+  bottom: 0;
+  width: 9px;
+  cursor: col-resize;
+  z-index: 20;
+  touch-action: none;
+}
+.sidebar-resize::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 4px;
+  width: 2px;
+  border-radius: 1px;
+  background: var(--action-600);
+  opacity: 0;
+  transition: opacity .15s ease;
+}
+.sidebar-resize:hover::after,
+.sidebar-resize:focus-visible::after,
+.app-shell--sidebar-resizing .sidebar-resize::after { opacity: .55; }
+.app-shell--sidebar-resizing { cursor: col-resize; user-select: none; }
+.app-shell--sidebar-resizing .main-content { pointer-events: none; }
+@media (max-width: 991.98px) { .sidebar-resize { display: none; } }

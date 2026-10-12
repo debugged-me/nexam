@@ -498,6 +498,13 @@ function DashboardTab({ toast }) {
               {sys.groq ? 'configured' : 'missing key'}
             </span>
           </div>
+          <div className="adm-sys-cell">
+            <span className="adm-sys-name">Ollama Cloud</span>
+            <small className="adm-muted">Additional AI fallback</small>
+            <span className={`adm-tag ${sys.ollama ? 'adm-tag-ok' : 'adm-tag-warn'}`}>
+              {sys.ollama ? 'configured' : 'not configured'}
+            </span>
+          </div>
         </div>
       </div>
       )}
@@ -718,6 +725,8 @@ function SettingsTab({ toast }) {
   const [data, setData] = useState(null);
   const [form, setForm] = useState({});
   const [saving, setSaving] = useState(false);
+  const [testingOllama, setTestingOllama] = useState(false);
+  const [ollamaTest, setOllamaTest] = useState(null);
 
   const load = useCallback(() => {
     api.get('/admin/settings')
@@ -731,6 +740,8 @@ function SettingsTab({ toast }) {
           gemini_embedding_model: d.ai?.geminiEmbeddingModel || '',
           groq_api_key: '',
           groq_model: d.ai?.groqModel || '',
+          ollama_api_key: '',
+          ollama_model: d.ai?.ollamaModel || '',
         });
       })
       .catch((e) => toast.error(e instanceof ApiError ? e.message : 'Failed to load settings.'));
@@ -738,11 +749,28 @@ function SettingsTab({ toast }) {
 
   useEffect(load, [load]);
 
-  const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
+  const set = (k) => (e) => {
+    setForm((f) => ({ ...f, [k]: e.target.value }));
+    if (k.startsWith('ollama_')) setOllamaTest(null);
+  };
+
+  async function testOllama() {
+    setTestingOllama(true);
+    setOllamaTest(null);
+    try {
+      const result = await api.post('/admin/settings/ollama/test', {});
+      setOllamaTest({ ok: true, message: `Connected to ${result.model}. JSON and source evidence verified.` });
+    } catch (error) {
+      setOllamaTest({ ok: false, message: error instanceof ApiError ? error.message : 'Could not test Ollama Cloud.' });
+    } finally {
+      setTestingOllama(false);
+    }
+  }
 
   async function save(e) {
     e.preventDefault();
     setSaving(true);
+    setOllamaTest(null);
     try {
       const res = await api.put('/admin/settings', form);
       toast.success(`Updated ${res.changed?.length || 0} setting(s).`);
@@ -764,6 +792,7 @@ function SettingsTab({ toast }) {
         className="adm-input"
         type={type}
         autoComplete="off"
+        disabled={saving || testingOllama}
         value={form[key] || ''}
         placeholder={placeholder}
         onChange={set(key)}
@@ -813,8 +842,46 @@ function SettingsTab({ toast }) {
         </div>
       </div>
 
+      <div className="adm-card">
+        <div className="adm-card-head">
+          <Settings2 size={15} />
+          <h3>Ollama Cloud</h3>
+          {data.ai?.ollamaApiKeySet && <span className="adm-tag adm-tag-ok">configured</span>}
+        </div>
+        <p className="adm-hint">Used when Gemini and Groq reach a usage limit or become unavailable. Runs in the cloud; your computer can be off.</p>
+        <div className="adm-grid-2">
+          {field('ollama_api_key', 'Ollama Cloud API key', {
+            type: 'password',
+            placeholder: data.ai?.ollamaApiKeyMasked || 'Paste your Ollama API key',
+            hint: 'Leave blank to keep the saved key.',
+          })}
+          {field('ollama_model', 'Ollama Cloud model', {
+            placeholder: 'gemma4:31b',
+            hint: 'Use the API model name included in your free allowance. Availability depends on your Ollama account.',
+          })}
+        </div>
+        <div className="adm-provider-test">
+          <button
+            type="button"
+            className="adm-btn"
+            onClick={testOllama}
+            disabled={saving || testingOllama || !data.ai?.ollamaApiKeySet
+              || Boolean(form.ollama_api_key?.trim())
+              || form.ollama_model?.trim() !== data.ai?.ollamaModel}
+          >
+            {testingOllama ? 'Testing connection…' : 'Test connection'}
+          </button>
+          <span className="adm-field-hint">Save settings first. Testing uses a small amount of your Ollama allowance.</span>
+        </div>
+        {ollamaTest && (
+          <p className={`adm-provider-result ${ollamaTest.ok ? 'is-success' : 'is-error'}`} role="status">
+            {ollamaTest.message}
+          </p>
+        )}
+      </div>
+
       <div className="adm-save-row">
-        <button type="submit" className="adm-btn adm-btn-primary" disabled={saving}>
+        <button type="submit" className="adm-btn adm-btn-primary" disabled={saving || testingOllama}>
           {saving ? 'Saving…' : 'Save settings'}
         </button>
       </div>
@@ -1061,7 +1128,7 @@ export default function AdminPage() {
   if (!allowed.includes(view)) return <Navigate to="/admin/dashboard" replace />;
 
   return (
-    <div className="admin-page">
+    <div className="admin-page page--admin">
       {view === 'dashboard' && <DashboardTab toast={toast} />}
       {view === 'users' && <UsersTab toast={toast} role={user?.role} />}
       {view === 'reports' && <ReportsTab toast={toast} />}

@@ -3,12 +3,12 @@
  *
  * Primary:   Google Gemini (generation + embeddings) — via LangChain's
  *            ChatGoogleGenerativeAI and GoogleGenerativeAIEmbeddings
- * Fallback:  Groq Llama 3.3 70B (generation only, direct SDK call)
+ * Fallbacks: Groq, then Ollama Cloud (generation only)
  *
  * LangChain manages the interaction between the vector retrieval process
  * and the Google Gemini API, as described in §3.1 of the capstone. If
  * Gemini fails (quota, rate limit, network), generation automatically
- * retries on Groq. Embeddings are Gemini-only (Groq has no embedding API).
+ * tries Groq and Ollama Cloud. Local embedding fallback lives in vectorStore.
  *
  * Every call returns a normalized result with the provider that served it,
  * so callers can record provenance in generation_meta.
@@ -19,6 +19,8 @@ import { SystemMessage, HumanMessage } from '@langchain/core/messages';
 import Groq from 'groq-sdk';
 import env from '../config/env.js';
 import { getAiConfig } from './aiConfig.js';
+import { runGenerationFallback } from './generationFallback.js';
+import { generateOllamaCloud } from './ollamaCloud.js';
 
 // Clients are cached by the config signature that built them — when the
 // superadmin changes a key/model in settings, the next call builds a fresh
@@ -39,6 +41,7 @@ function getGeminiChat(cfg) {
       model: cfg.gemini.model,
       temperature: env.ai.generation.temperature,
       maxOutputTokens: env.ai.generation.maxTokens,
+      maxRetries: 0,
     }),
   };
   return geminiChat.client;
@@ -64,21 +67,14 @@ function getGroq(cfg) {
   const sig = cfg.groq.apiKey;
   if (groqCli?.sig === sig) return groqCli.client;
   if (!cfg.groq.apiKey) { groqCli = null; return null; }
-  groqCli = { sig, client: new Groq({ apiKey: cfg.groq.apiKey }) };
+  groqCli = { sig, client: new Groq({ apiKey: cfg.groq.apiKey, maxRetries: 0 }) };
   return groqCli.client;
-}
-
-/** True if a retryable error (quota, rate limit, 5xx). */
-function isRetryable(err) {
-  const status = err?.status || err?.response?.status;
-  if (status === 429 || status === 500 || status === 502 || status === 503 || status === 529) return true;
-  const msg = (err?.message || '').toLowerCase();
-  return msg.includes('quota') || msg.includes('rate limit') || msg.includes('overloaded') || msg.includes('resource');
 }
 
 /**
  * Generate text from a prompt, with structured JSON output.
- * Tries Gemini first (via LangChain), falls back to Groq on failure.
+ * Tries Gemini, Groq, then Ollama Cloud on quota/service failures. SDK-level
+ * retries are disabled so an exhausted provider does not delay the fallback.
  *
  * @param {string} systemPrompt
  * @param {string} userPrompt
@@ -93,86 +89,94 @@ export async function generate(systemPrompt, userPrompt, opts = {}) {
     maxTokens = env.ai.generation.maxTokens,
   } = opts;
 
-  // ── Try Gemini first (via LangChain) ───────────────
-  const gemini = getGeminiChat(cfg);
-  if (gemini) {
-    try {
-      // Build the model with per-call overrides if needed
-      let model = gemini;
-      if (temperature !== env.ai.generation.temperature || maxTokens !== env.ai.generation.maxTokens) {
-        model = new ChatGoogleGenerativeAI({
-          apiKey: cfg.gemini.apiKey,
+  return runGenerationFallback([
+    {
+      name: 'Gemini',
+      configured: Boolean(cfg.gemini.apiKey),
+      generate: async () => {
+        const gemini = getGeminiChat(cfg);
+        // Build the model with per-call overrides if needed
+        let model = gemini;
+        if (temperature !== env.ai.generation.temperature || maxTokens !== env.ai.generation.maxTokens) {
+          model = new ChatGoogleGenerativeAI({
+            apiKey: cfg.gemini.apiKey,
+            model: cfg.gemini.model,
+            temperature,
+            maxOutputTokens: maxTokens,
+            maxRetries: 0,
+          });
+        }
+
+        const messages = [
+          new SystemMessage(systemPrompt),
+          new HumanMessage(userPrompt),
+        ];
+
+        // For JSON output, append an instruction to the system prompt
+        // (LangChain's ChatGoogleGenerativeAI doesn't expose responseSchema
+        // directly in the same way as the raw SDK; the instruction approach
+        // is reliable across Gemini model versions).
+        if (jsonSchema) {
+          const schemaHint = `\n\nThe following is a JSON Schema definition, not the response itself. Return one JSON INSTANCE that satisfies it; never repeat or describe the schema: ${JSON.stringify(jsonSchema)}. Do not include markdown code fences or any text outside that JSON instance.`;
+          messages[0] = new SystemMessage(systemPrompt + schemaHint);
+        }
+
+        const response = await model.invoke(messages);
+        let text = typeof response.content === 'string'
+          ? response.content
+          : Array.isArray(response.content)
+            ? response.content.map((c) => (typeof c === 'string' ? c : c.text || '')).join('')
+            : '';
+
+        // Strip markdown code fences if present
+        text = text.trim();
+        if (text.startsWith('```')) {
+          text = text.replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '').trim();
+        }
+
+        return {
+          text,
+          provider: 'gemini',
           model: cfg.gemini.model,
+          usage: response.usage_metadata || response.additional_kwargs?.usage || null,
+        };
+      },
+    },
+
+    {
+      name: 'Groq',
+      configured: Boolean(cfg.groq.apiKey),
+      generate: async () => {
+        const completion = await getGroq(cfg).chat.completions.create({
+          model: cfg.groq.model,
+          messages: [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: userPrompt },
+          ],
           temperature,
-          maxOutputTokens: maxTokens,
+          max_tokens: maxTokens,
+          response_format: jsonSchema ? { type: 'json_object' } : undefined,
         });
-      }
 
-      const messages = [
-        new SystemMessage(systemPrompt),
-        new HumanMessage(userPrompt),
-      ];
-
-      // For JSON output, append an instruction to the system prompt
-      // (LangChain's ChatGoogleGenerativeAI doesn't expose responseSchema
-      // directly in the same way as the raw SDK; the instruction approach
-      // is reliable across Gemini model versions).
-      if (jsonSchema) {
-        const schemaHint = `\n\nThe following is a JSON Schema definition, not the response itself. Return one JSON INSTANCE that satisfies it; never repeat or describe the schema: ${JSON.stringify(jsonSchema)}. Do not include markdown code fences or any text outside that JSON instance.`;
-        messages[0] = new SystemMessage(systemPrompt + schemaHint);
-      }
-
-      const response = await model.invoke(messages);
-      let text = typeof response.content === 'string'
-        ? response.content
-        : Array.isArray(response.content)
-          ? response.content.map((c) => (typeof c === 'string' ? c : c.text || '')).join('')
-          : '';
-
-      // Strip markdown code fences if present
-      text = text.trim();
-      if (text.startsWith('```')) {
-        text = text.replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '').trim();
-      }
-
-      return {
-        text,
-        provider: 'gemini',
-        model: cfg.gemini.model,
-        usage: response.usage_metadata || response.additional_kwargs?.usage || null,
-      };
-    } catch (err) {
-      console.warn(`[aiProvider] Gemini (LangChain) failed: ${err.message}. Falling back to Groq...`);
-      if (!isRetryable(err)) throw err;
-    }
-  }
-
-  // ── Fallback: Groq (direct SDK) ─────────────────────
-  const groq = getGroq(cfg);
-  if (!groq) throw new Error('All AI providers failed and no fallback is configured.');
-
-  const completion = await groq.chat.completions.create({
-    model: cfg.groq.model,
-    messages: [
-      { role: 'system', content: systemPrompt },
-      { role: 'user', content: userPrompt },
-    ],
-    temperature,
-    max_tokens: maxTokens,
-    response_format: jsonSchema ? { type: 'json_object' } : undefined,
-  });
-
-  const text = completion.choices[0]?.message?.content || '';
-  return {
-    text,
-    provider: 'groq',
-    model: cfg.groq.model,
-    usage: completion.usage ? {
-      promptTokens: completion.usage.prompt_tokens,
-      completionTokens: completion.usage.completion_tokens,
-      totalTokens: completion.usage.total_tokens,
-    } : null,
-  };
+        const text = completion.choices[0]?.message?.content || '';
+        return {
+          text,
+          provider: 'groq',
+          model: cfg.groq.model,
+          usage: completion.usage ? {
+            promptTokens: completion.usage.prompt_tokens,
+            completionTokens: completion.usage.completion_tokens,
+            totalTokens: completion.usage.total_tokens,
+          } : null,
+        };
+      },
+    },
+    {
+      name: 'Ollama Cloud',
+      configured: Boolean(cfg.ollama.apiKey),
+      generate: () => generateOllamaCloud(cfg.ollama, systemPrompt, userPrompt, { jsonSchema, temperature, maxTokens }),
+    },
+  ]);
 }
 
 /**
@@ -218,8 +222,10 @@ export async function status() {
   return {
     gemini: Boolean(cfg.gemini.apiKey),
     groq: Boolean(cfg.groq.apiKey),
+    ollama: Boolean(cfg.ollama.apiKey),
     geminiModel: cfg.gemini.model,
     groqModel: cfg.groq.model,
+    ollamaModel: cfg.ollama.model,
     embeddingModel: cfg.gemini.embeddingModel,
     vectorStore: env.vectorStore.dir,
   };

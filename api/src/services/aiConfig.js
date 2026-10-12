@@ -16,13 +16,15 @@ let cacheAt = 0;
 export async function getAiConfig() {
   if (cache && Date.now() - cacheAt < TTL_MS) return cache;
 
-  const [geminiApiKey, geminiModel, geminiEmbeddingModel, groqApiKey, groqModel] =
+  const [geminiApiKey, geminiModel, geminiEmbeddingModel, groqApiKey, groqModel, ollamaApiKey, ollamaModel] =
     await Promise.all([
       getSetting('gemini_api_key', null),
       getSetting('gemini_model', null),
       getSetting('gemini_embedding_model', null),
       getSetting('groq_api_key', null),
       getSetting('groq_model', null),
+      getSetting('ollama_api_key', null),
+      getSetting('ollama_model', null),
     ]);
 
   cache = {
@@ -34,6 +36,10 @@ export async function getAiConfig() {
     groq: {
       apiKey: groqApiKey || env.ai.groq.apiKey,
       model: groqModel || env.ai.groq.model,
+    },
+    ollama: {
+      apiKey: ollamaApiKey || env.ai.ollama.apiKey,
+      model: ollamaModel || env.ai.ollama.model,
     },
   };
   cacheAt = Date.now();

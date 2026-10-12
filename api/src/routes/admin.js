@@ -22,7 +22,9 @@ import { requireSuperadmin, requireAdminConsole } from '../middleware/auth.js';
 import { getSetting } from '../services/settings.js';
 import { sendCredentialsEmail, sendResetLinkEmail } from '../services/emailService.js';
 import { logAudit } from '../services/audit.js';
-import { invalidateAiConfigCache } from '../services/aiConfig.js';
+import { getAiConfig, invalidateAiConfigCache } from '../services/aiConfig.js';
+import { testOllamaCloudConnection } from '../services/ollamaCloud.js';
+import { rateLimit } from '../middleware/rateLimit.js';
 
 const router = Router();
 // Both staff roles reach the console; individual routes layer
@@ -89,6 +91,7 @@ router.get('/stats', async (req, res, next) => {
     const secret = await getSetting('recaptcha_secret_key', null);
     const geminiKey = await getSetting('gemini_api_key', null);
     const groqKey = await getSetting('groq_api_key', null);
+    const ollamaKey = await getSetting('ollama_api_key', null);
 
     res.json({
       users,
@@ -101,6 +104,7 @@ router.get('/stats', async (req, res, next) => {
             recaptcha: Boolean(siteKey && secret),
             gemini: Boolean(geminiKey || env.ai.gemini.apiKey),
             groq: Boolean(groqKey || env.ai.groq.apiKey),
+            ollama: Boolean(ollamaKey || env.ai.ollama.apiKey),
           }
         : null,
     });
@@ -412,6 +416,8 @@ const EDITABLE_KEYS = [
   'gemini_embedding_model',
   'groq_api_key',
   'groq_model',
+  'ollama_api_key',
+  'ollama_model',
 ];
 
 /** GET /settings — current config state. Secret values are masked. */
@@ -424,6 +430,8 @@ router.get('/settings', requireSuperadmin, async (req, res, next) => {
     const geminiModel = await getSetting('gemini_model', env.ai.gemini.model);
     const geminiEmbed = await getSetting('gemini_embedding_model', env.ai.gemini.embeddingModel);
     const groqModel = await getSetting('groq_model', env.ai.groq.model);
+    const ollamaKey = await getSetting('ollama_api_key', null);
+    const ollamaModel = await getSetting('ollama_model', env.ai.ollama.model);
 
     res.json({
       recaptcha: {
@@ -441,6 +449,10 @@ router.get('/settings', requireSuperadmin, async (req, res, next) => {
         groqApiKeyMasked: mask(groqKey || env.ai.groq.apiKey),
         groqApiKeySource: groqKey ? 'settings' : (env.ai.groq.apiKey ? 'env' : null),
         groqModel,
+        ollamaApiKeySet: Boolean(ollamaKey || env.ai.ollama.apiKey),
+        ollamaApiKeyMasked: mask(ollamaKey || env.ai.ollama.apiKey),
+        ollamaApiKeySource: ollamaKey ? 'settings' : (env.ai.ollama.apiKey ? 'env' : null),
+        ollamaModel,
       },
     });
   } catch (err) {
@@ -456,6 +468,14 @@ router.get('/settings', requireSuperadmin, async (req, res, next) => {
 router.put('/settings', requireSuperadmin, async (req, res, next) => {
   try {
     const body = req.body || {};
+    if (typeof body.ollama_model === 'string' && body.ollama_model.trim()
+      && !/^[a-zA-Z0-9][a-zA-Z0-9._:/-]{0,149}$/.test(body.ollama_model.trim())) {
+      return res.status(400).json({ error: 'Enter a valid Ollama Cloud model name, such as gemma4:31b.' });
+    }
+    if (typeof body.ollama_api_key === 'string' && body.ollama_api_key.trim()
+      && (body.ollama_api_key.trim().length > 4096 || /\s/.test(body.ollama_api_key.trim()))) {
+      return res.status(400).json({ error: 'Enter the Ollama Cloud API key without spaces or line breaks.' });
+    }
     const changed = [];
     for (const key of EDITABLE_KEYS) {
       const v = body[key];
@@ -482,6 +502,21 @@ router.put('/settings', requireSuperadmin, async (req, res, next) => {
     next(err);
   }
 });
+
+/** Test only saved credentials with synthetic evidence; never create a question. */
+router.post('/settings/ollama/test', requireSuperadmin,
+  rateLimit({ max: 3, windowSec: 60, name: 'ollama-connection-test' }),
+  async (req, res) => {
+    try {
+      const cfg = await getAiConfig();
+      const result = await testOllamaCloudConnection(cfg.ollama);
+      res.json({ message: 'Ollama Cloud connection and JSON response verified.', ...result });
+    } catch (error) {
+      // This adapter produces safe messages and never exposes upstream bodies.
+      const status = [400, 401, 402, 403, 404, 429, 502, 503, 504].includes(error.status) ? error.status : 502;
+      res.status(status).json({ error: error.publicMessage || 'Could not test Ollama Cloud. Please try again.' });
+    }
+  });
 
 // ── Reports ──────────────────────────────────────────
 

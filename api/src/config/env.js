@@ -81,6 +81,10 @@ export const env = {
       apiKey: process.env.GROQ_API_KEY || '',
       model: process.env.GROQ_MODEL || 'openai/gpt-oss-120b',
     },
+    ollama: {
+      apiKey: process.env.OLLAMA_API_KEY || '',
+      model: process.env.OLLAMA_MODEL || 'gemma4:31b',
+    },
     // Local embedding fallback (transformers.js, in-process ONNX on CPU).
     // Free + offline — the mirror/fallback when Gemini embeddings are down.
     // cacheDir defaults to <api>/storage/models; set LOCAL_EMBED_OFFLINE=1 on

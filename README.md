@@ -11,7 +11,8 @@ print/LMS exam output, and mobile OMR grading.
 - `mobile/` - Flutter instructor application for QR/OMR scanning
 - MySQL - relational application data
 - Google Gemini - primary generation and embedding provider
-- Groq - generation fallback; embeddings remain Gemini-only
+- Groq, then Ollama Cloud - generation fallbacks
+- Transformers.js/MiniLM - local embedding fallback for retrieval and similarity
 
 CodeIgniter and PHP are not part of the application architecture. In
 production, Express can serve the compiled React application as well as `/api`.
@@ -61,6 +62,25 @@ npm run dev:web
 
 The Flutter app accepts the API base URL on its login screen. Physical devices
 must use the development computer's LAN address rather than `localhost`.
+
+### Ollama Cloud fallback
+
+In **Superadmin → Settings → Ollama Cloud**, enter an Ollama API key and a
+cloud API model available under your account allowance, then **Save settings**
+and **Test connection**. The test checks JSON and exact source evidence using
+invented material; it consumes a small amount of allowance and saves no questions.
+Keys are masked on read and are never returned to instructor clients.
+
+Alternatively, set `OLLAMA_API_KEY` and `OLLAMA_MODEL` in the API environment.
+Database settings take precedence. Calls go directly to `https://ollama.com/api/chat`;
+no local Ollama app, model download, or laptop connection is required. Gemini →
+Groq → Ollama Cloud is used for quota, network, and service failures. Invalid
+credentials or malformed requests still report errors for an administrator to fix.
+If no provider is available, the job retains its existing saved drafts for a retry.
+
+The free cloud allowance is limited. Keep billing/auto-reload disabled in Ollama
+if you want free-only usage; Nexam does not change your billing settings. Cloud
+responses still pass the normal answer/evidence checks and instructor review.
 
 ## Production
 

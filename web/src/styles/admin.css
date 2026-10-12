@@ -373,6 +373,18 @@ select.adm-input { cursor: pointer; }
 }
 .adm-sys-name { font-size: .82rem; font-weight: 600; color: var(--ink); }
 
+@scope (.page--admin) {
+  .adm-provider-test { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-top: 18px; }
+  .adm-provider-result { font-size: .82rem; line-height: 1.5; margin: 12px 0 0; overflow-wrap: anywhere; }
+  .adm-provider-result.is-success { color: var(--green-700); }
+  .adm-provider-result.is-error { color: var(--red-700); }
+  .adm-sys-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  @media (max-width: 720px) {
+    .adm-sys-grid { grid-template-columns: 1fr; }
+    .adm-settings .adm-btn, .adm-settings .adm-input { min-height: 44px; }
+  }
+}
+
 /* ── Responsive ── */
 @media (max-width: 900px) {
   .adm-dash-grid { grid-template-columns: 1fr; }

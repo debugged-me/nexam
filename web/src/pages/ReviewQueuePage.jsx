@@ -56,6 +56,7 @@ const QUEUE_STATE_LABELS = {
   approved: 'Approved', rejected: 'Rejected', flagged: 'Duplicate?',
   failed: 'Check failed', checking: 'Checking', ready: 'Ready',
 };
+const QUEUE_STATE_ORDER = ['ready', 'flagged', 'failed', 'checking', 'approved', 'rejected'];
 function queueState(q, decision) {
   if (decision) return decision;
   if (q.similarity_flag === 'flagged') return 'flagged';
@@ -250,6 +251,17 @@ export default function ReviewQueuePage() {
   }, [cursor, queue]);
 
   const total = queue?.length || 0;
+  // The side list earns its space only while there is something to pick
+  // between — gone once the queue is cleared or down to a single draft.
+  const showQueue = tally.remaining > 1;
+  const queueCounts = useMemo(() => {
+    const counts = {};
+    for (const q of queue || []) {
+      const st = queueState(q, decisions[q.id]);
+      counts[st] = (counts[st] || 0) + 1;
+    }
+    return counts;
+  }, [queue, decisions]);
   const decidedCount = total - tally.remaining;
   const progressPct = total ? Math.round((decidedCount / total) * 100) : 0;
   const canEditInline = !!current && PUT_SAFE_TYPES.has(current.type);
@@ -721,37 +733,7 @@ export default function ReviewQueuePage() {
 
           {undoBar}
 
-          <div className="rv-workspace">
-          {/* Queue overview — wide screens only. Jumping is disabled mid-edit
-              or mid-save so the edit form never lands on another draft. */}
-          <aside className="rv-queue" aria-label="Drafts in this queue">
-            <div className="rv-queue-head">
-              <span>Queue</span>
-              <span className="rv-queue-left">{tally.remaining} left</span>
-            </div>
-            <ol className="rv-queue-list" ref={queueListRef}>
-              {queue.map((q, i) => {
-                const state = queueState(q, decisions[q.id]);
-                return (
-                  <li key={q.id}>
-                    <button
-                      type="button"
-                      className="rv-queue-item"
-                      data-state={state}
-                      aria-current={i === cursor ? 'true' : undefined}
-                      onClick={() => setCursor(i)}
-                      disabled={busy || !!editing}
-                      title={editing ? 'Finish or cancel the edit first' : undefined}
-                    >
-                      <span className="rv-queue-num">{i + 1}</span>
-                      <span className="rv-queue-stem">{shorten(q.stem)}</span>
-                      <span className="rv-queue-state">{QUEUE_STATE_LABELS[state]}</span>
-                    </button>
-                  </li>
-                );
-              })}
-            </ol>
-          </aside>
+          <div className={`rv-workspace${showQueue ? ' has-queue' : ''}`}>
           <div className="rv-work">
           {tally.remaining === 0 ? (
             <div className="rv-panel">
@@ -905,6 +887,50 @@ export default function ReviewQueuePage() {
             </div>
           )}
           </div>
+          {/* Queue overview — wide screens only, and only while more than one
+              draft is undecided. One line per draft; status is a dot, with the
+              counts summarized once in the header. Jumping is disabled mid-edit
+              or mid-save so the edit form never lands on another draft. */}
+          {showQueue && (
+            <aside className="rv-queue" aria-label="Drafts in this queue">
+              <div className="rv-queue-head">
+                <div className="rv-queue-title">
+                  <span>Queue</span>
+                  <span className="rv-queue-left">{tally.remaining} left</span>
+                </div>
+                <div className="rv-queue-summary">
+                  {QUEUE_STATE_ORDER.filter((st) => queueCounts[st]).map((st) => (
+                    <span key={st} className="rv-queue-count" data-state={st}>
+                      {queueCounts[st]} {QUEUE_STATE_LABELS[st].toLowerCase()}
+                    </span>
+                  ))}
+                </div>
+              </div>
+              <ol className="rv-queue-list" ref={queueListRef}>
+                {queue.map((q, i) => {
+                  const state = queueState(q, decisions[q.id]);
+                  return (
+                    <li key={q.id}>
+                      <button
+                        type="button"
+                        className="rv-queue-item"
+                        data-state={state}
+                        aria-current={i === cursor ? 'true' : undefined}
+                        onClick={() => setCursor(i)}
+                        disabled={busy || !!editing}
+                        title={editing ? 'Finish or cancel the edit first' : `${QUEUE_STATE_LABELS[state]} — ${String(q.stem || '').replace(/\s+/g, ' ').trim()}`}
+                      >
+                        <span className="rv-queue-num">{i + 1}</span>
+                        <span className="rv-queue-stem">{String(q.stem || '').replace(/\s+/g, ' ').trim()}</span>
+                        <span className="rv-queue-dot" aria-hidden="true" />
+                        <span className="sr-only">{QUEUE_STATE_LABELS[state]}</span>
+                      </button>
+                    </li>
+                  );
+                })}
+              </ol>
+            </aside>
+          )}
           </div>
         </>
       )}

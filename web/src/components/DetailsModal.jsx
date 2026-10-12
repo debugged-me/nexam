@@ -15,6 +15,7 @@
 import { motion, useReducedMotion } from 'motion/react';
 import { ScrollText } from 'lucide-react';
 import Modal from './Modal.jsx';
+import { EASE_ENTER } from '../lib/motion.js';
 import { BLOOM_LABELS, BLOOM_ORDER } from '../lib/insights.js';
 
 const BLOOM_COLORS = ['#2383E2', '#1FA9A0', '#7CB342', '#DFA32B', '#DE7634', '#C4576E'];
@@ -24,7 +25,7 @@ function Section({ i, reduce, children }) {
     <motion.div
       initial={reduce ? false : { opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: 0.08 + i * 0.05, duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
+      transition={{ delay: 0.08 + i * 0.05, duration: 0.28, ease: EASE_ENTER }}
     >
       {children}
     </motion.div>

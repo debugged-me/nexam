@@ -11,6 +11,7 @@ import '../styles/analytics.css';
 import { useEffect, useState, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'motion/react';
+import { EASE_ENTER } from '../lib/motion.js';
 import {
   FileText, ScanLine, Users, AlertCircle, BarChart3,
   TrendingUp, TrendingDown, Sparkles, ListChecks, ArrowLeft,
@@ -70,7 +71,7 @@ const STUDENTS_PER_PAGE = 25;
 const statCardAnim = (i) => ({
   initial: { opacity: 0, y: 10 },
   animate: { opacity: 1, y: 0 },
-  transition: { duration: 0.35, delay: i * 0.06, ease: [0.16, 1, 0.3, 1] },
+  transition: { duration: 0.35, delay: i * 0.06, ease: EASE_ENTER },
 });
 
 /** Narrative insight card — icon-tagged findings derived from the data. */

@@ -241,6 +241,11 @@ export default function ExamsPage() {
   return (
     <AppShell pageClass="exams" activeNav="exams" pageTitle="Exams" wide>
 
+      <div className="list-head">
+        <div className="list-head-main">
+          <h1 className="list-head-title">Exams {exams && <span className="list-head-count">{exams.length}</span>}</h1>
+        </div>
+      </div>
 
       {exams === null ? (
         <TableSkeleton />

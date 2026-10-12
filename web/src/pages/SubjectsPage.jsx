@@ -260,6 +260,11 @@ export default function SubjectsPage() {
   return (
     <AppShell pageClass="subjects" activeNav="subjects" pageTitle="Subjects" wide>
 
+      <div className="list-head">
+        <div className="list-head-main">
+          <h1 className="list-head-title">Subjects {subjects && <span className="list-head-count">{subjects.length}</span>}</h1>
+        </div>
+      </div>
 
       {subjects === null ? (
         <TableSkeleton />

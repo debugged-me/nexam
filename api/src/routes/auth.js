@@ -219,7 +219,7 @@ router.post('/login', async (req, res, next) => {
     }
 
     const [rows] = await pool.query(
-      `SELECT id, full_name, email, password_hash, role, email_verified, status, avatar_path, avatar_v, theme FROM users WHERE email = :email LIMIT 1`,
+      `SELECT id, full_name, email, password_hash, role, email_verified, status, avatar_path, avatar_v, theme, font FROM users WHERE email = :email LIMIT 1`,
       { email }
     );
     const user = rows[0];
@@ -284,6 +284,7 @@ router.post('/login', async (req, res, next) => {
         has_avatar: !!user.avatar_path,
         avatar_v: user.avatar_v,
         theme: user.theme,
+        font: user.font,
       },
     });
   } catch (err) {
@@ -760,7 +761,7 @@ router.post('/reset-link', async (req, res, next) => {
 router.get('/me', requireAnyAuth, async (req, res, next) => {
   try {
     const [rows] = await pool.query(
-      `SELECT id, first_name, middle_name, last_name, name_ext, full_name, email, role, email_verified, status, avatar_path, avatar_v, theme, created_at,
+      `SELECT id, first_name, middle_name, last_name, name_ext, full_name, email, role, email_verified, status, avatar_path, avatar_v, theme, font, created_at,
         (avatar_path IS NOT NULL) AS has_avatar FROM users WHERE id = :id LIMIT 1`,
       { id: req.user.id }
     );
@@ -788,7 +789,7 @@ router.put('/me', requireAnyAuth, async (req, res, next) => {
     );
 
     const [rows] = await pool.query(
-      `SELECT id, first_name, middle_name, last_name, name_ext, full_name, email, role, email_verified, avatar_v, theme,
+      `SELECT id, first_name, middle_name, last_name, name_ext, full_name, email, role, email_verified, avatar_v, theme, font,
         (avatar_path IS NOT NULL) AS has_avatar, created_at FROM users WHERE id = :id`,
       { id: req.user.id }
     );
@@ -799,18 +800,29 @@ router.put('/me', requireAnyAuth, async (req, res, next) => {
 });
 
 /**
- * PUT /api/auth/theme — persist the account's appearance mode
- * (light | dark | system). Applied client-side on every login/me load so
- * the preference follows the account across browsers and devices.
+ * PUT /api/auth/appearance — persist the account's appearance prefs
+ * (theme: light | dark | system; font: system | sora | googlesans | inter).
+ * Either field may be sent alone. Applied client-side on every login/me load
+ * so the preference follows the account across browsers and devices.
  */
-router.put('/theme', requireAnyAuth, async (req, res, next) => {
+const APPEARANCE_FONTS = ['system', 'sora', 'googlesans', 'inter'];
+router.put('/appearance', requireAnyAuth, async (req, res, next) => {
   try {
-    const theme = String(req.body?.theme || '');
-    if (!['light', 'dark', 'system'].includes(theme)) {
+    const theme = req.body?.theme !== undefined ? String(req.body.theme) : undefined;
+    const font = req.body?.font !== undefined ? String(req.body.font) : undefined;
+    if (theme !== undefined && !['light', 'dark', 'system'].includes(theme)) {
       return res.status(422).json({ error: 'Invalid theme.' });
     }
-    await pool.query('UPDATE users SET theme = :t WHERE id = :id', { t: theme, id: req.user.id });
-    res.json({ theme });
+    if (font !== undefined && !APPEARANCE_FONTS.includes(font)) {
+      return res.status(422).json({ error: 'Invalid font.' });
+    }
+    const sets = [];
+    const params = { id: req.user.id };
+    if (theme !== undefined) { sets.push('theme = :theme'); params.theme = theme; }
+    if (font !== undefined) { sets.push('font = :font'); params.font = font; }
+    if (!sets.length) return res.status(422).json({ error: 'Nothing to update.' });
+    await pool.query(`UPDATE users SET ${sets.join(', ')} WHERE id = :id`, params);
+    res.json({ theme, font });
   } catch (err) {
     next(err);
   }

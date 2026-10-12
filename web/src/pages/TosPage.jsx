@@ -236,7 +236,11 @@ export default function TosPage() {
   return (
     <AppShell pageClass="tos" activeNav="tos" pageTitle="Blueprints (TOS)" wide>
 
-
+      <div className="list-head">
+        <div className="list-head-main">
+          <h1 className="list-head-title">Blueprints {tosList && <span className="list-head-count">{tosList.length}</span>}</h1>
+        </div>
+      </div>
 
       {tosList === null ? (
         <TableSkeleton />

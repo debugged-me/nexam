@@ -111,8 +111,74 @@
 
 .card + .card { margin-top: 16px; }
 
+/* Typeface picker — each card samples itself in its own family. */
+.font-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 14px;
+}
+.font-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  background: var(--surface);
+  cursor: pointer;
+  text-align: left;
+  font-family: var(--font-body);
+  transition: border-color .15s ease, box-shadow .15s ease;
+}
+.font-card:hover { border-color: var(--line-strong); }
+.font-card.is-selected {
+  border-color: var(--action-600);
+  box-shadow: 0 0 0 3px var(--ring);
+}
+.font-card:focus-visible { outline: 2px solid var(--action-600); outline-offset: 2px; }
+.font-shot {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 5px;
+  padding: 16px 14px 12px;
+  border-radius: var(--radius);
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  min-height: 76px;
+}
+.font-shot b { font-size: 1.75rem; line-height: 1; font-weight: 600; letter-spacing: -.01em; }
+.font-shot i {
+  font-style: normal;
+  font-size: .74rem;
+  color: var(--ink-3);
+  white-space: nowrap;
+}
+.font-shot .shot-check {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  background: var(--action-600);
+  color: #fff;
+}
+.font-shot--system b, .font-shot--system i {
+  font-family: "SF Pro Text", "SF Pro Display", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+.font-shot--sora b, .font-shot--sora i { font-family: "Sora", sans-serif; }
+.font-shot--googlesans b, .font-shot--googlesans i { font-family: "Google Sans", sans-serif; }
+.font-shot--inter b, .font-shot--inter i { font-family: "Inter", sans-serif; }
+
 @media (max-width: 768px) {
   .theme-grid { grid-template-columns: 1fr; }
+  .font-grid { grid-template-columns: repeat(2, 1fr); }
   .swatch-row { grid-template-columns: repeat(4, 1fr); }
 }
 

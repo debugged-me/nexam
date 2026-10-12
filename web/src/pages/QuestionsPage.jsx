@@ -880,6 +880,11 @@ export default function QuestionsPage() {
   return (
     <AppShell pageClass="questions" activeNav="questions" pageTitle="Questions" wide>
 
+      <div className="list-head">
+        <div className="list-head-main">
+          <h1 className="list-head-title">Questions {filteredQuestions && <span className="list-head-count">{filteredQuestions.length}</span>}</h1>
+        </div>
+      </div>
 
       {filteredQuestions === null ? (
         <TableSkeleton />

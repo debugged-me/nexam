@@ -6,6 +6,7 @@
 import { useContext, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
+import { EASE_ENTER, EASE_STANDARD, DUR } from '../lib/motion.js';
 import { X } from 'lucide-react';
 import { PageScopeContext } from './shellMeta.js';
 
@@ -64,7 +65,7 @@ export default function Modal({ open, title, subtitle, onClose, children, footer
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          transition={{ duration: 0.16, ease: 'easeOut' }}
+          transition={{ duration: DUR.fast, ease: 'easeOut' }}
           onClick={(e) => { if (e.target === e.currentTarget) onClose?.(); }}
         >
           <motion.div
@@ -84,8 +85,8 @@ export default function Modal({ open, title, subtitle, onClose, children, footer
               ? (reduceMotion ? { opacity: 0 } : { opacity: 0, x: '100%' })
               : { opacity: 0, scale: 0.97, y: 4 }}
             transition={side
-              ? { duration: 0.3, ease: [0.32, 0.72, 0, 1] }
-              : { duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
+              ? { duration: DUR.med, ease: EASE_STANDARD }
+              : { duration: 0.2, ease: EASE_ENTER }}
           >
             <div className="modal-header">
               <div className="modal-headline">

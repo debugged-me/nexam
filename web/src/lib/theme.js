@@ -15,10 +15,13 @@
 import { useSyncExternalStore } from 'react';
 
 export const THEME_MODES = ['light', 'dark', 'system'];
+export const FONTS = ['system', 'sora', 'googlesans', 'inter'];
 
 const GLOBAL_KEY = 'nexam.theme';        // last applied mode — boot cache
 const LAST_UID_KEY = 'nexam.theme.uid';  // account the boot cache belongs to
 const userKey = (id) => `nexam.theme.${id}`;
+const FONT_KEY = 'nexam.font';
+const fontUserKey = (id) => `nexam.font.${id}`;
 
 /** Paths that always render light — no account is bound there. */
 const GUEST_PATHS = ['/login', '/register', '/forgot', '/reset', '/verify', '/privacy', '/terms'];
@@ -34,6 +37,15 @@ function readKey(k) {
   }
 }
 
+function readFontKey(k) {
+  try {
+    const v = k ? localStorage.getItem(k) : null;
+    return FONTS.includes(v) ? v : null;
+  } catch {
+    return null;
+  }
+}
+
 /** Boot mode: the last signed-in account's cached preference, else system. */
 function readInitial() {
   try {
@@ -44,7 +56,17 @@ function readInitial() {
   }
 }
 
+function readInitialFont() {
+  try {
+    const uid = localStorage.getItem(LAST_UID_KEY);
+    return readFontKey(uid && fontUserKey(uid)) || readFontKey(FONT_KEY) || 'system';
+  } catch {
+    return 'system';
+  }
+}
+
 let mode = readInitial();
+let font = readInitialFont();
 let boundUserId = null;
 let forcedTheme = null; // resolved palette override while a guest page mounts
 
@@ -56,6 +78,7 @@ export function resolveTheme(m = mode) {
 function apply() {
   const resolved = forcedTheme || resolveTheme();
   document.documentElement.dataset.theme = resolved;
+  document.documentElement.dataset.font = font;
   document.documentElement.style.colorScheme = resolved;
 }
 
@@ -84,9 +107,11 @@ function persist() {
   try {
     if (boundUserId) {
       localStorage.setItem(userKey(boundUserId), mode);
+      localStorage.setItem(fontUserKey(boundUserId), font);
       localStorage.setItem(LAST_UID_KEY, boundUserId);
     }
     localStorage.setItem(GLOBAL_KEY, mode);
+    localStorage.setItem(FONT_KEY, font);
   } catch { /* private mode — keep it in memory only */ }
 }
 
@@ -107,7 +132,21 @@ export function setThemeMode(next, origin) {
   }
   if (boundUserId) {
     import('./api.js')
-      .then(({ default: api }) => api.put('/auth/theme', { theme: next }))
+      .then(({ default: api }) => api.put('/auth/appearance', { theme: next }))
+      .catch(() => { /* offline — the per-user cache still has it */ });
+  }
+}
+
+/** Typeface preference — applied instantly as data-font on <html>. */
+export function setFont(next) {
+  if (!FONTS.includes(next) || next === font) return;
+  font = next;
+  persist();
+  apply();
+  notify();
+  if (boundUserId) {
+    import('./api.js')
+      .then(({ default: api }) => api.put('/auth/appearance', { font: next }))
       .catch(() => { /* offline — the per-user cache still has it */ });
   }
 }
@@ -121,6 +160,9 @@ export function applyUserTheme(user) {
   mode = THEME_MODES.includes(user?.theme)
     ? user.theme
     : readKey(userKey(boundUserId)) || 'system';
+  font = FONTS.includes(user?.font)
+    ? user.font
+    : readFontKey(fontUserKey(boundUserId)) || 'system';
   persist();
   apply();
   notify();
@@ -130,6 +172,7 @@ export function applyUserTheme(user) {
 export function clearUserTheme() {
   boundUserId = null;
   mode = 'system';
+  font = 'system';
   try {
     localStorage.removeItem(LAST_UID_KEY);
     localStorage.removeItem(GLOBAL_KEY);
@@ -143,10 +186,11 @@ function subscribe(fn) {
   return () => listeners.delete(fn);
 }
 
-/** React binding: { mode, resolved, setThemeMode } — re-renders on change. */
+/** React binding: { mode, resolved, setThemeMode, font, setFont } — re-renders on change. */
 export function useTheme() {
   const current = useSyncExternalStore(subscribe, getThemeMode);
-  return { mode: current, resolved: forcedTheme || resolveTheme(current), setThemeMode };
+  const currentFont = useSyncExternalStore(subscribe, () => font);
+  return { mode: current, resolved: forcedTheme || resolveTheme(current), setThemeMode, font: currentFont, setFont };
 }
 
 // Follow the OS live while the mode is "system".
@@ -159,5 +203,5 @@ if (window.matchMedia) {
 }
 
 // Apply before first render — and never flash an account theme on guest pages.
-if (GUEST_PATHS.includes(window.location.pathname)) forcedTheme = 'light';
+if (GUEST_PATHS.includes(window.location.pathname)) { forcedTheme = 'light'; font = 'system'; }
 apply();

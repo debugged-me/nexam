@@ -13,6 +13,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { AnimatePresence, motion } from 'motion/react';
+import { EASE_ENTER, DUR } from '../lib/motion.js';
 import { useToast } from './Toast.jsx';
 
 const MENU_MIN_W = 220;
@@ -128,7 +129,7 @@ function ContextMenuPanel({ x, y, items, onClose }) {
       initial={{ opacity: 0, scale: 0.96, y: -4 }}
       animate={{ opacity: 1, scale: 1, y: 0 }}
       exit={{ opacity: 0, scale: 0.97, transition: { duration: 0.1 } }}
-      transition={{ duration: 0.14, ease: [0.16, 1, 0.3, 1] }}
+      transition={{ duration: DUR.fast, ease: EASE_ENTER }}
     >
       {items.map((item, i) =>
         item === 'sep' ? (

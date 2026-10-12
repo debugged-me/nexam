@@ -30,6 +30,29 @@ const OPTIONS = [
   },
 ];
 
+const FONT_OPTIONS = [
+  {
+    key: 'system',
+    label: 'SF Pro',
+    description: 'Your device\u2019s font — SF Pro on Mac, the native face elsewhere.',
+  },
+  {
+    key: 'sora',
+    label: 'Sora',
+    description: 'Modern geometric sans — the previous nexam look.',
+  },
+  {
+    key: 'googlesans',
+    label: 'Google Sans',
+    description: 'Friendly product sans with a soft, rounded voice.',
+  },
+  {
+    key: 'inter',
+    label: 'Inter',
+    description: 'Neutral workhorse — maximum legibility at small sizes.',
+  },
+];
+
 const SWATCHES = [
   { name: 'Canvas', v: '--canvas' },
   { name: 'Card', v: '--surface' },
@@ -42,7 +65,7 @@ const SWATCHES = [
 ];
 
 export default function AppearancePage() {
-  const { mode, setThemeMode } = useTheme();
+  const { mode, setThemeMode, font, setFont } = useTheme();
 
   return (
     <AppShell pageClass="appearance" activeNav="appearance" pageTitle="Appearance">
@@ -81,6 +104,43 @@ export default function AppearancePage() {
                   </span>
                   <span className="theme-card-meta">
                     <Icon size={15} />
+                    <strong>{label}</strong>
+                    <small>{description}</small>
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+
+      <div className="card">
+        <div className="card-header">
+          <span className="card-title">Typeface</span>
+        </div>
+        <div className="card-body">
+          <div className="font-grid" role="radiogroup" aria-label="Typeface">
+            {FONT_OPTIONS.map(({ key, label, description }) => {
+              const selected = font === key;
+              return (
+                <button
+                  key={key}
+                  type="button"
+                  role="radio"
+                  aria-checked={selected}
+                  className={`font-card${selected ? ' is-selected' : ''}`}
+                  onClick={() => setFont(key)}
+                >
+                  <span className={`font-shot font-shot--${key}`} aria-hidden="true">
+                    <b>Aa</b>
+                    <i>The quick brown fox jumps</i>
+                    {selected && (
+                      <span className="shot-check">
+                        <Check size={12} strokeWidth={3} />
+                      </span>
+                    )}
+                  </span>
+                  <span className="theme-card-meta">
                     <strong>{label}</strong>
                     <small>{description}</small>
                   </span>

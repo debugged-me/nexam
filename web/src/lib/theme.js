@@ -15,7 +15,7 @@
 import { useSyncExternalStore } from 'react';
 
 export const THEME_MODES = ['light', 'dark', 'system'];
-export const FONTS = ['system', 'sora', 'duo', 'googlesans', 'inter'];
+export const FONTS = ['system', 'sora', 'duo', 'googlesans', 'inter', 'geist'];
 export const TEXT_SIZES = ['compact', 'default', 'large'];
 
 const GLOBAL_KEY = 'nexam.theme';        // last applied mode — boot cache
@@ -71,9 +71,9 @@ function readInitial() {
 function readInitialFont() {
   try {
     const uid = localStorage.getItem(LAST_UID_KEY);
-    return readFontKey(uid && fontUserKey(uid)) || readFontKey(FONT_KEY) || 'sora';
+    return readFontKey(uid && fontUserKey(uid)) || readFontKey(FONT_KEY) || 'duo';
   } catch {
-    return 'sora';
+    return 'duo';
   }
 }
 
@@ -201,7 +201,7 @@ export function applyUserTheme(user) {
     : readKey(userKey(boundUserId)) || 'system';
   font = FONTS.includes(user?.font)
     ? user.font
-    : readFontKey(fontUserKey(boundUserId)) || 'sora';
+    : readFontKey(fontUserKey(boundUserId)) || 'duo';
   textSize = TEXT_SIZES.includes(user?.text_size)
     ? user.text_size
     : readSizeKey(sizeUserKey(boundUserId)) || 'compact';
@@ -214,7 +214,7 @@ export function applyUserTheme(user) {
 export function clearUserTheme() {
   boundUserId = null;
   mode = 'system';
-  font = 'sora';
+  font = 'duo';
   textSize = 'compact';
   try {
     localStorage.removeItem(LAST_UID_KEY);
@@ -247,5 +247,5 @@ if (window.matchMedia) {
 }
 
 // Apply before first render — and never flash an account theme on guest pages.
-if (GUEST_PATHS.includes(window.location.pathname)) { forcedTheme = 'light'; font = 'sora'; textSize = 'compact'; }
+if (GUEST_PATHS.includes(window.location.pathname)) { forcedTheme = 'light'; font = 'duo'; textSize = 'compact'; }
 apply();

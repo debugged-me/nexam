@@ -32,19 +32,19 @@ const OPTIONS = [
 
 const FONT_OPTIONS = [
   {
+    key: 'duo',
+    label: 'Sora + SF Pro',
+    description: 'Sora headlines and numerals, SF Pro body — the default nexam look.',
+  },
+  {
     key: 'sora',
     label: 'Sora',
-    description: 'Modern geometric sans — the default nexam look.',
+    description: 'Modern geometric sans everywhere — rounded, friendly voice.',
   },
   {
     key: 'system',
     label: 'SF Pro',
     description: 'Apple\u2019s system face — the macOS feel, bundled for any device.',
-  },
-  {
-    key: 'duo',
-    label: 'Sora + SF Pro',
-    description: 'Sora headlines and numerals, SF Pro body — both voices at once.',
   },
   {
     key: 'googlesans',
@@ -55,6 +55,11 @@ const FONT_OPTIONS = [
     key: 'inter',
     label: 'Inter',
     description: 'Neutral workhorse — maximum legibility at small sizes.',
+  },
+  {
+    key: 'geist',
+    label: 'Geist',
+    description: 'Vercel\u2019s crisp grotesque — pairs with Geist Mono for code.',
   },
 ];
 

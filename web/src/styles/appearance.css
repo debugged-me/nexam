@@ -178,6 +178,7 @@
 .font-shot--duo i { font-family: "SF Pro Text", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
 .font-shot--googlesans b, .font-shot--googlesans i { font-family: "Google Sans", sans-serif; }
 .font-shot--inter b, .font-shot--inter i { font-family: "Inter", sans-serif; }
+.font-shot--geist b, .font-shot--geist i { font-family: "Geist", sans-serif; }
 
 /* Text-size cards preview their own scale (rem, so they also live-follow
    the applied root size). */

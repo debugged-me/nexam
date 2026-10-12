@@ -113,7 +113,9 @@ existing installs upgrade automatically — don't rely on a fresh
 ## UI
 
 - Use Lucide icons only.
-- Use the local Google Sans and Inter files in `web/public/fonts/`.
+- Use the local font files in `web/public/fonts/` (duo — Sora display +
+  SF Pro body — is the default; Sora, SF Pro, Google Sans, Inter, and
+  Geist + Geist Mono are selectable via the Appearance typeface picker).
 - Keep page CSS in `web/src/styles/`; avoid executable inline scripts/styles.
 - Each page owns its content layout and a dedicated stylesheet wrapped in
   `@scope (.page--<name>)`. Import it from the page, not `App.jsx`. Global

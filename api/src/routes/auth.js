@@ -803,12 +803,12 @@ router.put('/me', requireAnyAuth, async (req, res, next) => {
 /**
  * PUT /api/auth/appearance — persist the account's appearance prefs
  * (theme: light | dark | system;
- * font: system | sora | duo | googlesans | inter;
+ * font: system | sora | duo | googlesans | inter | geist;
  * text_size: compact | default | large).
  * Fields may be sent alone. Applied client-side on every login/me load
  * so the preference follows the account across browsers and devices.
  */
-const APPEARANCE_FONTS = ['system', 'sora', 'duo', 'googlesans', 'inter'];
+const APPEARANCE_FONTS = ['system', 'sora', 'duo', 'googlesans', 'inter', 'geist'];
 const APPEARANCE_SIZES = ['compact', 'default', 'large'];
 router.put('/appearance', requireAnyAuth, async (req, res, next) => {
   try {

@@ -11,7 +11,7 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import {
   Plus, Trash2, FileText, FileCheck, Download, Send, Printer,
   Pencil, Clock, Monitor, QrCode, ScanLine, Sparkles, Copy,
-  Eye, RefreshCw,
+  Eye, RefreshCw, Shuffle, Search,
 } from 'lucide-react';
 import { useToast } from '../components/Toast.jsx';
 import EmptyStateArt from '../components/EmptyStateArt.jsx';
@@ -71,6 +71,8 @@ export default function ExamDetailPage() {
   const [pickerOpen, setPickerOpen] = useState(false);
   const [availableQs, setAvailableQs] = useState([]);
   const [selected, setSelected] = useState(new Set());
+  const [quickN, setQuickN] = useState('');
+  const [pickQuery, setPickQuery] = useState('');
   const [attaching, setAttaching] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [downloadsVisible, setDownloadsVisible] = useState(false);
@@ -153,12 +155,43 @@ export default function ExamDetailPage() {
     try {
       const qData = await api.get(`/questions?subject_id=${data.exam.subject_id}&status=active`);
       const attachedIds = new Set(data.questions.map((q) => q.id));
-      setAvailableQs(qData.questions.filter((q) => !attachedIds.has(q.id)));
+      const filtered = qData.questions.filter((q) => !attachedIds.has(q.id));
+      setAvailableQs(filtered);
       setSelected(new Set());
+      // Prefill N with the blueprint's remaining item need, when there is one.
+      const remaining = data.tos?.total_items
+        ? Math.max(0, Number(data.tos.total_items) - data.questions.length)
+        : 0;
+      setQuickN(remaining > 0 ? String(Math.min(remaining, filtered.length)) : '');
+      setPickQuery('');
       setPickerOpen(true);
     } catch (err) {
       toast.error(err.message || 'Could not load questions.');
     }
+  }
+
+  // Search narrows the working set — select-all and quick-select act on what
+  // is shown, picks already made stay picked even when filtered out of view.
+  const needle = pickQuery.trim().toLowerCase();
+  const visibleQs = needle
+    ? availableQs.filter((it) => it.stem.toLowerCase().includes(needle))
+    : availableQs;
+  const visibleSel = visibleQs.reduce((n, it) => n + (selected.has(it.id) ? 1 : 0), 0);
+  const allVisibleChecked = visibleQs.length > 0 && visibleSel === visibleQs.length;
+
+  // Fill the selection to N items — current picks are kept, the remainder is
+  // topped up in list order or randomly from the unselected pool in view.
+  const quickCount = Math.max(0, Math.min(Number(quickN) || 0, visibleQs.length));
+  function selectN(random) {
+    if (!quickCount) return;
+    const keep = [...selected].slice(0, quickCount);
+    const pool = visibleQs.filter((q) => !selected.has(q.id));
+    const need = quickCount - keep.length;
+    const fill = (random
+      ? pool.map((q) => [Math.random(), q]).sort((a, b) => a[0] - b[0]).map(([, q]) => q)
+      : pool
+    ).slice(0, need).map((q) => q.id);
+    setSelected(new Set([...keep, ...fill]));
   }
 
   async function handleAttach() {
@@ -530,23 +563,66 @@ export default function ExamDetailPage() {
           </>
         ) : (
           <>
+          <label className="ds-search q-pick-search" htmlFor="q-pick-search">
+            <Search size={15} />
+            <span className="sr-only">Filter questions</span>
+            <input
+              id="q-pick-search"
+              type="search"
+              autoComplete="off"
+              placeholder="Filter stems…"
+              value={pickQuery}
+              onChange={(e) => setPickQuery(e.target.value)}
+            />
+          </label>
+          <div className="q-pick-tools">
+            <span className="q-pick-tools-label">Quick select</span>
+            <input
+              type="number" className="form-control q-pick-n" min={1} max={availableQs.length}
+              value={quickN} placeholder="N" aria-label="Number of questions to select"
+              onChange={(e) => setQuickN(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); selectN(false); } }}
+            />
+            <button type="button" className="btn btn-outline btn-sm" onClick={() => selectN(false)} disabled={!quickCount}>
+              First {quickCount || 'N'}
+            </button>
+            <button type="button" className="btn btn-outline btn-sm" onClick={() => selectN(true)} disabled={!quickCount}>
+              <Shuffle size={14} /> Random {quickCount || 'N'}
+            </button>
+            {tos?.total_items > 0 && questions.length + selected.size < Number(tos.total_items) && (
+              <span className="q-pick-tools-hint">
+                Blueprint needs {Number(tos.total_items) - questions.length - selected.size} more
+              </span>
+            )}
+          </div>
           <div className="q-picker">
             <label className="q-pick-item q-pick-all">
               <input
                 type="checkbox"
                 className="q-pick-checkbox"
-                checked={selected.size === availableQs.length}
-                ref={(el) => { if (el) el.indeterminate = selected.size > 0 && selected.size < availableQs.length; }}
-                onChange={(e) => setSelected(e.target.checked ? new Set(availableQs.map((q) => q.id)) : new Set())}
+                checked={allVisibleChecked}
+                ref={(el) => { if (el) el.indeterminate = visibleSel > 0 && !allVisibleChecked; }}
+                onChange={(e) => {
+                  const next = new Set(selected);
+                  if (e.target.checked) visibleQs.forEach((it) => next.add(it.id));
+                  else visibleQs.forEach((it) => next.delete(it.id));
+                  setSelected(next);
+                }}
               />
               <div style={{ flex: 1 }}>
                 <div className="q-pick-stem">
-                  {selected.size === availableQs.length ? 'Clear all' : 'Select all'}
+                  {allVisibleChecked ? 'Clear all' : 'Select all'}{needle ? ' shown' : ''}
                 </div>
-                <div className="q-pick-meta">{selected.size} of {availableQs.length} selected</div>
+                <div className="q-pick-meta">
+                  {selected.size} of {availableQs.length} selected
+                  {needle && ` · ${visibleQs.length} shown`}
+                </div>
               </div>
             </label>
-            {availableQs.map((q) => (
+            {needle && visibleQs.length === 0 && (
+              <p className="q-pick-empty">No questions match “{pickQuery.trim()}”.</p>
+            )}
+            {visibleQs.map((q) => (
               <label key={q.id} className={`q-pick-item ${selected.has(q.id) ? 'selected' : ''}`}>
                 <input type="checkbox" className="q-pick-checkbox" checked={selected.has(q.id)}
                   onChange={(e) => {

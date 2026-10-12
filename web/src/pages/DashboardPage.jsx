@@ -69,6 +69,7 @@ export default function DashboardPage() {
   const [data, setData] = useState(() => api.peek('/dashboard') ?? null);
   const [error, setError] = useState('');
   const [examFilter, setExamFilter] = useState('all');
+  const [queueExpanded, setQueueExpanded] = useState(false);
   useEffect(() => {
     let active = true;
     api
@@ -195,6 +196,10 @@ export default function DashboardPage() {
   const readyExams = sig.readyExams || [];
   const weakItems = count(sig.weakItems);
   const runningJobs = count(sig.runningJobs);
+  const failedMaterials = count(sig.failedMaterials);
+  const draftTri = sig.draftTriage || {};
+  const flaggedDrafts = count(draftTri.flagged);
+  const uncheckedDrafts = count(draftTri.unchecked);
 
   const queue = [];
   if (scanReviewCount) {
@@ -209,13 +214,30 @@ export default function DashboardPage() {
       draftsPreview: false,
     });
   }
+  if (failedMaterials) {
+    queue.push({
+      key: 'failed-materials',
+      label: 'Needs attention',
+      tone: 'has-drafts',
+      headline: `${failedMaterials} material${failedMaterials === 1 ? '' : 's'} failed to process.`,
+      copy: 'AI drafts can’t ground on them — retry the upload from Materials, or delete and re-add the file.',
+      cta: 'Open materials',
+      to: '/materials',
+      draftsPreview: false,
+    });
+  }
   if (drafts) {
+    const triParts = [];
+    if (flaggedDrafts) triParts.push(`${flaggedDrafts} flagged as possible duplicate${flaggedDrafts === 1 ? '' : 's'}`);
+    if (uncheckedDrafts) triParts.push(`${uncheckedDrafts} couldn’t be duplicate-checked`);
     queue.push({
       key: 'drafts',
       label: 'Ready for your review',
       tone: 'has-drafts',
       headline: `${drafts.toLocaleString()} draft${drafts === 1 ? '' : 's'} waiting on you.`,
-      copy: 'Check their evidence, then approve the ones that belong.',
+      copy: triParts.length
+        ? `${triParts.join(' · ')} — those need a decision first, then check the rest.`
+        : 'Check their evidence, then approve the ones that belong.',
       cta: 'Review drafts',
       to: '/questions/review',
       draftsPreview: true,
@@ -310,7 +332,10 @@ export default function DashboardPage() {
     });
   }
   const focus = queue[0];
-  const alsoQueued = queue.slice(1, 4);
+  // Beyond the focus card: 3 visible by default, the rest behind an expander
+  // so a long queue never silently drops work the header counted.
+  const alsoQueued = queueExpanded ? queue.slice(1) : queue.slice(1, 4);
+  const hiddenCount = queueExpanded ? 0 : Math.max(0, queue.length - 4);
   const actions = [
     { label: 'Build an exam', hint: 'Guided, start to finish', to: '/wizard', icon: Sparkles, tint: 2 },
     { label: 'Add materials', hint: 'Upload course notes', to: '/materials?upload=1', icon: FolderOpen, tint: 3 },
@@ -598,6 +623,23 @@ export default function DashboardPage() {
                       </span>
                     </Link>
                   ))}
+                  {hiddenCount > 0 && (
+                    <button
+                      type="button"
+                      className="dash-row dash-queue-toggle"
+                      onClick={() => setQueueExpanded(true)}
+                    >
+                      <span className="dash-row-label">
+                        <span>
+                          <strong>{hiddenCount} more thing{hiddenCount === 1 ? '' : 's'} need{hiddenCount === 1 ? 's' : ''} you</strong>
+                          <small>Show the rest</small>
+                        </span>
+                      </span>
+                      <span className="dash-row-value">
+                        <ChevronDown size={14} />
+                      </span>
+                    </button>
+                  )}
                 </div>
               )}
             </section>

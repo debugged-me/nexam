@@ -261,6 +261,24 @@ router.get('/', requireAuth, async (req, res, next) => {
       { uid: userId }
     );
 
+    // Failed material uploads — extraction/embedding died after the upload
+    // "succeeded", so AI drafts silently ground on incomplete sources. Only
+    // visible here or on the materials page; retry lives there.
+    const [[failedMatRow]] = await pool.query(
+      `SELECT COUNT(*) AS n FROM materials WHERE created_by = :uid AND status = 'failed'`,
+      { uid: userId }
+    );
+
+    // Draft triage — drafts needing a decision beyond a plain review:
+    // possible duplicates and checks that failed (bypass candidates).
+    const [[draftTri]] = await pool.query(
+      `SELECT
+         SUM(similarity_flag = 'flagged') AS flagged,
+         SUM(similarity_error IS NOT NULL AND similarity_error <> '') AS unchecked
+       FROM questions WHERE created_by = :uid AND status = 'draft'`,
+      { uid: userId }
+    );
+
     // Weak items — questions students keep missing (mirrors the
     // /analytics/attention criteria: ≥3 responses, under 50% correct).
     const [[weakRow]] = await pool.query(
@@ -325,6 +343,11 @@ router.get('/', requireAuth, async (req, res, next) => {
         readyExams,
         weakItems: weakRow?.n || 0,
         runningJobs: jobRow?.n || 0,
+        failedMaterials: failedMatRow?.n || 0,
+        draftTriage: {
+          flagged: Number(draftTri?.flagged) || 0,
+          unchecked: Number(draftTri?.unchecked) || 0,
+        },
       },
     });
   } catch (err) {

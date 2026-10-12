@@ -23,6 +23,7 @@ import {
   ClipboardCheck, FilePlus2, ArrowRight, AlertCircle, RefreshCw,
 } from 'lucide-react';
 import { useToast } from '../components/Toast.jsx';
+import EmptyStateArt from '../components/EmptyStateArt.jsx';
 import Modal from '../components/Modal.jsx';
 import api, { ApiError } from '../lib/api.js';
 import AppShell from '../components/AppShell.jsx';
@@ -167,6 +168,7 @@ export default function WizardPage() {
 
       {!selectedSubject ? (
         <div className="empty-state">
+          <EmptyStateArt art="compass" />
           <h4>Select a subject to begin</h4>
           <p>Choose a subject above to start or continue the exam generation pipeline.</p>
         </div>

@@ -2,6 +2,7 @@ import '../styles/institution.css';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useWindowVirtualizer } from '@tanstack/react-virtual';
 import { Copy, FileText, Check, Library, Rows3, Search, StretchHorizontal } from 'lucide-react';
+import EmptyStateArt from '../components/EmptyStateArt.jsx';
 import { useNavigate } from 'react-router-dom';
 import AppShell from '../components/AppShell.jsx';
 import { TableSkeleton } from '../components/Loaders.jsx';
@@ -142,7 +143,7 @@ export default function InstitutionBankPage() {
         <TableSkeleton />
       ) : filtered.length === 0 ? (
         <div className="institution-empty">
-          <Library size={28} />
+          <EmptyStateArt size={120} art="library" tone={7} />
           <strong>No approved questions match these filters.</strong>
           <span>Questions appear here after an instructor approves them.</span>
         </div>

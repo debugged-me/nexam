@@ -24,6 +24,7 @@ import { DndContext, PointerSensor, KeyboardSensor, closestCenter, useSensor, us
 import { SortableContext, arrayMove, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { useToast } from '../components/Toast.jsx';
+import EmptyStateArt from '../components/EmptyStateArt.jsx';
 import Modal from '../components/Modal.jsx';
 import api, { ApiError } from '../lib/api.js';
 import useJobs, { isActiveJob } from '../lib/useJobs.js';
@@ -682,7 +683,7 @@ export default function ReviewQueuePage() {
         ) : (
           <div className="rv-panel">
             <div className="empty-state">
-              <ClipboardCheck size={26} />
+              <EmptyStateArt art="check" tone={3} />
               <h4>Nothing waiting for review</h4>
               <p>
                 {subjectId

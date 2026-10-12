@@ -10,10 +10,10 @@ import { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   ArrowLeft, Sparkles, CheckCircle, CopyCheck, FileSearch,
-  Target, Crosshair, Search, GitMerge, Layers, CircleHelp, Grid3x3,
-  Cpu,
+  Target, Crosshair, Search, GitMerge,
 } from 'lucide-react';
 import { useToast } from '../components/Toast.jsx';
+import EmptyStateArt from '../components/EmptyStateArt.jsx';
 import api from '../lib/api.js';
 import AppShell from '../components/AppShell.jsx';
 import KpiCard from '../components/KpiCard.jsx';
@@ -132,7 +132,7 @@ export default function AiEvalPage() {
           <div className="card-header"><span className="card-title">Generation Outcome</span></div>
           <div className="card-body">
             {genTotal === 0 ? (
-              <div className="empty-state empty-state-md"><Sparkles size={24} aria-hidden="true" /><p>No AI generations yet.</p></div>
+              <div className="empty-state empty-state-md"><EmptyStateArt size={88} art="spark" tone={1} /><p>No AI generations yet.</p></div>
             ) : (
               <ShareDoughnut
                 slices={outcomeSlices}
@@ -148,7 +148,7 @@ export default function AiEvalPage() {
           <div className="card-header"><span className="card-title">AI Provider Usage</span></div>
           <div className="card-body">
             {providerRows.length === 0 ? (
-              <div className="empty-state empty-state-md"><Cpu size={24} aria-hidden="true" /><p>No generation calls recorded yet.</p></div>
+              <div className="empty-state empty-state-md"><EmptyStateArt size={88} art="spark" tone={1} /><p>No generation calls recorded yet.</p></div>
             ) : (
               <CountsBarChart rows={providerRows} />
             )}
@@ -160,7 +160,7 @@ export default function AiEvalPage() {
         <div className="card">
           <div className="card-header"><span className="card-title">Bloom Level Distribution (AI-generated)</span></div>
           {bloomRows.length === 0 ? (
-            <div className="empty-state empty-state-md"><Layers size={24} aria-hidden="true" /><p>No AI-generated questions yet.</p></div>
+            <div className="empty-state empty-state-md"><EmptyStateArt size={88} art="spark" tone={1} /><p>No AI-generated questions yet.</p></div>
           ) : (
             <div className="card-body">
               <CountsBarChart rows={bloomRows} />
@@ -171,7 +171,7 @@ export default function AiEvalPage() {
         <div className="card">
           <div className="card-header"><span className="card-title">Question Type Distribution</span></div>
           {typeRows.length === 0 ? (
-            <div className="empty-state empty-state-md"><CircleHelp size={24} aria-hidden="true" /><p>No AI-generated questions yet.</p></div>
+            <div className="empty-state empty-state-md"><EmptyStateArt size={88} art="spark" tone={1} /><p>No AI-generated questions yet.</p></div>
           ) : (
             <div className="card-body">
               <CountsBarChart rows={typeRows} />
@@ -261,7 +261,7 @@ export default function AiEvalPage() {
             </>
           ) : (
             <div className="empty-state empty-state-md">
-              <Grid3x3 size={24} aria-hidden="true" />
+              <EmptyStateArt size={88} art="spark" tone={1} />
               <p>No reviewed AI questions yet. The confusion matrix will appear once instructors review and approve or reject AI-generated questions, confirming or correcting the AI's Bloom level assignment.</p>
             </div>
           )}

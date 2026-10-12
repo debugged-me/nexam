@@ -482,7 +482,7 @@ export default function MaterialsPage() {
             <TableSkeleton />
           ) : materials.length === 0 ? (
             <div className="empty-state">
-              <EmptyStateArt />
+              <EmptyStateArt art="docs" tone={6} />
               <h3>No materials yet</h3>
               <p>Upload PDFs, DOCX, PPTX, URLs, or YouTube transcripts to ground RAG question generation. You can also drag files straight onto this page.</p>
               <button className="btn btn-primary" onClick={() => { setUploadMode('file'); setUploadOpen(true); }} data-tour="materials-upload">

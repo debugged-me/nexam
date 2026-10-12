@@ -14,6 +14,7 @@ import {
   FileText, Target, ScanLine,
 } from 'lucide-react';
 import { useToast } from '../components/Toast.jsx';
+import EmptyStateArt from '../components/EmptyStateArt.jsx';
 import { useContextMenu, useCopyText } from '../components/ContextMenu.jsx';
 import { useGridTable, DsPager, DsPageSize } from '../components/DataTable.jsx';
 import KpiCard from '../components/KpiCard.jsx';
@@ -169,7 +170,7 @@ export default function AttentionPage() {
 
           {items.length === 0 ? (
             <div className="empty-state empty-state-md">
-              <AlertTriangle aria-hidden="true" />
+              <EmptyStateArt size={88} art="flag" tone={4} />
               <p>Nothing needs attention{examFilter ? ' for this exam' : ''} — every scanned item is performing, or no OMR sheets have been scanned yet.</p>
             </div>
           ) : (

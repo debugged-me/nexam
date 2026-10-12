@@ -128,6 +128,18 @@ export default function AppLayout() {
   const section =
     [...navItems, ...(isAdmin ? [] : [BUILD_ACTION])].find((item) => item.key === activeKey)?.label || 'Account';
   const title = activeKey === 'dashboard' ? 'Overview' : meta.pageTitle || section;
+
+  // Middle breadcrumb — the section root this page rolls up to, shown when
+  // the current path sits below it (detail pages, review queue, shared
+  // bank, attention report). Clickable so the crumb trail really navigates.
+  const parentCrumb = (() => {
+    if (isAdmin || activeKey === 'dashboard') return null;
+    const SUBPAGES = { review: 'questions', institution: 'questions', attention: 'analytics' };
+    const rootKey = SUBPAGES[activeKey] || activeKey;
+    const root = navItems.find((i) => i.key === rootKey);
+    if (!root?.to || location.pathname === root.to || location.pathname === `${root.to}/`) return null;
+    return { to: root.to, label: root.label };
+  })();
   const [pickerOpen, setPickerOpen] = useState(false);
 
   function persistSidebarWidth(w) {
@@ -477,7 +489,15 @@ export default function AppLayout() {
               </button>
             </Tooltip>
             <div className="topbar-heading">
-              <span className="topbar-workspace">{isAdmin ? 'Admin console' : 'Faculty workspace'}</span>
+              <Link to={isAdmin ? '/admin/dashboard' : '/dashboard'} className="topbar-workspace">
+                {isAdmin ? 'Admin console' : 'Faculty workspace'}
+              </Link>
+              {parentCrumb && (
+                <>
+                  <ChevronRight size={13} className="topbar-divider" aria-hidden="true" />
+                  <Link to={parentCrumb.to} className="topbar-crumb">{parentCrumb.label}</Link>
+                </>
+              )}
               <ChevronRight size={13} className="topbar-divider" aria-hidden="true" />
               <span className="topbar-title">{title}</span>
               <Spinner size="sm" className={`topbar-spinner ${busy ? 'is-active' : ''}`} />

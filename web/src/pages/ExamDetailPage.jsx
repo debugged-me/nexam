@@ -10,9 +10,10 @@ import { useEffect, useState, useCallback } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import {
   Plus, Trash2, FileText, FileCheck, Download, Send, Printer,
-  Pencil, HelpCircle, Clock, Monitor, QrCode, ScanLine, Sparkles, Copy,
+  Pencil, Clock, Monitor, QrCode, ScanLine, Sparkles, Copy,
 } from 'lucide-react';
 import { useToast } from '../components/Toast.jsx';
+import EmptyStateArt from '../components/EmptyStateArt.jsx';
 import { useConfirm } from '../components/ConfirmDialog.jsx';
 import { useContextMenu, useCopyText } from '../components/ContextMenu.jsx';
 import Modal from '../components/Modal.jsx';
@@ -359,7 +360,7 @@ export default function ExamDetailPage() {
             </div>
             {questions.length === 0 ? (
               <div className="empty-state">
-                <div className="empty-icon"><HelpCircle size={24} /></div>
+                <EmptyStateArt art="paper" tone={4} />
                 <h4>No questions in this exam</h4>
                 <p>Add approved questions from your question bank or generate from a TOS blueprint.</p>
                 <button className="btn btn-primary btn-sm" onClick={openPicker}>

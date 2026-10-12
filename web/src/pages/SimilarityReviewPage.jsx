@@ -7,8 +7,9 @@ import '../styles/similarity.css';
  */
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { Check, Trash2, ArrowLeft, CopyX } from 'lucide-react';
+import { Check, Trash2, ArrowLeft } from 'lucide-react';
 import { useToast } from '../components/Toast.jsx';
+import EmptyStateArt from '../components/EmptyStateArt.jsx';
 import api from '../lib/api.js';
 import AppShell from '../components/AppShell.jsx';
 import { PageLoader } from '../components/Loaders.jsx';
@@ -108,7 +109,7 @@ export default function SimilarityReviewPage() {
         <div className="card">
           <div className="card-body">
             <div className="empty-state empty-state-md">
-              <CopyX size={26} />
+              <EmptyStateArt size={88} art="merge" tone={5} />
               <p>No similar questions found in the database. The flag may have been cleared.</p>
             </div>
           </div>

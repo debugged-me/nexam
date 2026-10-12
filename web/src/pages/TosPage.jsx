@@ -262,7 +262,7 @@ export default function TosPage() {
         <TableSkeleton />
       ) : tosList.length === 0 ? (
         <div className="empty-state">
-          <EmptyStateArt />
+          <EmptyStateArt art="grid" tone={7} />
           <h4>No blueprints yet</h4>
           <p>Upload a syllabus and click "Auto-generate Blueprint" to create one automatically, or create one manually and set the item count and Bloom weights yourself.</p>
           <div className="empty-state-actions">

@@ -16,6 +16,7 @@ import { DndContext, PointerSensor, KeyboardSensor, closestCenter, useSensor, us
 import { SortableContext, arrayMove, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { useToast } from '../components/Toast.jsx';
+import EmptyStateArt from '../components/EmptyStateArt.jsx';
 import { useContextMenu, useCopyText } from '../components/ContextMenu.jsx';
 import { useConfirm } from '../components/ConfirmDialog.jsx';
 import Modal from '../components/Modal.jsx';
@@ -811,7 +812,7 @@ export default function TosDetailPage() {
           </div>
         ) : topics.length === 0 ? (
           <div className="empty-state empty-state-md">
-            <Layers aria-hidden="true" />
+            <EmptyStateArt size={88} art="grid" tone={7} />
             <p>No topics added yet. Add topics below to define what this TOS covers.</p>
           </div>
         ) : (

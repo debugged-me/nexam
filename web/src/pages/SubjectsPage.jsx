@@ -262,7 +262,7 @@ export default function SubjectsPage() {
         <TableSkeleton />
       ) : subjects.length === 0 ? (
         <div className="empty-state">
-          <EmptyStateArt />
+          <EmptyStateArt art="inbox" />
           <h4>No subjects yet</h4>
           <p>A subject is the container for everything else — create one and the question bank, blueprints and exams follow.</p>
           <button type="button" className="btn btn-primary" onClick={openNew} data-tour="subjects-new">

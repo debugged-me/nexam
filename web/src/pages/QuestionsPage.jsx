@@ -905,7 +905,7 @@ export default function QuestionsPage() {
           </JobsActivityPanel>
         ) : (
           <div className="empty-state">
-            <EmptyStateArt />
+            <EmptyStateArt icon={HelpCircle} />
             <h4>Your question bank is empty</h4>
             <p>Add a question manually, import from GIFT/XML, or auto-generate from a blueprint (TOS) using your uploaded materials.</p>
             <div className="empty-state-actions">

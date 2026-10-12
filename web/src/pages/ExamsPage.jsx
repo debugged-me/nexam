@@ -268,7 +268,7 @@ export default function ExamsPage() {
         <TableSkeleton />
       ) : exams.length === 0 ? (
         <div className="empty-state">
-          <EmptyStateArt />
+          <EmptyStateArt art="paper" tone={3} />
           <h4>No exams yet</h4>
           <p>Start from a blank paper, or generate one from a blueprint so the Bloom spread is decided for you.</p>
           <button className="btn btn-primary" data-tour="exams-new" onClick={() => navigate('/exams/new')}>

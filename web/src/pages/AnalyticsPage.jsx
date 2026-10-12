@@ -11,12 +11,13 @@ import '../styles/analytics.css';
 import { useEffect, useState, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import {
-  FileText, ScanLine, Users, AlertCircle, BarChart3,
+  FileText, ScanLine, Users, AlertCircle,
   TrendingUp, TrendingDown, Sparkles, ListChecks, ArrowLeft,
   CheckCircle, Lightbulb, AlertTriangle, Layers,
   Printer, FileDown, FileSpreadsheet,
 } from 'lucide-react';
 import { useToast } from '../components/Toast.jsx';
+import EmptyStateArt from '../components/EmptyStateArt.jsx';
 import api from '../lib/api.js';
 import { downloadCsv, downloadXlsx } from '../lib/exports.js';
 import AppShell from '../components/AppShell.jsx';
@@ -411,7 +412,7 @@ export default function AnalyticsPage() {
             <span className="card-title">Exam Averages</span>
           </div>
           {examAverages.length === 0 ? (
-            <div className="empty-state empty-state-md"><BarChart3 aria-hidden="true" /><p>No scan data yet.</p></div>
+            <div className="empty-state empty-state-md"><EmptyStateArt size={88} art="scan" /><p>No scan data yet.</p></div>
           ) : (
             <div className="table-wrap table-bare">
               <table className="data-table">
@@ -460,7 +461,7 @@ export default function AnalyticsPage() {
             <span className="card-title">Recent Scans</span>
           </div>
           {recentScans.length === 0 ? (
-            <div className="empty-state empty-state-md"><ScanLine aria-hidden="true" /><p>No scans yet. Use the mobile app to scan OMR sheets.</p></div>
+            <div className="empty-state empty-state-md"><EmptyStateArt size={88} art="scan" /><p>No scans yet. Use the mobile app to scan OMR sheets.</p></div>
           ) : (
             <div className="table-wrap table-bare">
               <table className="data-table">
@@ -742,7 +743,7 @@ export function ExamDetail({ examId, detail, onBack }) {
           <span className="text-muted meta-sm">{studs.length} students</span>
         </div>
         {studs.length === 0 ? (
-          <div className="empty-state empty-state-md"><ScanLine aria-hidden="true" /><p>No scans for this exam yet.</p></div>
+          <div className="empty-state empty-state-md"><EmptyStateArt size={88} art="scan" /><p>No scans for this exam yet.</p></div>
         ) : (
           <div className="table-wrap no-print">
             <table className="data-table">

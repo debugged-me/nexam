@@ -7,8 +7,9 @@ import '../styles/item-analysis.css';
  */
 import { useEffect, useState, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, ListChecks, Printer, FileDown, FileSpreadsheet, Eye, Copy } from 'lucide-react';
+import { ArrowLeft, Printer, FileDown, FileSpreadsheet, Eye, Copy } from 'lucide-react';
 import { useToast } from '../components/Toast.jsx';
+import EmptyStateArt from '../components/EmptyStateArt.jsx';
 import { useContextMenu, useCopyText } from '../components/ContextMenu.jsx';
 import api from '../lib/api.js';
 import { downloadCsv, downloadXlsx } from '../lib/exports.js';
@@ -114,7 +115,7 @@ export default function ItemAnalysisPage() {
         <TableSkeleton rows={10} />
       ) : items.length === 0 ? (
         <div className="empty-state">
-          <ListChecks size={32} aria-hidden="true" />
+          <EmptyStateArt art="chart" tone={6} />
           <h2>No item data yet</h2>
           <p>Item-level analysis appears once OMR answer sheets have been scanned for this exam.</p>
         </div>

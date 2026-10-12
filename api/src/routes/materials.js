@@ -21,6 +21,7 @@ import { rateLimit } from '../middleware/rateLimit.js';
 import jobsService, { enqueue } from '../services/jobs.js';
 import { assertSafePublicUrl } from '../services/safeUrl.js';
 import { encryptFileAtRest, readProtectedFile } from '../services/storageCrypto.js';
+import { logAudit } from '../services/audit.js';
 
 const router = Router();
 
@@ -142,6 +143,11 @@ router.post('/', requireAuth, rateLimit({ name: 'material-upload', max: 15, wind
       subjectId: subject_id,
     });
 
+    logAudit({
+      actorId: req.user.id, actorEmail: req.user.email,
+      action: 'material.upload', targetType: 'material', targetId: id,
+      detail: { sourceType, title: materialTitle }, ip: req.ip,
+    });
     res.status(201).json({ id, jobId, status: 'pending', sourceType, title: materialTitle });
   } catch (err) {
     next(err);
@@ -229,6 +235,10 @@ router.delete('/:id', requireAuth, async (req, res, next) => {
     }
     // DB cascade deletes material_chunks
     await pool.query(`DELETE FROM materials WHERE id = :id`, { id: req.params.id });
+    logAudit({
+      actorId: req.user.id, actorEmail: req.user.email,
+      action: 'material.delete', targetType: 'material', targetId: req.params.id, ip: req.ip,
+    });
     res.json({ message: 'Material deleted.' });
   } catch (err) {
     next(err);

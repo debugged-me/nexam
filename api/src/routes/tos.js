@@ -18,6 +18,7 @@ import { v4 as uuid } from 'uuid';
 import { requireAuth } from '../middleware/auth.js';
 import pool from '../config/db.js';
 import { recalcTopicItemCounts } from '../services/tosTopics.js';
+import { logAudit } from '../services/audit.js';
 
 const router = Router();
 router.use(requireAuth);
@@ -379,6 +380,10 @@ router.post('/:id/finalize', async (req, res, next) => {
     );
     const [rows] = await pool.query(`SELECT * FROM tos WHERE id = :id`, { id: tos.id });
     rows[0].bloom_weights = JSON.parse(rows[0].bloom_weights || '{}');
+    logAudit({
+      actorId: req.user.id, actorEmail: req.user.email,
+      action: 'tos.finalize', targetType: 'tos', targetId: tos.id, ip: req.ip,
+    });
     res.json({ tos: rows[0], message: 'TOS finalized. Question generation is now enabled.' });
   } catch (err) { next(err); }
 });
@@ -472,6 +477,10 @@ router.delete('/:id', async (req, res, next) => {
     if (!requireDraft(tos, res)) return;
     await pool.query(`DELETE FROM tos_topics WHERE tos_id = :id`, { id: tos.id });
     await pool.query(`DELETE FROM tos WHERE id = :id`, { id: tos.id });
+    logAudit({
+      actorId: req.user.id, actorEmail: req.user.email,
+      action: 'tos.delete', targetType: 'tos', targetId: tos.id, ip: req.ip,
+    });
     res.json({ message: 'TOS deleted.' });
   } catch (err) { next(err); }
 });
@@ -491,6 +500,13 @@ router.post('/bulk-delete', async (req, res, next) => {
        WHERE t.id IN (:ids) AND s.instructor_id = :uid AND t.status = 'draft'`,
       { ids: validIds, uid: req.user.id }
     );
+    if (result.affectedRows > 0) {
+      logAudit({
+        actorId: req.user.id, actorEmail: req.user.email,
+        action: 'tos.bulk_delete', targetType: 'tos',
+        detail: { deleted: result.affectedRows, requested: validIds.length }, ip: req.ip,
+      });
+    }
     res.json({ deleted: result.affectedRows });
   } catch (err) { next(err); }
 });

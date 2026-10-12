@@ -16,6 +16,7 @@ import { v4 as uuid } from 'uuid';
 import { requireAuth } from '../middleware/auth.js';
 import pool from '../config/db.js';
 import { deleteChunksIndex, deleteQuestionsIndex } from '../services/vectorStore.js';
+import { logAudit } from '../services/audit.js';
 
 const router = Router();
 router.use(requireAuth);
@@ -184,6 +185,11 @@ router.post('/', async (req, res, next) => {
       `SELECT id, name, code, description, created_at FROM subjects WHERE id = :id`,
       { id }
     );
+    logAudit({
+      actorId: req.user.id, actorEmail: req.user.email,
+      action: 'subject.create', targetType: 'subject', targetId: rows[0].id,
+      detail: { name: rows[0].name, code: rows[0].code }, ip: req.ip,
+    });
     res.status(201).json({ subject: { ...rows[0], question_count: 0, tos_count: 0, exam_count: 0 } });
   } catch (err) {
     next(err);
@@ -246,6 +252,10 @@ router.put('/:id', async (req, res, next) => {
       `SELECT id, name, code, description, created_at FROM subjects WHERE id = :id`,
       { id: subject.id }
     );
+    logAudit({
+      actorId: req.user.id, actorEmail: req.user.email,
+      action: 'subject.update', targetType: 'subject', targetId: subject.id, ip: req.ip,
+    });
     res.json({ subject: rows[0] });
   } catch (err) {
     next(err);
@@ -259,6 +269,11 @@ router.delete('/:id', async (req, res, next) => {
     if (!subject) return res.status(404).json({ error: 'Subject not found.' });
 
     await cascadeDeleteSubject(subject.id, req.user.id);
+    logAudit({
+      actorId: req.user.id, actorEmail: req.user.email,
+      action: 'subject.delete', targetType: 'subject', targetId: subject.id,
+      detail: { name: subject.name }, ip: req.ip,
+    });
     res.json({ message: 'Subject deleted.' });
   } catch (err) {
     next(err);
@@ -285,6 +300,13 @@ router.post('/bulk-delete', async (req, res, next) => {
 
     for (const row of owned) {
       await cascadeDeleteSubject(row.id, req.user.id);
+    }
+    if (owned.length) {
+      logAudit({
+        actorId: req.user.id, actorEmail: req.user.email,
+        action: 'subject.bulk_delete', targetType: 'subject',
+        detail: { deleted: owned.length, requested: validIds.length }, ip: req.ip,
+      });
     }
     res.json({ deleted: owned.length });
   } catch (err) {

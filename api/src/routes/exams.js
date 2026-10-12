@@ -20,6 +20,7 @@ import { generateExamPDF, generateAnswerKeyPDF, generateTOSReportPDF, STORAGE_DI
 import { toGIFT, toCanvasXML } from '../services/lmsExport.js';
 import { generateOMRSheet } from '../services/omrService.js';
 import { buildTosMatrix, validateAlignedQuestions } from '../services/tosAlignment.js';
+import { logAudit } from '../services/audit.js';
 
 const router = Router();
 
@@ -250,6 +251,11 @@ router.post('/', requireAuth, async (req, res, next) => {
        FROM exams e JOIN subjects s ON s.id = e.subject_id WHERE e.id = :id`,
       { id }
     );
+    logAudit({
+      actorId: req.user.id, actorEmail: req.user.email,
+      action: 'exam.create', targetType: 'exam', targetId: rows[0].id,
+      detail: { title: rows[0].title, subjectId: rows[0].subject_id }, ip: req.ip,
+    });
     res.status(201).json({ exam: rows[0], shortages: [] });
   } catch (err) { next(err); }
 });
@@ -356,6 +362,11 @@ router.put('/:id', requireAuth, async (req, res, next) => {
       }
     );
     const [rows] = await pool.query(`SELECT * FROM exams WHERE id = :id`, { id: exam.id });
+    logAudit({
+      actorId: req.user.id, actorEmail: req.user.email,
+      action: 'exam.update', targetType: 'exam', targetId: exam.id,
+      detail: { status: rows[0].status }, ip: req.ip,
+    });
     res.json({ exam: rows[0] });
   } catch (err) { next(err); }
 });
@@ -374,6 +385,10 @@ router.delete('/:id', requireAuth, async (req, res, next) => {
     await pool.query(`DELETE FROM exam_sets WHERE exam_id = :id`, { id: req.params.id });
     await pool.query(`DELETE FROM exam_questions WHERE exam_id = :id`, { id: req.params.id });
     await pool.query(`DELETE FROM exams WHERE id = :id`, { id: req.params.id });
+    logAudit({
+      actorId: req.user.id, actorEmail: req.user.email,
+      action: 'exam.delete', targetType: 'exam', targetId: req.params.id, ip: req.ip,
+    });
     res.json({ message: 'Exam deleted.' });
   } catch (err) { next(err); }
 });
@@ -446,6 +461,13 @@ router.post('/:id/questions', requireAuth, async (req, res, next) => {
       added++;
     }
 
+    if (added > 0) {
+      logAudit({
+        actorId: req.user.id, actorEmail: req.user.email,
+        action: 'exam.questions_add', targetType: 'exam', targetId: exam.id,
+        detail: { added, skipped: validIds.length - ownedIds.length }, ip: req.ip,
+      });
+    }
     res.status(201).json({ added, skipped: validIds.length - ownedIds.length });
   } catch (err) { next(err); }
 });
@@ -464,6 +486,11 @@ router.delete('/:id/questions/:questionId', requireAuth, async (req, res, next) 
       `DELETE FROM exam_questions WHERE exam_id = :id AND question_id = :qid`,
       { id: req.params.id, qid: req.params.questionId }
     );
+    logAudit({
+      actorId: req.user.id, actorEmail: req.user.email,
+      action: 'exam.questions_remove', targetType: 'exam', targetId: req.params.id,
+      detail: { questionId: req.params.questionId }, ip: req.ip,
+    });
     res.json({ message: 'Question removed from exam.' });
   } catch (err) { next(err); }
 });
@@ -625,6 +652,11 @@ router.post('/:id/generate-sets', requireAuth, async (req, res, next) => {
       tosReportPath = tosReportFilename;
     }
 
+    logAudit({
+      actorId: req.user.id, actorEmail: req.user.email,
+      action: 'exam.generate_sets', targetType: 'exam', targetId: examId,
+      detail: { version: nextVersion, sets: generatedSets.length }, ip: req.ip,
+    });
     res.status(201).json({
       examId,
       sets: generatedSets,

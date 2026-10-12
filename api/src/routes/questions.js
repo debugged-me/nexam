@@ -26,6 +26,7 @@ import { enqueue } from '../services/jobs.js';
 import { indexQuestionIfActive, removeQuestionFromIndex } from '../services/questionIndex.js';
 import { answerOptionIndex } from '../services/scoring.js';
 import { rateLimit } from '../middleware/rateLimit.js';
+import { logAudit } from '../services/audit.js';
 
 const router = Router();
 router.use(requireAuth);
@@ -473,6 +474,10 @@ router.delete('/:id', async (req, res, next) => {
     await pool.query(`DELETE FROM questions WHERE id = :id`, { id: q.id });
     await removeQuestionFromIndex(q.subject_id, q.id);
 
+    logAudit({
+      actorId: req.user.id, actorEmail: req.user.email,
+      action: 'question.delete', targetType: 'question', targetId: q.id, ip: req.ip,
+    });
     res.json({ message: 'Question deleted.' });
   } catch (err) { next(err); }
 });
@@ -495,6 +500,10 @@ router.post('/:id/approve', async (req, res, next) => {
     // Approved questions enter the similarity index.
     await indexQuestionIfActive({ ...q, status: 'active' });
 
+    logAudit({
+      actorId: req.user.id, actorEmail: req.user.email,
+      action: 'question.approve', targetType: 'question', targetId: q.id, ip: req.ip,
+    });
     res.json({ message: 'Question approved.', status: 'active' });
   } catch (err) { next(err); }
 });
@@ -512,6 +521,10 @@ router.post('/:id/reject', async (req, res, next) => {
     );
     await removeQuestionFromIndex(q.subject_id, q.id);
 
+    logAudit({
+      actorId: req.user.id, actorEmail: req.user.email,
+      action: 'question.reject', targetType: 'question', targetId: q.id, ip: req.ip,
+    });
     res.json({ message: 'Question rejected.', status: 'rejected' });
   } catch (err) { next(err); }
 });
@@ -576,6 +589,13 @@ router.post('/bulk-approve', async (req, res, next) => {
       for (const q of active) await indexQuestionIfActive(q);
     }
 
+    if (result.affectedRows > 0) {
+      logAudit({
+        actorId: req.user.id, actorEmail: req.user.email,
+        action: 'question.bulk_approve', targetType: 'question',
+        detail: { approved: result.affectedRows, requested: validIds.length }, ip: req.ip,
+      });
+    }
     res.json({
       approved: result.affectedRows,
       approvedIds: eligibleIds,
@@ -610,6 +630,13 @@ router.post('/bulk-reject', async (req, res, next) => {
 
     for (const q of owned) await removeQuestionFromIndex(q.subject_id, q.id);
 
+    if (result.affectedRows > 0) {
+      logAudit({
+        actorId: req.user.id, actorEmail: req.user.email,
+        action: 'question.bulk_reject', targetType: 'question',
+        detail: { rejected: result.affectedRows, requested: validIds.length }, ip: req.ip,
+      });
+    }
     res.json({ rejected: result.affectedRows });
   } catch (err) { next(err); }
 });
@@ -650,6 +677,13 @@ router.post('/bulk-delete', async (req, res, next) => {
 
     for (const q of owned) await removeQuestionFromIndex(q.subject_id, q.id);
 
+    if (result.affectedRows > 0) {
+      logAudit({
+        actorId: req.user.id, actorEmail: req.user.email,
+        action: 'question.bulk_delete', targetType: 'question',
+        detail: { deleted: result.affectedRows, requested: validIds.length }, ip: req.ip,
+      });
+    }
     res.json({ deleted: result.affectedRows });
   } catch (err) { next(err); }
 });
@@ -832,6 +866,13 @@ router.post('/import', rateLimit({ name: 'question-import', max: 10, windowSec: 
       return res.status(422).json({
         error: 'No supported, valid objective questions were found in the import.',
         skipped,
+      });
+    }
+    if (inserted.length) {
+      logAudit({
+        actorId: req.user.id, actorEmail: req.user.email,
+        action: 'question.import', targetType: 'subject', targetId: subjectId,
+        detail: { imported: inserted.length, skipped: skipped.length }, ip: req.ip,
       });
     }
     res.status(201).json({ imported: inserted.length, questions: inserted, skipped });

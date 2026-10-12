@@ -37,7 +37,7 @@
     "react-router-dom": "^7.18.3",
     "sonner": "^2.0.8",
     "vaul": "^1.1.2",
-    "xlsx": "^0.18.5"
+    "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz"
   },
   "devDependencies": {
     "@types/react": "^19.2.18",
@@ -47,5 +47,8 @@
     "react-scan": "^0.4.3",
     "vite": "^8.3.0",
     "vitest": "^5.0.3"
+  },
+  "overrides": {
+    "argparse": "^2.0.1"
   }
 }

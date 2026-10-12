@@ -36,6 +36,14 @@ export async function logLogin({ userId = null, email, success, reason = null, i
  */
 export async function logAudit({ actorId = null, actorEmail = null, action, targetType = null, targetId = null, detail = null, ip = null }) {
   try {
+    // requireAuth passes the raw JWT payload through; login tokens carry
+    // email, but any token minted without it (service, test, older session)
+    // would leave actor_email NULL. Resolve once here so the audit record
+    // always names its actor.
+    if (!actorEmail && actorId) {
+      const [rows] = await pool.query(`SELECT email FROM users WHERE id = :id LIMIT 1`, { id: actorId });
+      actorEmail = rows[0]?.email ?? null;
+    }
     await pool.query(
       `INSERT INTO audit_logs (id, actor_id, actor_email, action, target_type, target_id, detail, ip)
        VALUES (:id, :actorId, :actorEmail, :action, :targetType, :targetId, :detail, :ip)`,

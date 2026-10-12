@@ -18,6 +18,7 @@ import { v4 as uuid } from 'uuid';
 import pool from '../config/db.js';
 import { requireAuth } from '../middleware/auth.js';
 import { rateLimit } from '../middleware/rateLimit.js';
+import { logAudit } from '../services/audit.js';
 import { scoreItem } from '../services/scoring.js';
 import { blindIndex, protectText, unprotectText } from '../services/storageCrypto.js';
 
@@ -540,12 +541,13 @@ router.post('/:id/review', async (req, res, next) => {
       const byItem = {};
       for (const q of questions) byItem[q.sort_order] = q;
 
+      const corrections = [];
       for (const ca of correctedAnswers) {
         const itemNumber = Number(ca?.itemNumber);
         if (!Number.isInteger(itemNumber)) continue;
 
         const [existing] = await conn.query(
-          `SELECT id FROM scan_answers WHERE scan_result_id = :scanId AND item_number = :itemNumber`,
+          `SELECT marked_answer, is_correct FROM scan_answers WHERE scan_result_id = :scanId AND item_number = :itemNumber`,
           { scanId, itemNumber }
         );
         if (!existing.length) continue;
@@ -572,6 +574,11 @@ router.post('/:id/review', async (req, res, next) => {
            WHERE scan_result_id = :scanId AND item_number = :itemNumber`,
           { scanId, itemNumber, marked: markedAnswer, isCorrect: isCorrect ?? 0 }
         );
+        corrections.push({
+          item: itemNumber,
+          before: { marked: existing[0].marked_answer, correct: existing[0].is_correct },
+          after: { marked: markedAnswer, correct: isCorrect ?? 0 },
+        });
       }
 
       // Recount over the full answer set — not just corrected rows.
@@ -593,6 +600,12 @@ router.post('/:id/review', async (req, res, next) => {
       );
 
       await conn.commit();
+      logAudit({
+        actorId: req.user.id, actorEmail: req.user.email,
+        action: 'scan.review', targetType: 'scan_result', targetId: scanId,
+        detail: { corrections, score: parseFloat(score), needsReview: remainingAmbiguous > 0 },
+        ip: req.ip,
+      });
       res.json({ ok: true, correctCount, totalItems, score: parseFloat(score), needsReview: remainingAmbiguous > 0 });
     } else {
       await conn.query(`UPDATE scan_results SET needs_review = 0 WHERE id = :scanId`, { scanId });

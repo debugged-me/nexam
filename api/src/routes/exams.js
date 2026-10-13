@@ -49,6 +49,28 @@ const ELIGIBLE_FOR_CELL = `
     SELECT 1 FROM question_tos qt WHERE qt.question_id = q.id AND qt.tos_id = :tosId
   ))`;
 
+// Drafts awaiting an instructor decision — flagged ones need the
+// keep-or-reject call before approval. Lets shortage advice separate
+// "approve what exists" from "nothing was ever generated".
+const PENDING_FOR_CELL = `
+  q.subject_id = :subjectId AND q.created_by = :userId
+  AND q.status = 'draft' AND q.type IN ('mcq','true_false','matching','identification')
+  AND (q.similarity_flag IS NULL OR q.similarity_flag <> 'rejected')
+  AND q.topic = :topic AND q.bloom = :bloom
+  AND ${questionScopeSql()}
+  AND (q.tos_id = :tosId OR EXISTS (
+    SELECT 1 FROM question_tos qt WHERE qt.question_id = q.id AND qt.tos_id = :tosId
+  ))`;
+
+async function pendingForCell(tos, userId, slot) {
+  const [[row]] = await pool.query(
+    `SELECT COUNT(*) AS n, COALESCE(SUM(q.similarity_flag = 'flagged'), 0) AS flagged
+     FROM questions q WHERE ${PENDING_FOR_CELL}`,
+    { subjectId: tos.subject_id, userId, topic: slot.topic, bloom: slot.bloom, tosId: tos.id }
+  );
+  return { pending: Number(row?.n || 0), flagged: Number(row?.flagged || 0) };
+}
+
 async function tosSlots(tos) {
   const [topics] = await pool.query(
     `SELECT * FROM tos_topics WHERE tos_id = :tosId ORDER BY sort_order ASC`,
@@ -76,7 +98,10 @@ async function planQuestionsForTos(tos, userId) {
       }
     );
     if (rows.length !== slot.count) {
-      shortages.push({ topic: slot.topic, bloom: slot.bloom, needed: slot.count, available: rows.length });
+      shortages.push({
+        topic: slot.topic, bloom: slot.bloom, needed: slot.count, available: rows.length,
+        ...(await pendingForCell(tos, userId, slot)),
+      });
     }
     questions.push(...rows);
   }
@@ -95,7 +120,10 @@ async function checkTosReadiness(tos, userId) {
     );
     const available = Number(row?.n || 0);
     if (available < slot.count) {
-      shortages.push({ topic: slot.topic, bloom: slot.bloom, needed: slot.count, available });
+      shortages.push({
+        topic: slot.topic, bloom: slot.bloom, needed: slot.count, available,
+        ...(await pendingForCell(tos, userId, slot)),
+      });
     }
   }
   return { cells: slots.length, shortages };

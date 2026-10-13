@@ -106,6 +106,11 @@ export default function ExamFormPage() {
   const blocked = !isEdit && !!selectedTosId && !!check && !check.ready;
   // Shortages from the live check win; a 409 from submit is the fallback.
   const shownShortages = check?.shortages?.length ? check.shortages : shortages;
+  // Three different fixes hide inside one shortage list — drafts awaiting
+  // approval, flagged dupes needing a decision, and cells nothing generated.
+  const pendingTotal = shownShortages.reduce((n, s) => n + (s.pending || 0), 0);
+  const flaggedTotal = shownShortages.reduce((n, s) => n + (s.flagged || 0), 0);
+  const emptyCells = shownShortages.filter((s) => !(s.available > 0) && !(s.pending > 0)).length;
 
   async function handleSave(e) {
     e.preventDefault();
@@ -218,14 +223,29 @@ export default function ExamFormPage() {
                           {shownShortages.slice(0, 8).map((s, i) => (
                             <li key={i}>
                               {s.topic} — {BLOOM_LABELS[s.bloom] || s.bloom}: needs {s.needed}, has {s.available}
+                              {s.pending > 0 && ` (+${s.pending} awaiting)`}
                             </li>
                           ))}
                           {shownShortages.length > 8 && <li>…and {shownShortages.length - 8} more cells</li>}
                         </ul>
-                        <span>
-                          Approve drafts in <Link to="/questions/review">Review drafts</Link>, or{' '}
-                          <Link to={`/tos/${selectedTosId}`}>generate more questions</Link> from the blueprint.
-                        </span>
+                        {pendingTotal > 0 && (
+                          <span>
+                            {pendingTotal} draft{pendingTotal === 1 ? ' already covers' : 's already cover'} these cells — approve
+                            {pendingTotal === 1 ? ' it' : ' them'} in <Link to="/questions/review">Review drafts</Link>
+                            {flaggedTotal > 0 && ` (${flaggedTotal} flagged as possible duplicate${flaggedTotal === 1 ? '' : 's'} — keep or reject each first)`}.
+                          </span>
+                        )}
+                        {emptyCells > 0 && (
+                          <span>
+                            {emptyCells} cell{emptyCells === 1 ? ' has' : 's have'} nothing to approve — generation couldn&apos;t cover
+                            those topics yet. Upload lesson materials under <Link to="/materials">Materials</Link>, then generate again.
+                          </span>
+                        )}
+                        {shownShortages.some((s) => !(s.pending > 0)) && (
+                          <span>
+                            <Link to={`/tos/${selectedTosId}`}>Generate more questions</Link> from the blueprint to retry the empty cells.
+                          </span>
+                        )}
                       </div>
                     </div>
                   )}

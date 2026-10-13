@@ -144,6 +144,22 @@ export default async function generateHandler(job) {
 
     const topic = topics.find((candidate) => candidate.title === slot.topic);
     const result = await generateForSlot(tos, topic, slot.bloom, needed, scopedChunks);
+    // One retry for a transient shortfall — bad JSON, dropped-invalid output,
+    // or a partial return are all worth a second call. Retrieval failures
+    // (thin material) are deterministic; a retry would buy nothing.
+    const retrievalFailed = result.failed && /no (source|sufficiently relevant) material/i.test(result.reason || '');
+    if (!retrievalFailed && result.questions.length < needed) {
+      const remaining = needed - result.questions.length;
+      const more = await generateForSlot(tos, topic, slot.bloom, remaining, scopedChunks);
+      if (more.dropped) result.dropped = (result.dropped || 0) + more.dropped;
+      if (!more.failed) {
+        result.questions.push(...more.questions);
+        if (result.questions.length >= needed) {
+          result.failed = false;
+          result.reason = undefined;
+        }
+      }
+    }
     if (result.dropped) droppedInvalid += result.dropped;
 
     // Persist this slot's questions right away.

@@ -181,7 +181,7 @@ button.print-pack-file > span { text-align: left; }
 .dl-body .print-pack-file { min-height: 44px; }
 
 @media (max-width: 900px) {
-  .exam-detail-layout { grid-template-columns: 1fr; }
+  .exam-detail-layout { grid-template-columns: minmax(0, 1fr); }
   .exam-detail-side { position: static; }
 }
 

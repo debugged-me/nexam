@@ -4,8 +4,9 @@ import '../styles/wizard.css';
  *
  * Shows the full flow on one page with live progress:
  *   1. Upload syllabus
- *   2. Extract + embed (auto)
- *   3. Generate TOS draft (auto-chained)
+ *   2. Extract text (auto)
+ *   3. Draft the TOS from the syllabus text (auto) while passages are
+ *      indexed for question evidence — blueprint review never waits on it
  *   4. Instructor reviews and finalizes the TOS
  *   5. Instructor starts grounded question generation
  *   6. Review & approve questions
@@ -36,6 +37,7 @@ const STAGES = [
   { key: 'exam', label: 'Create exam', hint: 'Assemble and publish', icon: FilePlus2 },
 ];
 const AUTO_STAGES = ['extracting', 'embedding', 'tos_generating', 'question_generating'];
+const isBusy = (job) => job?.status === 'queued' || job?.status === 'running';
 
 function firstCachedSubjectId() {
   return api.peek('/subjects')?.subjects?.[0]?.id ?? '';
@@ -53,8 +55,13 @@ export default function WizardPage() {
   const [uploadOpen, setUploadOpen] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [dragOver, setDragOver] = useState(false);
+  const [retrying, setRetrying] = useState(false);
   const fileInput = useRef(null);
   const pollRef = useRef(null);
+  // The poll reads the latest status through a ref; a closure would keep the
+  // status from when the effect ran and never notice new jobs.
+  const pipelineRef = useRef(pipeline);
+  useEffect(() => { pipelineRef.current = pipeline; }, [pipeline]);
 
   // Load subjects
   useEffect(() => {
@@ -81,11 +88,12 @@ export default function WizardPage() {
 
   useEffect(() => {
     loadPipeline();
-    // Poll every 3s while there are active jobs
+    // Poll every 3s while there are active jobs. Indexing runs beside
+    // blueprint review, so an active embed job keeps the poll alive too.
     if (pollRef.current) clearInterval(pollRef.current);
     pollRef.current = setInterval(() => {
-      const activeStages = ['extracting', 'embedding', 'tos_generating', 'question_generating'];
-      if (pipeline && activeStages.includes(pipeline.stage)) {
+      const current = pipelineRef.current;
+      if (current && (AUTO_STAGES.includes(current.stage) || isBusy(current.jobs?.embed))) {
         loadPipeline();
       }
     }, 3000);
@@ -111,6 +119,22 @@ export default function WizardPage() {
     }
   }
 
+  // Re-extracting re-runs indexing; an unchanged syllabus is not re-drafted,
+  // so retrying never duplicates the blueprint.
+  async function retryProcessing(materialId) {
+    if (!materialId) { loadPipeline(); return; }
+    setRetrying(true);
+    try {
+      await api.post(`/materials/${materialId}/reprocess`);
+      toast.success('Processing restarted.');
+      loadPipeline();
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : 'Could not restart processing.');
+    } finally {
+      setRetrying(false);
+    }
+  }
+
   // Map failed stages
   const effectiveStage = pipeline?.stage || 'upload';
   const failedStage = effectiveStage.endsWith('_failed') ? effectiveStage : null;
@@ -124,7 +148,7 @@ export default function WizardPage() {
     if (stageKey === 'generate') {
       if (autoFailed) return 'failed';
       if (AUTO_STAGES.includes(effectiveStage)) return 'active';
-      if (['tos_review', 'ready_to_generate'].includes(effectiveStage)) return 'current';
+      if (['tos_review', 'ready_to_generate', 'generate_short'].includes(effectiveStage)) return 'current';
       if (['review', 'exam_ready'].includes(effectiveStage) || hasExam) return 'done';
       return 'pending';
     }
@@ -223,11 +247,11 @@ export default function WizardPage() {
               </div>
             )}
 
-            {(effectiveStage === 'extracting' || effectiveStage === 'embedding') && (
+            {effectiveStage === 'extracting' && (
               <div className="wizard-card">
                 <span className="wizard-step-tag">Step 1 of 4 · Automatic</span>
-                <h3>Processing syllabus</h3>
-                <p>Extracting text and embedding chunks into the vector store. This happens automatically — no action needed.</p>
+                <h3>Reading syllabus</h3>
+                <p>Extracting the syllabus text. The blueprint is drafted from this text as soon as it is ready — no action needed.</p>
                 {pipeline.syllabus && (
                   <div className="wizard-info">
                     <span className="badge badge-gray">{pipeline.syllabus.title}</span>
@@ -237,11 +261,19 @@ export default function WizardPage() {
               </div>
             )}
 
+            {effectiveStage === 'embedding' && (
+              <div className="wizard-card">
+                <span className="wizard-step-tag">Step 2 of 4 · Automatic</span>
+                <h3>Indexing source passages</h3>
+                <p>Question generation searches these passages for answer evidence. It unlocks automatically when indexing finishes.</p>
+              </div>
+            )}
+
             {effectiveStage === 'tos_generating' && (
               <div className="wizard-card">
                 <span className="wizard-step-tag">Step 2 of 4 · Automatic</span>
-                <h3>Generating blueprint (TOS)</h3>
-                <p>The AI is extracting topics and instructional hours from your syllabus and computing item weights. This happens automatically.</p>
+                <h3>Drafting blueprint (TOS)</h3>
+                <p>Reading topics, learning outcomes, periods and any stated hours from your syllabus. Hours the syllabus does not state are proposed and marked for your confirmation.</p>
               </div>
             )}
 
@@ -250,8 +282,32 @@ export default function WizardPage() {
                 <span className="wizard-step-tag">Step 2 of 4</span>
                 <h3>Review &amp; finalize the blueprint</h3>
                 <p>Confirm the extracted topics, instructional hours, item allocation, and Bloom weights. Question generation stays locked until you finalize this TOS.</p>
+                {isBusy(pipeline.jobs?.embed) && (
+                  <p className="text-muted">Source passages are still being indexed. Blueprint review does not need them; question generation does.</p>
+                )}
+                {pipeline.jobs?.embed?.status === 'failed' && (
+                  <p className="text-muted">Source indexing failed. Blueprint review is unaffected, but retry indexing before generating questions.</p>
+                )}
                 <Link to={`/tos/${pipeline.tos.id}`} className="btn btn-brand">
                   <ClipboardCheck size={16} /> Review TOS <ArrowRight size={14} />
+                </Link>
+                {pipeline.jobs?.embed?.status === 'failed' && (
+                  <button type="button" className="btn btn-outline" disabled={retrying}
+                    onClick={() => retryProcessing(pipeline.jobs.embed.material_id || pipeline.syllabus?.id)}>
+                    <RefreshCw size={14} /> {retrying ? 'Restarting…' : 'Retry indexing'}
+                  </button>
+                )}
+              </div>
+            )}
+
+            {effectiveStage === 'generate_short' && pipeline.tos && (
+              <div className="wizard-card">
+                <span className="wizard-step-tag">Step 2 of 4</span>
+                <h3>No questions could be supported</h3>
+                <p>Generation finished without saving a draft. Each blueprint cell was refused because the sources lack substantive lesson evidence for it, or because its draft failed the answer, format or Bloom review. A syllabus outline is enough for the blueprint, not for factual questions.</p>
+                <p className="text-muted">Open the blueprint to see the reason for each cell, add lessons, slides or readings for those topics, then generate again.</p>
+                <Link to={`/tos/${pipeline.tos.id}`} className="btn btn-brand">
+                  <ClipboardCheck size={16} /> Open blueprint <ArrowRight size={14} />
                 </Link>
               </div>
             )}
@@ -330,9 +386,18 @@ export default function WizardPage() {
                 {pipeline.jobs.embed?.error && <p className="text-muted">{pipeline.jobs.embed.error}</p>}
                 {pipeline.jobs.tos?.error && <p className="text-muted">{pipeline.jobs.tos.error}</p>}
                 {pipeline.jobs.generate?.error && <p className="text-muted">{pipeline.jobs.generate.error}</p>}
-                <button className="btn btn-outline" onClick={loadPipeline}>
-                  <RefreshCw size={14} /> Retry / Refresh
-                </button>
+                {failedStage === 'extract_failed' || failedStage === 'embed_failed' ? (
+                  <button className="btn btn-outline" disabled={retrying}
+                    onClick={() => retryProcessing(failedStage === 'embed_failed'
+                      ? pipeline.jobs.embed?.material_id || pipeline.syllabus?.id
+                      : pipeline.syllabus?.id)}>
+                    <RefreshCw size={14} /> {retrying ? 'Restarting…' : failedStage === 'embed_failed' ? 'Retry indexing' : 'Retry processing'}
+                  </button>
+                ) : (
+                  <button className="btn btn-outline" onClick={loadPipeline}>
+                    <RefreshCw size={14} /> Retry / Refresh
+                  </button>
+                )}
               </div>
             )}
 
@@ -377,7 +442,7 @@ export default function WizardPage() {
             onChange={(e) => { const f = e.target.files[0]; if (f) handleFile(f); }} />
         </div>
         <p className="text-muted" style={{ marginTop: 12, fontSize: 'var(--text-sm)' }}>
-          After upload, the system extracts text, embeds grounded chunks, and drafts a TOS. You review and finalize the TOS before starting question generation and instructor approval.
+          After upload, the system extracts the text and drafts a TOS from the syllabus while it indexes passages for question evidence. You review and finalize the TOS before starting question generation and instructor approval.
         </p>
       </Modal>
     </AppShell>

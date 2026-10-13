@@ -213,6 +213,8 @@ const DDL = [
   `ALTER TABLE tos_topics ADD INDEX IF NOT EXISTS tos_id (tos_id)`,
   `ALTER TABLE tos_topics ADD FOREIGN KEY IF NOT EXISTS tos_topics_ibfk_1 (tos_id) REFERENCES tos (id) ON DELETE CASCADE`,
 
+  `ALTER TABLE tos ADD COLUMN IF NOT EXISTS source_meta LONGTEXT NULL`,
+
   // Assessment coverage stays optional for existing blueprints.
   `ALTER TABLE tos ADD COLUMN IF NOT EXISTS assessment_scope LONGTEXT NULL`,
   `ALTER TABLE tos ADD COLUMN IF NOT EXISTS scope_key VARCHAR(64) NULL`,
@@ -727,6 +729,7 @@ const DDL = [
  * so steady-state boots issue no ALTERs at all.
  */
 const COLUMN_TYPES = {
+  'tos_topics.instructional_hours': 'decimal(8,2)',
   'scan_answers.marked_answer': 'varchar(500)',
   'scan_answers.correct_answer': 'varchar(500)',
   'questions.status': 'varchar(20)',
@@ -779,12 +782,13 @@ export async function ensureSchema() {
     for (const [key, want] of Object.entries(COLUMN_TYPES)) {
       const [table, column] = key.split('.');
       const [rows] = await pool.query(
-        `SELECT COLUMN_TYPE FROM information_schema.COLUMNS
+        `SELECT COLUMN_TYPE, IS_NULLABLE, COLUMN_DEFAULT FROM information_schema.COLUMNS
          WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = :t AND COLUMN_NAME = :c`,
         { t: table, c: column }
       );
-      if (rows[0] && rows[0].COLUMN_TYPE.toLowerCase() !== want.toLowerCase()) {
-        await pool.query(`ALTER TABLE ${table} MODIFY COLUMN ${column} ${want}`);
+      const hoursColumn = key === 'tos_topics.instructional_hours';
+      if (rows[0] && (rows[0].COLUMN_TYPE.toLowerCase() !== want.toLowerCase() || (hoursColumn && rows[0].IS_NULLABLE !== 'NO'))) {
+        await pool.query(`ALTER TABLE ${table} MODIFY COLUMN ${column} ${want}${hoursColumn ? ' NOT NULL DEFAULT 0' : ''}`);
         // eslint-disable-next-line no-console
         console.log('[schema] Corrected column type:', key);
       }

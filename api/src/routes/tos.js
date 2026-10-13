@@ -19,9 +19,12 @@ import { requireAuth } from '../middleware/auth.js';
 import pool from '../config/db.js';
 import { recalcTopicItemCounts } from '../services/tosTopics.js';
 import { buildTosMatrix } from '../services/tosAlignment.js';
+import { usableQuestions } from '../services/questionGrounding.js';
 import { blueprintCoverage } from '../services/tosCoverage.js';
 import { logAudit } from '../services/audit.js';
 import { parseTimeFrame, validateSources, scopeKey, questionScopeSql } from '../services/assessmentScope.js';
+import { sourceHash } from '../services/syllabusBlueprint.js';
+import { readJson } from '../services/assessmentScope.js';
 import { loadScopeChunks, ownedChunks } from '../services/assessmentScopeStore.js';
 
 const router = Router();
@@ -59,10 +62,8 @@ async function getOwned(id, userId) {
  */
 function parseHours(value) {
   const hours = Number(value);
-  // The column is int(11): a fractional value would be silently rounded by
-  // MySQL and would disagree with the PHP mirror, which casts with (int).
-  if (!Number.isInteger(hours) || hours < 0) {
-    return { error: 'Instructional hours must be a whole number of hours (0 or more).' };
+  if (!Number.isFinite(hours) || hours < 0 || hours > 10000 || Math.abs(hours * 100 - Math.round(hours * 100)) > 0.00001) {
+    return { error: 'Instructional hours must be 0–10,000 with at most two decimal places.' };
   }
   return { hours };
 }
@@ -210,8 +211,8 @@ router.get('/:id', async (req, res, next) => {
     // Per-cell question coverage — same matching rules as the generation
     // worker: live = not rejected, not similarity-rejected, linked via tos_id
     // or question_tos. Keyed "topic||bloom" so the matrix can show have/need.
-    const [covRows] = await pool.query(
-      `SELECT q.topic, q.bloom, q.status, COUNT(*) AS n
+    const [covCandidates] = await pool.query(
+      `SELECT q.*
        FROM questions q
        WHERE q.subject_id = :subjectId AND q.created_by = :userId
          AND q.status <> 'rejected'
@@ -220,15 +221,17 @@ router.get('/:id', async (req, res, next) => {
          AND (q.tos_id = :tosId OR EXISTS (
            SELECT 1 FROM question_tos qt WHERE qt.question_id = q.id AND qt.tos_id = :tosId
          ))
-       GROUP BY q.topic, q.bloom, q.status`,
+       `,
       { subjectId: tos.subject_id, userId: req.user.id, tosId: tos.id }
     );
+    const covRows = await usableQuestions(covCandidates);
     const coverage = {};
     for (const r of covRows) {
       const key = `${r.topic}||${r.bloom}`;
       const cell = coverage[key] || (coverage[key] = { live: 0, approved: 0 });
-      cell.live += Number(r.n);
-      if (r.status === 'active') cell.approved += Number(r.n);
+      cell.live += 1;
+      // Same rule as exam assembly (ELIGIBLE_FOR_CELL in routes/exams.js).
+      if (r.status === 'active' && r.similarity_flag === 'none' && r.similarity_checked_at && !r.similarity_error) cell.approved += 1;
     }
 
     // Usage — exams assembled from this blueprint and sheets scanned on
@@ -308,6 +311,12 @@ router.put('/:id/assessment-scope', async (req, res, next) => {
     scope.confirmed = true;
     scope.confirmedBy = req.user.id;
     scope.confirmedAt = new Date().toISOString();
+    const sourceMeta = readJson(tos.source_meta);
+    if (sourceMeta && selected.length < topics.length) {
+      sourceMeta.courseHours = null;
+      sourceMeta.warnings = [...new Set([...(sourceMeta.warnings || []), 'Coverage contains selected topics. Confirm hours for this subset.'])];
+      await conn.query(`UPDATE tos SET source_meta = :meta WHERE id = :id`, { meta: JSON.stringify(sourceMeta), id: tos.id });
+    }
     await conn.query(`DELETE FROM tos_topics WHERE tos_id = :id AND id NOT IN (:selected)`, { id: tos.id, selected });
     await conn.query(
       `UPDATE tos SET assessment_scope = :scope, scope_key = :key, updated_at = NOW() WHERE id = :id`,
@@ -454,6 +463,14 @@ router.post('/:id/finalize', async (req, res, next) => {
     if (topics.some((t) => Number(t.instructional_hours) <= 0)) {
       return res.status(422).json({ error: 'Every topic needs a positive number of instructional hours.' });
     }
+    const sourceMeta = readJson(tos.source_meta);
+    if (sourceMeta) {
+      if (req.body?.confirmAssumptions !== true) return res.status(422).json({ error: 'Confirm the syllabus topics, proposed hours, item count and Bloom allocation before finalizing.' });
+      const [[material]] = await pool.query(`SELECT content FROM materials WHERE id = :id AND subject_id = :sid AND created_by = :uid`, { id: sourceMeta.materialId, sid: tos.subject_id, uid: req.user.id });
+      if (!material || sourceHash(material.content) !== sourceMeta.contentHash) return res.status(422).json({ error: 'The source syllabus changed or was removed. Scan the current syllabus before finalizing.' });
+      const sum = topics.reduce((n, t) => n + Number(t.instructional_hours), 0);
+      if (sourceMeta.courseHours && Math.abs(sum - sourceMeta.courseHours.value) > 0.005) return res.status(422).json({ error: `Topic hours must total the ${sourceMeta.courseHours.value} hours stated in the syllabus (currently ${sum.toFixed(2)}). Derive a separate blueprint for a subset of the course.` });
+    }
     const normalizedTitles = topics.map((topic) => String(topic.title).trim().toLowerCase());
     if (new Set(normalizedTitles).size !== normalizedTitles.length) {
       return res.status(422).json({ error: 'Topic titles must be unique before the TOS can be finalized.' });
@@ -512,12 +529,15 @@ router.post('/:id/derive', async (req, res, next) => {
     try { frame = parseTimeFrame(req.body.assessmentScope || { label: title.slice(0, 100) }); }
     catch (err) { return res.status(422).json({ error: err.message }); }
 
+    const parentSource = readJson(tos.source_meta);
+    const derivedSource = parentSource ? { ...parentSource, courseHours: null, parentTosId: tos.id, warnings: [...new Set([...(parentSource.warnings || []), 'This blueprint contains selected topics. Confirm hours for this subset.'])] } : null;
     const newId = uuid();
     await pool.query(
-      `INSERT INTO tos (id, subject_id, title, total_items, bloom_weights, assessment_scope, created_at, updated_at)
-       VALUES (:id, :subjectId, :title, :totalItems, :weights, :scope, NOW(), NOW())`,
+      `INSERT INTO tos (id, subject_id, title, total_items, bloom_weights, assessment_scope, source_meta, created_at, updated_at)
+       VALUES (:id, :subjectId, :title, :totalItems, :weights, :scope, :sourceMeta, NOW(), NOW())`,
       {
         id: newId,
+        sourceMeta: derivedSource ? JSON.stringify(derivedSource) : null,
         scope: JSON.stringify({ ...frame, sources: [], confirmed: false }),
         subjectId: tos.subject_id,
         title,

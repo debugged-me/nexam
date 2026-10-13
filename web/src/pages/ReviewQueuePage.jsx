@@ -24,9 +24,11 @@ import { DndContext, PointerSensor, KeyboardSensor, closestCenter, useSensor, us
 import { SortableContext, arrayMove, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { useToast } from '../components/Toast.jsx';
+import { useConfirm } from '../components/ConfirmDialog.jsx';
 import EmptyStateArt from '../components/EmptyStateArt.jsx';
 import Modal from '../components/Modal.jsx';
 import api, { ApiError } from '../lib/api.js';
+import { isKnowledgeQuestion, needsKnowledgeConfirm, confirmKnowledge } from '../lib/knowledge.js';
 import useJobs, { isActiveJob } from '../lib/useJobs.js';
 import AppShell from '../components/AppShell.jsx';
 import { CardsSkeleton } from '../components/Loaders.jsx';
@@ -98,6 +100,7 @@ function findNext(list, decided, from) {
 
 export default function ReviewQueuePage() {
   const toast = useToast();
+  const confirm = useConfirm();
   // The toast context object is rebuilt on every provider render, so holding it
   // in an effect dependency would refetch the queue — and wipe the running
   // tally — every time a toast appears or expires. Read it through a ref.
@@ -332,10 +335,17 @@ export default function ReviewQueuePage() {
     const at = cursor;
     setBusy(true);
     try {
-      await api.post(
-        `/questions/${item.id}/${action === 'approved' ? 'approve' : 'reject'}`,
-        action === 'approved' && opts.allowSimilarityFailure ? { allowSimilarityFailure: true } : undefined
-      );
+      const body = action === 'approved'
+        ? { ...(opts.allowSimilarityFailure ? { allowSimilarityFailure: true } : {}), ...(opts.confirmKnowledge ? { confirmKnowledge: true } : {}) }
+        : {};
+      try {
+        await api.post(`/questions/${item.id}/${action === 'approved' ? 'approve' : 'reject'}`, Object.keys(body).length ? body : undefined);
+      } catch (err) {
+        // AI-knowledge answers need the instructor's explicit confirmation.
+        if (action !== 'approved' || opts.confirmKnowledge || !needsKnowledgeConfirm(err)) throw err;
+        if (!await confirmKnowledge(confirm)) return;
+        await api.post(`/questions/${item.id}/approve`, { ...body, confirmKnowledge: true });
+      }
       const bypassed = action === 'approved' && opts.allowSimilarityFailure === true;
       const next = { ...decisions, [item.id]: action };
       setDecisions(next);
@@ -354,7 +364,7 @@ export default function ReviewQueuePage() {
     } finally {
       setBusy(false);
     }
-  }, [current, cursor, busy, decisions, queue, similarityReady]);
+  }, [current, cursor, busy, decisions, queue, similarityReady, confirm]);
 
   const retrySimilarity = useCallback(async () => {
     if (!current || busy) return;
@@ -506,7 +516,12 @@ export default function ReviewQueuePage() {
     if (ids.length === 0) return;
     setBusy(true);
     try {
-      const res = await api.post('/questions/bulk-approve', { ids, allowSimilarityFailure: includeFailed });
+      let res = await api.post('/questions/bulk-approve', { ids, allowSimilarityFailure: includeFailed });
+      // AI-knowledge drafts wait for the instructor's answer confirmation.
+      if (res?.knowledgeIds?.length && await confirmKnowledge(confirm, res.knowledgeIds.length)) {
+        const more = await api.post('/questions/bulk-approve', { ids: res.knowledgeIds, allowSimilarityFailure: includeFailed, confirmKnowledge: true });
+        res = { ...res, approved: (res.approved || 0) + (more?.approved || 0), approvedIds: [...(res.approvedIds || []), ...(more?.approvedIds || [])], knowledgeIds: more?.knowledgeIds };
+      }
       const count = typeof res?.approved === 'number' ? res.approved : ids.length;
       // Only mark ids the server actually approved — when it returns none
       // (all were already active), blindly marking the whole set is what made
@@ -521,7 +536,9 @@ export default function ReviewQueuePage() {
       // rather than left pointing at a decision that is no longer the last one.
       setLastAction(null);
       setEditing(null);
-      if (count === 0) {
+      if (count === 0 && res?.knowledgeIds?.length && !approvedIds.length) {
+        toastRef.current.info(`${res.knowledgeIds.length} AI-knowledge question${res.knowledgeIds.length === 1 ? '' : 's'} still need${res.knowledgeIds.length === 1 ? 's' : ''} your answer confirmation.`);
+      } else if (count === 0) {
         // The ids went out already-approved (e.g. a second click after the
         // queue cleared) — say so, then resync the queue to server truth.
         toastRef.current.info('Already approved — nothing left to do.');
@@ -810,7 +827,7 @@ export default function ReviewQueuePage() {
                     </span>
                   )}
                   <span className="rv-chip rv-chip-source">
-                    {current.source === 'ai' ? 'AI-generated' : current.source === 'import' ? 'Imported' : 'Manual'}
+                    {isKnowledgeQuestion(current) ? 'AI knowledge — verify the answer' : current.source === 'ai' ? 'AI-generated' : current.source === 'import' ? 'Imported' : 'Manual'}
                   </span>
                 </div>
 
@@ -877,7 +894,7 @@ export default function ReviewQueuePage() {
                         <RichText as="p" text={current.explanation} />
                       </div>
                     )}
-                    {current.source === 'ai' && <EvidenceViewer key={current.id} question={current} />}
+                    {current.source === 'ai' && <EvidenceViewer key={current.id} question={current} onChecked={reload} />}
                     {!PUT_SAFE_TYPES.has(current.type) && (
                       <p className="rv-note">
                         Matching items can't be edited from here — saving would drop their premise list.

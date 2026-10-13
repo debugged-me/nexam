@@ -402,7 +402,7 @@ export default function TosDetailPage() {
       const k = q.title.trim().toLowerCase();
       const ex = map.get(k);
       if (ex) ex.count = q.question_count;
-      else map.set(k, { title: q.title, instructional_hours: 3, learning_outcomes: [], blueprint: null, count: q.question_count });
+      else map.set(k, { title: q.title, instructional_hours: 0, learning_outcomes: [], blueprint: null, count: q.question_count });
     }
     return [...map.values()].sort((a, b) => (b.count - a.count) || a.title.localeCompare(b.title));
   }, [suggestions, id]);
@@ -414,7 +414,7 @@ export default function TosDetailPage() {
     try {
       await api.post(`/tos/${id}/topics`, {
         title: topic.title,
-        instructional_hours: Number(topic.instructional_hours) || 3,
+        instructional_hours: Number(topic.instructional_hours) || 0,
         learning_outcomes: Array.isArray(outcomes) ? outcomes : [],
       });
       // Drop the suggestion optimistically so the same topic can't be added twice.
@@ -444,9 +444,11 @@ export default function TosDetailPage() {
   }
 
   async function handleFinalize() {
+    const sourceMeta = parseScope(tos.source_meta);
+    if (sourceMeta && !await confirm('Confirm that you reviewed the syllabus topics and outcomes, proposed teaching hours, item count and Bloom allocation. Planning defaults are not syllabus facts.', { title: 'Confirm syllabus blueprint', confirmText: 'Confirm and finalize', danger: false, icon: Lock, tone: 'accent' })) return;
     setFinalizing(true);
     try {
-      await api.post(`/tos/${id}/finalize`);
+      await api.post(`/tos/${id}/finalize`, { confirmAssumptions: Boolean(sourceMeta) });
       toast.success('TOS finalized. Its structure is now locked and question generation is enabled.');
       celebrate();
       await load();
@@ -550,7 +552,7 @@ export default function TosDetailPage() {
   if (!data) return <AppShell pageClass="blueprint-detail" activeNav="tos" pageTitle="Blueprint"><CardsSkeleton tiles={3} /></AppShell>;
   const { tos, topics, coverage = {}, usage = { exams: 0, scans: 0 } } = data;
   const finalized = tos.status === 'finalized';
-  const totalHours = topics.reduce((s, t) => s + (Number(t.instructional_hours) || 0), 0);
+  const totalHours = Number(topics.reduce((s, t) => s + (Number(t.instructional_hours) || 0), 0).toFixed(2));
 
   // Live questions already banked for a topic × Bloom cell (drafts + approved;
   // rejected never counts — same rule the generation worker applies).
@@ -681,6 +683,15 @@ export default function TosDetailPage() {
       <div data-tour="tos-workflow">
         <StageRail steps={railSteps} />
       </div>
+
+      {tos.source_meta && <section className="card mb-2" aria-label="Syllabus source and planning assumptions">
+        <div className="card-header"><h2 className="card-title">Syllabus source and planning assumptions</h2></div>
+        <div className="card-body">
+          {parseScope(tos.source_meta)?.courseHours && <p><strong>{parseScope(tos.source_meta).courseHours.value} course hours stated in the syllabus.</strong> “{parseScope(tos.source_meta).courseHours.evidence}”</p>}
+          <ul>{(parseScope(tos.source_meta)?.warnings || []).map((warning) => <li key={warning}>{warning}</li>)}</ul>
+          <p>A syllabus is sufficient to build this blueprint. Factual questions need substantive supporting content; an outline alone may not provide it.</p>
+        </div>
+      </section>}
 
       <AssessmentCoverage key={tos.id} tos={tos} topics={topics} onSaved={load} />
 
@@ -963,7 +974,7 @@ export default function TosDetailPage() {
                       </td>
                       <td>
                         {editing ? (
-                          <input type="number" className="form-control tos-edit-hours" min={0} max={1000} disabled={savingEdit}
+                          <input type="number" className="form-control tos-edit-hours" min={0} max={10000} step={0.01} disabled={savingEdit}
                             aria-label="Instructional hours"
                             value={editDraft.instructional_hours}
                             onKeyDown={(e) => onEditKeyDown(e, tp.id)}
@@ -1040,7 +1051,7 @@ export default function TosDetailPage() {
               </div>
               <div className="inline-form-fixed">
                 <label className="form-label" htmlFor="topic_hours">Instructional Hours</label>
-                <input type="number" id="topic_hours" className="form-control" min={0} max={1000} value={newTopic.instructional_hours}
+                <input type="number" id="topic_hours" className="form-control" min={0} max={10000} step={0.01} value={newTopic.instructional_hours}
                   onChange={(e) => setNewTopic({ ...newTopic, instructional_hours: Number(e.target.value) })} />
               </div>
               <button type="submit" className="btn btn-primary" disabled={savingTopic}>

@@ -38,8 +38,11 @@ Other contracts:
 - Exam assembly must exactly satisfy the finalized topic-by-Bloom matrix.
 - Generated output is exactly Set A and Set B, with answer keys, TOS reports,
   QR-linked OMR sheets, GIFT, and Canvas/QTI XML.
-- Every AI draft must cite an exact evidence span found in its retrieved
-  chunks. Missing or stale grounding fails closed and blocks approval.
+- Every AI draft is either **grounded** (cites an exact evidence span from
+  its retrieved lesson chunks) or **knowledge** (no uploaded lesson covers
+  the cell; see *Syllabus blueprints & AI question quality*). Both carry a
+  review proof; a missing or stale proof fails closed and blocks approval,
+  bank reuse, coverage counts, exam assembly and download/export.
 - The institution similarity index contains approved questions only. Material
   retrieval indices remain private and subject-scoped.
 
@@ -97,13 +100,51 @@ QR payload: `{ v, examId, setId, set, count, types[] }`.
 - Tokens are stored in Flutter secure storage. Never put secrets in Vite env
   vars.
 
+## Syllabus blueprints & AI question quality
+
+- A syllabus alone drafts the blueprint. `extract.js` enqueues `syllabus_tos`
+  (deduped by material + content hash) beside `embed`; drafting reads
+  `materials.content` and never waits on indexing. Only question generation
+  needs the index — wizard stages come from `pipelineStage()`
+  (`services/pipelineStage.js`).
+- `prepareSyllabusBlueprint()` (`services/syllabusBlueprint.js`) keeps only
+  topics verifiable in the syllabus text (case/dash/quote tolerant, "Parent —
+  sub-item" allowed); unverifiable AI topics are left out and listed in
+  `tos.source_meta.warnings`, never silently. Hours are never invented:
+  per-topic hours need verbatim evidence; otherwise a stated course total
+  (e.g. "54 hours per semester") is split as *proposed* hours. Item count and
+  Bloom weights are planning defaults. Finalizing a blueprint with
+  `source_meta` requires `{ confirmAssumptions: true }`, an unchanged source
+  hash, and hours summing to the stated total.
+- The syllabus plans coverage; it is never answer evidence. Generation
+  retrieves lesson chunks only (`retrieve(..., { lessonsOnly: true })`).
+  Cells no lesson supports are drafted from the model's general knowledge
+  (`grounding: 'knowledge'`, guided by topic + syllabus outcomes), unless the
+  `knowledge_fallback_enabled` setting is 0. `create` cells are refused.
+- Every draft passes `isValidGeneratedQuestion`, `canonicalDraft` (stored
+  form == hashed form), `instructionalBlockReason` (no course-admin/outline
+  questions, no bare topic-heading evidence) and an independent review run on
+  a different provider than the drafter (`avoidProvider`): `reviewQuestion`
+  (source support) or `reviewKnowledgeQuestion` (factual correctness). Its
+  verdict must match the requested Bloom exactly.
+- The proof lives in `generation_meta.quality`; `qualityBlockReason()`
+  re-verifies it with no AI calls. Any edit or source change invalidates it —
+  `POST /questions/:id/recheck` re-runs the check. Knowledge drafts are
+  labelled in the UI and every approval path (single, bulk, PUT) requires
+  `{ confirmKnowledge: true }` (409 `knowledge_confirmation_required`);
+  the confirmation is stored as `generation_meta.instructorConfirmation`.
+- Metrics say "review acceptance" and "processing success" — instructor
+  decisions and completion rates, not accuracy.
+
 ## Schema
 
 `api/src/config/schema.js` (`ensureSchema`) creates missing tables and
 columns at boot and converges types safely. Add new tables/columns there so
 existing installs upgrade automatically — don't rely on a fresh
 `schema.sql` import. Tables added this way include `password_reset_tokens`,
-`audit_log`, `login_logs`, captcha/AI settings, and `users.theme`.
+`audit_log`, `login_logs`, captcha/AI settings, `users.theme`, and
+`tos.source_meta`. `tos_topics.instructional_hours` is `DECIMAL(8,2)`, which
+mysql2 returns as a string (`'3.00'`) — always wrap it in `Number()`.
 
 ## Vector search & similarity
 

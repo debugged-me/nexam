@@ -57,6 +57,11 @@ async function extractDocx(filePath) {
   const { value: html } = await mammoth.convertToHtml({ buffer });
   if (!html || !html.trim()) throw new Error('No text found in this DOCX file.');
 
+  return docxHtmlToText(html);
+}
+
+/** Pure serializer, shared by DOCX extraction and regression tests. */
+export function docxHtmlToText(html) {
   const $ = cheerio.load(`<div id="nexam-docx-root">${html}</div>`);
   const cellLines = (cell) => {
     const blocks = $(cell).find('p, li').map((_, el) => {
@@ -80,20 +85,36 @@ async function extractDocx(filePath) {
     // .each(), not .map() — cheerio flattens mapped arrays, which would
     // merge every cell back into the interleaved soup we're avoiding.
     const rows = [];
-    node.find('tr').each((_, tr) => {
+    node.find('tr').filter((_, tr) => $(tr).closest('table')[0] === el).each((_, tr) => {
       const cells = [];
-      $(tr).find('th,td').each((_, c) => cells.push(cellLines(c)));
+      $(tr).children('th,td').each((_, c) => {
+        const span = Math.max(1, Number($(c).attr('colspan')) || 1);
+        cells.push({ lines: cellLines(c), span, rowspan: Number($(c).attr('rowspan')) || 1 });
+      });
       rows.push(cells);
     });
-    const header = rows.length > 1 && rows[0].length >= 3 && rows[0].every((h) => h.length && h.join(' ').length <= 60)
-      ? rows[0].map((h) => h.join(' ')) : null;
-    for (const cells of rows.slice(header ? 1 : 0)) {
-      if (!cells.some((c) => c.length)) continue;
-      if (cells.length === 1) { lines.push(...cells[0]); continue; }
-      if (!header) { lines.push(cells.map((c) => c.join(' ')).filter(Boolean).join(' | ')); continue; }
-      cells.forEach((cell, i) => {
-        cell.forEach((line, j) => lines.push(j === 0 && header[i] ? `${header[i]}: ${line}` : line));
-      });
+    const first = rows[0] || [];
+    const width = first.reduce((n, c) => n + c.span, 0);
+    const header = rows.length > 1 && first.length >= 3
+      && first.every((c) => c.lines.length && c.lines.join(' ').length <= 60 && c.rowspan === 1)
+      ? first.flatMap((c) => Array(c.span).fill(c.lines.join(' '))) : null;
+    // Vertical merges are emitted without inferred column labels: guessing
+    // their alignment would attach facts to the wrong heading.
+    const hasVerticalMerge = rows.some((r) => r.some((c) => c.rowspan > 1));
+    for (const cells of rows.slice(header && !hasVerticalMerge ? 1 : 0)) {
+      if (!cells.some((c) => c.lines.length)) continue;
+      lines.push('');
+      if (cells.length === 1) { lines.push(...cells[0].lines); continue; }
+      if (!header || hasVerticalMerge || cells.reduce((n, c) => n + c.span, 0) !== width) {
+        lines.push(cells.map((c) => c.lines.join('\n')).filter(Boolean).join(' | '));
+        continue;
+      }
+      let column = 0;
+      for (const cell of cells) {
+        const label = [...new Set(header.slice(column, column + cell.span))].join(' / ');
+        cell.lines.forEach((line, j) => lines.push(j === 0 ? `${label}: ${line}` : line));
+        column += cell.span;
+      }
     }
   });
 

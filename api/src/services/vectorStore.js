@@ -372,6 +372,35 @@ export async function addChunks(subjectId, chunks) {
 }
 
 /**
+ * Index the chunks each provider space does not hold yet. Re-running a
+ * material's indexing after a failure never duplicates entries, and an upload
+ * embeds only its own chunks. Entries of replaced chunks stay inert (searches
+ * are filtered to current SQL ids) until the reconcile sweep rebuilds.
+ * Throws when no provider space could be written.
+ */
+export async function addMissingChunks(subjectId, chunks) {
+  const dirs = { gemini: chunksDir(subjectId), local: chunksDir(subjectId, 'local') };
+  let written = false;
+  let firstError = null;
+  for (const provider of PROVIDERS) {
+    const present = await indexIds(dirs[provider]);
+    const docs = chunks.filter((c) => !present?.has(c.id)).map((c) => new Document({
+      pageContent: c.text,
+      metadata: { id: c.id, materialId: c.materialId, ordinal: c.ordinal },
+    }));
+    if (!docs.length) { written = true; continue; }
+    try {
+      await writeDocs(dirs[provider], docs, await embeddingsFor(provider));
+      written = true;
+    } catch (err) {
+      firstError = firstError || err;
+      console.warn(`[vectorStore] ${provider} chunk index write failed: ${err.message}`);
+    }
+  }
+  if (!written) throw firstError || new Error('No chunk index could be written.');
+}
+
+/**
  * Search the subject's chunk index for the top-k most similar chunks.
  * Prefers the Gemini index; falls back to the local mirror when Gemini
  * embeddings are unavailable (or only the mirror exists).

@@ -197,7 +197,8 @@ router.get('/summary', requireAuth, async (req, res, next) => {
          AND created_by = :userId
          AND ai_predicted_bloom IS NOT NULL
          AND bloom IS NOT NULL
-         AND status IN ('active', 'rejected')`,
+         AND status = 'active'
+         AND JSON_EXTRACT(generation_meta, '$.quality.version') = 1`,
       { userId }
     );
 
@@ -209,7 +210,8 @@ router.get('/summary', requireAuth, async (req, res, next) => {
         approved,
         rejected,
         pending: parseInt(gen.pending, 10) || 0,
-        precision: parseFloat(genPrecision.toFixed(4)),
+        reviewAcceptanceRate: parseFloat(genPrecision.toFixed(4)),
+        precision: parseFloat(genPrecision.toFixed(4)), // Legacy API alias; not factual accuracy.
         // Recall can't be computed without ground truth of all possible good questions
         // We use approval rate as a proxy for generation quality
         approvalRate: totalGen > 0 ? parseFloat((approved / totalGen).toFixed(4)) : 0,
@@ -225,7 +227,8 @@ router.get('/summary', requireAuth, async (req, res, next) => {
         processed,
         failed,
         pending: ext.pending || 0,
-        accuracy: parseFloat(extAccuracy.toFixed(4)),
+        processingSuccessRate: parseFloat(extAccuracy.toFixed(4)),
+        accuracy: parseFloat(extAccuracy.toFixed(4)), // Legacy API alias; measures completion only.
       },
       providers: providerStats,
       bloomDistribution: bloomDist,
@@ -391,7 +394,8 @@ router.get('/confusion-matrix', requireAuth, async (req, res, next) => {
          AND created_by = :userId
          AND ai_predicted_bloom IS NOT NULL
          AND bloom IS NOT NULL
-         AND status IN ('active', 'rejected')`,
+         AND status = 'active'
+         AND JSON_EXTRACT(generation_meta, '$.quality.version') = 1`,
       { userId }
     );
 

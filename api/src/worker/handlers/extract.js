@@ -10,6 +10,7 @@
  */
 import pool from '../../config/db.js';
 import { extract } from '../../services/extractors.js';
+import { sourceHash } from '../../services/syllabusBlueprint.js';
 import { enqueue } from '../../services/jobs.js';
 
 export default async function extractHandler(job) {
@@ -33,6 +34,30 @@ export default async function extractHandler(job) {
       { id: materialId, content: text }
     );
 
+    // Blueprint planning uses the extracted syllabus itself and must not wait
+    // for vector indexing or require separate lesson uploads.
+    // An unchanged re-extraction is not re-drafted. A queueing failure must
+    // not mark a successful extraction failed — the instructor can still
+    // scan the syllabus from the blueprint page.
+    let tosJobId = null;
+    if (material.is_syllabus) {
+      try {
+        const contentHash = sourceHash(text);
+        const [[previous]] = await pool.query(
+          `SELECT id FROM ai_jobs WHERE type = 'syllabus_tos' AND subject_id = :sid
+           AND JSON_UNQUOTE(JSON_EXTRACT(payload, '$.materialId')) = :id
+           AND JSON_UNQUOTE(JSON_EXTRACT(payload, '$.contentHash')) = :hash
+           AND status IN ('queued', 'running', 'done') LIMIT 1`,
+          { sid: material.subject_id, id: materialId, hash: contentHash });
+        if (!previous) tosJobId = await enqueue({
+          type: 'syllabus_tos', payload: { materialId, userId: material.created_by, contentHash },
+          userId: material.created_by, subjectId: material.subject_id,
+        });
+      } catch (err) {
+        console.warn(`[worker] Could not queue blueprint drafting for material ${materialId}: ${err.message}`);
+      }
+    }
+
     // Auto-enqueue embedding so the pipeline continues hands-free.
     const embedJobId = await enqueue({
       type: 'embed',
@@ -41,7 +66,7 @@ export default async function extractHandler(job) {
       subjectId: material.subject_id,
     });
 
-    return { materialId, charCount: text.length, embedJobId };
+    return { materialId, charCount: text.length, embedJobId, tosJobId };
   } catch (err) {
     await pool.query(
       `UPDATE materials SET status = 'failed', error = :error WHERE id = :id`,

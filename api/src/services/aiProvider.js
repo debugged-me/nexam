@@ -94,6 +94,8 @@ function parseRetryMs(error) {
  * its cause, or only appear in the message text).
  */
 function providerStatus(error) {
+  const details = `${error?.message || ''} ${error?.error?.code || ''} ${error?.code || ''}`;
+  if (/blocked_api_access|spend(?:ing)?[ _-]*(?:cap|limit)|billing[ _-]*limit/i.test(details)) return 402;
   const direct = Number(error?.status ?? error?.statusCode ?? error?.response?.status ?? error?.cause?.status);
   if (Number.isFinite(direct) && direct) return direct;
   const msg = `${error?.message || ''} ${error?.cause?.message || ''}`;
@@ -108,6 +110,8 @@ function noteKeyFailure(provider, target, error) {
     deadKeys.add(`${provider}\0${target.key}`);
   } else if (status === 404) {
     deadTargets.add(`${provider}\0${target.key}\0${target.model || ''}`);
+  } else if (status === 408) {
+    cooldowns.set(`${provider}\0${target.key}\0${target.model || ''}`, Date.now() + 60000);
   } else if (status === 429) {
     cooldowns.set(`${provider}\0${target.key}\0${target.model || ''}`,
       Date.now() + (parseRetryMs(error) ?? 15 * 60_000));
@@ -127,8 +131,10 @@ function isHealthy(provider, target, now) {
  * failures (404/5xx) rotate to the next target; deterministic errors (bad
  * prompt/schema — identical on every target) throw immediately.
  * Successful object results gain `keyIndex`/`modelIndex` for provenance.
+ * `timeoutMs` (opt-in) aborts a stalled call and rotates to the next target;
+ * embedding batches leave it unset because large rebuilds legitimately run long.
  */
-export async function runPool(provider, targets, call) {
+export async function runPool(provider, targets, call, { timeoutMs = 0 } = {}) {
   const now = Date.now();
   const healthy = targets.filter((t) => isHealthy(provider, t, now));
   if (!healthy.length) {
@@ -139,8 +145,17 @@ export async function runPool(provider, targets, call) {
   let lastError;
   for (const target of healthy) {
     if (!isHealthy(provider, target, Date.now())) continue; // killed mid-walk
+    const controller = new AbortController();
+    let timer;
     try {
-      const result = await call(target);
+      const pending = call(target, controller.signal);
+      const result = timeoutMs > 0 ? await Promise.race([pending, new Promise((_, reject) => {
+        timer = setTimeout(() => {
+          const error = Object.assign(new Error('AI request timed out.'), { status: 408 });
+          reject(error);
+          controller.abort(error);
+        }, timeoutMs);
+      })]) : await pending;
       const extra = {};
       if (target.keyIndex != null) extra.keyIndex = target.keyIndex;
       if (target.modelIndex != null) extra.modelIndex = target.modelIndex;
@@ -152,7 +167,7 @@ export async function runPool(provider, targets, call) {
       const status = providerStatus(error);
       if (!isRetryableAiError(error) && ![401, 402, 403, 404].includes(status)) throw error;
       lastError = error;
-    }
+    } finally { clearTimeout(timer); }
   }
   // Every healthy target failed with a rotate-worthy error — normalize to a
   // 503 so the outer provider chain treats the pool as unavailable.
@@ -161,9 +176,9 @@ export async function runPool(provider, targets, call) {
 }
 
 /** Back-compat wrapper for key-only pools (Groq, embeddings, Ollama). */
-export function runKeyPool(provider, keys, call) {
+export function runKeyPool(provider, keys, call, opts) {
   const targets = keys.map((key, i) => ({ key, keyIndex: i + 1 }));
-  return runPool(provider, targets, (t) => call(t.key));
+  return runPool(provider, targets, (t, signal) => call(t.key, signal), opts);
 }
 
 /**
@@ -173,19 +188,22 @@ export function runKeyPool(provider, keys, call) {
  *
  * @param {string} systemPrompt
  * @param {string} userPrompt
- * @param {object} opts — { jsonSchema?, temperature?, maxTokens? }
+ * @param {object} opts — { jsonSchema?, temperature?, maxTokens?, timeoutMs?, avoidProvider? }
  * @returns {Promise<{text:string, provider:string, model:string, usage:object|null}>}
  */
 export async function generate(systemPrompt, userPrompt, opts = {}) {
   const cfg = await getAiConfig();
   const {
     jsonSchema = null,
+    timeoutMs = 90000,
     temperature = env.ai.generation.temperature,
     maxTokens = env.ai.generation.maxTokens,
+    avoidProvider = null,
   } = opts;
 
-  return runGenerationFallback([
+  const providers = [
     {
+      id: 'gemini',
       name: 'Gemini',
       configured: Boolean(cfg.gemini.keys.length),
       generate: () => {
@@ -198,7 +216,7 @@ export async function generate(systemPrompt, userPrompt, opts = {}) {
             targets.push({ key, model, keyIndex: k + 1, modelIndex: m + 1 });
           }
         }
-        return runPool('gemini', targets, async ({ key, model: modelName }) => {
+        return runPool('gemini', targets, async ({ key, model: modelName }, signal) => {
           // Build the model with per-call overrides if needed
           let model = getGeminiChat(cfg, key, modelName);
           if (temperature !== env.ai.generation.temperature || maxTokens !== env.ai.generation.maxTokens) {
@@ -225,7 +243,7 @@ export async function generate(systemPrompt, userPrompt, opts = {}) {
             messages[0] = new SystemMessage(systemPrompt + schemaHint);
           }
 
-          const response = await model.invoke(messages);
+          const response = await model.invoke(messages, { signal });
           let text = typeof response.content === 'string'
             ? response.content
             : Array.isArray(response.content)
@@ -244,14 +262,15 @@ export async function generate(systemPrompt, userPrompt, opts = {}) {
             model: modelName,
             usage: response.usage_metadata || response.additional_kwargs?.usage || null,
           };
-        });
+        }, { timeoutMs });
       },
     },
 
     {
+      id: 'groq',
       name: 'Groq',
       configured: Boolean(cfg.groq.keys.length),
-      generate: () => runKeyPool('groq', cfg.groq.keys, async (key) => {
+      generate: () => runKeyPool('groq', cfg.groq.keys, async (key, signal) => {
         const completion = await getGroq(cfg, key).chat.completions.create({
           model: cfg.groq.model,
           messages: [
@@ -261,7 +280,7 @@ export async function generate(systemPrompt, userPrompt, opts = {}) {
           temperature,
           max_tokens: maxTokens,
           response_format: jsonSchema ? { type: 'json_object' } : undefined,
-        });
+        }, { signal, timeout: timeoutMs });
 
         const text = completion.choices[0]?.message?.content || '';
         return {
@@ -274,14 +293,21 @@ export async function generate(systemPrompt, userPrompt, opts = {}) {
             totalTokens: completion.usage.total_tokens,
           } : null,
         };
-      }),
+      }, { timeoutMs }),
     },
     {
+      id: 'ollama',
       name: 'Ollama Cloud',
       configured: Boolean(cfg.ollama.apiKey),
-      generate: () => generateOllamaCloud(cfg.ollama, systemPrompt, userPrompt, { jsonSchema, temperature, maxTokens }),
+      generate: () => generateOllamaCloud(cfg.ollama, systemPrompt, userPrompt, { jsonSchema, temperature, maxTokens, timeoutMs }),
     },
-  ]);
+  ];
+  // An independent check (e.g. reviewing a draft) tries the other providers
+  // first and only falls back to the drafting provider when they are down.
+  const ordered = avoidProvider
+    ? [...providers.filter((p) => p.id !== avoidProvider), ...providers.filter((p) => p.id === avoidProvider)]
+    : providers;
+  return runGenerationFallback(ordered);
 }
 
 /**

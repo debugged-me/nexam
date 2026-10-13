@@ -51,7 +51,11 @@ function DraftPeek({ draft }) {
           <Quote size={11} aria-hidden="true" /> {draft.evidence}
         </blockquote>
       )}
-      <p className="gs-peek-note">Draft — approve or edit it in the Review Queue.</p>
+      <p className="gs-peek-note">
+        {draft.grounding === 'knowledge'
+          ? 'Draft from AI knowledge, not your materials — confirm the answer when you approve it in the Review Queue.'
+          : 'Draft — approve or edit it in the Review Queue.'}
+      </p>
     </div>
   );
 }
@@ -76,8 +80,10 @@ export default function GenerationStream({ jobId, reviewHref, onSettled, onDismi
   const slot = progress?.lastSlot;
   const failedSlots = Array.isArray(result?.failedSlots) ? result.failedSlots : [];
 
+  const knowledgeDrafts = Number(result?.knowledgeDrafted) || drafts.filter((d) => d.grounding === 'knowledge').length;
   const counts = [
     drafts.length && `${drafts.length} drafted`,
+    knowledgeDrafts > 0 && `${knowledgeDrafts} from AI knowledge — confirm their answers`,
     Number(progress?.adopted ?? result?.adopted) > 0 && `${progress?.adopted ?? result?.adopted} reused from the bank`,
     Number(progress?.skipped ?? result?.skippedCells) > 0 && `${progress?.skipped ?? result?.skippedCells} cells already covered`,
   ].filter(Boolean);
@@ -97,7 +103,9 @@ export default function GenerationStream({ jobId, reviewHref, onSettled, onDismi
               ? <>Drafting <b>{slot.topic}</b> · {BLOOM_LABELS[slot.bloom] || slot.bloom}{total ? ` · cell ${Math.min(done + 1, total)} of ${total}` : ''}</>
               : active ? 'Preparing the blueprint matrix…'
               : status === 'failed' ? (feed.error || 'The run stopped with an error. Drafts already stored are kept.')
-              : counts.length ? counts.join(' · ') : 'No new drafts were needed.'}
+              : counts.length ? counts.join(' · ')
+              : failedSlots.length ? `No drafts saved — ${failedSlots.length} cell${failedSlots.length === 1 ? '' : 's'} could not be supported. See why below.`
+              : 'No new drafts were needed.'}
           </span>
         </div>
         <div className="gs-actions">
@@ -163,7 +171,7 @@ export default function GenerationStream({ jobId, reviewHref, onSettled, onDismi
       )}
 
       {!active && failedSlots.length > 0 && (
-        <details className="gs-failed">
+        <details className="gs-failed" open={!drafts.length}>
           <summary>{failedSlots.length} cell{failedSlots.length === 1 ? '' : 's'} could not be filled</summary>
           <ul>
             {failedSlots.map((f, i) => (

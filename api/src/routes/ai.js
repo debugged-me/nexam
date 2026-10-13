@@ -16,6 +16,7 @@ import { parseTimeFrame } from '../services/assessmentScope.js';
 import { loadScopeChunks } from '../services/assessmentScopeStore.js';
 import aiProvider from '../services/aiProvider.js';
 import jobs from '../services/jobs.js';
+import { pipelineStage } from '../services/pipelineStage.js';
 import pool from '../config/db.js';
 import { requireAuth } from '../middleware/auth.js';
 import { rateLimit } from '../middleware/rateLimit.js';
@@ -386,7 +387,8 @@ router.get('/pipeline/:subjectId', requireAuth, async (req, res, next) => {
 
     // 2. Recent jobs for this subject (extract, embed, syllabus_tos, generate)
     const [jobRows] = await pool.query(
-      `SELECT id, type, status, error, created_at, started_at, finished_at, result
+      `SELECT id, type, status, error, created_at, started_at, finished_at, result,
+              JSON_UNQUOTE(JSON_EXTRACT(payload, '$.materialId')) AS material_id
        FROM ai_jobs
        WHERE subject_id = :id
        ORDER BY created_at DESC
@@ -431,30 +433,7 @@ router.get('/pipeline/:subjectId', requireAuth, async (req, res, next) => {
     );
     const exam = examRows[0] || null;
 
-    // Determine the current stage
-    let stage = 'upload'; // default
-    if (syllabus && syllabus.status === 'pending') stage = 'extracting';
-    else if (syllabus && syllabus.status === 'processing') stage = 'extracting';
-    else if (syllabus && syllabus.status === 'failed') stage = 'extract_failed';
-    else if (syllabus && syllabus.status === 'processed') {
-      if (embedJob && embedJob.status === 'running') stage = 'embedding';
-      else if (embedJob && embedJob.status === 'queued') stage = 'embedding';
-      else if (embedJob && embedJob.status === 'failed') stage = 'embed_failed';
-      else if (tosJob && tosJob.status === 'queued') stage = 'tos_generating';
-      else if (tosJob && tosJob.status === 'running') stage = 'tos_generating';
-      else if (tosJob && tosJob.status === 'failed') stage = 'tos_failed';
-      else if (tos) {
-        if (tos.status !== 'finalized') stage = 'tos_review';
-        else if (generateJob && generateJob.status === 'queued') stage = 'question_generating';
-        else if (generateJob && generateJob.status === 'running') stage = 'question_generating';
-        else if (generateJob && generateJob.status === 'failed') stage = 'generate_failed';
-        else if (generateJob && generateJob.status === 'done') {
-          if (Number(questionStats.draft) > 0) stage = 'review';
-          else if (Number(questionStats.approved) > 0) stage = 'exam_ready';
-          else stage = 'review';
-        } else stage = 'ready_to_generate';
-      } else stage = 'processed';
-    }
+    const stage = pipelineStage({ syllabus, embedJob, tosJob, generateJob, tos, questionStats });
 
     // Show instructors a friendly error, never raw provider JSON.
     const friendly = (j) => (j && j.error

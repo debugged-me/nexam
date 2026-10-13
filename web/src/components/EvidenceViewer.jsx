@@ -9,18 +9,25 @@
  * returns those passages from the instructor's own materials. The quote gets
  * a status badge up front; "Show in source" reveals the passage with the
  * span highlighted, windowed around the match until expanded.
+ *
+ * AI-knowledge drafts have no source passage: they were written from the
+ * model's general knowledge because no uploaded lesson covered their cell,
+ * and a second provider fact-checked them. A blocked draft (edited, source
+ * changed, or older than the check) can re-run the AI check in place.
  */
 import { useEffect, useRef, useState } from 'react';
-import { AlertTriangle, ChevronDown, FileText, Quote, ShieldCheck, ShieldX } from 'lucide-react';
-import api from '../lib/api.js';
+import { AlertTriangle, BookCheck, ChevronDown, FileText, Quote, RefreshCw, ShieldCheck, ShieldX } from 'lucide-react';
+import api, { ApiError } from '../lib/api.js';
 
 const WINDOW = 260; // characters of context kept on each side of the match
 
 const STATUS = {
-  verified: { tone: 'ok', icon: ShieldCheck, label: 'Found in source' },
+  verified: { tone: 'ok', icon: ShieldCheck, label: 'Source current · AI review passed' },
+  review_required: { tone: 'warn', icon: AlertTriangle, label: 'Quote located · quality review required' },
   not_found: { tone: 'bad', icon: ShieldX, label: 'Not found in source — approval is blocked' },
   stale: { tone: 'warn', icon: AlertTriangle, label: 'Source passages changed — regenerate this draft' },
   no_evidence: { tone: 'bad', icon: ShieldX, label: 'No verifiable evidence — approval is blocked' },
+  knowledge: { tone: 'warn', icon: BookCheck, label: 'AI knowledge · fact-checked · confirm the answer' },
 };
 
 
@@ -52,7 +59,7 @@ function Passage({ passage, defaultOpen }) {
         <span className="ev-passage-title">{passage.title}</span>
         <span className="ev-passage-meta">
           Passage {passage.passage}
-          {passage.score != null && ` · ${Math.round(passage.score * 100)}% relevant`}
+          {passage.score != null && ` · similarity ${passage.score.toFixed(2)}`}
         </span>
       </div>
       <p className="ev-passage-text">
@@ -74,7 +81,7 @@ function Passage({ passage, defaultOpen }) {
 }
 
 /** Render with `key={question.id}` so each draft starts from fresh state. */
-export default function EvidenceViewer({ question }) {
+export default function EvidenceViewer({ question, onChecked }) {
   const path = `/questions/${encodeURIComponent(question.id)}/grounding`;
   // api.peek serves a revisited draft instantly; the client cache is cleared
   // on every token change, so one instructor's passages never seed another's.
@@ -82,6 +89,8 @@ export default function EvidenceViewer({ question }) {
   const [failed, setFailed] = useState(false);
   const [open, setOpen] = useState(false);
   const [quoteOpen, setQuoteOpen] = useState(false);
+  const [rechecking, setRechecking] = useState(false);
+  const [recheck, setRecheck] = useState(null);
 
   useEffect(() => {
     let alive = true;
@@ -91,19 +100,36 @@ export default function EvidenceViewer({ question }) {
     return () => { alive = false; };
   }, [path]);
 
+  async function rerunCheck() {
+    setRechecking(true);
+    setRecheck(null);
+    try {
+      const result = await api.post(`/questions/${encodeURIComponent(question.id)}/recheck`);
+      setRecheck(result);
+      setState(await api.get(path, { quiet: true }));
+      if (result?.passed) onChecked?.();
+    } catch (err) {
+      setRecheck({ passed: false, reason: err instanceof ApiError ? err.message : 'The AI check could not run.' });
+    } finally {
+      setRechecking(false);
+    }
+  }
+
   const evidence = question.ai_evidence || state?.evidence || '';
   const status = state ? STATUS[state.status] : null;
   const passages = state?.passages || [];
   const matched = passages.filter((p) => p.match);
   const others = passages.filter((p) => !p.match);
   const quoteLong = evidence.length > 240;
+  const knowledge = Boolean(state?.knowledge);
+  const review = state?.qualityReview;
 
   return (
     <div className="ev" data-tour="review-evidence">
       <div className="ev-head">
         <span className="ev-label">
-          <Quote size={11} aria-hidden="true" /> Cited evidence
-          {question.ai_source ? ` · ${question.ai_source}` : ''}
+          <Quote size={11} aria-hidden="true" /> {knowledge ? 'Answer source' : 'Cited evidence'}
+          {!knowledge && question.ai_source ? ` · ${question.ai_source}` : ''}
         </span>
         {status && (
           <span className="ev-status" data-tone={status.tone}>
@@ -113,6 +139,26 @@ export default function EvidenceViewer({ question }) {
         {!state && !failed && <span className="ev-status is-loading">Checking source…</span>}
       </div>
 
+      {knowledge && (
+        <p className="ev-note">
+          Written from AI knowledge because no uploaded lesson covers this blueprint cell — it is not quoted from your materials.
+          {state.reviewedBy?.provider ? ` A second AI (${state.reviewedBy.provider}) fact-checked it.` : ''}
+          {' '}Check the answer against your lesson or textbook; approval asks you to confirm it.
+        </p>
+      )}
+      {state?.reviewBlock && <p className="ev-note">{state.reviewBlock}</p>}
+      {state?.verified && !knowledge && <p className="ev-note">An AI review checked answer support, topic, format and Bloom level. Confirm these yourself before approval.</p>}
+      {review?.reason && state?.verified && <p className="ev-note">Reviewer: {review.reason}</p>}
+      {state?.reviewBlock && question.status !== 'rejected' && (
+        <button type="button" className="ev-linkbtn" onClick={rerunCheck} disabled={rechecking}>
+          <RefreshCw size={12} aria-hidden="true" /> {rechecking ? 'Re-running the AI check…' : 'Re-run AI check'}
+        </button>
+      )}
+      {recheck && (
+        <p className="ev-note" role="status">
+          {recheck.passed ? 'The AI check passed. Review the question, then approve it.' : `The AI check did not pass: ${recheck.reason}`}
+        </p>
+      )}
       {evidence && <blockquote className={`ev-quote${quoteOpen ? ' is-open' : ''}`}>{evidence}</blockquote>}
       {quoteLong && (
         <button type="button" className="ev-linkbtn" onClick={() => setQuoteOpen((v) => !v)} aria-expanded={quoteOpen}>
@@ -130,9 +176,6 @@ export default function EvidenceViewer({ question }) {
       {open && (
         <div className="ev-sources">
           {matched.map((p, i) => <Passage key={p.id} passage={p} defaultOpen={i === 0} />)}
-          {!matched.length && state?.status === 'verified' && (
-            <p className="ev-note">The quote runs across two neighbouring passages, so no single passage holds all of it.</p>
-          )}
           {others.length > 0 && (
             <details className="ev-others" open={!matched.length}>
               <summary>{matched.length ? `${others.length} other passage${others.length === 1 ? '' : 's'} the model saw` : 'Passages the model saw'}</summary>

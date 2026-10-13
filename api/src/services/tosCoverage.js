@@ -9,6 +9,7 @@
  */
 import pool from '../config/db.js';
 import { buildTosMatrix, slotGap } from './tosAlignment.js';
+import { usableQuestions } from './questionGrounding.js';
 import { questionScopeSql } from './assessmentScope.js';
 
 const parseWeights = (w) => (typeof w === 'string' ? JSON.parse(w || '{}') : w || {});
@@ -31,10 +32,8 @@ export async function blueprintCoverage(userId, tosList) {
      WHERE tos_id IN (:ids) ORDER BY tos_id, sort_order ASC`,
     { ids }
   );
-  const [haveRows] = await pool.query(
-    `SELECT links.tos_id, q.topic, q.bloom, COUNT(DISTINCT q.id) AS n,
-       COUNT(DISTINCT CASE WHEN q.status = 'active' AND q.similarity_checked_at IS NOT NULL
-         AND q.similarity_error IS NULL AND q.similarity_flag = 'none' THEN q.id END) AS ready
+  const [candidates] = await pool.query(
+    `SELECT q.*, links.tos_id AS coverage_tos_id
      FROM (
        SELECT q.id AS question_id, q.tos_id AS tos_id FROM questions q
        WHERE q.created_by = :uid AND q.tos_id IN (:ids)
@@ -47,10 +46,11 @@ export async function blueprintCoverage(userId, tosList) {
        AND q.status <> 'rejected'
        AND (q.similarity_flag IS NULL OR q.similarity_flag <> 'rejected')
        AND ${questionScopeSql('links.tos_id')}
-     GROUP BY links.tos_id, q.topic, q.bloom`,
+     `,
     { uid: userId, ids }
   );
 
+  const haveRows = await usableQuestions(candidates);
   const topicsByTos = new Map();
   for (const r of topicRows) {
     if (!topicsByTos.has(r.tos_id)) topicsByTos.set(r.tos_id, []);
@@ -60,9 +60,12 @@ export async function blueprintCoverage(userId, tosList) {
   const readyByTos = new Map();
   for (const r of haveRows) {
     const key = `${r.topic}\u0000${r.bloom}`;
-    if (!haveByTos.has(r.tos_id)) { haveByTos.set(r.tos_id, new Map()); readyByTos.set(r.tos_id, new Map()); }
-    haveByTos.get(r.tos_id).set(key, Number(r.n));
-    readyByTos.get(r.tos_id).set(key, Number(r.ready));
+    const id = r.coverage_tos_id;
+    if (!haveByTos.has(id)) { haveByTos.set(id, new Map()); readyByTos.set(id, new Map()); }
+    haveByTos.get(id).set(key, (haveByTos.get(id).get(key) || 0) + 1);
+    // Same rule as exam assembly (ELIGIBLE_FOR_CELL in routes/exams.js).
+    const ready = r.status === 'active' && r.similarity_flag === 'none' && r.similarity_checked_at && !r.similarity_error;
+    readyByTos.get(id).set(key, (readyByTos.get(id).get(key) || 0) + Number(Boolean(ready)));
   }
 
   const sum = (map) => { let n = 0; for (const v of map.values()) n += v; return n; };

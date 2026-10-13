@@ -26,7 +26,7 @@ const TYPE_LABELS = { mcq: 'Multiple choice', true_false: 'True / false', matchi
 // Two views under the scorecard; ?tab=bloom deep-links the second.
 const TABS = [
   { id: 'generation', label: 'Generation & extraction' },
-  { id: 'bloom', label: 'Bloom classification' },
+  { id: 'bloom', label: 'Bloom review agreement' },
 ];
 
 function pct(v, digits = 1) {
@@ -103,17 +103,18 @@ export default function AiEvalPage() {
       </div>
 
       <div className="dash-kpis mb-3" data-tour="aieval-stats">
-        <KpiCard i={0} icon={Sparkles} tint={3} value={Number(pct(gen.precision))} decimals={1} suffix="%"
-          label="Generation Precision"
+        <KpiCard i={0} icon={Sparkles} tint={3} value={Number(pct(gen.reviewAcceptanceRate))} decimals={1} suffix="%"
+          label="Review Acceptance"
           hint={<><b>{gen.approved || 0}</b> approved of {(gen.approved || 0) + (gen.rejected || 0)} decided</>} />
         <KpiCard i={1} icon={CheckCircle} tint={2} value={Number(pct(gen.approvalRate))} decimals={1} suffix="%"
           label="Approval Rate" hint={`${gen.pending || 0} still pending review`} />
         <KpiCard i={2} icon={CopyCheck} tint={4} value={Number(pct(sim.flagRate))} decimals={1} suffix="%"
           label="Similarity Flag Rate" hint={`of ${gen.totalGenerated || 0} generated drafts`} />
-        <KpiCard i={3} icon={FileSearch} tint={1} value={Number(pct(ext.accuracy))} decimals={1} suffix="%"
-          label="Extraction Accuracy" hint={`${ext.processed || 0} of ${ext.totalMaterials || 0} materials processed`} />
+        <KpiCard i={3} icon={FileSearch} tint={1} value={Number(pct(ext.processingSuccessRate))} decimals={1} suffix="%"
+          label="Processing Success" hint={`${ext.processed || 0} of ${ext.totalMaterials || 0} materials processed`} />
       </div>
 
+      <p className="text-muted mb-2">Processing success measures completed uploads. It does not measure whether every source fact was extracted correctly.</p>
       <div className="ae-tabs" role="tablist" aria-label="Evaluation views">
         {TABS.map((t) => (
           <button
@@ -149,16 +150,16 @@ export default function AiEvalPage() {
                 <tr><td>Approved</td><td className="text-right"><span className="badge badge-green">{gen.approved || 0}</span></td></tr>
                 <tr><td>Rejected</td><td className="text-right"><span className="badge badge-amber">{gen.rejected || 0}</span></td></tr>
                 <tr><td>Pending Review</td><td className="text-right">{gen.pending || 0}</td></tr>
-                <tr><td><strong>Precision</strong></td><td className="text-right"><strong>{pct(gen.precision, 2)}%</strong></td></tr>
+                <tr><td><strong>Review acceptance</strong></td><td className="text-right"><strong>{pct(gen.reviewAcceptanceRate, 2)}%</strong></td></tr>
                 <tr><td><strong>Approval Rate</strong></td><td className="text-right"><strong>{pct(gen.approvalRate, 2)}%</strong></td></tr>
               </tbody>
             </table>
-            <p className="text-muted meta-sm mt-2">Precision = approved / (approved + rejected). A higher precision means the AI generates more usable questions.</p>
+            <p className="text-muted meta-sm mt-2">Review acceptance = approved / (approved + rejected). This measures instructor decisions, not factual accuracy.</p>
           </div>
         </div>
 
         <div className="card">
-          <div className="card-header"><span className="card-title">Material Extraction</span></div>
+          <div className="card-header"><span className="card-title">Material Processing</span></div>
           <div className="card-body">
             <table className="data-table">
               <tbody>
@@ -166,7 +167,7 @@ export default function AiEvalPage() {
                 <tr><td>Processed</td><td className="text-right"><span className="badge badge-green">{ext.processed || 0}</span></td></tr>
                 <tr><td>Failed</td><td className="text-right"><span className="badge badge-red">{ext.failed || 0}</span></td></tr>
                 <tr><td>Pending</td><td className="text-right">{ext.pending || 0}</td></tr>
-                <tr><td><strong>Accuracy</strong></td><td className="text-right"><strong>{pct(ext.accuracy, 2)}%</strong></td></tr>
+                <tr><td><strong>Processing success</strong></td><td className="text-right"><strong>{pct(ext.processingSuccessRate, 2)}%</strong></td></tr>
               </tbody>
             </table>
           </div>
@@ -237,15 +238,15 @@ export default function AiEvalPage() {
           {cm.sampleSize > 0 ? (
             <>
               <div className="dash-kpis mb-3">
-                <KpiCard i={0} icon={Target} tint={3} value={Number(pct(cm.overall?.accuracy))} decimals={1} suffix="%" label="Accuracy" />
+                <KpiCard i={0} icon={Target} tint={3} value={Number(pct(cm.overall?.accuracy))} decimals={1} suffix="%" label="Agreement" />
                 <KpiCard i={1} icon={Crosshair} tint={2} value={Number(pct(cm.overall?.precision))} decimals={1} suffix="%" label="Precision" />
                 <KpiCard i={2} icon={Search} tint={4} value={Number(pct(cm.overall?.recall))} decimals={1} suffix="%" label="Recall" />
                 <KpiCard i={3} icon={GitMerge} tint={1} value={Number(pct(cm.overall?.f1))} decimals={1} suffix="%" label="F1-Score" />
               </div>
 
               <p className="text-muted meta-sm mb-2">
-                Compares the AI's predicted Bloom level against the instructor's confirmed Bloom level for each reviewed question.
-                Diagonal cells (highlighted) are correct predictions; off-diagonal cells are misclassifications.
+                Compares independent AI review labels with instructor-approved labels. Only accepted questions with the new review are included; this selected sample is not an unbiased accuracy evaluation.
+                Diagonal cells show agreement; off-diagonal cells show disagreement.
               </p>
 
               {classes.length > 0 && (
@@ -284,7 +285,7 @@ export default function AiEvalPage() {
                       <thead>
                         <tr>
                           <th>Bloom Level</th><th>TP</th><th>FP</th><th>FN</th><th>TN</th>
-                          <th>Accuracy</th><th>Precision</th><th>Recall</th><th>F1-Score</th>
+                          <th>Agreement</th><th>Precision</th><th>Recall</th><th>F1-Score</th>
                         </tr>
                       </thead>
                       <tbody>

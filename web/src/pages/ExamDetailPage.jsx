@@ -11,7 +11,7 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import {
   Plus, Trash2, FileText, FileCheck, Download, Send, Printer,
   Pencil, Clock, Monitor, QrCode, ScanLine, Sparkles, Copy,
-  Eye, RefreshCw, Shuffle, Search,
+  Eye, RefreshCw, Shuffle, Search, AlertTriangle,
 } from 'lucide-react';
 import { useToast } from '../components/Toast.jsx';
 import EmptyStateArt from '../components/EmptyStateArt.jsx';
@@ -386,6 +386,17 @@ export default function ExamDetailPage() {
 
       <div className="exam-detail-layout">
         <div className="exam-detail-main">
+          {/* Outputs re-verify every AI question's quality review; say why
+              before a download link opens a refusal in a new tab. */}
+          {data.outputBlock && (
+            <div className="callout callout-warning mb-2" role="alert">
+              <span className="callout-icon"><AlertTriangle aria-hidden="true" /></span>
+              <div>
+                <div className="callout-title">Downloads and exports are blocked</div>
+                <div className="callout-detail">{data.outputBlock.message}</div>
+              </div>
+            </div>
+          )}
           {/* The payoff: parallel print packs. One card per set, every artefact a real target. */}
           {showDownloads && (
             <section className="print-packs" id="exam-downloads" aria-label="Generated print packs" data-tour="exam-downloads">

@@ -235,7 +235,9 @@ export async function generateTOSReportPDF(opts) {
     analyze: 'Analyze', evaluate: 'Evaluate', create: 'Create',
   };
 
-  const totalHours = opts.topics.reduce((s, t) => s + (t.instructional_hours || 0), 0);
+  // instructional_hours is DECIMAL(8,2), which mysql2 returns as a string.
+  const hoursOf = (t) => Number(Number(t.instructional_hours || 0).toFixed(2));
+  const totalHours = Number(opts.topics.reduce((s, t) => s + hoursOf(t), 0).toFixed(2));
 
   const bloomRows = opts.actualDistribution.map((dist) => {
     const pct = opts.tos.bloom_weights?.[dist.bloom] || 0;
@@ -252,7 +254,7 @@ export async function generateTOSReportPDF(opts) {
   const topicRows = opts.topics.map((t, i) => `<tr>
     <td>${i + 1}</td>
     <td>${esc(t.title)}</td>
-    <td>${t.instructional_hours || 0}</td>
+    <td>${hoursOf(t)}</td>
     <td>${t.item_count || 0}</td>
   </tr>`).join('\n');
 

@@ -37,7 +37,7 @@ export function syllabusPeriods(text) {
 // Week/Weeks — compare those loosely. Verification itself stays strict.
 const loose = (v) => normalizeText(v).toLowerCase().replace(/\bweeks\b/g, 'week').replace(/\s*[-–—]\s*/g, '-');
 
-function sliceHasTopic(slice, title) {
+export function sliceHasTopic(slice, title) {
   const hay = loose(slice);
   const needle = loose(title);
   if (hay.includes(needle)) return true;

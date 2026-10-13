@@ -23,7 +23,7 @@ export default function AssessmentCoverage({ tos, topics, onSaved }) {
     <div className="assessment-summary">
       {scope ? <><span className={`badge ${reviewed ? 'badge-green' : 'badge-amber'}`}>{reviewed ? 'Coverage confirmed' : 'Review required'}</span>
         <span>{topics.length} topics · {scope.sources?.length || 0} supporting passages</span>
-        {!reviewed && <p>Choose the topics and lesson passages for this assessment before finalizing. Weeks are optional.</p>}</>
+        {!reviewed && <p>Choose the topics and syllabus or lesson passages for this assessment before finalizing. Weeks are optional.</p>}</>
         : <p>{locked ? 'This existing blueprint uses subject-wide retrieval. Create a new blueprint from selected topics to set a period.' : 'Set a period and select supporting passages to limit what the questions can cover.'}</p>}
     </div>
     {reviewed && <details className="assessment-saved-sources"><summary>View confirmed source passages</summary>
@@ -94,7 +94,7 @@ function CoverageEditor({ tos, topics, onClose, onSaved }) {
     } catch (e) { setError(e.message); } finally { setSaving(false); }
   }
   return <Modal open title="Review assessment coverage" size="lg" onClose={() => !saving && onClose()}
-    subtitle="Confirm what belongs in this exam, then choose the lesson passages that may support its questions."
+    subtitle="Confirm the topics and their syllabus passages. Add substantive lesson passages for questions when needed."
     footer={<><button type="button" className="btn btn-secondary" onClick={onClose} disabled={saving}>Cancel</button>
       <button type="submit" form="assessment-coverage-form" className="btn btn-primary" disabled={saving || !confirmed || !selected.size || !sources.size || !frame.label.trim()}>{saving ? 'Saving…' : 'Save coverage'}</button></>}>
     <form id="assessment-coverage-form" className="assessment-editor" onSubmit={save}>
@@ -113,8 +113,8 @@ function CoverageEditor({ tos, topics, onClose, onSaved }) {
           </div>;
         })}</div>
       </fieldset>
-      <fieldset><legend><BookOpen size={16} /> Supporting lesson passages ({sources.size})</legend>
-        <p className="form-hint">Select passages from lessons, slides, or readings. If a passage spans periods, keep only the exact excerpt taught in this assessment. A syllabus outline alone may not contain enough facts for questions.</p>
+      <fieldset><legend><BookOpen size={16} /> Supporting source passages ({sources.size})</legend>
+        <p className="form-hint">Syllabus passages are sufficient to confirm blueprint coverage. For question generation, select substantive lessons, slides, or readings when the syllabus contains only an outline. If a passage spans periods, keep only the exact excerpt taught in this assessment. A syllabus outline alone may not contain enough facts for questions.</p>
         <label className="form-label" htmlFor="scope-material">Material</label>
         <select id="scope-material" className="form-control" value={materialId} onChange={(e) => { setMaterialId(e.target.value); setChunks([]); setError(''); setLoading(Boolean(e.target.value)); }}>
           <option value="">Choose material</option>{materials.map((m) => <option value={m.id} key={m.id}>{m.title}{Number(m.is_syllabus) ? ' (syllabus)' : ''}</option>)}

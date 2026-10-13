@@ -15,7 +15,9 @@ import { v4 as uuid } from 'uuid';
 import pool from '../../config/db.js';
 import { generate } from '../../services/aiProvider.js';
 import { recalcTopicItemCounts } from '../../services/tosTopics.js';
-import { parseTimeFrame, verifiedSchedule } from '../../services/assessmentScope.js';
+import { parseTimeFrame } from '../../services/assessmentScope.js';
+
+import { prepareSyllabusBlueprint } from '../../services/syllabusBlueprint.js';
 
 /** Default Bloom distribution for a newly extracted syllabus. */
 const DEFAULT_BLOOM = {
@@ -54,7 +56,8 @@ export default async function syllabusTosHandler(job) {
 1. A course title (if present)
 2. A list of topics, each with:
    - topic: one outline item. Each bullet or line item under the outline's Topics column becomes its own topic — never merge bullets or collapse a whole period into one topic. Name indented sub-items "Parent — sub-item" (e.g. "Larong Task — Patintero").
-   - instructional_hours: estimated hours of instruction (integer, default 3 if not specified)
+   - instructional_hours: hours explicitly stated for this topic; use 0 if not specified. Never estimate
+   - hours_evidence: exact passage containing this topic and its explicitly stated hours; empty when absent
    - learning_outcomes: array of learning outcome strings (empty if not specified)
    - schedule_evidence: exact time-frame heading or schedule passage for this topic, or empty string when absent. Preserve period-wide ranges; never invent individual topic weeks.
 
@@ -65,6 +68,7 @@ Return ONLY a JSON object with this exact structure:
     {
       "topic": "string",
       "instructional_hours": number,
+      "hours_evidence": "exact topic and hours passage or empty string",
       "learning_outcomes": ["string", ...],
       "schedule_evidence": "Time Frame: Prelim (Week 1-5) or an exact passage, or empty string"
     }
@@ -90,6 +94,7 @@ ${material.content}
             properties: {
               topic: { type: 'string' },
               instructional_hours: { type: 'number' },
+              hours_evidence: { type: 'string' },
               learning_outcomes: { type: 'array', items: { type: 'string' } },
               schedule_evidence: { type: 'string' },
             },
@@ -114,6 +119,9 @@ ${material.content}
     throw new Error('No topics could be extracted from this syllabus. Try a different document or add topics manually.');
   }
   if (parsed.topics.length > 100) throw new Error('The syllabus contains too many topics for one blueprint. Split the course outline by period.');
+
+  const prepared = prepareSyllabusBlueprint(parsed, material.content, materialId);
+  parsed.topics = prepared.topics;
 
   // ── Fill an existing draft blueprint ────────────────
   // tosId in the payload = append extracted topics into that TOS instead of
@@ -154,8 +162,8 @@ ${material.content}
            VALUES (:id, :tosId, :title, :hours, :outcomes, 0, :sortOrder, :schedule)`,
           {
             id: uuid(), tosId, title,
-            schedule: JSON.stringify(verifiedSchedule(topic, material.content, materialId)),
-            hours: topic.instructional_hours || 3,
+            schedule: JSON.stringify(topic.schedule),
+            hours: topic.instructional_hours,
             outcomes: JSON.stringify(topic.learning_outcomes || []),
             sortOrder: sortOrder++,
           }
@@ -164,6 +172,9 @@ ${material.content}
         added++;
       }
 
+      prepared.sourceMeta.courseHours = null; // Appending may combine several syllabus sources.
+      prepared.sourceMeta.warnings.push('Topics were appended to an existing plan. Reconcile the combined hours against the syllabus.');
+      await conn.query(`UPDATE tos SET source_meta = :meta WHERE id = :id`, { id: tosId, meta: JSON.stringify(prepared.sourceMeta) });
       await recalcTopicItemCounts(tosId, conn);
       await conn.query(`UPDATE tos SET scope_key = NULL WHERE id = :id AND assessment_scope IS NOT NULL`, { id: tosId });
       await conn.commit();
@@ -177,94 +188,37 @@ ${material.content}
     finally { conn.release(); }
   }
 
-  // ── Compute item weights (proportional to instructional hours) ──
-  const totalHours = parsed.topics.reduce((sum, t) => sum + (t.instructional_hours || 3), 0);
-  const totalItems = 50; // Default; instructor can change
-
-  // ── Create the TOS ──────────────────────────────────
+  const totalItems = 50; // Explicit planning default, confirmed before finalization.
   const tosId = uuid();
-  // Titled after the course itself — no "(Auto-generated)" tag; how a
-  // blueprint was drafted is the instructor's business, not its name's.
-  // An explicit assessmentScope (derive/coverage flows) scopes the new
-  // blueprint; a plain scan stays subject-wide — period attribution still
-  // lands on each topic's schedule for later coverage review.
   const frame = job.payload.assessmentScope ? parseTimeFrame(job.payload.assessmentScope) : null;
   const periodSuffix = frame?.label && frame.label !== 'Whole course'
     ? ` — ${frame.label}${frame.weekStart ? ` (Weeks ${frame.weekStart}–${frame.weekEnd})` : ''}` : '';
-  const tosTitle = `${parsed.course_title || material.title}${periodSuffix}`.slice(0, 255);
-
-  await pool.query(
-    `INSERT INTO tos (id, subject_id, title, total_items, bloom_weights, assessment_scope)
-     VALUES (:id, :subjectId, :title, :totalItems, :bloomWeights, :scope)`,
-    {
-      id: tosId,
-      subjectId: material.subject_id,
-      title: tosTitle,
-      totalItems,
-      bloomWeights: JSON.stringify(DEFAULT_BLOOM),
-      scope: frame ? JSON.stringify({ ...frame, sources: [], confirmed: false }) : null,
-    }
-  );
-
-  // ── Create topics with proportional item counts ─────
-  let sortOrder = 1;
-  let allocatedItems = 0;
-  const topicRows = [];
-
-  for (const topic of parsed.topics) {
-    const hours = topic.instructional_hours || 3;
-    const exactItems = (hours / totalHours) * totalItems;
-    const items = Math.max(1, Math.round(exactItems));
-    topicRows.push({
-      id: uuid(),
-      tos_id: tosId,
-      title: topic.topic,
-      instructional_hours: hours,
-      learning_outcomes: JSON.stringify(topic.learning_outcomes || []),
-      item_count: items,
-      sort_order: sortOrder++,
-      schedule: JSON.stringify(verifiedSchedule(topic, material.content, materialId)),
-    });
-    allocatedItems += items;
-  }
-
-  // Adjust last topic to make total match totalItems (largest remainder)
-  if (topicRows.length > 0 && allocatedItems !== totalItems) {
-    const diff = totalItems - allocatedItems;
-    topicRows[topicRows.length - 1].item_count += diff;
-    if (topicRows[topicRows.length - 1].item_count < 1) {
-      topicRows[topicRows.length - 1].item_count = 1;
-    }
-  }
-
-  // Insert topics
-  for (const t of topicRows) {
-    await pool.query(
-      `INSERT INTO tos_topics (id, tos_id, title, instructional_hours, learning_outcomes, item_count, sort_order, schedule)
-       VALUES (:id, :tosId, :title, :hours, :outcomes, :itemCount, :sortOrder, :schedule)`,
-      {
-        id: t.id,
-        tosId: t.tos_id,
-        title: t.title,
-        hours: t.instructional_hours,
-        outcomes: t.learning_outcomes,
-        itemCount: t.item_count,
-        sortOrder: t.sort_order,
-        schedule: t.schedule,
-      }
+  const extractedTitle = String(parsed.course_title || '').trim();
+  const courseTitle = extractedTitle && material.content.includes(extractedTitle) ? extractedTitle : material.title;
+  const tosTitle = `${courseTitle}${periodSuffix}`.slice(0, 255);
+  const conn = await pool.getConnection();
+  try {
+    await conn.beginTransaction();
+    await conn.query(
+      `INSERT INTO tos (id, subject_id, title, total_items, bloom_weights, assessment_scope, source_meta)
+       VALUES (:id, :subjectId, :title, :totalItems, :bloomWeights, :scope, :sourceMeta)`,
+      { id: tosId, subjectId: material.subject_id, title: tosTitle, totalItems,
+        sourceMeta: JSON.stringify(prepared.sourceMeta), bloomWeights: JSON.stringify(DEFAULT_BLOOM),
+        scope: frame ? JSON.stringify({ ...frame, sources: [], confirmed: false }) : null }
     );
-  }
-
-  await recalcTopicItemCounts(tosId);
-
-  return {
-    tosId,
-    title: tosTitle,
-    topicCount: topicRows.length,
-    totalItems,
-    provider: result.keyIndex ? `${result.provider}#${result.keyIndex}` : result.provider,
-    model: result.model,
-    status: 'draft',
-    autoChainedGenerate: false,
-  };
+    for (const [index, topic] of parsed.topics.entries()) {
+      await conn.query(
+        `INSERT INTO tos_topics (id, tos_id, title, instructional_hours, learning_outcomes, item_count, sort_order, schedule)
+         VALUES (:id, :tosId, :title, :hours, :outcomes, 0, :sortOrder, :schedule)`,
+        { id: uuid(), tosId, title: topic.topic, hours: topic.instructional_hours,
+          outcomes: JSON.stringify(topic.learning_outcomes), sortOrder: index + 1, schedule: JSON.stringify(topic.schedule) }
+      );
+    }
+    await recalcTopicItemCounts(tosId, conn);
+    await conn.commit();
+    return { tosId, title: tosTitle, topicCount: parsed.topics.length, totalItems,
+      provider: result.keyIndex ? `${result.provider}#${result.keyIndex}` : result.provider,
+      model: result.model, status: 'draft', autoChainedGenerate: false };
+  } catch (err) { await conn.rollback(); throw err; }
+  finally { conn.release(); }
 }

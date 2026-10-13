@@ -18,7 +18,7 @@
  * All routes are scoped by created_by = req.user.id (IDOR protection).
  */
 import { Router } from 'express';
-import { questionFitsScope } from '../services/assessmentScope.js';
+import { questionFitsScope, readJson } from '../services/assessmentScope.js';
 import { loadScopeChunks } from '../services/assessmentScopeStore.js';
 import { v4 as uuid } from 'uuid';
 import pool from '../config/db.js';
@@ -29,6 +29,8 @@ import { indexQuestionIfActive, indexQuestionsIfActive, removeQuestionFromIndex 
 import { answerOptionIndex } from '../services/scoring.js';
 import { rateLimit } from '../middleware/rateLimit.js';
 import { logAudit } from '../services/audit.js';
+import { groundingBlockReason, recheckQuestion } from '../services/questionGrounding.js';
+import { isKnowledgeQuestion } from '../services/questionQuality.js';
 import { similarityGate } from '../services/questionApproval.js';
 
 const router = Router();
@@ -62,34 +64,23 @@ async function approvalBlockReason(question, { ignoreSimilarityFailure = false }
     }
   }
   if (!QUESTION_TYPES.includes(question.type)) return 'Unsupported question type.';
-  if (question.source === 'ai') {
-    let meta;
-    try {
-      meta = typeof question.generation_meta === 'string'
-        ? JSON.parse(question.generation_meta) : question.generation_meta;
-    } catch {
-      return 'This legacy AI draft has invalid grounding provenance. Regenerate it from the finalized TOS.';
-    }
-    const chunkIds = Array.isArray(meta?.chunkIds) ? [...new Set(meta.chunkIds.filter(Boolean))] : [];
-    const evidence = typeof meta?.evidence === 'string' ? meta.evidence.replace(/\s+/g, ' ').trim() : '';
-    if (!chunkIds.length || evidence.length < 3) {
-      return 'This legacy AI draft has no verifiable source evidence. Regenerate it from the finalized TOS.';
-    }
-    const [chunks] = await pool.query(
-      `SELECT id, text FROM material_chunks
-       WHERE id IN (:ids) AND subject_id = :subjectId`,
-      { ids: chunkIds, subjectId: question.subject_id }
-    );
-    if (chunks.length !== chunkIds.length) {
-      return 'One or more source chunks for this AI draft no longer exist. Regenerate it from current materials.';
-    }
-    const context = chunks.map((chunk) => chunk.text).join(' ').replace(/\s+/g, ' ').toLowerCase();
-    if (!context.includes(evidence.toLowerCase())) {
-      return 'The AI evidence span cannot be found in its cited source chunks. Regenerate this draft.';
-    }
-  }
+  const grounding = await groundingBlockReason(question);
+  if (grounding) return grounding;
   return similarityGate(question, { ignoreSimilarityFailure });
 }
+
+// Knowledge-mode AI drafts were written from the model's general knowledge,
+// not uploaded material. A second provider fact-checked them, but only the
+// instructor can vouch for the answer, so every approval path requires an
+// explicit `confirmKnowledge: true` and records who confirmed it.
+const KNOWLEDGE_CONFIRMATION = {
+  error: 'This question was written from AI knowledge, not your uploaded materials. Confirm you checked its answer before approving.',
+  code: 'knowledge_confirmation_required',
+};
+const confirmedMeta = (question, userId) => JSON.stringify({
+  ...(readJson(question.generation_meta, {}) || {}),
+  instructorConfirmation: { by: userId, at: new Date().toISOString() },
+});
 
 /** Validate question fields. Returns { error } or { data }. */
 function validate(body) {
@@ -160,6 +151,8 @@ router.get('/', async (req, res, next) => {
           if (evidence) q.ai_evidence = evidence;
           const generator = [meta?.provider, meta?.model].filter(Boolean).join(' · ');
           if (generator) q.ai_generator = generator;
+          // 'knowledge' drafts were written from AI knowledge, not uploaded material.
+          q.ai_grounding = meta?.grounding === 'knowledge' ? 'knowledge' : 'grounded';
           q._chunkIds = Array.isArray(meta?.chunkIds) ? meta.chunkIds.filter(Boolean) : [];
           q._chunkIds.forEach((id) => chunkIds.add(id));
         } catch {
@@ -253,6 +246,8 @@ router.post('/institution/:id/reuse', async (req, res, next) => {
     );
     if (!sourceRows.length) return res.status(404).json({ error: 'Approved institution question not found.' });
     const source = sourceRows[0];
+    const sourceBlock = await groundingBlockReason(source);
+    if (sourceBlock) return res.status(409).json({ error: 'This bank question needs its source owner to regenerate it before reuse.' });
 
     const [subjectRows] = await pool.query(
       `SELECT id FROM subjects WHERE id = :id AND instructor_id = :uid`,
@@ -426,21 +421,24 @@ router.put('/:id', async (req, res, next) => {
     }
 
     const nextType = req.body.type || q.type;
-    const optionsJson = nextType === 'mcq'
-      ? (Array.isArray(req.body.options) ? JSON.stringify(req.body.options) : (q.type === 'mcq' ? q.options : null))
+    const optionsJson = ['mcq', 'matching'].includes(nextType)
+      ? (Array.isArray(req.body.options) ? JSON.stringify(req.body.options) : (q.type === nextType ? q.options : null))
       : null;
 
     const nextStem = String(req.body.stem || q.stem).trim();
     const nextAnswer = req.body.answer ?? q.answer ?? null;
     const contentChanged =
       nextStem !== q.stem || optionsJson !== q.options ||
-      nextAnswer !== q.answer || nextType !== q.type || nextSubjectId !== q.subject_id;
+      nextAnswer !== q.answer || nextType !== q.type || nextSubjectId !== q.subject_id
+      || (req.body.bloom ?? q.bloom) !== q.bloom || (req.body.topic ?? q.topic) !== q.topic
+      || (req.body.explanation ?? q.explanation) !== q.explanation || nextTosId !== q.tos_id;
     let newStatus = req.body.status || q.status;
     if (contentChanged && newStatus === 'active') newStatus = 'draft';
     const approving = q.status !== 'active' && newStatus === 'active';
     if (approving) {
       const blocked = await approvalBlockReason(q, { ignoreSimilarityFailure: req.body?.allowSimilarityFailure === true });
       if (blocked) return res.status(409).json({ error: blocked });
+      if (isKnowledgeQuestion(q) && req.body?.confirmKnowledge !== true) return res.status(409).json(KNOWLEDGE_CONFIRMATION);
     }
 
     await pool.query(
@@ -472,6 +470,10 @@ router.put('/:id', async (req, res, next) => {
         approvedAt: contentChanged ? null : (approving ? new Date() : q.approved_at),
       }
     );
+
+    if (approving && isKnowledgeQuestion(q)) {
+      await pool.query(`UPDATE questions SET generation_meta = :meta WHERE id = :id`, { meta: confirmedMeta(q, req.user.id), id: q.id });
+    }
 
     const [rows] = await pool.query(`SELECT * FROM questions WHERE id = :id`, { id: q.id });
     const updated = rows[0];
@@ -531,15 +533,18 @@ router.post('/:id/approve', async (req, res, next) => {
   try {
     const q = await getOwned(req.params.id, req.user.id);
     if (!q) return res.status(404).json({ error: 'Question not found.' });
-    if (q.status === 'active') return res.json({ message: 'Already approved.' });
     const bypassed = req.body?.allowSimilarityFailure === true;
     const blocked = await approvalBlockReason(q, { ignoreSimilarityFailure: bypassed });
     if (blocked) return res.status(409).json({ error: blocked });
+    if (q.status === 'active') return res.json({ message: 'Already approved.' });
+    const knowledge = isKnowledgeQuestion(q);
+    if (knowledge && req.body?.confirmKnowledge !== true) return res.status(409).json(KNOWLEDGE_CONFIRMATION);
 
     await pool.query(
       `UPDATE questions SET status = 'active', approved_by = :uid, approved_at = NOW(), updated_at = NOW()
+         ${knowledge ? ', generation_meta = :meta' : ''}
        WHERE id = :id`,
-      { id: q.id, uid: req.user.id }
+      { id: q.id, uid: req.user.id, meta: knowledge ? confirmedMeta(q, req.user.id) : null }
     );
 
     // Approved questions enter the similarity index.
@@ -548,7 +553,9 @@ router.post('/:id/approve', async (req, res, next) => {
     logAudit({
       actorId: req.user.id, actorEmail: req.user.email,
       action: 'question.approve', targetType: 'question', targetId: q.id, ip: req.ip,
-      detail: bypassed && q.similarity_error ? { similarityBypassed: true } : undefined,
+      detail: (bypassed && q.similarity_error) || knowledge
+        ? { similarityBypassed: (bypassed && q.similarity_error) ? true : undefined, knowledgeConfirmed: knowledge || undefined }
+        : undefined,
     });
     res.json({ message: 'Question approved.', status: 'active' });
   } catch (err) { next(err); }
@@ -614,17 +621,25 @@ router.post('/bulk-approve', async (req, res, next) => {
     }
 
     const eligibleIds = [];
+    const knowledgeIds = [];
+    const confirmKnowledge = req.body?.confirmKnowledge === true;
+    const confirmed = [];
     for (const question of candidates) {
       const block = await approvalBlockReason(question, { ignoreSimilarityFailure: bypassed });
       if (block) {
         bump('other');
         if (!reasons.firstMessage) reasons.firstMessage = block;
+      } else if (isKnowledgeQuestion(question) && !confirmKnowledge) {
+        // Answers from AI knowledge need the instructor's explicit sign-off.
+        bump('knowledge_unconfirmed');
+        knowledgeIds.push(question.id);
       } else {
         eligibleIds.push(question.id);
+        if (isKnowledgeQuestion(question)) confirmed.push(question);
       }
     }
     if (!eligibleIds.length) {
-      return res.json({ approved: 0, blocked: validIds.length, reasons });
+      return res.json({ approved: 0, blocked: validIds.length, reasons, knowledgeIds: knowledgeIds.length ? knowledgeIds : undefined });
     }
 
     const [result] = await pool.query(
@@ -632,6 +647,11 @@ router.post('/bulk-approve', async (req, res, next) => {
        WHERE id IN (:ids) AND created_by = :uid AND status = 'draft'`,
       { ids: eligibleIds, uid: req.user.id }
     );
+
+    for (const question of confirmed) {
+      await pool.query(`UPDATE questions SET generation_meta = :meta WHERE id = :id AND status = 'active'`,
+        { meta: confirmedMeta(question, req.user.id), id: question.id });
+    }
 
     // Index the newly-active questions (best-effort, non-blocking order).
     if (result.affectedRows > 0) {
@@ -646,7 +666,7 @@ router.post('/bulk-approve', async (req, res, next) => {
       logAudit({
         actorId: req.user.id, actorEmail: req.user.email,
         action: 'question.bulk_approve', targetType: 'question',
-        detail: { approved: result.affectedRows, requested: validIds.length, similarityBypassed: bypassed || undefined }, ip: req.ip,
+        detail: { approved: result.affectedRows, requested: validIds.length, similarityBypassed: bypassed || undefined, knowledgeConfirmed: confirmed.length || undefined }, ip: req.ip,
       });
     }
     res.json({
@@ -654,6 +674,7 @@ router.post('/bulk-approve', async (req, res, next) => {
       approvedIds: eligibleIds,
       blocked: validIds.length - result.affectedRows,
       reasons: Object.keys(reasons).length ? reasons : undefined,
+      knowledgeIds: knowledgeIds.length ? knowledgeIds : undefined,
     });
   } catch (err) { next(err); }
 });
@@ -779,6 +800,22 @@ router.get('/:id/grounding', async (req, res, next) => {
     try {
       meta = typeof q.generation_meta === 'string' ? JSON.parse(q.generation_meta) : q.generation_meta;
     } catch { /* reported as missing provenance below */ }
+    if (meta?.grounding === 'knowledge') {
+      // Written from AI knowledge: there is no source passage to show.
+      const reviewBlock = await groundingBlockReason(q);
+      return res.json({
+        status: reviewBlock ? 'review_required' : 'knowledge',
+        verified: !reviewBlock,
+        knowledge: true,
+        quoteLocated: false,
+        reviewBlock,
+        qualityReview: meta.quality?.review || null,
+        reviewedBy: meta.quality ? { provider: meta.quality.provider, model: meta.quality.model } : null,
+        confirmation: meta.instructorConfirmation || null,
+        evidence: '',
+        passages: [],
+      });
+    }
     const chunkIds = Array.isArray(meta?.chunkIds) ? [...new Set(meta.chunkIds.filter(Boolean))] : [];
     const evidence = typeof meta?.evidence === 'string' ? meta.evidence.replace(/\s+/g, ' ').trim() : '';
     if (!chunkIds.length || evidence.length < 3) {
@@ -813,18 +850,42 @@ router.get('/:id/grounding', async (req, res, next) => {
         };
       });
 
-    // Same join approvalBlockReason() uses, so a span that straddles two
-    // passages verifies here exactly when it would at approval time.
     const stale = passages.length !== chunkIds.length;
-    const joined = chunks.map((c) => c.text).join(' ').replace(/\s+/g, ' ').toLowerCase();
-    const verified = !stale && joined.includes(needle);
+    const quoteLocated = !stale && passages.some((p) => p.match);
+    const reviewBlock = await groundingBlockReason(q);
+    const verified = !reviewBlock;
     res.json({
-      status: stale ? 'stale' : verified ? 'verified' : 'not_found',
+      status: stale ? 'stale' : verified ? 'verified' : quoteLocated ? 'review_required' : 'not_found',
       verified,
+      quoteLocated,
+      reviewBlock,
+      qualityReview: meta?.quality?.review || null,
       evidence,
       passages,
     });
   } catch (err) { next(err); }
+});
+
+/**
+ * POST /:id/recheck — re-run the independent AI check on an AI question after
+ * an edit, a source change, or for a legacy draft that predates the check.
+ * A pass stores a fresh proof; a failure leaves the question blocked.
+ */
+router.post('/:id/recheck', rateLimit({ name: 'question-recheck', max: 20, windowSec: 300 }), async (req, res, next) => {
+  try {
+    const q = await getOwned(req.params.id, req.user.id);
+    if (!q) return res.status(404).json({ error: 'Question not found.' });
+    if (q.source !== 'ai') return res.status(422).json({ error: 'Only AI-generated questions carry an AI check.' });
+    if (q.status === 'rejected') return res.status(422).json({ error: 'Restore this question to a draft before re-checking it.' });
+    const result = await recheckQuestion(q);
+    res.json(result);
+  } catch (err) {
+    // Provider outages surface as a retryable 503, never a half-written proof.
+    if (err?.status === 429 || err?.status === 503) {
+      return res.status(503).json({ error: 'The AI reviewer is unavailable right now. Try again in a few minutes.' });
+    }
+    next(err);
+  }
 });
 
 router.post('/:id/similarity/retry', async (req, res, next) => {

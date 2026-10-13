@@ -15,6 +15,7 @@ import { v4 as uuid } from 'uuid';
 import fs from 'fs';
 import path from 'path';
 import pool from '../config/db.js';
+import { groundingBlockReason, usableQuestions } from '../services/questionGrounding.js';
 import { requireAuth } from '../middleware/auth.js';
 import { generateExamPDF, generateAnswerKeyPDF, generateTOSReportPDF, STORAGE_DIR } from '../services/pdfService.js';
 import { toGIFT, toCanvasXML } from '../services/lmsExport.js';
@@ -89,14 +90,15 @@ async function planQuestionsForTos(tos, userId) {
   const shortages = [];
 
   for (const slot of slots) {
-    const [rows] = await pool.query(
+    const [candidates] = await pool.query(
       `SELECT q.* FROM questions q WHERE ${ELIGIBLE_FOR_CELL}
-       ORDER BY RAND() LIMIT :needed`,
+       ORDER BY RAND()`,
       {
         subjectId: tos.subject_id, userId, topic: slot.topic,
         bloom: slot.bloom, tosId: tos.id, needed: slot.count,
       }
     );
+    const rows = (await usableQuestions(candidates)).slice(0, slot.count);
     if (rows.length !== slot.count) {
       shortages.push({
         topic: slot.topic, bloom: slot.bloom, needed: slot.count, available: rows.length,
@@ -114,11 +116,11 @@ async function checkTosReadiness(tos, userId) {
   const { slots } = await tosSlots(tos);
   const shortages = [];
   for (const slot of slots) {
-    const [[row]] = await pool.query(
-      `SELECT COUNT(*) AS n FROM questions q WHERE ${ELIGIBLE_FOR_CELL}`,
+    const [rows] = await pool.query(
+      `SELECT q.* FROM questions q WHERE ${ELIGIBLE_FOR_CELL}`,
       { subjectId: tos.subject_id, userId, topic: slot.topic, bloom: slot.bloom, tosId: tos.id }
     );
-    const available = Number(row?.n || 0);
+    const available = (await usableQuestions(rows)).length;
     if (available < slot.count) {
       shortages.push({
         topic: slot.topic, bloom: slot.bloom, needed: slot.count, available,
@@ -144,7 +146,17 @@ function circulationError(question) {
   return null;
 }
 
+/** AI questions whose quality proof no longer verifies, with the reason for each. */
+async function blockedAiQuestions(questions) {
+  const usable = new Set((await usableQuestions(questions)).map((q) => q.id));
+  const blocked = [];
+  for (const q of questions) if (!usable.has(q.id)) blocked.push({ id: q.id, reason: await groundingBlockReason(q) });
+  return blocked;
+}
+
 async function validateExamAlignment(exam, questions) {
+  const invalidGrounding = await blockedAiQuestions(questions);
+  if (invalidGrounding.length) return { error: 'The exam contains AI questions with missing or stale quality reviews.', invalid: invalidGrounding };
   // Blank exams (no TOS) have no matrix to satisfy — but every attached item
   // still must be approved and similarity-cleared before it can circulate.
   if (!exam.tos_id) {
@@ -448,7 +460,21 @@ router.get('/:id', requireAuth, async (req, res, next) => {
       if (row.question_id) s.question_ids.push(row.question_id);
     }
 
-    res.json({ exam, questions, tos, tosMatrix, sets: [...setMap.values()] });
+    // Downloads and exports re-verify every AI question's quality proof;
+    // report a block here so the page can say why before a link fails.
+    const [aiRows] = await pool.query(
+      `SELECT q.* FROM exam_questions eq JOIN questions q ON q.id = eq.question_id
+       WHERE eq.exam_id = :id AND q.source = 'ai'`,
+      { id: exam.id }
+    );
+    const blocked = await blockedAiQuestions(aiRows);
+    const outputBlock = blocked.length ? {
+      message: `${blocked.length} AI question${blocked.length === 1 ? ' has' : 's have'} no current quality review (${blocked[0].reason}) `
+        + 'Open each in the Question Bank and re-run its AI check, or replace it, before downloading or exporting.',
+      questionIds: blocked.map((b) => b.id),
+    } : null;
+
+    res.json({ exam, questions, tos, tosMatrix, sets: [...setMap.values()], outputBlock });
   } catch (err) { next(err); }
 });
 
@@ -511,7 +537,7 @@ router.put('/:id', requireAuth, async (req, res, next) => {
 router.delete('/:id', requireAuth, async (req, res, next) => {
   try {
     const [examRows] = await pool.query(
-      `SELECT e.id, e.title FROM exams e JOIN subjects s ON s.id = e.subject_id
+      `SELECT e.* FROM exams e JOIN subjects s ON s.id = e.subject_id
        WHERE e.id = :id AND s.instructor_id = :uid`,
       { id: req.params.id, uid: req.user.id }
     );
@@ -575,7 +601,7 @@ router.post('/:id/questions', requireAuth, async (req, res, next) => {
          )) AND ${questionScopeSql()}`
       : '';
     const [ownedRows] = await pool.query(
-      `SELECT q.id FROM questions q
+      `SELECT q.* FROM questions q
        WHERE q.id IN (:ids) AND q.created_by = :uid AND q.subject_id = :subjectId
          AND q.status = 'active' AND q.type IN ('mcq','true_false','matching','identification')
          AND q.similarity_flag = 'none'
@@ -585,7 +611,7 @@ router.post('/:id/questions', requireAuth, async (req, res, next) => {
          ${tosClause}`,
       { ids: validIds, uid: req.user.id, subjectId: exam.subject_id, tosId: exam.tos_id }
     );
-    const ownedIds = ownedRows.map((r) => r.id);
+    const ownedIds = (await usableQuestions(ownedRows)).map((r) => r.id);
     if (!ownedIds.length) {
       return res.status(422).json({
         error: 'None of the selected questions can be attached. Questions must be active, similarity-checked, and aligned to this exam\'s blueprint.',
@@ -859,12 +885,15 @@ router.get('/:id/download/:type', requireAuth, async (req, res, next) => {
 
     // Ownership check (title fetched for the friendly download name)
     const [examRows] = await pool.query(
-      `SELECT e.id, e.title FROM exams e
+      `SELECT e.* FROM exams e
        JOIN subjects s ON s.id = e.subject_id
        WHERE e.id = :examId AND s.instructor_id = :userId`,
       { examId, userId: req.user.id }
     );
     if (!examRows.length) return res.status(404).json({ error: 'Exam not found.' });
+    const questions = await loadExamQuestions(examId, examRows[0].tos_id);
+    const alignment = await validateExamAlignment(examRows[0], questions);
+    if (alignment.error) return res.status(409).json(alignment);
     const slug = slugifyTitle(examRows[0].title);
 
     let filename, downloadName;
@@ -927,7 +956,7 @@ router.post('/:id/omr/refresh', requireAuth, async (req, res, next) => {
     }
 
     const [examRows] = await pool.query(
-      `SELECT e.id, e.title FROM exams e
+      `SELECT e.* FROM exams e
        JOIN subjects s ON s.id = e.subject_id
        WHERE e.id = :examId AND s.instructor_id = :userId`,
       { examId, userId: req.user.id }

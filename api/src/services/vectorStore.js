@@ -31,6 +31,7 @@ import path from 'path';
 import fs from 'fs/promises';
 import env from '../config/env.js';
 import { getAiConfig } from './aiConfig.js';
+import { runKeyPool } from './aiProvider.js';
 import { getLocalEmbeddings } from './localEmbeddings.js';
 
 const VECTORS_DIR = path.resolve(process.cwd(), env.vectorStore.dir);
@@ -77,21 +78,40 @@ async function withIndexLock(dir, action, timeoutMs = 30000) {
   }
 }
 
-/** Lazily initialize the LangChain Gemini embeddings model. Rebuilt
- *  automatically when the superadmin changes the key/model in settings. */
+const _geminiEmbClients = new Map(); // apiKey -> { sig, client }
+
+/** LangChain embeddings client for one pool key, cached per key+model. */
+async function geminiEmbClient(cfg, key) {
+  const sig = cfg.gemini.embeddingModel;
+  const hit = _geminiEmbClients.get(key);
+  if (hit?.sig === sig) return hit.client;
+  const client = new GoogleGenerativeAIEmbeddings({
+    apiKey: key,
+    model: cfg.gemini.embeddingModel,
+  });
+  _geminiEmbClients.set(key, { sig, client });
+  return client;
+}
+
+/** Lazily initialize the Gemini embeddings facade. Rebuilt when the key pool
+ *  or model changes. The facade rotates across the key pool per call, so a
+ *  quota-dead key hands off to the next without callers noticing. */
 async function getEmbeddings() {
   const cfg = await getAiConfig();
-  const sig = `${cfg.gemini.apiKey}|${cfg.gemini.embeddingModel}`;
-  if (_embeddings?.sig === sig) return _embeddings.client;
-  if (!cfg.gemini.apiKey) {
+  if (!cfg.gemini.keys.length) {
     throw new Error('A Gemini API key is required for the vector store embeddings.');
   }
+  const sig = `${cfg.gemini.keys.join('|')}|${cfg.gemini.embeddingModel}`;
+  if (_embeddings?.sig === sig) return _embeddings.client;
   _embeddings = {
     sig,
-    client: new GoogleGenerativeAIEmbeddings({
-      apiKey: cfg.gemini.apiKey,
-      model: cfg.gemini.embeddingModel,
-    }),
+    client: {
+      modelName: cfg.gemini.embeddingModel,
+      embedQuery: (text) => runKeyPool('gemini', cfg.gemini.keys, async (key) =>
+        (await geminiEmbClient(cfg, key)).embedQuery(text)),
+      embedDocuments: (texts) => runKeyPool('gemini', cfg.gemini.keys, async (key) =>
+        (await geminiEmbClient(cfg, key)).embedDocuments(texts)),
+    },
   };
   return _embeddings.client;
 }

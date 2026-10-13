@@ -306,22 +306,49 @@
   /* ---- Settings ----------------------------------------------------------- */
   .adm-settings { display: grid; gap: 16px; }
   .adm-settings-lead { margin: -4px 0 14px; }
-  .adm-providers { display: grid; gap: 18px; }
-  .adm-provider + .adm-provider { border-top: 1px solid var(--line); padding-top: 16px; }
+  .adm-providers { display: grid; gap: 10px; }
+  .adm-provider {
+    border: 1px solid var(--line);
+    border-radius: var(--radius-sm);
+    background: var(--surface);
+    overflow: hidden;
+  }
   .adm-provider-head {
     display: flex;
-    align-items: baseline;
+    align-items: center;
     flex-wrap: wrap;
     gap: 8px;
-    margin-bottom: 12px;
+    padding: 11px 14px;
+    cursor: pointer;
+    list-style: none;
+    user-select: none;
   }
+  .adm-provider-head::-webkit-details-marker { display: none; }
+  .adm-provider-head:hover { background: var(--surface-2); }
+  .adm-provider[open] > .adm-provider-head { border-bottom: 1px solid var(--line); }
   .adm-provider-head strong { font: 600 .86rem var(--font-display); color: var(--ink); }
   .adm-provider-head small { font-size: .72rem; color: var(--ink-faint); }
   .adm-provider-head .adm-tag { margin-left: auto; }
+  .adm-provider-caret { color: var(--ink-faint); transition: transform .18s ease; }
+  .adm-provider[open] > .adm-provider-head .adm-provider-caret { transform: rotate(180deg); }
+  .adm-provider-body { display: grid; gap: 12px; padding: 14px; }
+  .adm-provider-body .form-row { margin: 0; }
+  .adm-provider-body .form-group { margin: 0; }
+  .adm-card-body > .form-row:last-child .form-group { margin-bottom: 0; }
   .adm-provider-test { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-top: 4px; }
   .adm-provider-result { font-size: .82rem; line-height: 1.5; margin: 12px 0 0; overflow-wrap: anywhere; }
   .adm-provider-result.is-success { color: var(--green-700); }
   .adm-provider-result.is-error { color: var(--red-700); }
+  .adm-keys { display: grid; gap: 10px; }
+  .adm-key-slot { display: grid; gap: 4px; }
+  .adm-key-row { display: flex; align-items: center; gap: 10px; }
+  .adm-key-label { flex: none; width: 72px; font: 600 .72rem var(--font-display); color: var(--ink-2); }
+  .adm-key-label em { display: block; font: 500 .62rem var(--font-body); font-style: normal; color: var(--ink-faint); }
+  .adm-key-input { flex: 1; min-width: 0; font-family: var(--font-mono); font-size: .8rem; }
+  .adm-key-test { flex: none; }
+  .adm-key-result { margin: 0 0 0 82px; }
+  .adm-keys-foot { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; }
+  .adm-keys-foot .form-hint { margin: 0; }
 
   /* ---- Role picker (Add user modal) ---------------------------------------- */
   .adm-role-pick { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }

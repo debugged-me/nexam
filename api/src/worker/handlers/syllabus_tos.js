@@ -169,7 +169,8 @@ ${material.content}
       await conn.commit();
       return {
         tosId, added, skipped,
-        provider: result.provider, model: result.model,
+        provider: result.keyIndex ? `${result.provider}#${result.keyIndex}` : result.provider,
+        model: result.model,
         filledExisting: true,
       };
     } catch (err) { await conn.rollback(); throw err; }
@@ -261,7 +262,7 @@ ${material.content}
     title: tosTitle,
     topicCount: topicRows.length,
     totalItems,
-    provider: result.provider,
+    provider: result.keyIndex ? `${result.provider}#${result.keyIndex}` : result.provider,
     model: result.model,
     status: 'draft',
     autoChainedGenerate: false,

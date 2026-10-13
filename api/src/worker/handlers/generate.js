@@ -337,7 +337,7 @@ ${context}
 
   // Attach metadata to each question
   const meta = {
-    provider: result.provider,
+    provider: result.keyIndex ? `${result.provider}#${result.keyIndex}` : result.provider,
     model: result.model,
     chunkIds: chunks.map((c) => c.id),
     chunkScores: chunks.map((c) => ({ id: c.id, score: c.score })),

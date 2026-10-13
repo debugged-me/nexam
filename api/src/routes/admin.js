@@ -22,7 +22,7 @@ import { requireSuperadmin, requireAdminConsole } from '../middleware/auth.js';
 import { getSetting } from '../services/settings.js';
 import { sendCredentialsEmail, sendResetLinkEmail } from '../services/emailService.js';
 import { logAudit } from '../services/audit.js';
-import { getAiConfig, invalidateAiConfigCache } from '../services/aiConfig.js';
+import { getAiConfig, invalidateAiConfigCache, parseApiKeys } from '../services/aiConfig.js';
 import { testOllamaCloudConnection } from '../services/ollamaCloud.js';
 import { testGeminiConnection, testGroqConnection } from '../services/aiProvider.js';
 import { rateLimit } from '../middleware/rateLimit.js';
@@ -414,6 +414,7 @@ const EDITABLE_KEYS = [
   'recaptcha_secret_key',
   'gemini_api_key',
   'gemini_model',
+  'gemini_fallback_models',
   'gemini_embedding_model',
   'groq_api_key',
   'groq_model',
@@ -427,12 +428,16 @@ router.get('/settings', requireSuperadmin, async (req, res, next) => {
     const siteKey = await getSetting('recaptcha_site_key', null);
     const secret = await getSetting('recaptcha_secret_key', null);
     const geminiKey = await getSetting('gemini_api_key', null);
+    const geminiKeysList = await getSetting('gemini_api_keys', null);
     const groqKey = await getSetting('groq_api_key', null);
+    const groqKeysList = await getSetting('groq_api_keys', null);
     const geminiModel = await getSetting('gemini_model', env.ai.gemini.model);
+    const geminiFallback = await getSetting('gemini_fallback_models', env.ai.gemini.fallbackModels.join(','));
     const geminiEmbed = await getSetting('gemini_embedding_model', env.ai.gemini.embeddingModel);
     const groqModel = await getSetting('groq_model', env.ai.groq.model);
     const ollamaKey = await getSetting('ollama_api_key', null);
     const ollamaModel = await getSetting('ollama_model', env.ai.ollama.model);
+    const cfg = await getAiConfig();
 
     res.json({
       recaptcha: {
@@ -441,14 +446,21 @@ router.get('/settings', requireSuperadmin, async (req, res, next) => {
         secretMasked: mask(secret),
       },
       ai: {
-        geminiApiKeySet: Boolean(geminiKey || env.ai.gemini.apiKey),
-        geminiApiKeyMasked: mask(geminiKey || env.ai.gemini.apiKey),
-        geminiApiKeySource: geminiKey ? 'settings' : (env.ai.gemini.apiKey ? 'env' : null),
+        geminiApiKeySet: Boolean(cfg.gemini.keys.length),
+        geminiApiKeyMasked: mask(cfg.gemini.apiKey),
+        geminiKeysMasked: cfg.gemini.keys.map(mask),
+        geminiKeyCount: cfg.gemini.keys.length,
+        geminiApiKeySource: (geminiKey || geminiKeysList) ? 'settings'
+          : (env.ai.gemini.apiKey || env.ai.gemini.apiKeys.length ? 'env' : null),
         geminiModel,
+        geminiFallbackModels: geminiFallback || '',
         geminiEmbeddingModel: geminiEmbed,
-        groqApiKeySet: Boolean(groqKey || env.ai.groq.apiKey),
-        groqApiKeyMasked: mask(groqKey || env.ai.groq.apiKey),
-        groqApiKeySource: groqKey ? 'settings' : (env.ai.groq.apiKey ? 'env' : null),
+        groqApiKeySet: Boolean(cfg.groq.keys.length),
+        groqApiKeyMasked: mask(cfg.groq.apiKey),
+        groqKeysMasked: cfg.groq.keys.map(mask),
+        groqKeyCount: cfg.groq.keys.length,
+        groqApiKeySource: (groqKey || groqKeysList) ? 'settings'
+          : (env.ai.groq.apiKey || env.ai.groq.apiKeys.length ? 'env' : null),
         groqModel,
         ollamaApiKeySet: Boolean(ollamaKey || env.ai.ollama.apiKey),
         ollamaApiKeyMasked: mask(ollamaKey || env.ai.ollama.apiKey),
@@ -477,6 +489,13 @@ router.put('/settings', requireSuperadmin, async (req, res, next) => {
       && (body.ollama_api_key.trim().length > 4096 || /\s/.test(body.ollama_api_key.trim()))) {
       return res.status(400).json({ error: 'Enter the Ollama Cloud API key without spaces or line breaks.' });
     }
+    if (typeof body.gemini_fallback_models === 'string' && body.gemini_fallback_models.trim()) {
+      const parts = body.gemini_fallback_models.split(/[\s,]+/).map((s) => s.trim()).filter(Boolean);
+      if (parts.length > 10 || parts.some((m) => !/^[a-zA-Z0-9][a-zA-Z0-9._:/-]{0,149}$/.test(m))) {
+        return res.status(400).json({ error: 'Enter fallback models as a comma-separated list of valid model names.' });
+      }
+      body.gemini_fallback_models = parts.join(',');
+    }
     const changed = [];
     for (const key of EDITABLE_KEYS) {
       const v = body[key];
@@ -488,6 +507,35 @@ router.put('/settings', requireSuperadmin, async (req, res, next) => {
         { k: key, v: v.trim() }
       );
       changed.push(key);
+    }
+    // Key pools: one key per line, up to 10 — first line is the primary.
+    // Writing a list also syncs the legacy single key to the pool head so
+    // readers that only know `*_api_key` stay valid.
+    for (const [listKey, singleKey] of [['gemini_api_keys', 'gemini_api_key'], ['groq_api_keys', 'groq_api_key']]) {
+      const raw = body[listKey];
+      if (typeof raw !== 'string' || raw.trim() === '') continue;
+      const keys = parseApiKeys(raw);
+      if (!keys.length) continue;
+      if (keys.length > 10) {
+        return res.status(400).json({ error: 'Keep at most 10 keys per provider.' });
+      }
+      if (keys.some((k) => /\s/.test(k) || k.length > 4096)) {
+        return res.status(400).json({ error: 'API keys must be one per line with no spaces.' });
+      }
+      const deduped = [...new Set(keys)];
+      await pool.query(
+        `INSERT INTO settings (setting_key, setting_value)
+         VALUES (:k, :v)
+         ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value)`,
+        { k: listKey, v: deduped.join('\n') }
+      );
+      await pool.query(
+        `INSERT INTO settings (setting_key, setting_value)
+         VALUES (:k, :v)
+         ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value)`,
+        { k: singleKey, v: deduped[0] }
+      );
+      changed.push(listKey);
     }
     if (!changed.length) {
       return res.status(400).json({ error: 'No settings to update.' });
@@ -512,20 +560,46 @@ router.put('/settings', requireSuperadmin, async (req, res, next) => {
  * client.
  */
 const AI_TESTS = {
-  gemini: { name: 'Gemini', run: () => testGeminiConnection() },
-  groq: { name: 'Groq', run: () => testGroqConnection() },
+  gemini: {
+    name: 'Gemini',
+    pooled: true,
+    run: (keyIndex) => testGeminiConnection({ keyIndex }),
+  },
+  groq: {
+    name: 'Groq',
+    pooled: true,
+    run: (keyIndex) => testGroqConnection({ keyIndex }),
+  },
   ollama: {
     name: 'Ollama Cloud',
-    run: async () => testOllamaCloudConnection((await getAiConfig()).ollama),
+    run: async () => {
+      const cfg = await getAiConfig();
+      const result = await testOllamaCloudConnection(cfg.ollama);
+      return {
+        ...result,
+        keys: [{ index: 1, masked: mask(cfg.ollama.apiKey), ok: true, message: `Connected to ${result.model}.` }],
+      };
+    },
   },
 };
 
 for (const [provider, test] of Object.entries(AI_TESTS)) {
   router.post(`/settings/${provider}/test`, requireSuperadmin,
-    rateLimit({ max: 3, windowSec: 60, name: `${provider}-connection-test` }),
+    rateLimit({ max: test.pooled ? 6 : 3, windowSec: 60, name: `${provider}-connection-test` }),
     async (req, res) => {
       try {
-        const result = await test.run();
+        // Optional 1-based pool index — tests one saved key instead of all.
+        let keyIndex = null;
+        if (req.body?.keyIndex != null) {
+          if (!test.pooled) {
+            return res.status(400).json({ error: `${test.name} has a single key — keyIndex is not supported.` });
+          }
+          keyIndex = Number(req.body.keyIndex);
+          if (!Number.isInteger(keyIndex) || keyIndex < 1 || keyIndex > 10) {
+            return res.status(400).json({ error: 'keyIndex must be a whole number between 1 and 10.' });
+          }
+        }
+        const result = await test.run(keyIndex);
         res.json({ message: `${test.name} connection and JSON response verified.`, ...result });
       } catch (error) {
         const status = [400, 401, 402, 403, 404, 429, 502, 503, 504].includes(error.status) ? error.status : 502;

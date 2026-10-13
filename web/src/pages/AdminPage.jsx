@@ -24,7 +24,7 @@ import {
   RefreshCw, Check, X, ShieldCheck, Settings2, UserCheck, Clock,
   LogIn, ShieldAlert, Activity, Copy, ArrowRight, UserPlus, Ellipsis,
   Pencil, KeyRound, Printer, FileSpreadsheet, FileDown, BarChart3,
-  Search, ScrollText, ListChecks, Users,
+  Search, ScrollText, ListChecks, Users, ChevronDown,
 } from 'lucide-react';
 import { useToast } from '../components/Toast.jsx';
 import { useContextMenu, useCopyText } from '../components/ContextMenu.jsx';
@@ -903,6 +903,59 @@ function LoginsTab({ toast, tier }) {
 }
 
 // ── Audit trail tab ────────────────────────────────────
+// Audit rows store machine actions ("exam.create") and a JSON detail bag —
+// both read poorly in a table, so translate them into plain language.
+const AUDIT_VERBS = {
+  create: 'Created', update: 'Updated', delete: 'Deleted', approve: 'Approved',
+  reject: 'Rejected', import: 'Imported', upload: 'Uploaded', review: 'Reviewed',
+  finalize: 'Finalized', generate_sets: 'Generated sets for',
+  questions_add: 'Added questions to', questions_remove: 'Removed a question from',
+  send_reset: 'Sent a password reset for', bulk_approve: 'Bulk-approved',
+  bulk_reject: 'Bulk-rejected', bulk_delete: 'Bulk-deleted',
+};
+const AUDIT_NOUNS = {
+  exam: 'exam', question: 'question', material: 'material', subject: 'subject',
+  tos: 'blueprint', user: 'user', settings: 'settings', scan: 'scan',
+};
+const AUDIT_DETAIL_LABELS = {
+  title: 'title', name: 'name', code: 'code', email: 'email', role: 'role',
+  status: 'status', keys: 'fields', changes: 'changes', questionId: 'question',
+  subjectId: 'subject', tosId: 'blueprint', version: 'version', sets: 'sets',
+  added: 'added', skipped: 'skipped', deleted: 'deleted', requested: 'requested',
+  approved: 'approved', rejected: 'rejected', imported: 'imported',
+  emailed: 'emailed', sourceType: 'type', corrections: 'corrections',
+  score: 'score', needsReview: 'needs review', similarityBypassed: 'similarity bypassed',
+};
+
+function auditActionLabel(action) {
+  const [scope, verb] = String(action || '').split('.');
+  const v = AUDIT_VERBS[verb];
+  return v ? `${v} ${AUDIT_NOUNS[scope] || scope}` : String(action || '—');
+}
+
+function auditDetailText(detail) {
+  let d = detail;
+  if (typeof d === 'string') {
+    if (!d) return '—';
+    try { d = JSON.parse(d); } catch { return d; }
+  }
+  if (!d || typeof d !== 'object') return '—';
+  return Object.entries(d).map(([k, v]) => {
+    const label = AUDIT_DETAIL_LABELS[k] || k.replace(/[_-]+/g, ' ');
+    let val = v;
+    if (Array.isArray(v)) val = v.map((x) => String(x).replace(/_/g, ' ')).join(', ');
+    else if (typeof v === 'boolean') val = v ? 'yes' : 'no';
+    else if (v && typeof v === 'object') val = JSON.stringify(v);
+    else if (/Id$/.test(k) && (typeof v === 'number' || /^\d+$/.test(String(v)))) val = `#${v}`;
+    return `${label}: ${val}`;
+  }).join(' · ') || '—';
+}
+
+function auditTargetText(l) {
+  const noun = AUDIT_NOUNS[l.target_type] || l.target_type;
+  return [noun, l.target_id ? `#${l.target_id}` : null].filter(Boolean).join(' ') || '—';
+}
+
 function AuditTab({ toast, tier }) {
   const [logs, setLogs] = useState(null);
   const [query, setQuery] = useState('');
@@ -978,15 +1031,15 @@ function AuditTab({ toast, tier }) {
                     <th className={`wp-16 ${sortClass('created')}`} onClick={sortHandler('created')} data-name="Time">
                       Time{renderSortArrow('created')}
                     </th>
-                    <th className={`wp-20 ${sortClass('actor')}`} onClick={sortHandler('actor')} data-name="Actor">
+                    <th className={`wp-17 ${sortClass('actor')}`} onClick={sortHandler('actor')} data-name="Actor">
                       Actor{renderSortArrow('actor')}
                     </th>
-                    <th className={`wp-14 ${sortClass('action')}`} onClick={sortHandler('action')} data-name="Action">
+                    <th className={`wp-20 ${sortClass('action')}`} onClick={sortHandler('action')} data-name="Action">
                       Action{renderSortArrow('action')}
                     </th>
-                    <th className="wp-14" data-name="Target">Target</th>
+                    <th className="wp-13" data-name="Target">Target</th>
                     <th className="wp-22" data-name="Detail">Detail</th>
-                    <th className="wp-14" data-name="IP">IP</th>
+                    <th className="wp-12" data-name="IP">IP</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -1011,12 +1064,12 @@ function AuditTab({ toast, tier }) {
                     >
                       <td className="g-mute" title={fmtTime(l.created_at)}>{fmtShort(l.created_at)}</td>
                       <td>{l.actor_email || 'system'}</td>
-                      <td><span className="g-code">{l.action}</span></td>
+                      <td title={l.action}>{auditActionLabel(l.action)}</td>
                       <td className="g-mute" title={[l.target_type, l.target_id].filter(Boolean).join(' · ')}>
-                        {[l.target_type, l.target_id].filter(Boolean).join(' · ') || '—'}
+                        {auditTargetText(l)}
                       </td>
                       <td className="g-mute" title={typeof l.detail === 'string' ? l.detail : (l.detail ? JSON.stringify(l.detail) : '')}>
-                        {typeof l.detail === 'string' ? l.detail : (l.detail ? JSON.stringify(l.detail) : '—')}
+                        {auditDetailText(l.detail)}
                       </td>
                       <td><span className="g-code">{l.ip || '—'}</span></td>
                     </tr>
@@ -1061,12 +1114,76 @@ function ProviderTestRow({ testing, busy, configured, dirty, onTest, result }) {
   );
 }
 
+/**
+ * PoolKeyRows — one input row per key slot with its own Test button.
+ * Rows are draft-only (blank = keep saved key); masked placeholders show
+ * which index is configured. Testing probes the SAVED key at that index,
+ * so a row with unsaved text or a model edit disables its button.
+ */
+function PoolKeyRows({ provider, rows, masked, savedCount, modelDirty, saving, testing, onKeyChange, onTest, onAdd, results }) {
+  return (
+    <div className="adm-keys">
+      {rows.map((v, i) => {
+        const index = i + 1;
+        const configured = index <= savedCount;
+        const rowDirty = Boolean(v.trim());
+        const rowTesting = testing === `${provider}:${index}`;
+        const res = results?.[index];
+        return (
+          <div className="adm-key-slot" key={index}>
+            <div className="adm-key-row">
+              <label className="adm-key-label" htmlFor={`set-${provider}-key-${index}`}>
+                Key {index}{index === 1 && <em>primary</em>}
+              </label>
+              <input
+                id={`set-${provider}-key-${index}`}
+                className="form-control adm-key-input"
+                type="password"
+                autoComplete="new-password"
+                spellCheck={false}
+                disabled={saving || testing !== null}
+                value={v}
+                placeholder={masked?.[i] || 'Paste an API key'}
+                onChange={onKeyChange(i)}
+              />
+              <button
+                type="button"
+                className="btn btn-outline btn-sm adm-key-test"
+                disabled={saving || testing !== null || modelDirty || rowDirty || !configured}
+                title={!configured ? 'Save a key in this slot to enable its test.'
+                  : rowDirty || modelDirty ? 'Save your changes first — testing uses the saved credentials.'
+                    : `Test saved key ${index}.`}
+                onClick={() => onTest(index)}
+              >
+                {rowTesting ? 'Testing…' : 'Test'}
+              </button>
+            </div>
+            {res && (
+              <p className={`adm-provider-result adm-key-result ${res.ok ? 'is-success' : 'is-error'}`} role="status">
+                {res.message}
+              </p>
+            )}
+          </div>
+        );
+      })}
+      <div className="adm-keys-foot">
+        <button type="button" className="btn btn-ghost btn-sm" onClick={onAdd} disabled={saving || testing !== null || rows.length >= 10}>
+          + Add another key
+        </button>
+        <span className="form-hint">Clear a field to remove that key on save.</span>
+      </div>
+    </div>
+  );
+}
+
 // ── Settings tab ───────────────────────────────────────
 function SettingsTab({ toast, tier }) {
   const [data, setData] = useState(null);
   const [form, setForm] = useState({});
+  // Draft key edits — one row per pool slot; blank rows keep the saved key.
+  const [keyRows, setKeyRows] = useState({ gemini: [''], groq: [''] });
   const [saving, setSaving] = useState(false);
-  const [testing, setTesting] = useState(null);
+  const [testing, setTesting] = useState(null); // 'ollama' | 'gemini:2' | 'groq:1'
   const [testResults, setTestResults] = useState({});
 
   const load = useCallback(() => {
@@ -1076,13 +1193,16 @@ function SettingsTab({ toast, tier }) {
         setForm({
           recaptcha_site_key: d.recaptcha?.siteKey || '',
           recaptcha_secret_key: '',
-          gemini_api_key: '',
           gemini_model: d.ai?.geminiModel || '',
+          gemini_fallback_models: d.ai?.geminiFallbackModels || '',
           gemini_embedding_model: d.ai?.geminiEmbeddingModel || '',
-          groq_api_key: '',
           groq_model: d.ai?.groqModel || '',
           ollama_api_key: '',
           ollama_model: d.ai?.ollamaModel || '',
+        });
+        setKeyRows({
+          gemini: Array(Math.max(1, d.ai?.geminiKeyCount || 0)).fill(''),
+          groq: Array(Math.max(1, d.ai?.groqKeyCount || 0)).fill(''),
         });
       })
       .catch((e) => toast.error(e instanceof ApiError ? e.message : 'Failed to load settings.'));
@@ -1098,20 +1218,46 @@ function SettingsTab({ toast, tier }) {
     }
   };
 
-  async function testProvider(provider) {
-    setTesting(provider);
-    setTestResults((r) => ({ ...r, [provider]: null }));
+  const setKey = (provider, i) => (e) => {
+    setKeyRows((r) => {
+      const rows = [...r[provider]];
+      rows[i] = e.target.value;
+      return { ...r, [provider]: rows };
+    });
+    setTestResults((r) => (r[provider]?.[i + 1]
+      ? { ...r, [provider]: { ...r[provider], [i + 1]: null } }
+      : r));
+  };
+
+  const addKeyRow = (provider) => {
+    setKeyRows((r) => (r[provider].length >= 10 ? r : { ...r, [provider]: [...r[provider], ''] }));
+  };
+
+  async function testProvider(provider, keyIndex = null) {
+    setTesting(keyIndex === null ? provider : `${provider}:${keyIndex}`);
     try {
-      const result = await api.post(`/admin/settings/${provider}/test`, {});
-      setTestResults((r) => ({
-        ...r,
-        [provider]: { ok: true, message: `Connected to ${result.model}. JSON and source evidence verified.` },
-      }));
+      const result = await api.post(`/admin/settings/${provider}/test`,
+        keyIndex === null ? {} : { keyIndex });
+      if (keyIndex !== null) {
+        const k = result.keys?.[0];
+        setTestResults((r) => ({
+          ...r,
+          [provider]: { ...r[provider], [keyIndex]: { ok: Boolean(k?.ok), message: k?.message || 'Done.' } },
+        }));
+      } else {
+        const k = result.keys?.[0];
+        setTestResults((r) => ({
+          ...r,
+          [provider]: k && !k.ok
+            ? { ok: false, message: k.message }
+            : { ok: true, message: `Connected to ${result.model}. JSON and source evidence verified.` },
+        }));
+      }
     } catch (error) {
-      setTestResults((r) => ({
-        ...r,
-        [provider]: { ok: false, message: error instanceof ApiError ? error.message : `Could not test ${provider}.` },
-      }));
+      const message = error instanceof ApiError ? error.message : `Could not test ${provider}.`;
+      setTestResults((r) => (keyIndex === null
+        ? { ...r, [provider]: { ok: false, message } }
+        : { ...r, [provider]: { ...r[provider], [keyIndex]: { ok: false, message } } }));
     } finally {
       setTesting(null);
     }
@@ -1122,7 +1268,11 @@ function SettingsTab({ toast, tier }) {
     setSaving(true);
     setTestResults({});
     try {
-      const res = await api.put('/admin/settings', form);
+      const res = await api.put('/admin/settings', {
+        ...form,
+        gemini_api_keys: keyRows.gemini.map((k) => k.trim()).filter(Boolean).join('\n'),
+        groq_api_keys: keyRows.groq.map((k) => k.trim()).filter(Boolean).join('\n'),
+      });
       toast.success(`Updated ${res.changed?.length || 0} setting(s).`);
       load();
     } catch (err) {
@@ -1153,13 +1303,14 @@ function SettingsTab({ toast, tier }) {
   // or model marks it dirty until Save so the button can't test a mix.
   const same = (a, b) => (a || '') === (b || '');
   const dirty = data ? {
-    gemini: Boolean(form.gemini_api_key?.trim())
-      || !same(form.gemini_model?.trim(), data.ai?.geminiModel)
-      || !same(form.gemini_embedding_model?.trim(), data.ai?.geminiEmbeddingModel),
-    groq: Boolean(form.groq_api_key?.trim())
-      || !same(form.groq_model?.trim(), data.ai?.groqModel),
     ollama: Boolean(form.ollama_api_key?.trim())
       || !same(form.ollama_model?.trim(), data.ai?.ollamaModel),
+  } : {};
+  // Model edits invalidate every saved-key test for that provider.
+  const modelDirty = data ? {
+    gemini: !same(form.gemini_model?.trim(), data.ai?.geminiModel)
+      || !same(form.gemini_embedding_model?.trim(), data.ai?.geminiEmbeddingModel),
+    groq: !same(form.groq_model?.trim(), data.ai?.groqModel),
   } : {};
 
   return (
@@ -1194,83 +1345,106 @@ function SettingsTab({ toast, tier }) {
               <h3>AI providers</h3>
             </header>
             <div className="adm-card-body adm-providers">
-              <div className="adm-provider">
-                <div className="adm-provider-head">
+              <details className="adm-provider" open={!data.ai?.geminiApiKeySet}>
+                <summary className="adm-provider-head">
                   <strong>Gemini</strong>
-                  <small>Primary — question generation and embeddings</small>
-                  {data.ai?.geminiApiKeySet && <span className="adm-tag adm-tag-ok">configured</span>}
+                  <small>Primary — generation + embeddings</small>
+                  {data.ai?.geminiKeyCount > 0 && (
+                    <span className="adm-tag adm-tag-ok">
+                      {data.ai.geminiKeyCount} key{data.ai.geminiKeyCount > 1 ? 's' : ''}
+                    </span>
+                  )}
+                  <ChevronDown size={15} className="adm-provider-caret" aria-hidden="true" />
+                </summary>
+                <div className="adm-provider-body">
+                  <PoolKeyRows
+                    provider="gemini"
+                    rows={keyRows.gemini}
+                    masked={data.ai?.geminiKeysMasked}
+                    savedCount={data.ai?.geminiKeyCount || 0}
+                    modelDirty={modelDirty.gemini}
+                    saving={saving}
+                    testing={testing}
+                    onKeyChange={(i) => setKey('gemini', i)}
+                    onTest={(index) => testProvider('gemini', index)}
+                    onAdd={() => addKeyRow('gemini')}
+                    results={testResults.gemini}
+                  />
+                  <div className="form-row">
+                    {field('gemini_model', 'Chat model')}
+                    {field('gemini_fallback_models', 'Fallback models', {
+                      placeholder: 'gemini-3.8-flash, gemini-3.7-flash',
+                      hint: 'Comma-separated — tried when the chat model is overloaded.',
+                    })}
+                  </div>
+                  <div className="form-row">
+                    {field('gemini_embedding_model', 'Embedding model', {
+                      hint: 'Fixed — the vector space must stay consistent.',
+                    })}
+                  </div>
                 </div>
-                <div className="form-row">
-                  {field('gemini_api_key', 'API key', {
-                    type: 'password',
-                    placeholder: data.ai?.geminiApiKeyMasked || 'Not configured',
-                    hint: data.ai?.geminiApiKeySource ? `Source: ${data.ai.geminiApiKeySource}. Leave blank to keep.` : 'Leave blank to keep.',
-                  })}
-                  {field('gemini_model', 'Chat model')}
-                </div>
-                <div className="form-row">
-                  {field('gemini_embedding_model', 'Embedding model')}
-                </div>
-                <ProviderTestRow
-                  testing={testing === 'gemini'}
-                  busy={testing !== null}
-                  configured={Boolean(data.ai?.geminiApiKeySet)}
-                  dirty={dirty.gemini}
-                  onTest={() => testProvider('gemini')}
-                  result={testResults.gemini}
-                />
-              </div>
+              </details>
 
-              <div className="adm-provider">
-                <div className="adm-provider-head">
+              <details className="adm-provider" open={!data.ai?.groqApiKeySet}>
+                <summary className="adm-provider-head">
                   <strong>Groq</strong>
-                  <small>Fallback — generation only, no embeddings</small>
-                  {data.ai?.groqApiKeySet && <span className="adm-tag adm-tag-ok">configured</span>}
+                  <small>Fallback — generation only</small>
+                  {data.ai?.groqKeyCount > 0 && (
+                    <span className="adm-tag adm-tag-ok">
+                      {data.ai.groqKeyCount} key{data.ai.groqKeyCount > 1 ? 's' : ''}
+                    </span>
+                  )}
+                  <ChevronDown size={15} className="adm-provider-caret" aria-hidden="true" />
+                </summary>
+                <div className="adm-provider-body">
+                  <PoolKeyRows
+                    provider="groq"
+                    rows={keyRows.groq}
+                    masked={data.ai?.groqKeysMasked}
+                    savedCount={data.ai?.groqKeyCount || 0}
+                    modelDirty={modelDirty.groq}
+                    saving={saving}
+                    testing={testing}
+                    onKeyChange={(i) => setKey('groq', i)}
+                    onTest={(index) => testProvider('groq', index)}
+                    onAdd={() => addKeyRow('groq')}
+                    results={testResults.groq}
+                  />
+                  <div className="form-row">
+                    {field('groq_model', 'Model')}
+                  </div>
                 </div>
-                <div className="form-row">
-                  {field('groq_api_key', 'API key', {
-                    type: 'password',
-                    placeholder: data.ai?.groqApiKeyMasked || 'Not configured',
-                    hint: data.ai?.groqApiKeySource ? `Source: ${data.ai.groqApiKeySource}. Leave blank to keep.` : 'Leave blank to keep.',
-                  })}
-                  {field('groq_model', 'Model')}
-                </div>
-                <ProviderTestRow
-                  testing={testing === 'groq'}
-                  busy={testing !== null}
-                  configured={Boolean(data.ai?.groqApiKeySet)}
-                  dirty={dirty.groq}
-                  onTest={() => testProvider('groq')}
-                  result={testResults.groq}
-                />
-              </div>
+              </details>
 
-              <div className="adm-provider">
-                <div className="adm-provider-head">
+              <details className="adm-provider" open={!data.ai?.ollamaApiKeySet}>
+                <summary className="adm-provider-head">
                   <strong>Ollama Cloud</strong>
-                  <small>Last resort — runs in the cloud, no local install</small>
+                  <small>Last resort — cloud API</small>
                   {data.ai?.ollamaApiKeySet && <span className="adm-tag adm-tag-ok">configured</span>}
+                  <ChevronDown size={15} className="adm-provider-caret" aria-hidden="true" />
+                </summary>
+                <div className="adm-provider-body">
+                  <div className="form-row">
+                    {field('ollama_api_key', 'API key', {
+                      type: 'password',
+                      placeholder: data.ai?.ollamaApiKeyMasked || 'Paste your Ollama API key',
+                      hint: 'Leave blank to keep the saved key.',
+                    })}
+                    {field('ollama_model', 'Model', {
+                      placeholder: 'gemma4:31b',
+                      hint: 'Use a model included in your account allowance.',
+                    })}
+                  </div>
+                  <ProviderTestRow
+                    testing={testing === 'ollama'}
+                    busy={testing !== null}
+                    configured={Boolean(data.ai?.ollamaApiKeySet)}
+                    dirty={dirty.ollama}
+                    onTest={() => testProvider('ollama')}
+                    result={testResults.ollama}
+                  />
                 </div>
-                <div className="form-row">
-                  {field('ollama_api_key', 'API key', {
-                    type: 'password',
-                    placeholder: data.ai?.ollamaApiKeyMasked || 'Paste your Ollama API key',
-                    hint: 'Leave blank to keep the saved key.',
-                  })}
-                  {field('ollama_model', 'Model', {
-                    placeholder: 'gemma4:31b',
-                    hint: 'Use the API model name included in your free allowance. Availability depends on your Ollama account.',
-                  })}
-                </div>
-                <ProviderTestRow
-                  testing={testing === 'ollama'}
-                  busy={testing !== null}
-                  configured={Boolean(data.ai?.ollamaApiKeySet)}
-                  dirty={dirty.ollama}
-                  onTest={() => testProvider('ollama')}
-                  result={testResults.ollama}
-                />
-              </div>
+              </details>
             </div>
           </section>
 

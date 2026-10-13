@@ -30,8 +30,8 @@ test('Ollama settings enforce roles, mask secrets, preserve blank keys, and test
   env.jwt.secret = 'isolated-ollama-settings-test';
   env.ai = {
     ...env.ai,
-    gemini: { ...env.ai.gemini, apiKey: '' },
-    groq: { ...env.ai.groq, apiKey: '' },
+    gemini: { ...env.ai.gemini, apiKey: '', apiKeys: [], fallbackModels: [] },
+    groq: { ...env.ai.groq, apiKey: '', apiKeys: [] },
     ollama: { apiKey: '', model: 'gemma4:31b' },
   };
   t.after(() => { env.ai = originalAi; env.jwt.secret = originalSecret; });

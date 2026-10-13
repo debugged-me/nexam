@@ -74,11 +74,18 @@ export const env = {
   ai: {
     gemini: {
       apiKey: process.env.GEMINI_API_KEY || '',
+      // Extra keys for the rotation pool — comma-separated, different accounts.
+      apiKeys: (process.env.GEMINI_API_KEYS || '').split(',').map((k) => k.trim()).filter(Boolean),
       model: process.env.GEMINI_MODEL || 'gemini-3.6-flash',
+      // Backup chat models tried (in order) when the primary is overloaded
+      // or missing — quotas are per key AND per model, so a different model
+      // on the same key often has fresh allowance.
+      fallbackModels: (process.env.GEMINI_FALLBACK_MODELS || '').split(',').map((m) => m.trim()).filter(Boolean),
       embeddingModel: process.env.GEMINI_EMBEDDING_MODEL || 'gemini-embedding-001',
     },
     groq: {
       apiKey: process.env.GROQ_API_KEY || '',
+      apiKeys: (process.env.GROQ_API_KEYS || '').split(',').map((k) => k.trim()).filter(Boolean),
       model: process.env.GROQ_MODEL || 'openai/gpt-oss-120b',
     },
     ollama: {

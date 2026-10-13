@@ -24,6 +24,7 @@ import { sendCredentialsEmail, sendResetLinkEmail } from '../services/emailServi
 import { logAudit } from '../services/audit.js';
 import { getAiConfig, invalidateAiConfigCache } from '../services/aiConfig.js';
 import { testOllamaCloudConnection } from '../services/ollamaCloud.js';
+import { testGeminiConnection, testGroqConnection } from '../services/aiProvider.js';
 import { rateLimit } from '../middleware/rateLimit.js';
 
 const router = Router();
@@ -503,20 +504,35 @@ router.put('/settings', requireSuperadmin, async (req, res, next) => {
   }
 });
 
-/** Test only saved credentials with synthetic evidence; never create a question. */
-router.post('/settings/ollama/test', requireSuperadmin,
-  rateLimit({ max: 3, windowSec: 60, name: 'ollama-connection-test' }),
-  async (req, res) => {
-    try {
-      const cfg = await getAiConfig();
-      const result = await testOllamaCloudConnection(cfg.ollama);
-      res.json({ message: 'Ollama Cloud connection and JSON response verified.', ...result });
-    } catch (error) {
-      // This adapter produces safe messages and never exposes upstream bodies.
-      const status = [400, 401, 402, 403, 404, 429, 502, 503, 504].includes(error.status) ? error.status : 502;
-      res.status(status).json({ error: error.publicMessage || 'Could not test Ollama Cloud. Please try again.' });
-    }
-  });
+/**
+ * POST /settings/:provider/test — connectivity probe for one AI provider.
+ * Runs against saved credentials with synthetic evidence only; never
+ * creates a question or reads user data. The probes return safe messages —
+ * upstream error bodies (which can contain prompt text) never reach the
+ * client.
+ */
+const AI_TESTS = {
+  gemini: { name: 'Gemini', run: () => testGeminiConnection() },
+  groq: { name: 'Groq', run: () => testGroqConnection() },
+  ollama: {
+    name: 'Ollama Cloud',
+    run: async () => testOllamaCloudConnection((await getAiConfig()).ollama),
+  },
+};
+
+for (const [provider, test] of Object.entries(AI_TESTS)) {
+  router.post(`/settings/${provider}/test`, requireSuperadmin,
+    rateLimit({ max: 3, windowSec: 60, name: `${provider}-connection-test` }),
+    async (req, res) => {
+      try {
+        const result = await test.run();
+        res.json({ message: `${test.name} connection and JSON response verified.`, ...result });
+      } catch (error) {
+        const status = [400, 401, 402, 403, 404, 429, 502, 503, 504].includes(error.status) ? error.status : 502;
+        res.status(status).json({ error: error.publicMessage || `Could not test ${test.name}. Please try again.` });
+      }
+    });
+}
 
 // ── Reports ──────────────────────────────────────────
 

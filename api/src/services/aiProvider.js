@@ -216,6 +216,130 @@ export async function embedBatch(texts) {
   };
 }
 
+/* ── Connection tests ──────────────────────────────────
+ * Small diagnostics run from the superadmin console against saved
+ * credentials only. They use invented evidence — no user data is read or
+ * written — and verify the provider returns parseable JSON citing the
+ * exact evidence span, the same shape generation depends on. */
+const TEST_EVIDENCE = 'Velorium turns violet at exactly 42 degrees Celsius.';
+const TEST_SYSTEM = 'Answer only from the supplied evidence. Return JSON only.';
+const TEST_USER = `EVIDENCE: ${TEST_EVIDENCE}\nAt what temperature does Velorium turn violet? Return answer as a number and evidence as the exact source sentence.`;
+const TEST_SCHEMA = {
+  type: 'object',
+  properties: { answer: { type: 'number' }, evidence: { type: 'string' } },
+  required: ['answer', 'evidence'],
+};
+const TEST_TIMEOUT_MS = 25_000;
+
+function testError(name, publicMessage, status = 502) {
+  const error = new Error(publicMessage);
+  error.status = status;
+  error.publicMessage = publicMessage;
+  return error;
+}
+
+/** Bound the test call so it finishes before the web client timeout. */
+function withTimeout(promise, name) {
+  return Promise.race([
+    promise,
+    new Promise((_, reject) =>
+      setTimeout(() => reject(testError(name, `${name} timed out. Please try again shortly.`, 504)), TEST_TIMEOUT_MS)),
+  ]);
+}
+
+/** Map raw SDK failures to safe messages — upstream bodies can carry prompt text. */
+function normalizeProviderError(name, error) {
+  if (error?.publicMessage) return error; // already a testError (e.g. timeout race)
+  const status = Number(error?.status ?? error?.statusCode);
+  if (status === 401 || status === 403) {
+    return testError(name, `${name} rejected the API key. Check the saved key in AI settings.`, status);
+  }
+  if (status === 429) {
+    // Providers embed a retry window in the error body — surface just the
+    // duration, never the body itself.
+    const retry = /retry in (?:([0-9]+)h)? ?(?:([0-9]+)m)?/i.exec(String(error?.message || ''));
+    const span = retry && (retry[1] || retry[2])
+      ? ` Retry in about ${[retry[1] && `${retry[1]}h`, retry[2] && `${retry[2]}m`].filter(Boolean).join(' ')}.`
+      : ' Try again shortly.';
+    return testError(name, `${name} rate limit or quota reached.${span}`, 429);
+  }
+  if (status === 404) return testError(name, `${name} model was not found. Check the model name in AI settings.`, 404);
+  if (status === 402) return testError(name, `${name} usage is unavailable. Check billing or your free allowance.`, 402);
+  return testError(name, `${name} could not complete the request. Check the key and model, then try again.`, 502);
+}
+
+/** The answer must cite the exact invented sentence — proves JSON + grounding. */
+function assertEvidenceAnswer(text, name) {
+  const clean = String(text || '').trim()
+    .replace(/^```(?:json)?\s*/i, '')
+    .replace(/\s*```$/, '')
+    .trim();
+  let parsed;
+  try { parsed = JSON.parse(clean); } catch { /* handled below */ }
+  if (parsed?.answer !== 42 || parsed?.evidence !== TEST_EVIDENCE) {
+    throw testError(name, `${name} responded but failed the JSON/evidence check. Try again or choose another model.`, 502);
+  }
+}
+
+/** Extract plain text from a LangChain message content union. */
+function contentText(content) {
+  if (typeof content === 'string') return content;
+  if (Array.isArray(content)) return content.map((c) => (typeof c === 'string' ? c : c.text || '')).join('');
+  return '';
+}
+
+/** Test the saved Gemini key + chat model with the evidence probe. */
+export async function testGeminiConnection() {
+  const cfg = await getAiConfig();
+  if (!cfg.gemini.apiKey) throw testError('Gemini', 'Save a Gemini API key first.', 400);
+  const model = new ChatGoogleGenerativeAI({
+    apiKey: cfg.gemini.apiKey,
+    model: cfg.gemini.model,
+    temperature: 0,
+    maxOutputTokens: 512,
+    maxRetries: 0,
+  });
+  const schemaHint = `\n\nThe following is a JSON Schema definition, not the response itself. Return one JSON INSTANCE that satisfies it; never repeat or describe the schema: ${JSON.stringify(TEST_SCHEMA)}. Do not include markdown code fences or any text outside that JSON instance.`;
+  let response;
+  try {
+    response = await withTimeout(
+      model.invoke(
+        [new SystemMessage(TEST_SYSTEM + schemaHint), new HumanMessage(TEST_USER)],
+        { timeout: TEST_TIMEOUT_MS }
+      ),
+      'Gemini'
+    );
+  } catch (error) {
+    throw normalizeProviderError('Gemini', error);
+  }
+  assertEvidenceAnswer(contentText(response?.content), 'Gemini');
+  return { provider: 'gemini', model: cfg.gemini.model };
+}
+
+/** Test the saved Groq key + model with the evidence probe. */
+export async function testGroqConnection() {
+  const cfg = await getAiConfig();
+  const client = getGroq(cfg);
+  if (!client) throw testError('Groq', 'Save a Groq API key first.', 400);
+  let completion;
+  try {
+    completion = await withTimeout(client.chat.completions.create({
+      model: cfg.groq.model,
+      messages: [
+        { role: 'system', content: TEST_SYSTEM },
+        { role: 'user', content: TEST_USER },
+      ],
+      temperature: 0,
+      max_tokens: 512,
+      response_format: { type: 'json_object' },
+    }, { timeout: TEST_TIMEOUT_MS }), 'Groq');
+  } catch (error) {
+    throw normalizeProviderError('Groq', error);
+  }
+  assertEvidenceAnswer(completion?.choices?.[0]?.message?.content, 'Groq');
+  return { provider: 'groq', model: cfg.groq.model };
+}
+
 /** Quick health check — which providers are configured? */
 export async function status() {
   const cfg = await getAiConfig();

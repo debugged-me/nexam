@@ -250,3 +250,11 @@
   border-bottom: 1px solid #000;
   padding-bottom: 1mm;
 }
+
+@media print {
+  /* Keep a section title glued to the table that follows it, and the
+     document masthead with the first block of content. */
+  .report-section-title { break-after: avoid; }
+  .print-doc-head { break-after: avoid; }
+  .report-table thead { display: table-header-group; }
+}

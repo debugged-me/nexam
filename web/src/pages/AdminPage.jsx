@@ -29,7 +29,7 @@ import {
   LogIn, ShieldAlert, Activity, Copy, ArrowRight, UserPlus, Ellipsis,
   Pencil, KeyRound, Printer, FileSpreadsheet, FileDown, BarChart3,
   Search, ScrollText, ListChecks, Users, ChevronDown, Megaphone,
-  Trash2, Plus, Eye, EyeOff, CircleHelp, MailCheck,
+  Trash2, Plus, Eye, EyeOff, CircleHelp, MailCheck, Undo2,
 } from 'lucide-react';
 import { useToast } from '../components/Toast.jsx';
 import { useContextMenu, useCopyText } from '../components/ContextMenu.jsx';
@@ -1603,24 +1603,28 @@ function ProviderTestRow({ testing, busy, configured, dirty, onTest, result }) {
 
 /**
  * PoolKeyRows — one input row per key slot with its own Test button.
- * Rows are draft-only (blank = keep saved key); masked placeholders show
- * which index is configured. Testing probes the SAVED key at that index,
- * so a row with unsaved text or a model edit disables its button.
+ * Rows are draft-only: blank keeps the saved key, typed text replaces it,
+ * and Remove drops it on save. Masked placeholders show which index is
+ * configured; keys from api/.env are labelled and removable only there.
+ * Testing probes the SAVED key at that index, so a row with unsaved text,
+ * a pending removal or a model edit disables its button.
  */
-function PoolKeyRows({ provider, rows, masked, savedCount, modelDirty, saving, testing, onKeyChange, onTest, onAdd, results }) {
+function PoolKeyRows({ provider, rows, masked, sources, savedCount, removed, modelDirty, saving, testing, onKeyChange, onTest, onAdd, onToggleRemove, results }) {
   return (
     <div className="adm-keys">
       {rows.map((v, i) => {
         const index = i + 1;
         const configured = index <= savedCount;
-        const rowDirty = Boolean(v.trim());
+        const fromEnv = configured && sources?.[i] === 'env';
+        const removing = removed?.has(i);
+        const rowDirty = Boolean(v.trim()) || removing;
         const rowTesting = testing === `${provider}:${index}`;
         const res = results?.[index];
         return (
           <div className="adm-key-slot" key={index}>
             <div className="adm-key-row">
               <label className="adm-key-label" htmlFor={`set-${provider}-key-${index}`}>
-                Key {index}{index === 1 && <em>primary</em>}
+                Key {index}{fromEnv ? <em>from api/.env</em> : index === 1 && <em>primary</em>}
               </label>
               <input
                 id={`set-${provider}-key-${index}`}
@@ -1628,9 +1632,9 @@ function PoolKeyRows({ provider, rows, masked, savedCount, modelDirty, saving, t
                 type="password"
                 autoComplete="new-password"
                 spellCheck={false}
-                disabled={saving || testing !== null}
+                disabled={saving || testing !== null || removing || fromEnv}
                 value={v}
-                placeholder={masked?.[i] || 'Paste an API key'}
+                placeholder={removing ? 'Removed when you save' : fromEnv ? `${masked?.[i] || 'Saved key'} — change it in api/.env` : configured ? `${masked?.[i] || 'Saved key'} — paste to replace` : 'Paste an API key'}
                 onChange={onKeyChange(i)}
               />
               <button
@@ -1644,6 +1648,19 @@ function PoolKeyRows({ provider, rows, masked, savedCount, modelDirty, saving, t
               >
                 {rowTesting ? 'Testing…' : 'Test'}
               </button>
+              {configured && !fromEnv && (
+                <button
+                  type="button"
+                  className="btn btn-ghost btn-sm adm-key-remove"
+                  disabled={saving || testing !== null}
+                  aria-label={removing ? `Keep key ${index}` : `Remove key ${index}`}
+                  title={removing ? 'Keep this key' : 'Remove this key when you save'}
+                  onClick={() => onToggleRemove(i)}
+                >
+                  {removing ? <Undo2 size={15} aria-hidden="true" /> : <Trash2 size={15} aria-hidden="true" />}
+                </button>
+              )}
+              {!(configured && !fromEnv) && <span className="adm-key-spacer" aria-hidden="true" />}
             </div>
             {res && (
               <p className={`adm-provider-result adm-key-result ${res.ok ? 'is-success' : 'is-error'}`} role="status">
@@ -1657,7 +1674,7 @@ function PoolKeyRows({ provider, rows, masked, savedCount, modelDirty, saving, t
         <button type="button" className="btn btn-ghost btn-sm" onClick={onAdd} disabled={saving || testing !== null || rows.length >= 10}>
           + Add another key
         </button>
-        <span className="form-hint">Clear a field to remove that key on save.</span>
+        <span className="form-hint">Paste into a saved slot to replace that key. Keys from different accounts each get their own quota; several keys created in the same project or organization share one.</span>
       </div>
     </div>
   );
@@ -1669,6 +1686,8 @@ function SettingsTab({ toast, tier }) {
   const [form, setForm] = useState({});
   // Draft key edits — one row per pool slot; blank rows keep the saved key.
   const [keyRows, setKeyRows] = useState({ gemini: [''], groq: [''] });
+  // Saved slots (0-based) marked for removal on the next save.
+  const [removedKeys, setRemovedKeys] = useState({ gemini: new Set(), groq: new Set() });
   const [saving, setSaving] = useState(false);
   const [testing, setTesting] = useState(null); // 'ollama' | 'gemini:2' | 'groq:1'
   const [testResults, setTestResults] = useState({});
@@ -1692,6 +1711,7 @@ function SettingsTab({ toast, tier }) {
           gemini: Array(Math.max(1, d.ai?.geminiKeyCount || 0)).fill(''),
           groq: Array(Math.max(1, d.ai?.groqKeyCount || 0)).fill(''),
         });
+        setRemovedKeys({ gemini: new Set(), groq: new Set() });
       })
       .catch((e) => toast.error(e instanceof ApiError ? e.message : 'Failed to load settings.'));
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
@@ -1715,6 +1735,30 @@ function SettingsTab({ toast, tier }) {
     setTestResults((r) => (r[provider]?.[i + 1]
       ? { ...r, [provider]: { ...r[provider], [i + 1]: null } }
       : r));
+  };
+
+  const toggleRemoveKey = (provider, i) => {
+    setRemovedKeys((r) => {
+      const next = new Set(r[provider]);
+      if (next.has(i)) next.delete(i); else next.add(i);
+      return { ...r, [provider]: next };
+    });
+    setTestResults((r) => (r[provider]?.[i + 1] ? { ...r, [provider]: { ...r[provider], [i + 1]: null } } : r));
+  };
+
+  // Slot edits for the API: keep each untouched saved key by its index,
+  // send typed text as a new or replacement key, and omit removed slots.
+  // Sent only when the pool changed, so an unrelated save never rewrites keys.
+  const keySlots = (provider) => {
+    const saved = data?.ai?.[`${provider}KeyCount`] || 0;
+    const rows = keyRows[provider];
+    const touched = rows.some((v) => v.trim()) || removedKeys[provider].size > 0;
+    if (!touched) return undefined;
+    return rows.flatMap((v, i) => {
+      if (v.trim()) return [{ value: v.trim() }];
+      if (i < saved && !removedKeys[provider].has(i)) return [{ keep: i + 1 }];
+      return [];
+    });
   };
 
   const addKeyRow = (provider) => {
@@ -1758,8 +1802,8 @@ function SettingsTab({ toast, tier }) {
     try {
       const res = await api.put('/admin/settings', {
         ...form,
-        gemini_api_keys: keyRows.gemini.map((k) => k.trim()).filter(Boolean).join('\n'),
-        groq_api_keys: keyRows.groq.map((k) => k.trim()).filter(Boolean).join('\n'),
+        gemini_key_slots: keySlots('gemini'),
+        groq_key_slots: keySlots('groq'),
       });
       toast.success(`Updated ${res.changed?.length || 0} setting(s).`);
       load();
@@ -1862,7 +1906,10 @@ function SettingsTab({ toast, tier }) {
                     provider="gemini"
                     rows={keyRows.gemini}
                     masked={data.ai?.geminiKeysMasked}
+                    sources={data.ai?.geminiKeys?.map((k) => k.source)}
                     savedCount={data.ai?.geminiKeyCount || 0}
+                    removed={removedKeys.gemini}
+                    onToggleRemove={(i) => toggleRemoveKey('gemini', i)}
                     modelDirty={modelDirty.gemini}
                     saving={saving}
                     testing={testing}
@@ -1902,7 +1949,10 @@ function SettingsTab({ toast, tier }) {
                     provider="groq"
                     rows={keyRows.groq}
                     masked={data.ai?.groqKeysMasked}
+                    sources={data.ai?.groqKeys?.map((k) => k.source)}
                     savedCount={data.ai?.groqKeyCount || 0}
+                    removed={removedKeys.groq}
+                    onToggleRemove={(i) => toggleRemoveKey('groq', i)}
                     modelDirty={modelDirty.groq}
                     saving={saving}
                     testing={testing}

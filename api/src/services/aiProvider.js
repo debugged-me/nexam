@@ -96,6 +96,9 @@ function parseRetryMs(error) {
 function providerStatus(error) {
   const details = `${error?.message || ''} ${error?.error?.code || ''} ${error?.code || ''}`;
   if (/blocked_api_access|spend(?:ing)?[ _-]*(?:cap|limit)|billing[ _-]*limit/i.test(details)) return 402;
+  // Google rejects a bad key with HTTP 400 (API_KEY_INVALID). It is a
+  // credential failure, not a bad request: rotate past it like a 401.
+  if (/API_KEY_INVALID|API key not valid/i.test(`${details} ${error?.cause?.message || ''}`)) return 401;
   const direct = Number(error?.status ?? error?.statusCode ?? error?.response?.status ?? error?.cause?.status);
   if (Number.isFinite(direct) && direct) return direct;
   const msg = `${error?.message || ''} ${error?.cause?.message || ''}`;

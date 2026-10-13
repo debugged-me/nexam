@@ -439,6 +439,12 @@ router.get('/settings', requireSuperadmin, async (req, res, next) => {
     const ollamaModel = await getSetting('ollama_model', env.ai.ollama.model);
     const autoApproveDomains = await getSetting('auto_approve_domains', '');
     const cfg = await getAiConfig();
+    // Which pool keys the page can edit: settings-held keys, or ones always
+    // appended from api/.env (removable only there).
+    const keySlots = (keys, list, single) => {
+      const saved = new Set(list ? parseApiKeys(list) : (single ? [single] : []));
+      return keys.map((k) => ({ masked: mask(k), source: saved.has(k) ? 'settings' : 'env' }));
+    };
 
     res.json({
       autoApproveDomains,
@@ -451,6 +457,7 @@ router.get('/settings', requireSuperadmin, async (req, res, next) => {
         geminiApiKeySet: Boolean(cfg.gemini.keys.length),
         geminiApiKeyMasked: mask(cfg.gemini.apiKey),
         geminiKeysMasked: cfg.gemini.keys.map(mask),
+        geminiKeys: keySlots(cfg.gemini.keys, geminiKeysList, geminiKey),
         geminiKeyCount: cfg.gemini.keys.length,
         geminiApiKeySource: (geminiKey || geminiKeysList) ? 'settings'
           : (env.ai.gemini.apiKey || env.ai.gemini.apiKeys.length ? 'env' : null),
@@ -460,6 +467,7 @@ router.get('/settings', requireSuperadmin, async (req, res, next) => {
         groqApiKeySet: Boolean(cfg.groq.keys.length),
         groqApiKeyMasked: mask(cfg.groq.apiKey),
         groqKeysMasked: cfg.groq.keys.map(mask),
+        groqKeys: keySlots(cfg.groq.keys, groqKeysList, groqKey),
         groqKeyCount: cfg.groq.keys.length,
         groqApiKeySource: (groqKey || groqKeysList) ? 'settings'
           : (env.ai.groq.apiKey || env.ai.groq.apiKeys.length ? 'env' : null),
@@ -498,6 +506,38 @@ router.put('/settings', requireSuperadmin, async (req, res, next) => {
       }
       body.gemini_fallback_models = parts.join(',');
     }
+    // Key pools by slot. The page only ever sees masked keys, so it sends
+    // { keep: n } to keep the saved key in 1-based slot n, { value } to add or
+    // replace one, and omits a slot to remove it. Keys from api/.env are
+    // always appended by getAiConfig, so only settings-held keys are written.
+    const slotPools = {};
+    for (const provider of ['gemini', 'groq']) {
+      const slots = body[`${provider}_key_slots`];
+      if (slots === undefined) continue;
+      if (!Array.isArray(slots) || slots.length > 10) {
+        return res.status(400).json({ error: 'Keep at most 10 keys per provider.' });
+      }
+      const current = (await getAiConfig())[provider].keys;
+      const envKeys = new Set([...(env.ai[provider].apiKeys || []), env.ai[provider].apiKey].filter(Boolean));
+      const next = [];
+      for (const slot of slots) {
+        if (Number.isInteger(slot?.keep)) {
+          const kept = current[slot.keep - 1];
+          if (!kept) return res.status(409).json({ error: 'The saved keys changed while you were editing. Reload the page and try again.' });
+          if (!envKeys.has(kept)) next.push(kept);
+        } else if (typeof slot?.value === 'string' && slot.value.trim()) {
+          const key = slot.value.trim();
+          if (/\s/.test(key) || key.length > 4096) {
+            return res.status(400).json({ error: 'Paste each API key without spaces or line breaks.' });
+          }
+          next.push(key);
+        } else {
+          return res.status(400).json({ error: 'Each key slot must keep a saved key or contain a new key.' });
+        }
+      }
+      slotPools[provider] = [...new Set(next)];
+    }
+
     const changed = [];
     // Trusted domains are handled outside the whitelist loop because an
     // empty value is meaningful: it disables auto-approval entirely.
@@ -557,6 +597,17 @@ router.put('/settings', requireSuperadmin, async (req, res, next) => {
         { k: singleKey, v: deduped[0] }
       );
       changed.push(listKey);
+    }
+    for (const [provider, keys] of Object.entries(slotPools)) {
+      for (const [k, v] of [[`${provider}_api_keys`, keys.join('\n')], [`${provider}_api_key`, keys[0] || '']]) {
+        await pool.query(
+          `INSERT INTO settings (setting_key, setting_value)
+           VALUES (:k, :v)
+           ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value)`,
+          { k, v }
+        );
+      }
+      changed.push(`${provider}_api_keys`);
     }
     if (!changed.length) {
       return res.status(400).json({ error: 'No settings to update.' });

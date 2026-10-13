@@ -346,6 +346,8 @@
   .adm-key-label em { display: block; font: 500 .62rem var(--font-body); font-style: normal; color: var(--ink-faint); }
   .adm-key-input { flex: 1; min-width: 0; font-family: var(--font-mono); font-size: .8rem; }
   .adm-key-test { flex: none; }
+  .adm-key-spacer { flex: none; width: 44px; }
+  .adm-key-remove { flex: none; min-width: 44px; min-height: 44px; display: inline-flex; align-items: center; justify-content: center; color: var(--ink-3); }
   .adm-key-result { margin: 0 0 0 82px; }
   .adm-keys-foot { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; }
   .adm-keys-foot .form-hint { margin: 0; }

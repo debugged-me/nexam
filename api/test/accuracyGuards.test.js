@@ -232,3 +232,18 @@ test('pools without a timeout never abort long calls such as embedding batches',
   });
   assert.equal(value, 'done');
 });
+
+test('an invalid key (HTTP 400 API_KEY_INVALID) rotates to the next key instead of failing generation', async () => {
+  const tried = [];
+  const value = await runPool('invalid-key-fixture', [{ key: 'pasted-wrong' }, { key: 'valid' }], async ({ key }) => {
+    tried.push(key);
+    if (key === 'pasted-wrong') throw Object.assign(new Error('[400 Bad Request] API key not valid. Please pass a valid API key. [{"reason":"API_KEY_INVALID"}]'), { status: 400 });
+    return 'ok';
+  });
+  assert.equal(value, 'ok');
+  assert.deepEqual(tried, ['pasted-wrong', 'valid']);
+  // A genuine bad request still fails fast — it would fail on every key.
+  await assert.rejects(runPool('bad-request-fixture', [{ key: 'a' }, { key: 'b' }], async () => {
+    throw Object.assign(new Error('Invalid JSON payload received.'), { status: 400 });
+  }), /Invalid JSON payload/);
+});

@@ -697,6 +697,27 @@ const DDL = [
   `ALTER TABLE password_reset_tokens ADD COLUMN IF NOT EXISTS created_at TIMESTAMP NOT NULL DEFAULT current_timestamp()`,
   `ALTER TABLE password_reset_tokens ADD UNIQUE KEY IF NOT EXISTS uq_prt_hash (token_hash)`,
   `ALTER TABLE password_reset_tokens ADD INDEX IF NOT EXISTS idx_prt_user (user_id)`,
+
+  // announcements — staff-authored notices shown on the instructor dashboard.
+  `CREATE TABLE IF NOT EXISTS announcements (
+  id varchar(36) NOT NULL,
+  title varchar(160) NOT NULL,
+  body text NOT NULL,
+  is_active tinyint(1) NOT NULL DEFAULT 1,
+  created_by varchar(36) DEFAULT NULL,
+  created_at timestamp NOT NULL DEFAULT current_timestamp(),
+  updated_at timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
+  PRIMARY KEY (id),
+  KEY idx_announcements_active (is_active)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci`,
+  `ALTER TABLE announcements ADD COLUMN IF NOT EXISTS id VARCHAR(36) NOT NULL`,
+  `ALTER TABLE announcements ADD COLUMN IF NOT EXISTS title VARCHAR(160) NOT NULL`,
+  `ALTER TABLE announcements ADD COLUMN IF NOT EXISTS body TEXT NULL DEFAULT NULL`,
+  `ALTER TABLE announcements ADD COLUMN IF NOT EXISTS is_active TINYINT(1) NOT NULL DEFAULT 1`,
+  `ALTER TABLE announcements ADD COLUMN IF NOT EXISTS created_by VARCHAR(36) NULL DEFAULT NULL`,
+  `ALTER TABLE announcements ADD COLUMN IF NOT EXISTS created_at TIMESTAMP NOT NULL DEFAULT current_timestamp()`,
+  `ALTER TABLE announcements ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()`,
+  `ALTER TABLE announcements ADD INDEX IF NOT EXISTS idx_announcements_active (is_active)`,
 ];
 
 /**

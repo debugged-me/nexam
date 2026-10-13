@@ -120,7 +120,7 @@ export default function AppLayout() {
     ? ADMIN_NAV_ITEMS.filter((item) => user?.role === 'superadmin' || !item.superOnly)
     : NAV_ITEMS;
   const navGroups = isAdmin
-    ? (user?.role === 'superadmin' ? ['home', 'Manage', 'Security'] : ['home', 'Manage'])
+    ? (user?.role === 'superadmin' ? ['home', 'Manage', 'Oversight', 'Security'] : ['home', 'Manage', 'Oversight'])
     : ['home', 'Workspace', 'Assessment', 'Institution'];
   const activeKey = isAdmin
     ? location.pathname.split('/')[2] || 'dashboard'

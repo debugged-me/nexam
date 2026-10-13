@@ -5,6 +5,49 @@
 
   /* KPI tiles (.dash-kpi, .tint-N, dash-card-in) live in app.css — shared. */
 
+  /* ---- Staff announcements ------------------------------------------------- */
+  /* Staff-authored notices sit above the KPIs — flat tinted strip, one per
+     live announcement, dismissible per instructor. */
+  .dash-announce { display: grid; gap: 10px; }
+  .dash-announce-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 12px 14px;
+    background: var(--action-50);
+    border: 1px solid var(--action-100, var(--line));
+    border-radius: var(--radius-lg, var(--radius-xl));
+  }
+  .dash-announce-icon {
+    flex: none;
+    display: grid;
+    place-items: center;
+    width: 30px;
+    height: 30px;
+    border-radius: var(--radius-sm);
+    background: var(--surface);
+    color: var(--action-600);
+  }
+  .dash-announce-body { flex: 1; min-width: 0; display: grid; gap: 2px; }
+  .dash-announce-body strong { font: 600 .84rem var(--font-display); color: var(--ink); }
+  .dash-announce-body p { margin: 0; font-size: .8rem; line-height: 1.5; color: var(--ink-2); white-space: pre-wrap; }
+  .dash-announce-meta { font-size: .7rem; color: var(--ink-faint); }
+  .dash-announce-x {
+    flex: none;
+    display: grid;
+    place-items: center;
+    width: 28px;
+    height: 28px;
+    border: none;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--ink-faint);
+    cursor: pointer;
+    transition: background .12s, color .12s;
+  }
+  .dash-announce-x:hover { background: var(--surface-2); color: var(--ink); }
+  .dash-announce-x:focus-visible { outline: 2px solid var(--brand-accent); outline-offset: 1px; }
+
   /* ---- Entrance stagger ----------------------------------------------------- */
   .dash-card { animation: dash-card-in .5s var(--ease, ease) backwards; }
   .dash-col:nth-of-type(1) .dash-card:nth-of-type(1) { animation-delay: .16s; }

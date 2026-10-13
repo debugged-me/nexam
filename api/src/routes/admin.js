@@ -689,4 +689,200 @@ router.get('/reports/usage', requireSuperadmin, async (req, res, next) => {
   }
 });
 
+/**
+ * GET /reports/instructors — instructor-scoped activity report for admins.
+ * Same content totals but no security or system data (logins, AI jobs) —
+ * those stay superadmin-only.
+ */
+router.get('/reports/instructors', async (req, res, next) => {
+  try {
+    const [[totals]] = await pool.query(
+      `SELECT
+         (SELECT COUNT(*) FROM users WHERE role = 'instructor') AS instructors,
+         (SELECT COUNT(*) FROM users WHERE role = 'instructor' AND status = 'active') AS active_instructors,
+         (SELECT COUNT(*) FROM users WHERE role = 'instructor' AND status = 'pending') AS pending_instructors,
+         (SELECT COUNT(*) FROM subjects) AS subjects,
+         (SELECT COUNT(*) FROM questions) AS questions,
+         (SELECT COUNT(*) FROM questions WHERE status = 'active') AS approved_questions,
+         (SELECT COUNT(*) FROM questions WHERE status = 'draft') AS draft_questions,
+         (SELECT COUNT(*) FROM questions WHERE status = 'rejected') AS rejected_questions,
+         (SELECT COUNT(*) FROM tos) AS blueprints,
+         (SELECT COUNT(*) FROM tos WHERE status = 'finalized') AS finalized_blueprints,
+         (SELECT COUNT(*) FROM materials) AS materials,
+         (SELECT COUNT(*) FROM exams) AS exams,
+         (SELECT COUNT(*) FROM exams WHERE status = 'published') AS published_exams,
+         (SELECT COUNT(*) FROM scan_results) AS scans`
+    );
+
+    const [instructorActivity] = await pool.query(
+      `SELECT
+         u.id, u.full_name, u.email, u.status, u.created_at,
+         (SELECT COUNT(*) FROM subjects s WHERE s.instructor_id = u.id) AS subjects,
+         (SELECT COUNT(*) FROM questions q JOIN subjects s ON s.id = q.subject_id WHERE s.instructor_id = u.id) AS questions,
+         (SELECT COUNT(*) FROM questions q JOIN subjects s ON s.id = q.subject_id WHERE s.instructor_id = u.id AND q.status = 'active') AS approved,
+         (SELECT COUNT(*) FROM questions q JOIN subjects s ON s.id = q.subject_id WHERE s.instructor_id = u.id AND q.status = 'draft') AS drafts,
+         (SELECT COUNT(*) FROM exams e JOIN subjects s ON s.id = e.subject_id WHERE s.instructor_id = u.id) AS exams,
+         (SELECT COUNT(*) FROM scan_results sr
+            JOIN exams e ON e.id = sr.exam_id
+            JOIN subjects s ON s.id = e.subject_id
+            WHERE s.instructor_id = u.id) AS scans,
+         (SELECT MAX(q.created_at) FROM questions q JOIN subjects s ON s.id = q.subject_id WHERE s.instructor_id = u.id) AS last_question_at
+       FROM users u
+       WHERE u.role = 'instructor'
+       ORDER BY questions DESC, u.created_at ASC`
+    );
+
+    const [bloomMix] = await pool.query(
+      `SELECT bloom, COUNT(*) AS n FROM questions GROUP BY bloom ORDER BY n DESC`
+    );
+    const [typeMix] = await pool.query(
+      `SELECT type, COUNT(*) AS n FROM questions GROUP BY type ORDER BY n DESC`
+    );
+    const [scanTrend] = await pool.query(
+      `SELECT DATE_FORMAT(scanned_at, '%Y-%m') AS month, COUNT(*) AS n
+       FROM scan_results GROUP BY month ORDER BY month DESC LIMIT 6`
+    );
+
+    res.json({
+      generatedAt: new Date().toISOString(),
+      totals,
+      instructorActivity,
+      bloomMix,
+      typeMix,
+      scanTrend,
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+/**
+ * GET /question-bank — read-only browse of the institution-wide approved
+ * question bank. Optional filters: subject, bloom, type, q (stem search).
+ */
+router.get('/question-bank', async (req, res, next) => {
+  try {
+    const conds = [`q.status = 'active'`];
+    const params = {};
+    const { subject, bloom, type, q } = req.query || {};
+    if (subject && /^[a-zA-Z0-9-]{1,40}$/.test(subject)) { conds.push('q.subject_id = :subject'); params.subject = subject; }
+    if (bloom && /^[a-z_]{2,30}$/i.test(bloom)) { conds.push('q.bloom = :bloom'); params.bloom = bloom; }
+    if (type && /^(mcq|true_false|matching|identification)$/.test(type)) { conds.push('q.type = :type'); params.type = type; }
+    if (q && String(q).trim()) { conds.push('q.stem LIKE :q'); params.q = `%${String(q).trim().slice(0, 200)}%`; }
+
+    const [questions] = await pool.query(
+      `SELECT q.id, q.stem, q.type, q.bloom, q.topic, q.subject_id,
+              s.name AS subject_name, s.code AS subject_code,
+              u.full_name AS author, q.created_at
+       FROM questions q
+       JOIN subjects s ON s.id = q.subject_id
+       LEFT JOIN users u ON u.id = q.created_by
+       WHERE ${conds.join(' AND ')}
+       ORDER BY q.created_at DESC
+       LIMIT 500`,
+      params
+    );
+    const [subjects] = await pool.query(
+      `SELECT id, name, code FROM subjects ORDER BY name`
+    );
+    res.json({ questions, subjects });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// ── Announcements ─────────────────────────────────────
+
+/** GET /announcements — every announcement, newest first (admin console). */
+router.get('/announcements', async (req, res, next) => {
+  try {
+    const [rows] = await pool.query(
+      `SELECT a.id, a.title, a.body, a.is_active, a.created_at, a.updated_at,
+              u.full_name AS author, u.email AS author_email
+       FROM announcements a
+       LEFT JOIN users u ON u.id = a.created_by
+       ORDER BY a.created_at DESC
+       LIMIT 200`
+    );
+    res.json({ announcements: rows });
+  } catch (err) {
+    next(err);
+  }
+});
+
+/** POST /announcements — create a notice. Audited. */
+router.post('/announcements', async (req, res, next) => {
+  try {
+    const title = String(req.body?.title || '').trim().slice(0, 160);
+    const body = String(req.body?.body || '').trim().slice(0, 2000);
+    if (title.length < 3) return res.status(400).json({ error: 'Give the announcement a title (at least 3 characters).' });
+    if (!body) return res.status(400).json({ error: 'Write the announcement body first.' });
+    const id = uuid();
+    await pool.query(
+      `INSERT INTO announcements (id, title, body, is_active, created_by)
+       VALUES (:id, :title, :body, 1, :by)`,
+      { id, title, body, by: req.user.id }
+    );
+    logAudit({
+      actorId: req.user.id, actorEmail: req.user.email,
+      action: 'announcement.create', targetType: 'announcement', targetId: id,
+      detail: { title }, ip: req.ip,
+    });
+    res.status(201).json({ id, message: 'Announcement published.' });
+  } catch (err) {
+    next(err);
+  }
+});
+
+/** PUT /announcements/:id — edit title/body or toggle is_active. Audited. */
+router.put('/announcements/:id', async (req, res, next) => {
+  try {
+    const [rows] = await pool.query(
+      `SELECT id, title, body, is_active FROM announcements WHERE id = :id`,
+      { id: req.params.id }
+    );
+    const a = rows[0];
+    if (!a) return res.status(404).json({ error: 'Announcement not found.' });
+    const title = req.body?.title !== undefined ? String(req.body.title).trim().slice(0, 160) : a.title;
+    const body = req.body?.body !== undefined ? String(req.body.body).trim().slice(0, 2000) : a.body;
+    const isActive = req.body?.is_active !== undefined ? (req.body.is_active ? 1 : 0) : a.is_active;
+    if (title.length < 3) return res.status(400).json({ error: 'Give the announcement a title (at least 3 characters).' });
+    if (!body) return res.status(400).json({ error: 'The announcement body cannot be empty.' });
+    await pool.query(
+      `UPDATE announcements SET title = :title, body = :body, is_active = :active WHERE id = :id`,
+      { title, body, active: isActive, id: a.id }
+    );
+    logAudit({
+      actorId: req.user.id, actorEmail: req.user.email,
+      action: isActive !== a.is_active
+        ? (isActive ? 'announcement.publish' : 'announcement.unpublish')
+        : 'announcement.update',
+      targetType: 'announcement', targetId: a.id,
+      detail: { title }, ip: req.ip,
+    });
+    res.json({ message: 'Announcement updated.' });
+  } catch (err) {
+    next(err);
+  }
+});
+
+/** DELETE /announcements/:id — remove a notice permanently. Audited. */
+router.delete('/announcements/:id', async (req, res, next) => {
+  try {
+    const [rows] = await pool.query(
+      `SELECT id, title FROM announcements WHERE id = :id`, { id: req.params.id }
+    );
+    if (!rows[0]) return res.status(404).json({ error: 'Announcement not found.' });
+    await pool.query(`DELETE FROM announcements WHERE id = :id`, { id: req.params.id });
+    logAudit({
+      actorId: req.user.id, actorEmail: req.user.email,
+      action: 'announcement.delete', targetType: 'announcement', targetId: rows[0].id,
+      detail: { title: rows[0].title }, ip: req.ip,
+    });
+    res.json({ message: 'Announcement deleted.' });
+  } catch (err) {
+    next(err);
+  }
+});
+
 export default router;

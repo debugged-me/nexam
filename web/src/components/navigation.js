@@ -14,6 +14,7 @@ import {
   Users,
   ScrollText,
   Settings2,
+  Megaphone,
 } from 'lucide-react';
 
 export const NAV_ITEMS = [
@@ -128,13 +129,28 @@ export const ADMIN_NAV_ITEMS = [
     description: 'Approve and manage instructor accounts',
   },
   {
+    label: 'Announcements',
+    key: 'announcements',
+    icon: Megaphone,
+    to: '/admin/announcements',
+    group: 'Manage',
+    description: 'Post notices to the instructor dashboard',
+  },
+  {
     label: 'Reports',
     key: 'reports',
     icon: FileText,
     to: '/admin/reports',
-    group: 'Security',
-    description: 'Printable institution usage report and exports',
-    superOnly: true,
+    group: 'Oversight',
+    description: 'Printable activity report and exports',
+  },
+  {
+    label: 'Question bank',
+    key: 'bank',
+    icon: Library,
+    to: '/admin/bank',
+    group: 'Oversight',
+    description: 'Browse approved questions across the institution',
   },
   {
     label: 'Login logs',

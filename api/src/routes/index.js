@@ -12,6 +12,7 @@ import dashboardRouter from './dashboard.js';
 import subjectsRouter from './subjects.js';
 import tosRouter from './tos.js';
 import adminRouter from './admin.js';
+import announcementsRouter from './announcements.js';
 
 const router = Router();
 
@@ -32,5 +33,6 @@ router.use('/dashboard', dashboardRouter);
 router.use('/subjects', subjectsRouter);
 router.use('/tos', tosRouter);
 router.use('/admin', adminRouter);
+router.use('/announcements', announcementsRouter);
 
 export default router;

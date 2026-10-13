@@ -20,6 +20,8 @@ import {
   ScanLine,
   Flag,
   Send,
+  Megaphone,
+  X,
 } from 'lucide-react';
 import { useAuth } from '../features/auth/AuthContext.jsx';
 import AppShell from '../components/AppShell.jsx';
@@ -81,6 +83,12 @@ function deltaChip(d) {
   return { cls: 'is-up', text: `+${d.current}`, icon: 'up', title };
 }
 
+/** Staff notice dismissal — remembered per announcement id. */
+const DISMISSED_ANN_KEY = 'nexam.dismissedAnnouncements';
+const readDismissed = () => {
+  try { return JSON.parse(localStorage.getItem(DISMISSED_ANN_KEY) || '[]'); } catch { return []; }
+};
+
 export default function DashboardPage() {
   const { logout } = useAuth();
   const navigate = useNavigate();
@@ -88,6 +96,8 @@ export default function DashboardPage() {
   const [error, setError] = useState('');
   const [examFilter, setExamFilter] = useState('all');
   const [queueExpanded, setQueueExpanded] = useState(false);
+  const [announcements, setAnnouncements] = useState(() => api.peek('/announcements')?.announcements ?? []);
+  const [dismissedAnn, setDismissedAnn] = useState(readDismissed);
   useEffect(() => {
     let active = true;
     api
@@ -103,10 +113,25 @@ export default function DashboardPage() {
         }
         setError(err.message || 'Could not load your workspace.');
       });
+    // Staff notices are independent — a failure here never blocks the page.
+    api.get('/announcements', { quiet: true })
+      .then((d) => { if (active) setAnnouncements(d.announcements || []); })
+      .catch(() => {});
     return () => {
       active = false;
     };
   }, [logout]);
+
+  const visibleAnnouncements = announcements
+    .filter((a) => a.id && !dismissedAnn.includes(a.id))
+    .slice(0, 3);
+  const dismissAnnouncement = (id) => {
+    setDismissedAnn((prev) => {
+      const next = [...prev, id].slice(-50);
+      localStorage.setItem(DISMISSED_ANN_KEY, JSON.stringify(next));
+      return next;
+    });
+  };
 
   if (error)
     return (
@@ -411,6 +436,29 @@ export default function DashboardPage() {
   return (
     <AppShell activeNav="dashboard" pageTitle="Overview" pageClass="dashboard">
       <div className="dash-home">
+        {visibleAnnouncements.length > 0 && (
+          <div className="dash-announce" role="region" aria-label="Staff announcements">
+            {visibleAnnouncements.map((a) => (
+              <div className="dash-announce-item" key={a.id}>
+                <span className="dash-announce-icon" aria-hidden="true"><Megaphone size={15} /></span>
+                <div className="dash-announce-body">
+                  <strong>{a.title}</strong>
+                  <p>{a.body}</p>
+                  <span className="dash-announce-meta">From the admin team · {formatDate(a.created_at)}</span>
+                </div>
+                <button
+                  type="button"
+                  className="dash-announce-x"
+                  onClick={() => dismissAnnouncement(a.id)}
+                  aria-label={`Dismiss ${a.title}`}
+                >
+                  <X size={14} />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+
         <div className="dash-kpis" data-tour="dash-kpis">
           {metrics.map((metric, i) => (
             <KpiCard

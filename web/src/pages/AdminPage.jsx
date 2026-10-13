@@ -1,18 +1,22 @@
 import '../styles/admin.css';
 /**
  * AdminPage — admin + superadmin console, inside the shared AppLayout shell
- * at /admin/:view where view is dashboard | users | reports | logins | audit | settings.
+ * at /admin/:view where view is dashboard | users | announcements | reports |
+ * bank | logins | audit | settings.
  *
  * Views:
- *   Dashboard   — KPI tiles, a census strip, approval queue, recent sign-ins,
- *                 and (superadmin) integration health
- *   Users       — searchable/sortable account directory with approve/reject,
- *                 provision, edit, and reset-link actions
- *   Reports     — institution-wide usage report: on-screen cards plus a real
- *                 print document (.print-doc) and CSV/XLSX exports
- *   Login logs  — every sign-in attempt with IP + user agent (superadmin)
- *   Audit trail — console actions and security events (superadmin)
- *   Settings    — reCAPTCHA keys + AI provider credentials (superadmin)
+ *   Dashboard     — KPI tiles, a census strip, approval queue, recent sign-ins,
+ *                   and (superadmin) integration health
+ *   Users         — searchable/sortable account directory with approve/reject,
+ *                   provision, edit, and reset-link actions
+ *   Announcements — staff notices shown on the instructor dashboard
+ *   Reports       — usage report: on-screen cards plus a real print document
+ *                   (.print-doc) and CSV/XLSX exports; admins get the scoped
+ *                   instructor-activity variant
+ *   Question bank — read-only catalog of institution-wide approved questions
+ *   Login logs    — every sign-in attempt with IP + user agent (superadmin)
+ *   Audit trail   — console actions and security events (superadmin)
+ *   Settings      — reCAPTCHA keys + AI provider credentials (superadmin)
  *
  * Data surfaces reuse the instructor grid system — .dataset + table.grid +
  * useGridTable + DatasetFoot — so the console sorts, filters, and pages the
@@ -24,7 +28,8 @@ import {
   RefreshCw, Check, X, ShieldCheck, Settings2, UserCheck, Clock,
   LogIn, ShieldAlert, Activity, Copy, ArrowRight, UserPlus, Ellipsis,
   Pencil, KeyRound, Printer, FileSpreadsheet, FileDown, BarChart3,
-  Search, ScrollText, ListChecks, Users, ChevronDown,
+  Search, ScrollText, ListChecks, Users, ChevronDown, Megaphone,
+  Trash2, Plus, Eye, EyeOff,
 } from 'lucide-react';
 import { useToast } from '../components/Toast.jsx';
 import { useContextMenu, useCopyText } from '../components/ContextMenu.jsx';
@@ -45,13 +50,16 @@ import { CountsBarChart, LoginTrendChart } from '../components/AnalyticsCharts.j
 import { BLOOM_LABELS, BLOOM_ORDER } from '../lib/insights.js';
 
 const USER_FILTERS = ['all', 'pending', 'active', 'rejected'];
-const VIEWS = ['dashboard', 'users', 'reports', 'logins', 'audit', 'settings'];
+const VIEWS = ['dashboard', 'users', 'announcements', 'reports', 'bank', 'logins', 'audit', 'settings'];
+const ADMIN_VIEWS = ['dashboard', 'users', 'announcements', 'reports', 'bank'];
 const TYPE_LABELS = { mcq: 'Multiple choice', true_false: 'True / false', matching: 'Matching', identification: 'Fill in the blank' };
 
 const VIEW_META = {
   dashboard: { title: 'Overview', sub: 'Approvals, sign-in activity, and system health at a glance.' },
   users: { title: 'Users', sub: 'Approve, provision, and maintain staff accounts.' },
+  announcements: { title: 'Announcements', sub: 'Notices shown on every instructor dashboard.' },
   reports: { title: 'Reports', sub: 'Institution-wide usage — print it or export it for the record.' },
+  bank: { title: 'Question bank', sub: 'Read-only catalog of every approved question in the institution.' },
   logins: { title: 'Login logs', sub: 'Every sign-in attempt with its IP address and device agent.' },
   audit: { title: 'Audit trail', sub: 'Recorded console actions and security events.' },
   settings: { title: 'Settings', sub: 'reCAPTCHA and AI provider credentials.' },
@@ -775,6 +783,441 @@ function UsersTab({ toast, role, tier }) {
   );
 }
 
+// ── Announcements tab ────────────────────────────────
+function AnnouncementsTab({ toast, tier }) {
+  const [rows, setRows] = useState(null);
+  const [query, setQuery] = useState('');
+  const [editing, setEditing] = useState(null); // announcement being edited, or {} for new
+  const [busyId, setBusyId] = useState(null);
+  const { menuEl, openMenu } = useContextMenu();
+  const copyText = useCopyText();
+  const confirm = useConfirm();
+
+  const load = useCallback(() => {
+    api.get('/admin/announcements')
+      .then((d) => setRows(d.announcements || []))
+      .catch((e) => toast.error(e instanceof ApiError ? e.message : 'Failed to load announcements.'));
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(load, [load]);
+
+  const toggle = useCallback(async (a) => {
+    setBusyId(a.id);
+    try {
+      await api.put(`/admin/announcements/${a.id}`, { is_active: !a.is_active });
+      toast.success(a.is_active ? `"${a.title}" hidden from instructors.` : `"${a.title}" is live on instructor dashboards.`);
+      load();
+    } catch (e) {
+      toast.error(e instanceof ApiError ? e.message : 'Could not update the announcement.');
+    } finally {
+      setBusyId(null);
+    }
+  }, [load, toast]);
+
+  const remove = useCallback(async (a) => {
+    const ok = await confirm(
+      `"${a.title}" will be permanently removed. Instructors will no longer see it.`,
+      { title: 'Delete announcement?', confirmText: 'Delete', danger: true, icon: Trash2 }
+    );
+    if (!ok) return;
+    setBusyId(a.id);
+    try {
+      await api.del(`/admin/announcements/${a.id}`);
+      toast.success('Announcement deleted.');
+      load();
+    } catch (e) {
+      toast.error(e instanceof ApiError ? e.message : 'Could not delete the announcement.');
+    } finally {
+      setBusyId(null);
+    }
+  }, [confirm, load, toast]);
+
+  const menuItems = (a) => [
+    { label: 'Edit', icon: Pencil, onClick: () => setEditing(a) },
+    { label: a.is_active ? 'Hide from instructors' : 'Publish to instructors', icon: a.is_active ? EyeOff : Eye, onClick: () => toggle(a) },
+    'sep',
+    { label: 'Copy title', icon: Copy, onClick: () => copyText(a.title, 'Title') },
+    { label: 'Copy body', icon: Copy, onClick: () => copyText(a.body, 'Body') },
+    'sep',
+    { label: 'Delete', icon: Trash2, danger: true, onClick: () => remove(a) },
+  ];
+
+  const columns = useMemo(() => [
+    { id: 'created', accessorFn: (a) => new Date(a.created_at).getTime() || 0 },
+    { id: 'title', accessorFn: (a) => (a.title || '').toLowerCase() },
+    { id: 'status', accessorFn: (a) => (a.is_active ? 1 : 0) },
+    { id: 'author', accessorFn: (a) => (a.author || '').toLowerCase() },
+  ], []);
+
+  const grid = useGridTable({
+    data: rows || [],
+    columns,
+    pageSize: 15,
+    storageKey: 'admin-announcements',
+    initialSorting: [{ id: 'created', desc: true }],
+    globalFilter: query,
+    globalFilterFn: (row, _col, value) =>
+      `${row.original.title || ''} ${row.original.body || ''} ${row.original.author || ''}`
+        .toLowerCase().includes(String(value).toLowerCase()),
+  });
+  const { pageRows, sortClass, sortHandler, renderSortArrow } = grid;
+
+  return (
+    <>
+      <AdminHeader tier={tier} title="Announcements" sub={VIEW_META.announcements.sub}>
+        <button type="button" className="btn btn-primary btn-sm" onClick={() => setEditing({})}>
+          <Plus size={14} /> New announcement
+        </button>
+        <RefreshButton onClick={load} />
+      </AdminHeader>
+
+      <section className="dataset">
+        <div className="dataset-bar">
+          <div className="dataset-bar-lead">
+            <label className="ds-search" htmlFor="adm-ann-search">
+              <Search size={15} />
+              <span className="sr-only">Search announcements</span>
+              <input
+                id="adm-ann-search"
+                type="search"
+                autoComplete="off"
+                placeholder="Search title or body…"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+              />
+            </label>
+            <span className="adm-hint">Live notices show on every instructor dashboard.</span>
+          </div>
+        </div>
+
+        {rows === null ? (
+          <TableSkeleton rows={5} />
+        ) : (
+          <>
+            <div className="dataset-scroll">
+              <table className="grid" data-grid-label="announcements">
+                <caption className="sr-only">Announcements</caption>
+                <thead>
+                  <tr>
+                    <th className={`col-primary wp-45 ${sortClass('title')}`} onClick={sortHandler('title')} data-name="Announcement">
+                      Announcement{renderSortArrow('title')}
+                    </th>
+                    <th className={`wp-10 ${sortClass('status')}`} onClick={sortHandler('status')} data-name="Status">
+                      Status{renderSortArrow('status')}
+                    </th>
+                    <th className={`wp-17 ${sortClass('author')}`} onClick={sortHandler('author')} data-name="Posted by">
+                      Posted by{renderSortArrow('author')}
+                    </th>
+                    <th className={`wp-12 ${sortClass('created')}`} onClick={sortHandler('created')} data-name="Posted">
+                      Posted{renderSortArrow('created')}
+                    </th>
+                    <th className="wp-11" data-name="Updated">Updated</th>
+                    <th className="col-actions wp-5"><span className="sr-only">Actions</span></th>
+                  </tr>
+                </thead>
+                <tbody ref={animateRows}>
+                  {pageRows.length === 0 ? (
+                    <tr>
+                      <td className="ds-noresults" colSpan={6}>
+                        <span className="ds-noresults-title">No announcements</span>
+                        <span className="ds-noresults-sub">
+                          {query ? <>Try a different search or <button type="button" onClick={() => setQuery('')}>clear it</button>.</>
+                            : 'Post one and it appears on every instructor dashboard.'}
+                        </span>
+                      </td>
+                    </tr>
+                  ) : pageRows.map((a) => (
+                    <tr key={a.id} onContextMenu={(e) => openMenu(e, menuItems(a))}>
+                      <td className="col-primary">
+                        <span className="g-primary">
+                          <span className="g-title">{a.title}</span>
+                          <span className="g-meta adm-ann-preview">{a.body}</span>
+                        </span>
+                      </td>
+                      <td>
+                        <StatusPill status={a.is_active ? 'live' : 'draft'} label={a.is_active ? 'Live' : 'Hidden'} small />
+                      </td>
+                      <td className="g-mute">{a.author || '—'}</td>
+                      <td className="g-mute" title={fmtTime(a.created_at)}>{fmtDate(a.created_at)}</td>
+                      <td className="g-mute" title={fmtTime(a.updated_at)}>{fmtDate(a.updated_at)}</td>
+                      <td className="col-actions">
+                        <Tooltip label="Actions">
+                          <button
+                            type="button"
+                            className="g-menu"
+                            disabled={busyId === a.id}
+                            onClick={(e) => openMenu(e, menuItems(a))}
+                            aria-label={`Actions for ${a.title}`}
+                          >
+                            <Ellipsis size={15} />
+                          </button>
+                        </Tooltip>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <DatasetFoot grid={grid} pageSizeOptions={[15, 25, 50]} />
+          </>
+        )}
+      </section>
+
+      {menuEl}
+      {editing && (
+        <AnnouncementModal
+          announcement={editing.id ? editing : null}
+          onClose={() => setEditing(null)}
+          onSaved={load}
+        />
+      )}
+    </>
+  );
+}
+
+/** AnnouncementModal — create or edit a staff notice. */
+function AnnouncementModal({ announcement, onClose, onSaved }) {
+  const toast = useToast();
+  const [form, setForm] = useState({ title: announcement?.title || '', body: announcement?.body || '' });
+  const [saving, setSaving] = useState(false);
+  const isNew = !announcement;
+
+  async function submit(e) {
+    e.preventDefault();
+    setSaving(true);
+    try {
+      if (isNew) {
+        await api.post('/admin/announcements', form);
+        toast.success('Announcement published to instructor dashboards.');
+      } else {
+        await api.put(`/admin/announcements/${announcement.id}`, form);
+        toast.success('Announcement updated.');
+      }
+      onSaved?.();
+      onClose();
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : 'Could not save the announcement.');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <Modal
+      open
+      size="sm"
+      icon={Megaphone}
+      title={isNew ? 'New announcement' : 'Edit announcement'}
+      subtitle={isNew ? 'Goes live on every instructor dashboard' : announcement?.title}
+      onClose={saving ? undefined : onClose}
+      footer={(
+        <>
+          <button type="button" className="btn btn-ghost" onClick={onClose} disabled={saving}>Cancel</button>
+          <button type="submit" form="adm-announcement" className="btn btn-primary" disabled={saving}>
+            {saving ? 'Saving…' : isNew ? 'Publish' : 'Save changes'}
+          </button>
+        </>
+      )}
+    >
+      <form id="adm-announcement" onSubmit={submit}>
+        <div className="form-group">
+          <label className="form-label" htmlFor="ann-title">Title <span className="req">*</span></label>
+          <input
+            id="ann-title"
+            className="form-control"
+            value={form.title}
+            onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
+            placeholder="e.g. Submit TOS blueprints by Friday"
+            maxLength={160}
+            required
+            autoFocus
+            autoComplete="off"
+          />
+        </div>
+        <div className="form-group">
+          <label className="form-label" htmlFor="ann-body">Message <span className="req">*</span></label>
+          <textarea
+            id="ann-body"
+            className="form-control"
+            rows={5}
+            value={form.body}
+            onChange={(e) => setForm((f) => ({ ...f, body: e.target.value }))}
+            placeholder="What should every instructor know?"
+            maxLength={2000}
+            required
+          />
+          <span className="form-hint">Shown as a banner on the instructor dashboard until you hide or delete it.</span>
+        </div>
+      </form>
+    </Modal>
+  );
+}
+
+// ── Question bank tab ────────────────────────────────
+const BANK_BLOOMS = BLOOM_ORDER;
+const BANK_TYPES = ['mcq', 'true_false', 'matching', 'identification'];
+
+function BankTab({ toast, tier }) {
+  const [data, setData] = useState(null);
+  const [query, setQuery] = useState('');
+  const [filters, setFilters] = useState({ subject: '', bloom: '', type: '' });
+  const { menuEl, openMenu } = useContextMenu();
+  const copyText = useCopyText();
+
+  const load = useCallback(() => {
+    const params = new URLSearchParams();
+    if (filters.subject) params.set('subject', filters.subject);
+    if (filters.bloom) params.set('bloom', filters.bloom);
+    if (filters.type) params.set('type', filters.type);
+    const qs = params.toString();
+    api.get(`/admin/question-bank${qs ? `?${qs}` : ''}`)
+      .then(setData)
+      .catch((e) => toast.error(e instanceof ApiError ? e.message : 'Failed to load the question bank.'));
+  }, [filters]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(load, [load]);
+
+  const questions = data?.questions || [];
+  const subjects = data?.subjects || [];
+
+  const columns = useMemo(() => [
+    { id: 'stem', accessorFn: (q) => (q.stem || '').toLowerCase() },
+    { id: 'type', accessorFn: (q) => q.type || '' },
+    { id: 'bloom', accessorFn: (q) => q.bloom || '' },
+    { id: 'subject', accessorFn: (q) => (q.subject_name || '').toLowerCase() },
+    { id: 'author', accessorFn: (q) => (q.author || '').toLowerCase() },
+    { id: 'created', accessorFn: (q) => new Date(q.created_at).getTime() || 0 },
+  ], []);
+
+  const grid = useGridTable({
+    data: questions,
+    columns,
+    pageSize: 25,
+    storageKey: 'admin-bank',
+    initialSorting: [{ id: 'created', desc: true }],
+    resetKey: JSON.stringify(filters),
+    globalFilter: query,
+    globalFilterFn: (row, _col, value) =>
+      `${row.original.stem || ''} ${row.original.topic || ''} ${row.original.subject_name || ''} ${row.original.author || ''}`
+        .toLowerCase().includes(String(value).toLowerCase()),
+  });
+  const { pageRows, sortClass, sortHandler, renderSortArrow } = grid;
+
+  const menuItems = (q) => [
+    { label: 'Copy question', icon: Copy, onClick: () => copyText(q.stem, 'Question') },
+    { label: 'Copy subject', icon: Copy, onClick: () => copyText(q.subject_name || '', 'Subject') },
+  ];
+
+  const setFilter = (k) => (e) => setFilters((f) => ({ ...f, [k]: e.target.value }));
+  const hasFilters = filters.subject || filters.bloom || filters.type;
+
+  return (
+    <>
+      <AdminHeader tier={tier} title="Question bank" sub={VIEW_META.bank.sub}>
+        <RefreshButton onClick={load} />
+      </AdminHeader>
+
+      <section className="dataset">
+        <div className="dataset-bar">
+          <div className="dataset-bar-lead">
+            <label className="ds-search" htmlFor="adm-bank-search">
+              <Search size={15} />
+              <span className="sr-only">Search approved questions</span>
+              <input
+                id="adm-bank-search"
+                type="search"
+                autoComplete="off"
+                placeholder="Search stem, topic, subject, or author…"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+              />
+            </label>
+            <select className="form-control form-select adm-select" value={filters.subject} onChange={setFilter('subject')} aria-label="Filter by subject">
+              <option value="">All subjects</option>
+              {subjects.map((s) => <option key={s.id} value={s.id}>{s.code ? `${s.code} — ` : ''}{s.name}</option>)}
+            </select>
+            <select className="form-control form-select adm-select" value={filters.bloom} onChange={setFilter('bloom')} aria-label="Filter by Bloom level">
+              <option value="">All Bloom levels</option>
+              {BANK_BLOOMS.map((b) => <option key={b} value={b}>{BLOOM_LABELS[b] || b}</option>)}
+            </select>
+            <select className="form-control form-select adm-select" value={filters.type} onChange={setFilter('type')} aria-label="Filter by question type">
+              <option value="">All types</option>
+              {BANK_TYPES.map((ty) => <option key={ty} value={ty}>{TYPE_LABELS[ty] || ty}</option>)}
+            </select>
+          </div>
+          <div className="dataset-bar-trail">
+            <span className="adm-hint">Approved questions only — read-only.</span>
+          </div>
+        </div>
+
+        {data === null ? (
+          <TableSkeleton rows={8} />
+        ) : (
+          <>
+            <div className="dataset-scroll">
+              <table className="grid" data-grid-label="approved questions">
+                <caption className="sr-only">Institution approved question bank</caption>
+                <thead>
+                  <tr>
+                    <th className={`col-primary wp-36 ${sortClass('stem')}`} onClick={sortHandler('stem')} data-name="Question">
+                      Question{renderSortArrow('stem')}
+                    </th>
+                    <th className={`wp-11 ${sortClass('type')}`} onClick={sortHandler('type')} data-name="Type">
+                      Type{renderSortArrow('type')}
+                    </th>
+                    <th className={`wp-12 ${sortClass('bloom')}`} onClick={sortHandler('bloom')} data-name="Bloom">
+                      Bloom{renderSortArrow('bloom')}
+                    </th>
+                    <th className={`wp-17 ${sortClass('subject')}`} onClick={sortHandler('subject')} data-name="Subject">
+                      Subject{renderSortArrow('subject')}
+                    </th>
+                    <th className={`wp-14 ${sortClass('author')}`} onClick={sortHandler('author')} data-name="Author">
+                      Author{renderSortArrow('author')}
+                    </th>
+                    <th className={`wp-10 ${sortClass('created')}`} onClick={sortHandler('created')} data-name="Added">
+                      Added{renderSortArrow('created')}
+                    </th>
+                  </tr>
+                </thead>
+                <tbody ref={animateRows}>
+                  {pageRows.length === 0 ? (
+                    <tr>
+                      <td className="ds-noresults" colSpan={6}>
+                        <span className="ds-noresults-title">No approved questions found</span>
+                        <span className="ds-noresults-sub">
+                          {query || hasFilters ? <>Try different filters or <button type="button" onClick={() => { setQuery(''); setFilters({ subject: '', bloom: '', type: '' }); }}>clear them</button>.</>
+                            : 'Questions appear here once instructors approve them.'}
+                        </span>
+                      </td>
+                    </tr>
+                  ) : pageRows.map((q) => (
+                    <tr key={q.id} onContextMenu={(e) => openMenu(e, menuItems(q))}>
+                      <td className="col-primary">
+                        <span className="g-primary">
+                          <span className="g-title adm-bank-stem">{q.stem}</span>
+                          {q.topic && <span className="g-meta">{q.topic}</span>}
+                        </span>
+                      </td>
+                      <td>{TYPE_LABELS[q.type] || q.type}</td>
+                      <td>{BLOOM_LABELS[q.bloom] || q.bloom || '—'}</td>
+                      <td className="g-mute">{q.subject_code ? `${q.subject_code} — ` : ''}{q.subject_name}</td>
+                      <td className="g-mute">{q.author || '—'}</td>
+                      <td className="g-mute" title={fmtTime(q.created_at)}>{fmtDate(q.created_at)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <DatasetFoot grid={grid} pageSizeOptions={[25, 50, 100]} />
+          </>
+        )}
+      </section>
+
+      {menuEl}
+    </>
+  );
+}
+
 // ── Login logs tab ─────────────────────────────────────
 function LoginsTab({ toast, tier }) {
   const [logs, setLogs] = useState(null);
@@ -912,10 +1355,12 @@ const AUDIT_VERBS = {
   questions_add: 'Added questions to', questions_remove: 'Removed a question from',
   send_reset: 'Sent a password reset for', bulk_approve: 'Bulk-approved',
   bulk_reject: 'Bulk-rejected', bulk_delete: 'Bulk-deleted',
+  publish: 'Published', unpublish: 'Unpublished',
 };
 const AUDIT_NOUNS = {
   exam: 'exam', question: 'question', material: 'material', subject: 'subject',
   tos: 'blueprint', user: 'user', settings: 'settings', scan: 'scan',
+  announcement: 'announcement',
 };
 const AUDIT_DETAIL_LABELS = {
   title: 'title', name: 'name', code: 'code', email: 'email', role: 'role',
@@ -1467,15 +1912,15 @@ function SettingsTab({ toast, tier }) {
  * report (the same anatomy as the instructor analytics reports), plus
  * CSV/XLSX exports.
  */
-function ReportsTab({ toast, tier }) {
+function ReportsTab({ toast, tier, scoped }) {
   const { user } = useAuth();
   const [data, setData] = useState(null);
 
   const load = useCallback(() => {
-    api.get('/admin/reports/usage')
+    api.get(scoped ? '/admin/reports/instructors' : '/admin/reports/usage')
       .then(setData)
-      .catch((err) => toast.error(err.message || 'Could not load the usage report.'));
-  }, [toast]);
+      .catch((err) => toast.error(err.message || 'Could not load the report.'));
+  }, [toast, scoped]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -1488,14 +1933,22 @@ function ReportsTab({ toast, tier }) {
     ['Materials', t.materials ?? 0],
     ['Exams', `${t.published_exams || 0} published · ${t.exams || 0} total`],
     ['Scanned sheets', t.scans ?? 0],
-    ['Students', t.students ?? 0],
-    ['AI jobs', `${t.ai_jobs || 0} total · ${t.failed_jobs || 0} failed`],
+    ...(scoped ? [] : [
+      ['Students', t.students ?? 0],
+      ['AI jobs', `${t.ai_jobs || 0} total · ${t.failed_jobs || 0} failed`],
+    ]),
   ];
-  const instructorRows = (data?.instructorActivity || []).map((r) => [
-    r.full_name || '—', r.email, r.status, r.subjects, r.questions, r.exams, r.scans,
-  ]);
+  const instructorCols = scoped
+    ? ['Name', 'Email', 'Status', 'Subjects', 'Questions', 'Approved', 'Drafts', 'Exams', 'Scans']
+    : ['Name', 'Email', 'Status', 'Subjects', 'Questions', 'Exams', 'Scans'];
+  const instructorRows = (data?.instructorActivity || []).map((r) => (
+    scoped
+      ? [r.full_name || '—', r.email, r.status, r.subjects, r.questions, r.approved, r.drafts, r.exams, r.scans]
+      : [r.full_name || '—', r.email, r.status, r.subjects, r.questions, r.exams, r.scans]
+  ));
   const bloomRows = (data?.bloomMix || []).map((r) => [r.bloom || 'unclassified', r.n]);
   const typeRows = (data?.typeMix || []).map((r) => [TYPE_LABELS[r.type] || r.type, r.n]);
+  const trendCols = scoped ? ['Month', 'Scans'] : ['Month', 'Scans', 'Sign-ins', 'Succeeded'];
   const trendRows = (() => {
     const months = new Set([
       ...(data?.scanTrend || []).map((r) => r.month),
@@ -1503,19 +1956,22 @@ function ReportsTab({ toast, tier }) {
     ]);
     const scans = Object.fromEntries((data?.scanTrend || []).map((r) => [r.month, r.n]));
     const logins = Object.fromEntries((data?.loginTrend || []).map((r) => [r.month, r]));
-    return [...months].sort().reverse().map((m) => [m, scans[m] || 0, logins[m]?.n || 0, logins[m]?.succeeded || 0]);
+    return [...months].sort().reverse().map((m) => (
+      scoped ? [m, scans[m] || 0] : [m, scans[m] || 0, logins[m]?.n || 0, logins[m]?.succeeded || 0]
+    ));
   })();
   const jobRows = (data?.jobMix || []).map((r) => [r.kind, r.n, r.failed || 0]);
+  const reportTitle = scoped ? 'Instructor Activity Report' : 'Institution Usage Report';
 
   function exportCsv() {
     const lines = [
-      ['nexam — Institution usage report'],
+      [`nexam — ${reportTitle.toLowerCase()}`],
       ['Generated', new Date(data.generatedAt).toLocaleString(), 'Prepared by', user?.email || ''],
       [],
       ['Section', 'Metric', 'Value'],
       ...metricRows.map(([m, v]) => ['Totals', m, v]),
       [],
-      ['Instructors', 'Name', 'Email', 'Status', 'Subjects', 'Questions', 'Exams', 'Scans'],
+      ['Instructors', ...instructorCols],
       ...instructorRows.map((r) => ['', ...r]),
       [],
       ['Question mix', 'Bloom level', 'Questions'],
@@ -1523,11 +1979,13 @@ function ReportsTab({ toast, tier }) {
       ['', 'Type', 'Questions'],
       ...typeRows.map((r) => ['', ...r]),
       [],
-      ['Activity', 'Month', 'Scans', 'Sign-ins', 'Succeeded'],
+      ['Activity', ...trendCols],
       ...trendRows.map((r) => ['', ...r]),
-      [],
-      ['AI jobs', 'Kind', 'Runs', 'Failed'],
-      ...jobRows.map((r) => ['', ...r]),
+      ...(scoped ? [] : [
+        [],
+        ['AI jobs', 'Kind', 'Runs', 'Failed'],
+        ...jobRows.map((r) => ['', ...r]),
+      ]),
     ];
     // downloadCsv takes uniform headers/rows — flatten into a single table.
     const maxCols = Math.max(...lines.map((l) => l.length));
@@ -1537,10 +1995,10 @@ function ReportsTab({ toast, tier }) {
   function exportXlsx() {
     downloadXlsx('nexam-usage-report', [
       { title: 'Totals', headers: ['Metric', 'Value'], rows: metricRows },
-      { title: 'Instructors', headers: ['Name', 'Email', 'Status', 'Subjects', 'Questions', 'Exams', 'Scans'], rows: instructorRows },
+      { title: 'Instructors', headers: instructorCols, rows: instructorRows },
       { title: 'Question mix', headers: ['Group', 'Value', 'Questions'], rows: [...bloomRows.map(([b, n]) => ['Bloom', b, n]), ...typeRows.map(([ty, n]) => ['Type', ty, n])] },
-      { title: 'Activity', headers: ['Month', 'Scans', 'Sign-ins', 'Succeeded'], rows: trendRows },
-      { title: 'AI jobs', headers: ['Kind', 'Runs', 'Failed'], rows: jobRows },
+      { title: 'Activity', headers: trendCols, rows: trendRows },
+      ...(scoped ? [] : [{ title: 'AI jobs', headers: ['Kind', 'Runs', 'Failed'], rows: jobRows }]),
     ]);
   }
 
@@ -1548,7 +2006,7 @@ function ReportsTab({ toast, tier }) {
 
   return (
     <>
-      <AdminHeader tier={tier} title="Usage report" sub={VIEW_META.reports.sub}>
+      <AdminHeader tier={tier} title={reportTitle} sub={VIEW_META.reports.sub}>
         <button type="button" className="btn btn-outline btn-sm" onClick={() => window.print()} disabled={!data} title="Print the report as a document">
           <Printer size={14} /> Print
         </button>
@@ -1571,11 +2029,11 @@ function ReportsTab({ toast, tier }) {
           <div className="print-doc print-only">
             <div className="print-doc-head">
               <div className="pd-org">nexam — Administrator Console</div>
-              <div className="pd-title">Institution Usage Report</div>
+              <div className="pd-title">{reportTitle}</div>
               <div className="pd-meta">{printMeta}</div>
             </div>
 
-            <div className="report-section-title">System totals</div>
+            <div className="report-section-title">{scoped ? 'Totals' : 'System totals'}</div>
             <table className="report-table">
               <tbody>
                 {metricRows.map(([m, v]) => <tr key={m}><th>{m}</th><td>{v}</td></tr>)}
@@ -1584,20 +2042,20 @@ function ReportsTab({ toast, tier }) {
 
             <div className="report-section-title">Activity by month</div>
             <table className="report-table">
-              <thead><tr><th>Month</th><th>Scans</th><th>Sign-ins</th><th>Succeeded</th></tr></thead>
+              <thead><tr>{trendCols.map((c) => <th key={c}>{c}</th>)}</tr></thead>
               <tbody>
-                {trendRows.length === 0 && <tr><td colSpan={4}>No activity recorded yet.</td></tr>}
-                {trendRows.map(([m, s, l, ok]) => (
-                  <tr key={m}><td>{m}</td><td>{s}</td><td>{l}</td><td>{ok}</td></tr>
+                {trendRows.length === 0 && <tr><td colSpan={trendCols.length}>No activity recorded yet.</td></tr>}
+                {trendRows.map((r) => (
+                  <tr key={r[0]}>{r.map((c, j) => <td key={j}>{c}</td>)}</tr>
                 ))}
               </tbody>
             </table>
 
             <div className="report-section-title">Instructor activity</div>
             <table className="report-table">
-              <thead><tr><th>Name</th><th>Email</th><th>Status</th><th>Subjects</th><th>Questions</th><th>Exams</th><th>Scans</th></tr></thead>
+              <thead><tr>{instructorCols.map((c) => <th key={c}>{c}</th>)}</tr></thead>
               <tbody>
-                {instructorRows.length === 0 && <tr><td colSpan={7}>No instructor activity yet.</td></tr>}
+                {instructorRows.length === 0 && <tr><td colSpan={instructorCols.length}>No instructor activity yet.</td></tr>}
                 {instructorRows.map((r, i) => (
                   <tr key={i}>{r.map((c, j) => <td key={j}>{c}</td>)}</tr>
                 ))}
@@ -1614,18 +2072,22 @@ function ReportsTab({ toast, tier }) {
               </tbody>
             </table>
 
-            <div className="report-section-title">AI jobs</div>
-            <table className="report-table">
-              <thead><tr><th>Kind</th><th>Runs</th><th>Failed</th></tr></thead>
-              <tbody>
-                {jobRows.length === 0 && <tr><td colSpan={3}>No AI jobs yet.</td></tr>}
-                {jobRows.map(([k, n, f]) => <tr key={k}><td>{k}</td><td>{n}</td><td>{f}</td></tr>)}
-              </tbody>
-            </table>
+            {!scoped && (
+              <>
+                <div className="report-section-title">AI jobs</div>
+                <table className="report-table">
+                  <thead><tr><th>Kind</th><th>Runs</th><th>Failed</th></tr></thead>
+                  <tbody>
+                    {jobRows.length === 0 && <tr><td colSpan={3}>No AI jobs yet.</td></tr>}
+                    {jobRows.map(([k, n, f]) => <tr key={k}><td>{k}</td><td>{n}</td><td>{f}</td></tr>)}
+                  </tbody>
+                </table>
+              </>
+            )}
 
             <div className="print-doc-foot">
               <span>nexam — Administrator Console</span>
-              <span>Institution Usage Report</span>
+              <span>{reportTitle}</span>
             </div>
           </div>
 
@@ -1650,7 +2112,7 @@ function ReportsTab({ toast, tier }) {
 
             <div className="adm-dash-grid">
               <section className="adm-card">
-                <header className="adm-card-head"><BarChart3 size={15} /><h3>System totals</h3></header>
+                <header className="adm-card-head"><BarChart3 size={15} /><h3>{scoped ? 'Totals' : 'System totals'}</h3></header>
                 <div className="adm-card-body">
                   <table className="adm-rt">
                     <tbody>
@@ -1665,7 +2127,7 @@ function ReportsTab({ toast, tier }) {
               <section className="adm-card">
                 <header className="adm-card-head"><Activity size={15} /><h3>Activity by month</h3></header>
                 <div className="adm-card-body">
-                  {trendRows.length > 0 && (
+                  {!scoped && trendRows.length > 0 && (
                     <div className="adm-chart">
                       <LoginTrendChart
                         rows={trendRows.slice().reverse().map(([m, s, l, ok]) => ({ month: m, scans: s, logins: l, succeeded: ok }))}
@@ -1673,11 +2135,11 @@ function ReportsTab({ toast, tier }) {
                     </div>
                   )}
                   <table className="adm-rt">
-                    <thead><tr><th>Month</th><th>Scans</th><th>Sign-ins</th><th>Succeeded</th></tr></thead>
+                    <thead><tr>{trendCols.map((c) => <th key={c}>{c}</th>)}</tr></thead>
                     <tbody>
-                      {trendRows.length === 0 && <tr><td colSpan={4} className="adm-muted">No activity recorded yet.</td></tr>}
-                      {trendRows.map(([m, s, l, ok]) => (
-                        <tr key={m}><td><strong>{m}</strong></td><td>{s}</td><td>{l}</td><td>{ok}</td></tr>
+                      {trendRows.length === 0 && <tr><td colSpan={trendCols.length} className="adm-muted">No activity recorded yet.</td></tr>}
+                      {trendRows.map((r) => (
+                        <tr key={r[0]}><td><strong>{r[0]}</strong></td>{r.slice(1).map((c, j) => <td key={j}>{c}</td>)}</tr>
                       ))}
                     </tbody>
                   </table>
@@ -1689,17 +2151,19 @@ function ReportsTab({ toast, tier }) {
               <header className="adm-card-head"><UserCheck size={15} /><h3>Instructor activity</h3></header>
               <div className="adm-card-body">
                 <table className="adm-rt">
-                  <thead><tr><th>Name</th><th>Email</th><th>Status</th><th>Subjects</th><th>Questions</th><th>Exams</th><th>Scans</th></tr></thead>
+                  <thead><tr>{instructorCols.map((c) => <th key={c}>{c}</th>)}</tr></thead>
                   <tbody>
                     {(data.instructorActivity || []).length === 0 && (
-                      <tr><td colSpan={7} className="adm-muted">No instructor activity yet.</td></tr>
+                      <tr><td colSpan={instructorCols.length} className="adm-muted">No instructor activity yet.</td></tr>
                     )}
                     {(data.instructorActivity || []).map((r) => (
                       <tr key={r.id}>
                         <td><strong>{r.full_name || '—'}</strong></td>
                         <td className="adm-muted">{r.email}</td>
                         <td><StatusPill status={r.status} small /></td>
-                        <td>{r.subjects}</td><td>{r.questions}</td><td>{r.exams}</td><td>{r.scans}</td>
+                        <td>{r.subjects}</td><td>{r.questions}</td>
+                        {scoped && <><td>{r.approved}</td><td>{r.drafts}</td></>}
+                        <td>{r.exams}</td><td>{r.scans}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -1739,18 +2203,20 @@ function ReportsTab({ toast, tier }) {
                 </div>
               </section>
 
-              <section className="adm-card">
-                <header className="adm-card-head"><ShieldCheck size={15} /><h3>AI jobs</h3></header>
-                <div className="adm-card-body">
-                  <table className="adm-rt">
-                    <thead><tr><th>Kind</th><th>Runs</th><th>Failed</th></tr></thead>
-                    <tbody>
-                      {jobRows.length === 0 && <tr><td colSpan={3} className="adm-muted">No AI jobs yet.</td></tr>}
-                      {jobRows.map(([k, n, f]) => <tr key={k}><td><strong>{k}</strong></td><td>{n}</td><td>{f}</td></tr>)}
-                    </tbody>
-                  </table>
-                </div>
-              </section>
+              {!scoped && (
+                <section className="adm-card">
+                  <header className="adm-card-head"><ShieldCheck size={15} /><h3>AI jobs</h3></header>
+                  <div className="adm-card-body">
+                    <table className="adm-rt">
+                      <thead><tr><th>Kind</th><th>Runs</th><th>Failed</th></tr></thead>
+                      <tbody>
+                        {jobRows.length === 0 && <tr><td colSpan={3} className="adm-muted">No AI jobs yet.</td></tr>}
+                        {jobRows.map(([k, n, f]) => <tr key={k}><td><strong>{k}</strong></td><td>{n}</td><td>{f}</td></tr>)}
+                      </tbody>
+                    </table>
+                  </div>
+                </section>
+              )}
             </div>
           </div>
         </>
@@ -1764,8 +2230,9 @@ export default function AdminPage() {
   const toast = useToast();
   const { user } = useAuth();
   const { view } = useParams();
-  // Mid-tier admins get Dashboard + Users; everything else is superadmin-only.
-  const allowed = user?.role === 'superadmin' ? VIEWS : ['dashboard', 'users'];
+  // Mid-tier admins get the instructor-facing surfaces; security and
+  // system areas stay superadmin-only.
+  const allowed = user?.role === 'superadmin' ? VIEWS : ADMIN_VIEWS;
   if (!view) return <Navigate to="/admin/dashboard" replace />;
   if (!allowed.includes(view)) return <Navigate to="/admin/dashboard" replace />;
 
@@ -1776,7 +2243,9 @@ export default function AdminPage() {
     <AppShell activeNav={view} pageClass="admin" pageTitle={meta.title} wide>
       {view === 'dashboard' && <DashboardTab toast={toast} tier={tier} />}
       {view === 'users' && <UsersTab toast={toast} role={user?.role} tier={tier} />}
-      {view === 'reports' && <ReportsTab toast={toast} tier={tier} />}
+      {view === 'announcements' && <AnnouncementsTab toast={toast} tier={tier} />}
+      {view === 'reports' && <ReportsTab toast={toast} tier={tier} scoped={user?.role !== 'superadmin'} />}
+      {view === 'bank' && <BankTab toast={toast} tier={tier} />}
       {view === 'logins' && <LoginsTab toast={toast} tier={tier} />}
       {view === 'audit' && <AuditTab toast={toast} tier={tier} />}
       {view === 'settings' && <SettingsTab toast={toast} tier={tier} />}

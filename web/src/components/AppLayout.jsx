@@ -606,6 +606,7 @@ export default function AppLayout() {
                       setUserMenuOpen(false);
                       if (!(await confirm('You will need to sign in again to continue working.', { title: 'Log out of nexam?', confirmText: 'Log out', danger: false, icon: LogOut }))) return;
                       logout();
+                      toast.success('Signed out. See you next time.');
                       navigate('/login');
                     }}
                   >

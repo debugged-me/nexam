@@ -30,6 +30,7 @@ import { requireAuth, requireAnyAuth } from '../middleware/auth.js';
 import { sendOtpEmail } from '../services/emailService.js';
 import { getCaptchaSiteKey, verifyCaptcha } from '../services/captcha.js';
 import { logLogin } from '../services/audit.js';
+import { getSetting } from '../services/settings.js';
 import { encryptFileAtRest, readProtectedFile } from '../services/storageCrypto.js';
 
 const router = Router();
@@ -69,6 +70,19 @@ function rateRetryAfter(key, windowSeconds) {
   const attempts = (rateBuckets.get(key) || []).filter((t) => t >= cutoff);
   if (!attempts.length) return 0;
   return Math.ceil(windowSeconds - (now - Math.min(...attempts)) / 1000);
+}
+
+/**
+ * Trusted-domain auto-approval. Emails on the `auto_approve_domains`
+ * setting (superadmin Settings) activate the moment the address is
+ * verified; every other domain still waits for an admin. The match covers
+ * the domain itself and any subdomain (mail.dorsu.edu.ph → dorsu.edu.ph).
+ */
+async function isAutoApproveDomain(email) {
+  const raw = await getSetting('auto_approve_domains', '');
+  const allowed = String(raw).split(/[\s,]+/).map((d) => d.trim().toLowerCase()).filter(Boolean);
+  const domain = String(email || '').split('@')[1]?.toLowerCase();
+  return Boolean(domain) && allowed.some((a) => domain === a || domain.endsWith(`.${a}`));
 }
 
 // ── Login throttle: escalating delay between failed attempts ──
@@ -393,8 +407,11 @@ router.post('/register', async (req, res, next) => {
 router.post('/verify', async (req, res, next) => {
   try {
     const { verifyToken, code } = req.body || {};
-    if (!verifyToken || !code) {
-      return res.status(400).json({ error: 'Verification token and code are required.' });
+    if (!verifyToken) {
+      return res.status(400).json({ error: 'Your verification session is missing. Please request a new code.' });
+    }
+    if (!code) {
+      return res.status(400).json({ error: 'Please enter the 6-character verification code.' });
     }
     if (!/^[0-9A-Z]{6}$/i.test(String(code))) {
       return res.status(400).json({ error: 'The code must be 6 characters.' });
@@ -423,12 +440,20 @@ router.post('/verify', async (req, res, next) => {
     }
     rateClear(key);
 
+    const autoApprove = await isAutoApproveDomain(payload.email);
     await pool.query(
-      `UPDATE users SET email_verified = 1 WHERE id = :id`,
-      { id: payload.uid }
+      `UPDATE users SET email_verified = 1,
+         status = CASE WHEN status = 'pending' AND :auto = 1 THEN 'active' ELSE status END
+       WHERE id = :id`,
+      { id: payload.uid, auto: autoApprove ? 1 : 0 }
     );
 
-    res.json({ message: 'Email verified! You can sign in once your account is approved.' });
+    res.json({
+      message: autoApprove
+        ? 'Email verified! You can now sign in.'
+        : 'Email verified! You can sign in once your account is approved.',
+      autoApproved: autoApprove,
+    });
   } catch (err) {
     next(err);
   }
@@ -443,7 +468,7 @@ router.post('/resend', async (req, res, next) => {
   try {
     const { verifyToken } = req.body || {};
     if (!verifyToken) {
-      return res.status(400).json({ error: 'Verification token is required.' });
+      return res.status(400).json({ error: 'Your verification session is missing. Please request a new code.' });
     }
 
     let payload;
@@ -616,7 +641,7 @@ router.post('/reset', async (req, res, next) => {
   try {
     const { resetToken, code, password } = req.body || {};
     if (!resetToken || !code || !password) {
-      return res.status(400).json({ error: 'Reset token, code, and new password are required.' });
+      return res.status(400).json({ error: 'The reset code and new password are required.' });
     }
     if (!/^[0-9A-Z]{6}$/i.test(String(code))) {
       return res.status(400).json({ error: 'The code must be 6 characters.' });
@@ -672,7 +697,7 @@ router.post('/reset/check', async (req, res, next) => {
   try {
     const { resetToken, code } = req.body || {};
     if (!resetToken || !code) {
-      return res.status(400).json({ error: 'Reset token and code are required.' });
+      return res.status(400).json({ error: 'Please enter the reset code from your email.' });
     }
     if (!/^[0-9A-Z]{6}$/i.test(String(code))) {
       return res.status(400).json({ error: 'The code must be 6 characters.' });
@@ -717,7 +742,7 @@ router.post('/reset-link', async (req, res, next) => {
   try {
     const { key, password } = req.body || {};
     if (!key || !password) {
-      return res.status(400).json({ error: 'Reset key and new password are required.' });
+      return res.status(400).json({ error: 'The reset link or new password is missing — please request a fresh link.' });
     }
     if (String(password).length < 8 || String(password).length > 128) {
       return res.status(400).json({ error: 'Password must be between 8 and 128 characters.' });

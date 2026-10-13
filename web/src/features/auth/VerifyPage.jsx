@@ -18,6 +18,14 @@ import { useAuthEntrance } from './authEntrance.js';
 import AuthGlow from './AuthGlow.jsx';
 import CodeInput from './CodeInput.jsx';
 
+/** Format a wait time: 25 → "25s", 85 → "1m 25s". */
+function fmtWait(s) {
+  if (s < 60) return `${s}s`;
+  const m = Math.floor(s / 60);
+  const r = s % 60;
+  return r ? `${m}m ${String(r).padStart(2, '0')}s` : `${m}m`;
+}
+
 export default function VerifyPage() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -62,6 +70,7 @@ export default function VerifyPage() {
         const data = await api.post('/auth/send-verification', { email });
         if (data.verifyToken) {
           setCooldown(120);
+          setInfo('Code sent — check your inbox and spam folder. It expires in 15 minutes.');
           navigate('/verify', { replace: true, state: { verifyToken: data.verifyToken, email } });
         } else {
           setInfo(data.message || 'If an account exists, a code has been sent.');
@@ -80,13 +89,17 @@ export default function VerifyPage() {
       setError('No verification session. Please request a new code below.');
       return;
     }
+    if (!/^[0-9A-Z]{6}$/i.test(finalCode)) {
+      setError('Enter the 6-character code from your email.');
+      return;
+    }
     setLoading(true);
     try {
-      await api.post('/auth/verify', { verifyToken, code: finalCode });
+      const data = await api.post('/auth/verify', { verifyToken, code: finalCode });
       // Drop any stale session — if another account was logged in while this
       // one registered/verified, its token must not survive into the next.
       logout();
-      navigate('/login', { state: { toast: 'Email verified! You can now log in.' } });
+      navigate('/login', { state: { toast: data.message || 'Email verified! You can now log in.' } });
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Verification failed.');
     } finally {
@@ -100,10 +113,12 @@ export default function VerifyPage() {
   }
 
   /** A resend cooldown means a code was already sent recently — surface it
-   *  as a live countdown note instead of a red error. */
+   *  as a live countdown note instead of a red error. Clearing info keeps a
+   *  stale "code sent" line from resurfacing once the countdown ends. */
   function resendError(err) {
     if (err instanceof ApiError && err.status === 429) {
       setCooldown(err.payload?.retryAfter || 60);
+      setInfo('');
     } else {
       setError(err instanceof ApiError ? err.message : 'Could not resend code.');
     }
@@ -124,6 +139,7 @@ export default function VerifyPage() {
         const data = await api.post('/auth/send-verification', { email });
         if (data.verifyToken) {
           setCooldown(120);
+          setInfo('Code sent — check your inbox and spam folder. It expires in 15 minutes.');
           navigate('/verify', { replace: true, state: { verifyToken: data.verifyToken, email } });
         } else {
           setInfo(data.message || 'If an account exists, a code has been sent.');
@@ -139,7 +155,9 @@ export default function VerifyPage() {
     try {
       const data = await api.post('/auth/resend', { verifyToken });
       setCooldown(60);
-      setInfo(data.message || 'A new code has been sent.');
+      setInfo(data.emailSent === false
+        ? (data.message || 'We could not send the email right now. Please try again shortly.')
+        : 'New code sent — any earlier code no longer works. Check spam; it expires in 15 minutes.');
     } catch (err) {
       resendError(err);
     } finally {
@@ -218,7 +236,7 @@ export default function VerifyPage() {
                 <AlertCircle />
                 <span>
                   {cooldown > 0
-                    ? `A code was already sent — you can request a new one in ${cooldown}s.`
+                    ? `Code already sent — check your inbox and spam folder. You can request a new one in ${fmtWait(cooldown)}.`
                     : info}
                 </span>
               </div>
@@ -240,8 +258,9 @@ export default function VerifyPage() {
               </button>
               <button type="button" className="btn-register" onClick={handleResend} disabled={resending || cooldown > 0}>
                 <RotateCw />
-                {resending ? 'Sending…' : cooldown > 0 ? `Resend in ${cooldown}s` : 'Resend code'}
+                {resending ? 'Sending…' : cooldown > 0 ? `Resend in ${fmtWait(cooldown)}` : 'Resend code'}
               </button>
+              <p className="form-hint">Not arriving? Check your spam or junk folder, then resend.</p>
             </div>
 
             <div className="form-links anim-in">

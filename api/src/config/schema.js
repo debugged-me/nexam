@@ -748,6 +748,11 @@ const DATA_FIXES = [
    WHERE title LIKE '% (Auto-generated)'`,
   `UPDATE exams SET title = TRIM(LEFT(title, CHAR_LENGTH(title) - CHAR_LENGTH(' (Auto-generated)')))
    WHERE title LIKE '% (Auto-generated)'`,
+
+  // Seed the auto-approve domain list once. INSERT IGNORE leaves any admin
+  // edit (including an emptied list) untouched on later boots.
+  `INSERT IGNORE INTO settings (setting_key, setting_value)
+   VALUES ('auto_approve_domains', 'dorsu.edu.ph,softtechservices.net')`,
 ];
 
 export async function ensureSchema() {

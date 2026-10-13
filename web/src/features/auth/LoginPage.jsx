@@ -10,10 +10,11 @@ import '../../styles/auth-shared.css';
  * Entrance: one GSAP timeline on mount (card settles, side panel steps in,
  * fields cascade). prefers-reduced-motion renders the final state.
  */
-import { useRef, useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useRef, useState, useEffect } from 'react';
+import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { Mail, Lock, Eye, EyeOff, AlertCircle, ArrowRight } from 'lucide-react';
 import { useAuth } from './AuthContext.jsx';
+import { useToast } from '../../components/Toast.jsx';
 import api, { ApiError } from '../../lib/api.js';
 import { useAuthEntrance } from './authEntrance.js';
 import AuthGlow from './AuthGlow.jsx';
@@ -21,6 +22,8 @@ import AuthGlow from './AuthGlow.jsx';
 export default function LoginPage() {
   const { login } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+  const toast = useToast();
   const pageRef = useRef(null);
 
   const [email, setEmail] = useState('');
@@ -30,6 +33,16 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
 
   useAuthEntrance(pageRef);
+
+  // Post-verify redirect lands here with a one-shot toast in router state.
+  useEffect(() => {
+    const msg = location.state?.toast;
+    if (msg) {
+      toast.success(msg);
+      navigate(location.pathname, { replace: true, state: {} });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   async function handleSubmit(e) {
     e.preventDefault();

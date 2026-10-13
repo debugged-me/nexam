@@ -437,9 +437,11 @@ router.get('/settings', requireSuperadmin, async (req, res, next) => {
     const groqModel = await getSetting('groq_model', env.ai.groq.model);
     const ollamaKey = await getSetting('ollama_api_key', null);
     const ollamaModel = await getSetting('ollama_model', env.ai.ollama.model);
+    const autoApproveDomains = await getSetting('auto_approve_domains', '');
     const cfg = await getAiConfig();
 
     res.json({
+      autoApproveDomains,
       recaptcha: {
         siteKey,
         secretSet: Boolean(secret),
@@ -497,6 +499,25 @@ router.put('/settings', requireSuperadmin, async (req, res, next) => {
       body.gemini_fallback_models = parts.join(',');
     }
     const changed = [];
+    // Trusted domains are handled outside the whitelist loop because an
+    // empty value is meaningful: it disables auto-approval entirely.
+    if (typeof body.auto_approve_domains === 'string') {
+      const parts = body.auto_approve_domains
+        .split(/[\s,]+/)
+        .map((d) => d.trim().toLowerCase().replace(/^[*@.]+/, ''))
+        .filter(Boolean);
+      const domainRe = /^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$/;
+      if (parts.length > 50 || parts.some((d) => !domainRe.test(d))) {
+        return res.status(400).json({ error: 'Enter domains as a comma-separated list, such as dorsu.edu.ph, deped.gov.ph.' });
+      }
+      await pool.query(
+        `INSERT INTO settings (setting_key, setting_value)
+         VALUES (:k, :v)
+         ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value)`,
+        { k: 'auto_approve_domains', v: [...new Set(parts)].join(',') }
+      );
+      changed.push('auto_approve_domains');
+    }
     for (const key of EDITABLE_KEYS) {
       const v = body[key];
       if (typeof v !== 'string' || v.trim() === '') continue;

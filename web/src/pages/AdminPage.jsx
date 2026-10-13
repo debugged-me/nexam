@@ -29,7 +29,7 @@ import {
   LogIn, ShieldAlert, Activity, Copy, ArrowRight, UserPlus, Ellipsis,
   Pencil, KeyRound, Printer, FileSpreadsheet, FileDown, BarChart3,
   Search, ScrollText, ListChecks, Users, ChevronDown, Megaphone,
-  Trash2, Plus, Eye, EyeOff, CircleHelp,
+  Trash2, Plus, Eye, EyeOff, CircleHelp, MailCheck,
 } from 'lucide-react';
 import { useToast } from '../components/Toast.jsx';
 import { useContextMenu, useCopyText } from '../components/ContextMenu.jsx';
@@ -1680,6 +1680,7 @@ function SettingsTab({ toast, tier }) {
         setForm({
           recaptcha_site_key: d.recaptcha?.siteKey || '',
           recaptcha_secret_key: '',
+          auto_approve_domains: d.autoApproveDomains || '',
           gemini_model: d.ai?.geminiModel || '',
           gemini_fallback_models: d.ai?.geminiFallbackModels || '',
           gemini_embedding_model: d.ai?.geminiEmbeddingModel || '',
@@ -1823,6 +1824,19 @@ function SettingsTab({ toast, tier }) {
                   hint: 'Leave blank to keep the current secret.',
                 })}
               </div>
+            </div>
+          </section>
+
+          <section className="adm-card">
+            <header className="adm-card-head">
+              <MailCheck size={15} />
+              <h3>Self-registration</h3>
+            </header>
+            <div className="adm-card-body">
+              {field('auto_approve_domains', 'Auto-approve email domains', {
+                placeholder: 'dorsu.edu.ph, deped.gov.ph',
+                hint: 'Verified emails on these domains (and their subdomains) activate instantly — all others wait for admin approval. Clear the field to require approval for everyone.',
+              })}
             </div>
           </section>
 

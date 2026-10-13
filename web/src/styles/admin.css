@@ -406,6 +406,29 @@
     line-height: 1.4;
   }
 
+  /* Bank rows open a read-only detail view on click. */
+  .adm-bank-row { cursor: pointer; }
+
+  /* Read-only question detail inside the modal. */
+  .adm-bank-detail { display: grid; gap: 14px; }
+  .adm-bank-full {
+    margin: 0;
+    font-size: .92rem;
+    line-height: 1.6;
+    color: var(--ink);
+    white-space: pre-wrap;
+  }
+  .adm-detail-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px 18px;
+    margin: 0;
+    padding-top: 12px;
+    border-top: 1px solid var(--line);
+  }
+  .adm-detail-grid dt { font-size: .68rem; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; color: var(--ink-faint); }
+  .adm-detail-grid dd { margin: 2px 0 0; font-size: .82rem; color: var(--ink); }
+
   /* ---- Responsive ---------------------------------------------------------- */
   @media (max-width: 991px) {
     .adm-dash-grid { grid-template-columns: 1fr; }

@@ -29,7 +29,7 @@ import {
   LogIn, ShieldAlert, Activity, Copy, ArrowRight, UserPlus, Ellipsis,
   Pencil, KeyRound, Printer, FileSpreadsheet, FileDown, BarChart3,
   Search, ScrollText, ListChecks, Users, ChevronDown, Megaphone,
-  Trash2, Plus, Eye, EyeOff,
+  Trash2, Plus, Eye, EyeOff, CircleHelp,
 } from 'lucide-react';
 import { useToast } from '../components/Toast.jsx';
 import { useContextMenu, useCopyText } from '../components/ContextMenu.jsx';
@@ -1061,6 +1061,7 @@ function BankTab({ toast, tier }) {
   const [data, setData] = useState(null);
   const [query, setQuery] = useState('');
   const [filters, setFilters] = useState({ subject: '', bloom: '', type: '' });
+  const [viewing, setViewing] = useState(null);
   const { menuEl, openMenu } = useContextMenu();
   const copyText = useCopyText();
 
@@ -1104,6 +1105,8 @@ function BankTab({ toast, tier }) {
   const { pageRows, sortClass, sortHandler, renderSortArrow } = grid;
 
   const menuItems = (q) => [
+    { label: 'View full question', icon: Eye, onClick: () => setViewing(q) },
+    'sep',
     { label: 'Copy question', icon: Copy, onClick: () => copyText(q.stem, 'Question') },
     { label: 'Copy subject', icon: Copy, onClick: () => copyText(q.subject_name || '', 'Subject') },
   ];
@@ -1191,17 +1194,24 @@ function BankTab({ toast, tier }) {
                       </td>
                     </tr>
                   ) : pageRows.map((q) => (
-                    <tr key={q.id} onContextMenu={(e) => openMenu(e, menuItems(q))}>
+                    <tr
+                      key={q.id}
+                      className="adm-bank-row"
+                      onClick={() => setViewing(q)}
+                      onContextMenu={(e) => openMenu(e, menuItems(q))}
+                    >
                       <td className="col-primary">
                         <span className="g-primary">
                           <span className="g-title adm-bank-stem">{q.stem}</span>
-                          {q.topic && <span className="g-meta">{q.topic}</span>}
+                          {q.topic && <span className="g-meta" title={q.topic}>{q.topic}</span>}
                         </span>
                       </td>
                       <td>{TYPE_LABELS[q.type] || q.type}</td>
                       <td>{BLOOM_LABELS[q.bloom] || q.bloom || '—'}</td>
-                      <td className="g-mute">{q.subject_code ? `${q.subject_code} — ` : ''}{q.subject_name}</td>
-                      <td className="g-mute">{q.author || '—'}</td>
+                      <td className="g-mute" title={q.subject_code ? `${q.subject_code} — ${q.subject_name}` : q.subject_name}>
+                        {q.subject_code ? `${q.subject_code} — ` : ''}{q.subject_name}
+                      </td>
+                      <td className="g-mute" title={q.author || ''}>{q.author || '—'}</td>
                       <td className="g-mute" title={fmtTime(q.created_at)}>{fmtDate(q.created_at)}</td>
                     </tr>
                   ))}
@@ -1214,7 +1224,39 @@ function BankTab({ toast, tier }) {
       </section>
 
       {menuEl}
+      {viewing && <BankViewModal question={viewing} onClose={() => setViewing(null)} />}
     </>
+  );
+}
+
+/** BankViewModal — read-only full view of one approved question. */
+function BankViewModal({ question: q, onClose }) {
+  const copyText = useCopyText();
+  return (
+    <Modal
+      open
+      size="md"
+      icon={CircleHelp}
+      title={TYPE_LABELS[q.type] || 'Question'}
+      subtitle={`${q.subject_code ? `${q.subject_code} — ` : ''}${q.subject_name || ''}`}
+      onClose={onClose}
+      footer={(
+        <button type="button" className="btn btn-outline" onClick={() => copyText(q.stem, 'Question')}>
+          <Copy size={14} /> Copy question
+        </button>
+      )}
+    >
+      <div className="adm-bank-detail">
+        <p className="adm-bank-full">{q.stem}</p>
+        <dl className="adm-detail-grid">
+          <div><dt>Bloom level</dt><dd>{BLOOM_LABELS[q.bloom] || q.bloom || '—'}</dd></div>
+          <div><dt>Topic</dt><dd>{q.topic || '—'}</dd></div>
+          <div><dt>Subject</dt><dd>{q.subject_code ? `${q.subject_code} — ` : ''}{q.subject_name}</dd></div>
+          <div><dt>Author</dt><dd>{q.author || '—'}</dd></div>
+          <div><dt>Added</dt><dd>{fmtTime(q.created_at)}</dd></div>
+        </dl>
+      </div>
+    </Modal>
   );
 }
 

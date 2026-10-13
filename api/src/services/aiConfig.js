@@ -44,7 +44,7 @@ export async function getAiConfig() {
 
   const [
     geminiApiKey, geminiApiKeys, geminiModel, geminiFallbackModels, geminiEmbeddingModel,
-    groqApiKey, groqApiKeys, groqModel,
+    groqApiKey, groqApiKeys, groqModel, groqFallbackModels,
     ollamaApiKey, ollamaModel,
   ] = await Promise.all([
     getSetting('gemini_api_key', null),
@@ -55,6 +55,7 @@ export async function getAiConfig() {
     getSetting('groq_api_key', null),
     getSetting('groq_api_keys', null),
     getSetting('groq_model', null),
+    getSetting('groq_fallback_models', null),
     getSetting('ollama_api_key', null),
     getSetting('ollama_model', null),
   ]);
@@ -81,6 +82,10 @@ export async function getAiConfig() {
       apiKey: groqKeys[0] || '',
       keys: groqKeys,
       model: groqModel || env.ai.groq.model,
+      // Each Groq model has its own free-tier limit, so backups add capacity
+      // and give independent checks a different model family.
+      models: [...new Set([groqModel || env.ai.groq.model,
+        ...(groqFallbackModels ? modelList(groqFallbackModels) : (env.ai.groq.fallbackModels || []))])],
     },
     ollama: {
       apiKey: ollamaApiKey || env.ai.ollama.apiKey,

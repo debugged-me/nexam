@@ -470,7 +470,7 @@ function DashboardTab({ toast, tier }) {
                     </div>
                     <div className="adm-row-side">
                       <span className="adm-muted adm-nowrap">{fmtShort(p.created_at)}</span>
-                      <span className="row-actions">
+                      <span className="adm-actions">
                         <button
                           className="btn btn-primary btn-xs"
                           disabled={busyId === p.id}
@@ -1704,6 +1704,7 @@ function SettingsTab({ toast, tier }) {
           gemini_fallback_models: d.ai?.geminiFallbackModels || '',
           gemini_embedding_model: d.ai?.geminiEmbeddingModel || '',
           groq_model: d.ai?.groqModel || '',
+          groq_fallback_models: d.ai?.groqFallbackModels || '',
           ollama_api_key: '',
           ollama_model: d.ai?.ollamaModel || '',
         });
@@ -1963,6 +1964,10 @@ function SettingsTab({ toast, tier }) {
                   />
                   <div className="form-row">
                     {field('groq_model', 'Model')}
+                    {field('groq_fallback_models', 'Fallback models', {
+                      placeholder: 'qwen/qwen3.8-27b, openai/gpt-oss-20b',
+                      hint: 'Comma-separated — each has its own free limit, and a different model family makes a more independent answer check.',
+                    })}
                   </div>
                 </div>
               </details>

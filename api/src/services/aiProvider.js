@@ -191,7 +191,10 @@ export function runKeyPool(provider, keys, call, opts) {
  *
  * @param {string} systemPrompt
  * @param {string} userPrompt
- * @param {object} opts — { jsonSchema?, temperature?, maxTokens?, timeoutMs?, avoidProvider? }
+ * @param {object} opts — { jsonSchema?, temperature?, maxTokens?, timeoutMs?, avoidProvider?, excludeModels? }
+ *   avoidProvider: provider id(s) tried last, in the given order.
+ *   excludeModels: 'provider:model' ids never used — an independent check
+ *   must not run on the model that wrote the draft.
  * @returns {Promise<{text:string, provider:string, model:string, usage:object|null}>}
  */
 export async function generate(systemPrompt, userPrompt, opts = {}) {
@@ -202,24 +205,24 @@ export async function generate(systemPrompt, userPrompt, opts = {}) {
     temperature = env.ai.generation.temperature,
     maxTokens = env.ai.generation.maxTokens,
     avoidProvider = null,
+    excludeModels = [],
   } = opts;
+  const excluded = new Set(excludeModels);
+  const allowed = (provider, model) => !excluded.has(`${provider}:${model}`);
+  // All keys on the primary model first, then the fallback models — a key
+  // swap preserves output consistency; a model swap is the last resort.
+  const poolTargets = (provider, keys, models) => models.filter((model) => allowed(provider, model))
+    .flatMap((model) => keys.map((key) => ({ key, model, keyIndex: keys.indexOf(key) + 1, modelIndex: models.indexOf(model) + 1 })));
+  const geminiTargets = poolTargets('gemini', cfg.gemini.keys, cfg.gemini.models);
+  const groqTargets = poolTargets('groq', cfg.groq.keys, cfg.groq.models);
 
   const providers = [
     {
       id: 'gemini',
       name: 'Gemini',
-      configured: Boolean(cfg.gemini.keys.length),
+      configured: geminiTargets.length > 0,
       generate: () => {
-        // All keys on the primary model first, then the fallback models —
-        // a key swap preserves output consistency; a model swap is the
-        // last Gemini resort before Groq.
-        const targets = [];
-        for (const [m, model] of cfg.gemini.models.entries()) {
-          for (const [k, key] of cfg.gemini.keys.entries()) {
-            targets.push({ key, model, keyIndex: k + 1, modelIndex: m + 1 });
-          }
-        }
-        return runPool('gemini', targets, async ({ key, model: modelName }, signal) => {
+        return runPool('gemini', geminiTargets, async ({ key, model: modelName }, signal) => {
           // Build the model with per-call overrides if needed
           let model = getGeminiChat(cfg, key, modelName);
           if (temperature !== env.ai.generation.temperature || maxTokens !== env.ai.generation.maxTokens) {
@@ -272,10 +275,10 @@ export async function generate(systemPrompt, userPrompt, opts = {}) {
     {
       id: 'groq',
       name: 'Groq',
-      configured: Boolean(cfg.groq.keys.length),
-      generate: () => runKeyPool('groq', cfg.groq.keys, async (key, signal) => {
+      configured: groqTargets.length > 0,
+      generate: () => runPool('groq', groqTargets, async ({ key, model: groqModel }, signal) => {
         const completion = await getGroq(cfg, key).chat.completions.create({
-          model: cfg.groq.model,
+          model: groqModel,
           messages: [
             { role: 'system', content: systemPrompt },
             { role: 'user', content: userPrompt },
@@ -289,7 +292,7 @@ export async function generate(systemPrompt, userPrompt, opts = {}) {
         return {
           text,
           provider: 'groq',
-          model: cfg.groq.model,
+          model: groqModel,
           usage: completion.usage ? {
             promptTokens: completion.usage.prompt_tokens,
             completionTokens: completion.usage.completion_tokens,
@@ -301,15 +304,17 @@ export async function generate(systemPrompt, userPrompt, opts = {}) {
     {
       id: 'ollama',
       name: 'Ollama Cloud',
-      configured: Boolean(cfg.ollama.apiKey),
+      configured: Boolean(cfg.ollama.apiKey) && allowed('ollama', cfg.ollama.model),
       generate: () => generateOllamaCloud(cfg.ollama, systemPrompt, userPrompt, { jsonSchema, temperature, maxTokens, timeoutMs }),
     },
   ];
-  // An independent check (e.g. reviewing a draft) tries the other providers
-  // first and only falls back to the drafting provider when they are down.
-  const ordered = avoidProvider
-    ? [...providers.filter((p) => p.id !== avoidProvider), ...providers.filter((p) => p.id === avoidProvider)]
-    : providers;
+  // An independent check tries the other providers first and only falls back
+  // to the avoided ones (in the given order) when the others are down.
+  const avoid = [avoidProvider].flat().filter(Boolean);
+  const ordered = [
+    ...providers.filter((p) => !avoid.includes(p.id)),
+    ...avoid.map((id) => providers.find((p) => p.id === id)).filter(Boolean),
+  ];
   return runGenerationFallback(ordered);
 }
 
@@ -389,6 +394,11 @@ function withTimeout(promise, name) {
 function normalizeProviderError(name, error) {
   if (error?.publicMessage) return error; // already a testError (e.g. timeout race)
   const status = providerStatus(error);
+  // A valid key whose Google project is blocked from generation: replacing
+  // the key from the same project will not help.
+  if (status === 403 && /denied access/i.test(`${error?.message || ''} ${error?.cause?.message || ''}`)) {
+    return testError(name, `${name} accepted the key, but Google has blocked this key's project from generating content ("Your project has been denied access"). Use a key from a different project, or contact Google support.`, 403);
+  }
   if (status === 401 || status === 403) {
     return testError(name, `${name} rejected the API key. Check the saved key in AI settings.`, status);
   }

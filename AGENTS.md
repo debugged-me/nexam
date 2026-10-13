@@ -123,10 +123,18 @@ QR payload: `{ v, examId, setId, set, count, types[] }`.
   `knowledge_fallback_enabled` setting is 0. `create` cells are refused.
 - Every draft passes `isValidGeneratedQuestion`, `canonicalDraft` (stored
   form == hashed form), `instructionalBlockReason` (no course-admin/outline
-  questions, no bare topic-heading evidence) and an independent review run on
-  a different provider than the drafter (`avoidProvider`): `reviewQuestion`
-  (source support) or `reviewKnowledgeQuestion` (factual correctness). Its
-  verdict must match the requested Bloom exactly.
+  questions, no bare topic-heading evidence) and an independent review that
+  never runs on the writer's model (`excludeModels`, `avoidProvider`):
+  `reviewQuestion` (source support) or `reviewKnowledgeQuestion` (factual
+  correctness). Its verdict must match the requested Bloom exactly.
+- Then `independentChecks()` solves the draft **blind** (no key, no
+  explanation) on other models; `solvedMatchesKey()` must agree. Knowledge
+  drafts need two distinct solvers, grounded drafts one (given the cited
+  source); at least one solver must be on another provider than the writer.
+  No independent model available → the draft is held, never accepted. Proof
+  `version: 2` records `writer` and `checks`; `checksSatisfied()` re-verifies.
+- Groq has a model pool like Gemini (`groq_fallback_models`): extra free
+  capacity and a different model family for blind solves.
 - The proof lives in `generation_meta.quality`; `qualityBlockReason()`
   re-verifies it with no AI calls. Any edit or source change invalidates it —
   `POST /questions/:id/recheck` re-runs the check. Knowledge drafts are

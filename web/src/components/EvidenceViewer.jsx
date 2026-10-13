@@ -142,13 +142,19 @@ export default function EvidenceViewer({ question, onChecked }) {
       {knowledge && (
         <p className="ev-note">
           Written from AI knowledge because no uploaded lesson covers this blueprint cell — it is not quoted from your materials.
-          {state.reviewedBy?.provider ? ` A second AI (${state.reviewedBy.provider}) fact-checked it.` : ''}
+          {state.reviewedBy?.provider ? ` A second AI (${state.reviewedBy.provider}) fact-checked it, and other models solved it without seeing the answer.` : ''}
           {' '}Check the answer against your lesson or textbook; approval asks you to confirm it.
         </p>
       )}
       {state?.reviewBlock && <p className="ev-note">{state.reviewBlock}</p>}
       {state?.verified && !knowledge && <p className="ev-note">An AI review checked answer support, topic, format and Bloom level. Confirm these yourself before approval.</p>}
       {review?.reason && state?.verified && <p className="ev-note">Reviewer: {review.reason}</p>}
+      {state?.checks?.length > 0 && (
+        <p className="ev-note">
+          Solved without the answer key{state.writer?.provider ? ` (written by ${state.writer.provider})` : ''}:{' '}
+          {state.checks.map((c) => `${c.provider} · ${c.model} answered “${c.answer}”${c.agreed ? ' ✓' : ''}`).join('; ')}
+        </p>
+      )}
       {state?.reviewBlock && question.status !== 'rejected' && (
         <button type="button" className="ev-linkbtn" onClick={rerunCheck} disabled={rechecking}>
           <RefreshCw size={12} aria-hidden="true" /> {rechecking ? 'Re-running the AI check…' : 'Re-run AI check'}

@@ -418,6 +418,7 @@ const EDITABLE_KEYS = [
   'gemini_embedding_model',
   'groq_api_key',
   'groq_model',
+  'groq_fallback_models',
   'ollama_api_key',
   'ollama_model',
 ];
@@ -435,6 +436,7 @@ router.get('/settings', requireSuperadmin, async (req, res, next) => {
     const geminiFallback = await getSetting('gemini_fallback_models', env.ai.gemini.fallbackModels.join(','));
     const geminiEmbed = await getSetting('gemini_embedding_model', env.ai.gemini.embeddingModel);
     const groqModel = await getSetting('groq_model', env.ai.groq.model);
+    const groqFallback = await getSetting('groq_fallback_models', env.ai.groq.fallbackModels.join(','));
     const ollamaKey = await getSetting('ollama_api_key', null);
     const ollamaModel = await getSetting('ollama_model', env.ai.ollama.model);
     const autoApproveDomains = await getSetting('auto_approve_domains', '');
@@ -472,6 +474,7 @@ router.get('/settings', requireSuperadmin, async (req, res, next) => {
         groqApiKeySource: (groqKey || groqKeysList) ? 'settings'
           : (env.ai.groq.apiKey || env.ai.groq.apiKeys.length ? 'env' : null),
         groqModel,
+        groqFallbackModels: groqFallback || '',
         ollamaApiKeySet: Boolean(ollamaKey || env.ai.ollama.apiKey),
         ollamaApiKeyMasked: mask(ollamaKey || env.ai.ollama.apiKey),
         ollamaApiKeySource: ollamaKey ? 'settings' : (env.ai.ollama.apiKey ? 'env' : null),
@@ -499,12 +502,13 @@ router.put('/settings', requireSuperadmin, async (req, res, next) => {
       && (body.ollama_api_key.trim().length > 4096 || /\s/.test(body.ollama_api_key.trim()))) {
       return res.status(400).json({ error: 'Enter the Ollama Cloud API key without spaces or line breaks.' });
     }
-    if (typeof body.gemini_fallback_models === 'string' && body.gemini_fallback_models.trim()) {
-      const parts = body.gemini_fallback_models.split(/[\s,]+/).map((s) => s.trim()).filter(Boolean);
+    for (const field of ['gemini_fallback_models', 'groq_fallback_models']) {
+      if (typeof body[field] !== 'string' || !body[field].trim()) continue;
+      const parts = body[field].split(/[\s,]+/).map((s) => s.trim()).filter(Boolean);
       if (parts.length > 10 || parts.some((m) => !/^[a-zA-Z0-9][a-zA-Z0-9._:/-]{0,149}$/.test(m))) {
         return res.status(400).json({ error: 'Enter fallback models as a comma-separated list of valid model names.' });
       }
-      body.gemini_fallback_models = parts.join(',');
+      body[field] = parts.join(',');
     }
     // Key pools by slot. The page only ever sees masked keys, so it sends
     // { keep: n } to keep the saved key in 1-based slot n, { value } to add or

@@ -811,6 +811,8 @@ router.get('/:id/grounding', async (req, res, next) => {
         reviewBlock,
         qualityReview: meta.quality?.review || null,
         reviewedBy: meta.quality ? { provider: meta.quality.provider, model: meta.quality.model } : null,
+        writer: meta.quality?.writer || null,
+        checks: Array.isArray(meta.quality?.checks) ? meta.quality.checks : [],
         confirmation: meta.instructorConfirmation || null,
         evidence: '',
         passages: [],
@@ -860,6 +862,8 @@ router.get('/:id/grounding', async (req, res, next) => {
       quoteLocated,
       reviewBlock,
       qualityReview: meta?.quality?.review || null,
+      writer: meta?.quality?.writer || null,
+      checks: Array.isArray(meta?.quality?.checks) ? meta.quality.checks : [],
       evidence,
       passages,
     });

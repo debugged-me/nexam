@@ -153,6 +153,14 @@
     gap: 9px;
     flex-shrink: 0;
   }
+  /* Labeled approve/reject buttons — not .row-actions, which board.css sizes
+     for icon-only grid cells (32px squares would clip the labels). */
+  .adm-actions {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    flex: none;
+  }
   .adm-empty {
     padding: 22px 18px;
     text-align: center;

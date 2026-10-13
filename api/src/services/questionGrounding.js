@@ -5,6 +5,7 @@ import { isValidGeneratedQuestion } from './generationValidation.js';
 import { parseOptions } from './scoring.js';
 import {
   qualityBlockReason, instructionalBlockReason, makeQualityProof, reviewQuestion, reviewKnowledgeQuestion, groundingMode,
+  independentChecks, writerOf,
 } from './questionQuality.js';
 
 const chunkIdsOf = (question) => {
@@ -66,9 +67,11 @@ export async function recheckQuestion(question) {
   const meta = readJson(question.generation_meta, {}) || {};
   const mode = groundingMode(question);
   const draft = { ...question, options: parseOptions(question.options) };
-  const drafter = String(meta.provider || '').split('#')[0] || null;
+  const writer = writerOf(meta);
+  const exclude = { avoidProvider: writer.provider || null, excludeModels: writer.model ? [`${writer.provider}:${writer.model}`] : [] };
   let reviewed;
   let chunks = [];
+  let context = '';
 
   if (mode === 'knowledge') {
     if (!isValidGeneratedQuestion({ ...draft }, null, { requireEvidence: false })) {
@@ -79,7 +82,7 @@ export async function recheckQuestion(question) {
     const [[subject]] = await pool.query(`SELECT name FROM subjects WHERE id = :id`, { id: question.subject_id });
     reviewed = await reviewKnowledgeQuestion(draft,
       { course: subject?.name, topic: question.topic, outcomes: Array.isArray(meta.outcomes) ? meta.outcomes : [] },
-      generate, { avoidProvider: drafter });
+      generate, exclude);
     if (reviewed.review.answerCorrect !== true) {
       return { passed: false, reason: `The fact-check could not confirm the answer. ${reviewed.review.reason || ''}`.trim(), review: reviewed.review };
     }
@@ -98,16 +101,23 @@ export async function recheckQuestion(question) {
     }
     const contentBlock = instructionalBlockReason({ ...question, evidence }, chunks);
     if (contentBlock) return { passed: false, reason: contentBlock };
-    reviewed = await reviewQuestion({ ...draft, evidence }, chunks.map((c) => c.text).join('\n\n---\n\n'), generate, { avoidProvider: drafter });
+    context = chunks.map((c) => c.text).join('\n\n---\n\n');
+    reviewed = await reviewQuestion({ ...draft, evidence }, context, generate, exclude);
   }
 
   const { review } = reviewed;
   if (review.actualBloom !== question.bloom) {
     return { passed: false, reason: `Bloom mismatch: labelled ${question.bloom}, reviewer classified ${review.actualBloom || 'unknown'}. ${review.reason || ''}`.trim(), review };
   }
+  let checks;
+  try {
+    checks = await independentChecks(draft, { mode, context, writer }, generate);
+  } catch (err) {
+    return { passed: false, reason: err.message, review };
+  }
   let quality;
   try {
-    quality = makeQualityProof({ ...question, evidence: meta.evidence }, chunks, review, reviewed.provider, { mode });
+    quality = makeQualityProof({ ...question, evidence: meta.evidence }, chunks, review, reviewed.provider, { mode, writer, checks });
   } catch {
     return { passed: false, reason: review.reason || 'The independent review did not accept this question.', review };
   }

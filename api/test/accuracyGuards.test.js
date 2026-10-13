@@ -9,7 +9,13 @@ import { isValidGeneratedQuestion } from '../src/services/generationValidation.j
 import {
   acceptedReview, makeQualityProof, qualityBlockReason, reviewQuestion, instructionalBlockReason,
   canonicalDraft, parseReview, reviewKnowledgeQuestion, isKnowledgeQuestion,
+  solvedMatchesKey, checksSatisfied, independentChecks, solveBlind,
 } from '../src/services/questionQuality.js';
+
+// A writer plus agreeing blind solvers on other models, as generation records them.
+const writer = { provider: 'gemini', model: 'gemini-flash' };
+const groundedChecks = [{ provider: 'groq', model: 'qwen', answer: 'agreed', agreed: true }];
+const knowledgeChecks = [...groundedChecks, { provider: 'ollama', model: 'gemma', answer: 'agreed', agreed: true }];
 import { runPool } from '../src/services/aiProvider.js';
 
 test('chunking preserves every word, punctuation and unfinished tail within bounded windows', () => {
@@ -105,7 +111,7 @@ const evidence = 'Velorium changes to violet at 42 degrees Celsius.';
 const question = { type: 'mcq', stem: 'At what temperature does Velorium change to violet?', options: ['10 C', '42 C', '99 C'], answer: '42 C', explanation: 'The source states 42 degrees Celsius.', topic: 'Velorium', bloom: 'remember', evidence };
 const review = { answerSupported: true, unambiguous: true, typeValid: true, topicRelevant: true, instructionalContent: true, actualBloom: 'remember', reason: 'The answer is stated.' };
 const chunks = [{ id: 'chunk', text: evidence }];
-const reviewed = () => ({ ...question, source: 'ai', generation_meta: { chunkIds: ['chunk'], evidence, quality: makeQualityProof(question, chunks, review, { provider: 'fixture', model: 'fixture' }) } });
+const reviewed = () => ({ ...question, source: 'ai', generation_meta: { chunkIds: ['chunk'], evidence, quality: makeQualityProof(question, chunks, review, { provider: 'fixture', model: 'fixture' }, { writer, checks: groundedChecks }) } });
 
 test('quality proof accepts unchanged question and source, blocks edits and stale evidence', () => {
   const q = reviewed();
@@ -184,7 +190,7 @@ test('every question type keeps a valid proof after the database round trip', ()
     const draft = { ...raw, explanation: undefined, topic: 'Velorium', bloom: 'remember', evidence: ev };
     assert.equal(isValidGeneratedQuestion(draft, [ev]), true, raw.type);
     const q = canonicalDraft(draft);
-    const quality = makeQualityProof(q, src, review, { provider: 'fixture', model: 'fixture' });
+    const quality = makeQualityProof(q, src, review, { provider: 'fixture', model: 'fixture' }, { writer, checks: groundedChecks });
     const row = stored(q, { chunkIds: ['c1'], evidence: ev, quality });
     assert.equal(qualityBlockReason(row, src), null, `${raw.type} ${JSON.stringify(raw.answer)}`);
   }
@@ -199,7 +205,7 @@ const knowledgeDraft = canonicalDraft({ type: 'mcq', stem: 'Which organization a
 test('knowledge-mode drafts are labelled, need no source, and are bound to their reviewed content', () => {
   assert.equal(isValidGeneratedQuestion({ ...knowledgeDraft }, null, { requireEvidence: false }), true);
   assert.equal(isValidGeneratedQuestion({ ...knowledgeDraft, explanation: '' }, null, { requireEvidence: false }), false);
-  const quality = makeQualityProof(knowledgeDraft, [], knowledgeReview, { provider: 'groq', model: 'x' }, { mode: 'knowledge' });
+  const quality = makeQualityProof(knowledgeDraft, [], knowledgeReview, { provider: 'groq', model: 'x' }, { mode: 'knowledge', writer, checks: knowledgeChecks });
   const row = stored(knowledgeDraft, { grounding: 'knowledge', chunkIds: [], quality });
   assert.equal(isKnowledgeQuestion(row), true);
   assert.equal(qualityBlockReason(row, []), null);
@@ -246,4 +252,58 @@ test('an invalid key (HTTP 400 API_KEY_INVALID) rotates to the next key instead 
   await assert.rejects(runPool('bad-request-fixture', [{ key: 'a' }, { key: 'b' }], async () => {
     throw Object.assign(new Error('Invalid JSON payload received.'), { status: 400 });
   }), /Invalid JSON payload/);
+});
+
+test('blind answers are compared per question type; unsure or different answers never count', () => {
+  const mcq = { type: 'mcq', options: ['A) WTO', 'B) WHO', 'C) UN'], answer: 'A) WTO' };
+  assert.equal(solvedMatchesKey(mcq, 'A'), true);
+  assert.equal(solvedMatchesKey(mcq, 'WTO'), true);
+  assert.equal(solvedMatchesKey(mcq, 'B'), false);
+  assert.equal(solvedMatchesKey(mcq, 'UNDETERMINED'), false);
+  assert.equal(solvedMatchesKey({ type: 'true_false', answer: 'False' }, 'false'), true);
+  assert.equal(solvedMatchesKey({ type: 'true_false', answer: 'False' }, 'True'), false);
+  assert.equal(solvedMatchesKey({ type: 'matching', answer: '1-B, 2-A' }, '1-B,2-A'), true);
+  assert.equal(solvedMatchesKey({ type: 'matching', answer: '1-B, 2-A' }, '1-A, 2-B'), false);
+  const id = (key, got) => solvedMatchesKey({ type: 'identification', answer: key }, got);
+  assert.equal(id('World Trade Organization', 'WTO'), true);
+  assert.equal(id('World Trade Organization (WTO)', 'world trade organization'), true);
+  assert.equal(id('World Trade Organization', 'World Tourism Organization'), false);
+});
+
+test('proofs need distinct blind solvers other than the writer, one on another provider', () => {
+  assert.equal(checksSatisfied({ writer, checks: groundedChecks }, 'grounded'), true);
+  assert.equal(checksSatisfied({ writer, checks: groundedChecks }, 'knowledge'), false); // knowledge needs two
+  assert.equal(checksSatisfied({ writer, checks: knowledgeChecks }, 'knowledge'), true);
+  assert.equal(checksSatisfied({ writer, checks: [{ ...writer, agreed: true }] }, 'grounded'), false); // the writer cannot check itself
+  assert.equal(checksSatisfied({ writer, checks: [groundedChecks[0], groundedChecks[0]] }, 'knowledge'), false); // same model twice
+  assert.equal(checksSatisfied({ writer, checks: [{ provider: 'gemini', model: 'other', agreed: true }] }, 'grounded'), false); // needs another provider
+  assert.equal(checksSatisfied({ writer, checks: [{ ...groundedChecks[0], agreed: false }] }, 'grounded'), false);
+  // A version-1 proof (no blind solves) no longer verifies.
+  const q = { ...knowledgeDraft, source: 'ai', options: JSON.stringify(knowledgeDraft.options) };
+  const quality = makeQualityProof(knowledgeDraft, [], knowledgeReview, { provider: 'groq', model: 'x' }, { mode: 'knowledge', writer, checks: knowledgeChecks });
+  assert.match(qualityBlockReason({ ...q, generation_meta: JSON.stringify({ grounding: 'knowledge', chunkIds: [], quality: { ...quality, version: 1 } }) }, []), /blind-solve/);
+  assert.match(qualityBlockReason({ ...q, generation_meta: JSON.stringify({ grounding: 'knowledge', chunkIds: [], quality: { ...quality, checks: knowledgeChecks.slice(0, 1) } }) }, []), /blind-solve/);
+});
+
+test('blind solvers never see the key, avoid the writer, and a disagreement holds the draft', async () => {
+  const calls = [];
+  const fake = (answers) => async (system, prompt, opts) => {
+    calls.push({ prompt, opts });
+    const [provider, model, answer] = answers.shift();
+    return { text: JSON.stringify({ answer, reason: 'r' }), provider, model };
+  };
+  const checks = await independentChecks(knowledgeDraft, { mode: 'knowledge', writer },
+    fake([['groq', 'qwen', 'A'], ['ollama', 'gemma', 'WTO']]));
+  assert.equal(checks.length, 2);
+  for (const c of calls) {
+    assert.doesNotMatch(c.prompt, /"answer":"A\) WTO"|explanation/);
+    assert.ok(c.opts.excludeModels.includes('gemini:gemini-flash'));
+  }
+  assert.ok(calls[1].opts.excludeModels.includes('groq:qwen'));
+  await assert.rejects(independentChecks(knowledgeDraft, { mode: 'knowledge', writer }, fake([['groq', 'qwen', 'B']])), /without seeing the key/);
+  await assert.rejects(independentChecks(knowledgeDraft, { mode: 'knowledge', writer }, async () => { throw Object.assign(new Error('down'), { status: 503 }); }), /held, not accepted/);
+  // Grounded solving gets the source; knowledge solving does not.
+  let seen = '';
+  await solveBlind(knowledgeDraft, { mode: 'grounded', context: 'SOURCE TEXT' }, async (s, p) => { seen = p; return { text: '{"answer":"A","reason":"r"}', provider: 'groq', model: 'qwen' }; });
+  assert.match(seen, /SOURCE TEXT/);
 });

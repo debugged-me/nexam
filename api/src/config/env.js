@@ -87,6 +87,7 @@ export const env = {
       apiKey: process.env.GROQ_API_KEY || '',
       apiKeys: (process.env.GROQ_API_KEYS || '').split(',').map((k) => k.trim()).filter(Boolean),
       model: process.env.GROQ_MODEL || 'openai/gpt-oss-120b',
+      fallbackModels: (process.env.GROQ_FALLBACK_MODELS || '').split(',').map((m) => m.trim()).filter(Boolean),
     },
     ollama: {
       apiKey: process.env.OLLAMA_API_KEY || '',

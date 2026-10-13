@@ -29,6 +29,7 @@ import { loadScopeChunks } from '../../services/assessmentScopeStore.js';
 
 import {
   hash, canonicalDraft, reviewQuestion, reviewKnowledgeQuestion, makeQualityProof, instructionalBlockReason,
+  independentChecks,
 } from '../../services/questionQuality.js';
 import { usableQuestions } from '../../services/questionGrounding.js';
 
@@ -422,12 +423,15 @@ ${context}
     const contentBlock = instructionalBlockReason(q, chunks);
     if (contentBlock) { dropped++; reasons.push(contentBlock); continue; }
     try {
-      const reviewed = await reviewQuestion(q, context, generate, { avoidProvider: result.provider });
+      const writer = { provider: result.provider, model: result.model };
+      const reviewed = await reviewQuestion(q, context, generate, { avoidProvider: writer.provider, excludeModels: [`${writer.provider}:${writer.model}`] });
       if (reviewed.review.actualBloom !== bloom) {
         bloomMisses.push(reviewed.review.actualBloom || 'unknown');
         throw new Error(`Bloom mismatch: requested ${bloom}, reviewer classified ${reviewed.review.actualBloom || 'unknown'}. ${reviewed.review.reason || ''}`);
       }
-      const quality = makeQualityProof(q, chunks, reviewed.review, reviewed.provider);
+      // Blind solve: another model answers from the source without the key.
+      const checks = await independentChecks(q, { mode: 'grounded', context, writer }, generate);
+      const quality = makeQualityProof(q, chunks, reviewed.review, reviewed.provider, { writer, checks });
       questions.push({ ...q, meta: { ...meta, evidence: q.evidence, quality, reviewPromptHash: reviewed.promptHash } });
     } catch (err) { dropped++; reasons.push(err.message); }
   }
@@ -493,13 +497,16 @@ Return ONLY a JSON array of question objects:
     const contentBlock = instructionalBlockReason(q, []);
     if (contentBlock) { dropped++; reasons.push(contentBlock); continue; }
     try {
-      const reviewed = await reviewKnowledgeQuestion(q, { course, topic: q.topic, outcomes }, generate, { avoidProvider: result.provider });
+      const writer = { provider: result.provider, model: result.model };
+      const reviewed = await reviewKnowledgeQuestion(q, { course, topic: q.topic, outcomes }, generate, { avoidProvider: writer.provider, excludeModels: [`${writer.provider}:${writer.model}`] });
       if (reviewed.review.actualBloom !== bloom) {
         bloomMisses.push(reviewed.review.actualBloom || 'unknown');
         throw new Error(`Bloom mismatch: requested ${bloom}, reviewer classified ${reviewed.review.actualBloom || 'unknown'}. ${reviewed.review.reason || ''}`);
       }
       if (reviewed.review.answerCorrect !== true) throw new Error(`The fact-check could not confirm the answer. ${reviewed.review.reason || ''}`);
-      const quality = makeQualityProof(q, [], reviewed.review, reviewed.provider, { mode: 'knowledge' });
+      // Two models other than the writer must reach the key without seeing it.
+      const checks = await independentChecks(q, { mode: 'knowledge', writer }, generate);
+      const quality = makeQualityProof(q, [], reviewed.review, reviewed.provider, { mode: 'knowledge', writer, checks });
       questions.push({ ...q, meta: { ...meta, quality, reviewPromptHash: reviewed.promptHash } });
     } catch (err) { dropped++; reasons.push(err.message); }
   }

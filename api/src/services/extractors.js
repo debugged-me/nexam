@@ -43,11 +43,61 @@ async function extractPdf(filePath) {
   return text;
 }
 
-/** Extract text from a DOCX file. */
+/**
+ * Extract text from a DOCX file.
+ *
+ * Tables are serialized cell-by-cell instead of flattened: raw text extraction
+ * interleaves wrapped cell lines across columns, which destroys outline
+ * structure (syllabus Topics columns lose their bullets). Rows with a short
+ * multi-column header get "Header: " labels so each line keeps its column's
+ * meaning for both the LLM prompt and retrieval chunks.
+ */
 async function extractDocx(filePath) {
   const buffer = await readProtectedFile(filePath);
-  const result = await mammoth.extractRawText({ buffer });
-  const text = (result.value || '').trim();
+  const { value: html } = await mammoth.convertToHtml({ buffer });
+  if (!html || !html.trim()) throw new Error('No text found in this DOCX file.');
+
+  const $ = cheerio.load(`<div id="nexam-docx-root">${html}</div>`);
+  const cellLines = (cell) => {
+    const blocks = $(cell).find('p, li').map((_, el) => {
+      const t = $(el).text().replace(/\s+/g, ' ').trim();
+      if (!t) return null;
+      return el.tagName === 'li' ? `- ${t}` : t;
+    }).get().filter(Boolean);
+    if (blocks.length) return blocks;
+    const t = $(cell).text().replace(/\s+/g, ' ').trim();
+    return t ? [t] : [];
+  };
+
+  const lines = [];
+  $('#nexam-docx-root').children().each((_, el) => {
+    const node = $(el);
+    if (!node.is('table')) {
+      const t = node.text().replace(/\s+/g, ' ').trim();
+      if (t) lines.push(t);
+      return;
+    }
+    // .each(), not .map() — cheerio flattens mapped arrays, which would
+    // merge every cell back into the interleaved soup we're avoiding.
+    const rows = [];
+    node.find('tr').each((_, tr) => {
+      const cells = [];
+      $(tr).find('th,td').each((_, c) => cells.push(cellLines(c)));
+      rows.push(cells);
+    });
+    const header = rows.length > 1 && rows[0].length >= 3 && rows[0].every((h) => h.length && h.join(' ').length <= 60)
+      ? rows[0].map((h) => h.join(' ')) : null;
+    for (const cells of rows.slice(header ? 1 : 0)) {
+      if (!cells.some((c) => c.length)) continue;
+      if (cells.length === 1) { lines.push(...cells[0]); continue; }
+      if (!header) { lines.push(cells.map((c) => c.join(' ')).filter(Boolean).join(' | ')); continue; }
+      cells.forEach((cell, i) => {
+        cell.forEach((line, j) => lines.push(j === 0 && header[i] ? `${header[i]}: ${line}` : line));
+      });
+    }
+  });
+
+  const text = lines.join('\n').trim();
   if (!text) throw new Error('No text found in this DOCX file.');
   return text;
 }

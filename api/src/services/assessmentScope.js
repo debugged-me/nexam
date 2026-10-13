@@ -33,14 +33,37 @@ export function syllabusPeriods(text) {
   });
 }
 
+// Extraction output and source text rarely agree on case, dash spacing, or
+// Week/Weeks — compare those loosely. Verification itself stays strict.
+const loose = (v) => normalizeText(v).toLowerCase().replace(/\bweeks\b/g, 'week').replace(/\s*[-–—]\s*/g, '-');
+
+function sliceHasTopic(slice, title) {
+  const hay = loose(slice);
+  const needle = loose(title);
+  if (hay.includes(needle)) return true;
+  // AI titles often merge table cells ("Recreational games (including Larong
+  // Pinoy)") — the part outside parentheses is what the outline prints.
+  const head = loose(String(title || '').replace(/\([^)]*\)/g, ' '));
+  if (head.length >= 4 && head !== needle && hay.includes(head)) return true;
+  // "Parent — child" topics: both sides must appear in the same section,
+  // though other items may sit between them.
+  const parts = needle.split('-').map((p) => p.trim()).filter((p) => p.length >= 4);
+  return parts.length > 1 && parts.every((p) => hay.includes(p));
+}
+
 export function verifiedSchedule(topic, syllabus, materialId) {
   const evidence = normalizeText(topic.schedule_evidence);
-  if (!evidence || !normalizeText(syllabus).includes(evidence)) return null;
+  const looseEvidence = loose(evidence);
+  if (!evidence || !loose(syllabus).includes(looseEvidence)) return null;
   const periods = syllabusPeriods(syllabus);
-  const matching = periods.filter((p) =>
-    normalizeText(p.evidence) === evidence
-    && normalizeText(syllabus.slice(p.index, periods.find((n) => n.index > p.index)?.index))
-      .toLowerCase().includes(normalizeText(topic.topic).toLowerCase()));
+  const matching = periods.filter((p) => {
+    // The evidence may quote the full heading, drop its "Time Frame:" prefix,
+    // or name the period alone — all must equal a detected heading's form.
+    const forms = new Set([loose(p.evidence), loose(p.label)]);
+    if (p.weekStart) forms.add(loose(`${p.label} (Week ${p.weekStart}-${p.weekEnd})`));
+    return forms.has(looseEvidence)
+      && sliceHasTopic(syllabus.slice(p.index, periods.find((n) => n.index > p.index)?.index), topic.topic);
+  });
   if (matching.length === 1) {
     const { label, weekStart, weekEnd } = matching[0];
     return { label, weekStart, weekEnd, evidence, materialId };
@@ -48,7 +71,7 @@ export function verifiedSchedule(topic, syllabus, materialId) {
   // A week-based table can quote the complete topic row instead of a heading.
   const weekRanges = [...evidence.matchAll(/\bWeeks?\s*(\d+)(?:\s*[-–—]\s*(\d+))?\b/gi)];
   const weekRange = weekRanges[0];
-  if (weekRanges.length === 1 && evidence.toLowerCase().includes(normalizeText(topic.topic).toLowerCase())) {
+  if (weekRanges.length === 1 && looseEvidence.includes(loose(topic.topic))) {
     try {
       const frame = parseTimeFrame({ weekStart: weekRange[1], weekEnd: weekRange[2] || weekRange[1] });
       return { ...frame, evidence, materialId };

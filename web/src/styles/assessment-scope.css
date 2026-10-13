@@ -1,4 +1,4 @@
-@scope (.page--blueprint-detail, .page--materials) {
+@scope (.page--blueprint-detail) {
   .assessment-topic-schedule { display: block; margin-top: 4px; }
   .assessment-timeframe { display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 12px; }
   .assessment-timeframe .form-group { min-width: 0; margin-bottom: 0; align-self: end; }

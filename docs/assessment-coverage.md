@@ -1,9 +1,14 @@
 # Assessment coverage
 
-From **Materials → Generate blueprint**, choose a detected syllabus time frame
-or enter an assessment name and optional week range. The scan keeps the outline
-topics for review. It preserves stated period ranges, including Pre-Final; it
-does not assign individual weeks to topics when the syllabus does not do so.
+From **Materials → Generate blueprint**, scan a syllabus in one click. The scan
+keeps every outline topic and stamps each with its detected time frame
+(period label and week range) where the syllabus states one — including
+Pre-Final; it does not assign individual weeks to topics when the syllabus
+does not do so. The new blueprint stays subject-wide until scoped.
+
+To limit a draft blueprint to one period, open **Review coverage** on its
+page. Detected time frames appear as quick-select buttons that pick the
+matching topics.
 
 In the draft blueprint, use **Review coverage**:
 

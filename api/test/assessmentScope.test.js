@@ -23,6 +23,20 @@ test('extracts the four period headings in the supplied syllabus format without 
   assert.equal(schedule.materialId, 'syllabus');
 });
 
+test('formatting noise in quoted evidence still verifies against the printed heading', () => {
+  // The AI normalizes "Week 6- 10" to "Week 6-10"; the check must not reject it.
+  const mid = verifiedSchedule({ topic: 'Resistance & Circuit Training', schedule_evidence: 'Time Frame: Midterm (Week 6-10)' }, syllabus, 'm');
+  assert.equal(mid.weekStart, 6);
+  // Prefix dropped, plural Weeks, and label alone are all the same heading.
+  assert.equal(verifiedSchedule({ topic: 'Resistance & Circuit Training', schedule_evidence: 'Midterm (Weeks 6-10)' }, syllabus, 'm').weekStart, 6);
+  assert.equal(verifiedSchedule({ topic: 'Resistance & Circuit Training', schedule_evidence: 'Midterm' }, syllabus, 'm').weekStart, 6);
+  // AI-composed titles verify via their printed head outside parentheses.
+  const composed = verifiedSchedule({ topic: 'Resistance & Circuit Training (with bands)', schedule_evidence: 'Time Frame: Midterm (Week 6-10)' }, syllabus, 'm');
+  assert.equal(composed.weekStart, 6);
+  // Still closed: a bare label cannot rescue a topic absent from that period.
+  assert.equal(verifiedSchedule({ topic: 'Group Exercise Design', schedule_evidence: 'Midterm' }, syllabus, 'm').weekStart, null);
+});
+
 test('missing weeks remain unknown and an assessment can use units alone', () => {
   assert.deepEqual(syllabusPeriods('Unit 1: Movement\nUnit 2: Fitness'), []);
   assert.deepEqual(parseTimeFrame({ label: 'Unit 1', weekStart: '', weekEnd: '' }), { version: 1, label: 'Unit 1', weekStart: null, weekEnd: null });

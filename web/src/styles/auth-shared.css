@@ -255,6 +255,18 @@ a { color: inherit; text-decoration: none; }
 .password-toggle svg { width: 16px; height: 16px; }
 
 .recaptcha-box { margin: 4px 0 14px; }
+/* Invisible reCAPTCHA — the widget mounts as a child of this div, and for a
+   frame it lays out AT the mount point before Google applies its fixed
+   positioning. Pin the mount itself to the corner, zero-size + clipped, so
+   that transient render is invisible and the badge never flashes mid-form. */
+.recaptcha-invisible {
+  position: fixed;
+  right: 0;
+  bottom: 0;
+  width: 0;
+  height: 0;
+  overflow: hidden;
+}
 
 /* Step transitions (reset code → password) — a short rise+fade when the
    next step mounts. */

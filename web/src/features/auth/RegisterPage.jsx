@@ -29,7 +29,6 @@ export default function RegisterPage() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [captchaSiteKey, setCaptchaSiteKey] = useState(null);
-  const [captchaToken, setCaptchaToken] = useState('');
   const captchaRef = useRef(null);
 
   useEffect(() => {
@@ -40,7 +39,42 @@ export default function RegisterPage() {
 
   function set(k) { return (e) => setForm((f) => ({ ...f, [k]: e.target.value })); }
 
-  async function handleSubmit(e) {
+  async function doRegister(token) {
+    setLoading(true);
+    try {
+      const data = await api.post('/auth/register', {
+        first_name: form.first_name,
+        middle_name: form.middle_name || undefined,
+        last_name: form.last_name,
+        name_ext: form.name_ext || undefined,
+        email: form.email,
+        password: form.password,
+        client: 'web',
+        captchaToken: token || undefined,
+      });
+      navigate('/verify', {
+        state: { verifyToken: data.verifyToken, email: data.email },
+      });
+    } catch (err) {
+      captchaRef.current?.reset();
+      setError(err instanceof ApiError ? err.message : 'Registration failed. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  // Invisible reCAPTCHA resolves (or challenges) on execute() and hands the
+  // token back through this callback — registration only starts from here.
+  function onCaptcha(token) {
+    if (!token) {
+      setLoading(false);
+      setError('Security check failed — please try again.');
+      return;
+    }
+    doRegister(token);
+  }
+
+  function handleSubmit(e) {
     e.preventDefault();
     setError('');
 
@@ -52,33 +86,17 @@ export default function RegisterPage() {
       setError('Password must be at least 8 characters.');
       return;
     }
-    if (captchaSiteKey && !captchaToken) {
-      setError('Please complete the reCAPTCHA check.');
+
+    if (captchaSiteKey) {
+      if (!captchaRef.current?.isReady?.()) {
+        setError('Security check is still loading — try again in a moment.');
+        return;
+      }
+      setLoading(true); // challenge is in flight; onCaptcha or error lands next
+      captchaRef.current.execute();
       return;
     }
-
-    setLoading(true);
-    try {
-      const data = await api.post('/auth/register', {
-        first_name: form.first_name,
-        middle_name: form.middle_name || undefined,
-        last_name: form.last_name,
-        name_ext: form.name_ext || undefined,
-        email: form.email,
-        password: form.password,
-        client: 'web',
-        captchaToken: captchaToken || undefined,
-      });
-      navigate('/verify', {
-        state: { verifyToken: data.verifyToken, email: data.email },
-      });
-    } catch (err) {
-      captchaRef.current?.reset();
-      setCaptchaToken('');
-      setError(err instanceof ApiError ? err.message : 'Registration failed. Please try again.');
-    } finally {
-      setLoading(false);
-    }
+    doRegister('');
   }
 
   return (
@@ -222,12 +240,6 @@ export default function RegisterPage() {
               </div>
             </div>
 
-            {captchaSiteKey && (
-              <div className="anim-in">
-                <Recaptcha ref={captchaRef} siteKey={captchaSiteKey} onChange={setCaptchaToken} />
-              </div>
-            )}
-
             <div className="anim-in">
               <button type="submit" className={`btn-login${loading ? ' is-loading' : ''}`} disabled={loading}>
                 {loading && <span className="btn-spinner" aria-hidden="true" />}
@@ -236,6 +248,7 @@ export default function RegisterPage() {
               </button>
               <Link to="/login" className="btn-register">Back to sign in</Link>
             </div>
+
           </form>
 
           <div className="auth-card-foot">
@@ -249,6 +262,14 @@ export default function RegisterPage() {
           </div>
         </main>
       </div>
+
+      {/* Invisible captcha mounts outside .auth-shell — GSAP transforms the
+          shell during the entrance, and a transformed ancestor would trap
+          the badge's fixed positioning inside the card instead of the
+          viewport corner. */}
+      {captchaSiteKey && (
+        <Recaptcha ref={captchaRef} siteKey={captchaSiteKey} invisible onChange={onCaptcha} />
+      )}
     </div>
   );
 }

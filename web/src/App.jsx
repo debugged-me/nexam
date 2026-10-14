@@ -174,6 +174,35 @@ function TitleOnRoute() {
   return null;
 }
 
+/** Guest/auth routes each render their own full-page tree, so a route change
+ * used to hard-swap and blink. Replaying the app's page-enter animation on
+ * these wraps them in the same fade/rise the workspace pages get. */
+function PageEnter({ children }) {
+  return <div className="page-enter">{children}</div>;
+}
+
+/** Warms the auth + legal chunks while the visitor is on a guest page, so
+ *  login → register/forgot/verify never suspends into the boot screen. */
+function WarmAuthPages() {
+  const { pathname } = useLocation();
+  useEffect(() => {
+    if (!/^\/(login|register|verify|forgot|reset|privacy|terms)/.test(pathname)) return undefined;
+    const warm = () => {
+      import('./features/auth/LoginPage.jsx');
+      import('./features/auth/RegisterPage.jsx');
+      import('./features/auth/VerifyPage.jsx');
+      import('./features/auth/ForgotPage.jsx');
+      import('./features/auth/ResetPage.jsx');
+      import('./pages/LegalPage.jsx');
+    };
+    const id = window.requestIdleCallback
+      ? window.requestIdleCallback(warm, { timeout: 3000 })
+      : window.setTimeout(warm, 1200);
+    return () => (window.cancelIdleCallback ? window.cancelIdleCallback(id) : window.clearTimeout(id));
+  }, [pathname]);
+  return null;
+}
+
 /** Start each screen at its beginning. BrowserRouter otherwise preserves the
  * previous document scroll position, which can make a new route look clipped. */
 function ScrollToTop() {
@@ -196,6 +225,7 @@ export default function App() {
             <TitleOnRoute />
             <ScrollToTop />
             <ToastOnMount />
+            <WarmAuthPages />
             <Suspense fallback={<BootScreen />}>
               <ErrorBoundary>
               <Routes>
@@ -205,7 +235,7 @@ export default function App() {
                   element={
                     <RedirectIfAuthed>
                       <PinLightTheme>
-                        <LoginPage />
+                        <PageEnter><LoginPage /></PageEnter>
                       </PinLightTheme>
                     </RedirectIfAuthed>
                   }
@@ -215,13 +245,13 @@ export default function App() {
                   element={
                     <RedirectIfAuthed>
                       <PinLightTheme>
-                        <RegisterPage />
+                        <PageEnter><RegisterPage /></PageEnter>
                       </PinLightTheme>
                     </RedirectIfAuthed>
                   }
                 />
-                <Route path="/privacy" element={<PinLightTheme><LegalPage doc="privacy" /></PinLightTheme>} />
-                <Route path="/terms" element={<PinLightTheme><LegalPage doc="terms" /></PinLightTheme>} />
+                <Route path="/privacy" element={<PinLightTheme><PageEnter><LegalPage doc="privacy" /></PageEnter></PinLightTheme>} />
+                <Route path="/terms" element={<PinLightTheme><PageEnter><LegalPage doc="terms" /></PageEnter></PinLightTheme>} />
 
                 {/* Admin console — superadmin + admin, same shell */}
                 <Route
@@ -234,13 +264,13 @@ export default function App() {
                   <Route path="/admin" element={<AdminPage />} />
                   <Route path="/admin/:view" element={<AdminPage />} />
                 </Route>
-                <Route path="/verify" element={<PinLightTheme><VerifyPage /></PinLightTheme>} />
+                <Route path="/verify" element={<PinLightTheme><PageEnter><VerifyPage /></PageEnter></PinLightTheme>} />
                 <Route
                   path="/forgot"
                   element={
                     <RedirectIfAuthed>
                       <PinLightTheme>
-                        <ForgotPage />
+                        <PageEnter><ForgotPage /></PageEnter>
                       </PinLightTheme>
                     </RedirectIfAuthed>
                   }
@@ -250,7 +280,7 @@ export default function App() {
                   element={
                     <RedirectIfAuthed>
                       <PinLightTheme>
-                        <ResetPage />
+                        <PageEnter><ResetPage /></PageEnter>
                       </PinLightTheme>
                     </RedirectIfAuthed>
                   }

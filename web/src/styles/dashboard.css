@@ -116,6 +116,40 @@
   .dash-bar-col:hover .dash-bar.is-current { background: var(--action-700); }
   .dash-bar-col small { font-size: .65rem; color: var(--ink-faint); white-space: nowrap; }
 
+  /* ---- Live run card — generation widget while a run is active/recent ---- */
+  .dash-live { position: relative; overflow: hidden; }
+  .dash-live-pill { display: inline-flex; align-items: center; gap: 7px; padding: 4px 10px; border-radius: 999px; font: 600 .64rem var(--font-display); letter-spacing: .05em; text-transform: uppercase; color: var(--ink-2); background: var(--surface-2); border: 1px solid var(--line); flex: none; }
+  .dash-live-pill i { width: 7px; height: 7px; border-radius: 50%; background: var(--line-strong); flex: none; }
+  .dash-live[data-live="true"] .dash-live-pill { color: var(--blue-600); background: var(--accent-wash); border-color: color-mix(in oklab, var(--blue-600) 32%, transparent); }
+  .dash-live[data-live="true"] .dash-live-pill i { background: var(--blue-600); animation: dash-live-pulse 1.4s ease-in-out infinite; }
+  .dash-live[data-state="done"] .dash-live-pill { color: var(--green-600); background: color-mix(in oklab, var(--green-600) 10%, var(--surface)); border-color: color-mix(in oklab, var(--green-600) 30%, transparent); }
+  .dash-live[data-state="done"] .dash-live-pill i { background: var(--green-600); }
+  .dash-live[data-state="cancelled"] .dash-live-pill, .dash-live[data-state="error"] .dash-live-pill { color: var(--amber-600); }
+  .dash-live[data-state="cancelled"] .dash-live-pill i, .dash-live[data-state="error"] .dash-live-pill i { background: var(--amber-600); }
+  @keyframes dash-live-pulse { 0%, 100% { opacity: 1; box-shadow: 0 0 0 0 color-mix(in oklab, var(--blue-600) 45%, transparent); } 50% { opacity: .55; box-shadow: 0 0 0 4px transparent; } }
+  @media (prefers-reduced-motion: reduce) { .dash-live-pill i { animation: none !important; } }
+  .dash-live-main { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1; }
+  .dash-live-body { display: flex; flex-direction: column; gap: 10px; padding: 12px 16px 16px; }
+  .dash-live-sub { font-size: .76rem; color: var(--ink-2); margin: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .dash-live-stats { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; font-size: .7rem; color: var(--ink-3); }
+  .dash-live-stats b { font: 600 .92rem var(--font-display); color: var(--ink); margin-right: 3px; }
+  .dash-live-stats i { font-style: normal; color: var(--ink-3); font-size: .78rem; }
+  .dash-live-held b { color: var(--red-600); }
+  .dash-live-mix { display: flex; width: 72px; height: 7px; border-radius: 4px; overflow: hidden; background: var(--surface-2); border: 1px solid var(--line); flex: none; }
+  .dash-live-mix i { min-width: 0; transition: flex-grow .4s ease; }
+  .dash-live-mix .mix-queued { background: var(--blue-600); }
+  .dash-live-mix .mix-covered { background: var(--line-strong); }
+  .dash-live-mix .mix-reused { background: var(--green-600); }
+  .dash-live-mix .mix-held { background: var(--red-600); }
+  .dash-live-pace b { color: var(--ink-2); }
+  .dash-live-bar { height: 4px; border-radius: 2px; background: var(--surface-2); overflow: hidden; }
+  .dash-live-bar i { display: block; height: 100%; background: var(--action-600); border-radius: 2px; transition: width .5s ease; }
+  /* Live run charts — outcome donut + Bloom bars for this run only */
+  .dash-live-charts { display: grid; grid-template-columns: 1fr; gap: 14px; padding-top: 10px; border-top: 1px solid var(--line); }
+  .dash-live-chart { display: flex; flex-direction: column; min-width: 0; }
+  .dash-live-chart-label { font: 600 .62rem var(--font-display); letter-spacing: .06em; text-transform: uppercase; color: var(--ink-3); margin-bottom: 6px; }
+  .dash-live .dash-card-head h2 { display: inline-flex; align-items: center; gap: 8px; }
+
   /* ---- Main grid — bento: a wide content column against a utility rail ---- */
   .dash-main { display: grid; grid-template-columns: minmax(0, 1.72fr) minmax(300px, 1fr); gap: 18px; align-items: start; }
   .dash-col { display: grid; gap: 18px; align-content: start; }

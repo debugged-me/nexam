@@ -10,7 +10,7 @@ import {
   FileText,
   Plus,
   Sparkles,
-  FolderOpen,
+
   CircleHelp,
   PanelsTopLeft,
   ArrowUpRight,
@@ -25,6 +25,8 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../features/auth/AuthContext.jsx';
 import AppShell from '../components/AppShell.jsx';
+import useJobs, { isActiveJob } from '../lib/useJobs.js';
+import useJobStream from '../lib/useJobStream.js';
 import KpiCard from '../components/KpiCard.jsx';
 import { CardsSkeleton } from '../components/Loaders.jsx';
 import { StatusPill } from '../components/Board.jsx';
@@ -90,6 +92,115 @@ const DISMISSED_ANN_KEY = 'nexam.dismissedAnnouncements';
 const readDismissed = () => {
   try { return JSON.parse(localStorage.getItem(DISMISSED_ANN_KEY) || '[]'); } catch { return []; }
 };
+
+/** Compact live banner for an in-flight (or just-finished) generation run —
+ *  the same SSE stream the pipeline console uses, collapsed to one strip. */
+function LiveRunBanner() {
+  const { jobs } = useJobs({ activeInterval: 4000, idleInterval: 30000 });
+  // Pinned once per mount so render stays pure — the banner only needs a
+  // rough freshness window anyway.
+  const [now] = useState(() => Date.now());
+  const genJobs = jobs.filter((j) => j.type === 'generate');
+  const active = genJobs.find(isActiveJob);
+  // A finished run stays visible for ~2 days so the "waiting in review"
+  // banner survives a page revisit, then the dashboard goes back to normal.
+  const recent = genJobs.find((j) => {
+    const when = new Date(j.finished_at || j.created_at || 0).getTime();
+    return when && now - when < 48 * 3600 * 1000;
+  });
+  const job = active || recent || null;
+  const feed = useJobStream(job?.id ?? null);
+  const { status, progress, result, drafts } = feed;
+  if (!job) return null;
+
+  const running = status === 'running' || status === 'queued' || isActiveJob(job);
+  const total = Number(progress?.slotsTotal) || 0;
+  const doneCells = status === 'done' ? total : Number(progress?.slotsDone) || 0;
+  const drafted = drafts.length || Number(result?.drafted ?? progress?.drafted) || 0;
+  const adopted = Number(progress?.adopted ?? result?.adopted) || 0;
+  const skipped = Number(progress?.skipped ?? result?.skippedCells) || 0;
+  const held = Array.isArray(result?.failedSlots) ? result.failedSlots.length : 0;
+  const nowSlot = status === 'running' ? progress?.lastSlot : null;
+  const outcomeTotal = drafted + adopted + skipped + held;
+  // Run-only outcome mix — the one chart the dashboard doesn't already have
+  // (segments size themselves via flexGrow; zero-growth outcomes collapse).
+  const startedAt = feed.drafts[0]?.at || job.started_at;
+  const perMin = drafted && startedAt
+    ? Math.round((drafted / Math.max(1, (now - new Date(startedAt).getTime()) / 60000)) * 10) / 10
+    : null;
+
+  const done = status === 'done' || (!running && job.status === 'done');
+  const to = done && drafted > 0 ? '/questions/review' : '/pipeline';
+  const cta = done && drafted > 0 ? 'Review them' : 'Watch it live';
+
+  return (
+    <section className="dash-card dash-live" aria-labelledby="dash-live-title"
+      data-live={running ? 'true' : undefined} data-state={done ? 'done' : (status || job.status)}>
+      <header className="dash-card-head">
+        <h2 id="dash-live-title">
+          <span className="dash-live-pill"><i />{running ? (status === 'queued' ? 'Queued' : 'Live') : status === 'done' ? 'Done' : (status || 'Idle')}</span>
+          {running ? 'Writing questions' : 'Generation run'}
+        </h2>
+        <Link to={to} className="dash-text-link">{cta} <ArrowRight size={14} /></Link>
+      </header>
+      <div className="dash-live-body">
+        <p className="dash-live-sub">
+          {nowSlot
+            ? `Cell ${Math.min(doneCells + 1, total || '…')}${total ? `/${total}` : ''} — ${nowSlot.topic}${nowSlot.bloom ? ` · ${nowSlot.bloom}` : ''}`
+            : done
+              ? `${drafted} new question${drafted === 1 ? '' : 's'} waiting in your review queue`
+              : 'Warming up — the AI is reading your blueprint…'}
+        </p>
+        <div className="dash-live-stats">
+          <span className="dash-live-mix" role="img"
+            aria-label={`Run outcome mix: ${drafted} drafted, ${adopted} reused, ${skipped} covered, ${held} held`}
+            title={`${drafted} drafted · ${adopted} reused · ${skipped} covered · ${held} held`}>
+            <i className="mix-queued" style={{ flexGrow: drafted }} />
+            <i className="mix-covered" style={{ flexGrow: skipped }} />
+            <i className="mix-reused" style={{ flexGrow: adopted }} />
+            <i className="mix-held" style={{ flexGrow: held }} />
+          </span>
+          <span><b>{drafted}</b> drafted</span>
+          <span><b>{doneCells}<i>/{total || '—'}</i></b> cells</span>
+          {held > 0 && <span className="dash-live-held"><b>{held}</b> held</span>}
+          {perMin != null && <span className="dash-live-pace"><b>{perMin}</b>/min</span>}
+        </div>
+        <div className="dash-live-bar" aria-hidden="true">
+          <i style={{ width: total ? `${(doneCells / total) * 100}%` : (running ? '30%' : '0%') }} />
+        </div>
+        {outcomeTotal > 0 && (
+          <div className="dash-live-charts">
+            <div className="dash-live-chart">
+              <span className="dash-live-chart-label">Outcome mix</span>
+              <ShareDoughnut
+                label="Outcome mix for this run"
+                height={170}
+                centerText={String(outcomeTotal)}
+                centerSub="cells"
+                slices={[
+                  { label: 'Queued', value: drafted, var: '--blue-600' },
+                  { label: 'Covered', value: skipped, var: '--line-strong' },
+                  { label: 'Reused', value: adopted, var: '--green-600' },
+                  { label: 'Held', value: held, var: '--red-600' },
+                ]}
+              />
+            </div>
+            <div className="dash-live-chart">
+              <span className="dash-live-chart-label">Drafts by cognitive level</span>
+              <CountsBarChart
+                height={170}
+                rows={BLOOM_LEVELS.map(([key, label]) => ({
+                  name: label,
+                  n: drafts.filter((d) => d.bloom === key).length,
+                }))}
+              />
+            </div>
+          </div>
+        )}
+      </div>
+    </section>
+  );
+}
 
 export default function DashboardPage() {
   const { logout, user } = useAuth();
@@ -390,12 +501,6 @@ export default function DashboardPage() {
   const greeting = hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening';
   const firstName = String(user?.first_name || user?.full_name || '').split(/\s+/)[0];
   const todayLine = new Date().toLocaleDateString('en', { weekday: 'long', month: 'long', day: 'numeric' });
-  const actions = [
-    { label: 'Build an exam', hint: 'Guided, start to finish', to: '/wizard', icon: Sparkles, tint: 2 },
-    { label: 'Add materials', hint: 'Upload course notes', to: '/materials?upload=1', icon: FolderOpen, tint: 3 },
-    { label: 'Write a question', hint: 'Add to the bank', to: '/questions?new=1', icon: CircleHelp, tint: 4 },
-    { label: 'New subject', hint: 'Create a course', to: '/subjects?new=1', icon: BookOpen, tint: 1 },
-  ];
   const metrics = [
     {
       label: 'Subjects',
@@ -682,32 +787,7 @@ export default function DashboardPage() {
           </div>
 
           <div className="dash-col">
-            <section className="dash-card" aria-labelledby="dash-actions-title" data-tour="dash-actions">
-              <header className="dash-card-head">
-                <h2 id="dash-actions-title">Quick actions</h2>
-              </header>
-              <div>
-                {actions.map((action) => {
-                  const Icon = action.icon;
-                  return (
-                    <Link key={action.label} to={action.to} className="dash-row">
-                      <span className="dash-row-label">
-                        <span className={`dash-row-icon tint-${action.tint}`}>
-                          <Icon size={15} aria-hidden="true" />
-                        </span>
-                        <span>
-                          <strong>{action.label}</strong>
-                          <small>{action.hint}</small>
-                        </span>
-                      </span>
-                      <span className="dash-row-value">
-                        <ChevronRight size={14} />
-                      </span>
-                    </Link>
-                  );
-                })}
-              </div>
-            </section>
+            <LiveRunBanner />
 
             <section className="dash-card" aria-labelledby="dash-bank-title" data-tour="dash-bank">
               <header className="dash-card-head">

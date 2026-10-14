@@ -97,7 +97,9 @@ router.get('/attention', requireAuth, async (req, res, next) => {
          s.name AS subject_name,
          q.stem, q.bloom, q.topic, q.type,
          COUNT(*) AS responses,
-         SUM(sa.is_correct) AS correct_count
+         SUM(sa.is_correct) AS correct_count,
+         MIN(sa.correct_answer) AS key_answer,
+         GROUP_CONCAT(sa.marked_answer ORDER BY sa.id SEPARATOR ',') AS picks
        FROM scan_answers sa
        JOIN scan_results sr ON sr.id = sa.scan_result_id
        JOIN exams e ON e.id = sr.exam_id

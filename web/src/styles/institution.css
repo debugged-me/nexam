@@ -1,6 +1,67 @@
 /* InstitutionBankPage: independent content layout and styles. */
 @scope (.page--institution) {
 
+/* ---- Catalog masthead: the bank at a glance ----------------------------- */
+.ib-head {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) auto;
+  gap: 22px;
+  align-items: start;
+  padding: 16px 18px;
+  margin-bottom: 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  box-shadow: var(--shadow-md);
+}
+.ib-head .eyebrow { margin-bottom: 6px; }
+.ib-head-total { margin: 0; font-size: .9375rem; color: var(--ink-2); }
+.ib-head-total strong {
+  font: 700 1.5rem/1 var(--font-display, "Google Sans", sans-serif);
+  color: var(--ink);
+  letter-spacing: -.02em;
+  margin-right: 4px;
+  font-variant-numeric: tabular-nums;
+}
+.ib-head-sub { margin: 6px 0 0; font-size: .75rem; color: var(--ink-3); max-width: 46ch; }
+.ib-head-cap {
+  display: block;
+  margin-bottom: 8px;
+  font-size: .66rem;
+  font-weight: 700;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+
+/* Type mix: one segmented bar in the blue ramp + a glyph legend. */
+.ib-mix { display: flex; gap: 2px; height: 8px; }
+.ib-mix i { border-radius: 99px; min-width: 6px; }
+.ib-mix i[data-type="mcq"]           { background: var(--action-700); }
+.ib-mix i[data-type="true_false"]    { background: var(--action-600); }
+.ib-mix i[data-type="matching"]      { background: var(--action-400); }
+.ib-mix i[data-type="identification"]{ background: var(--action-300); }
+.ib-mix-legend {
+  display: flex; flex-wrap: wrap; gap: 4px 14px;
+  margin: 9px 0 0; padding: 0; list-style: none;
+}
+.ib-mix-legend li {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: .72rem; color: var(--ink-3); white-space: nowrap;
+}
+.ib-mix-legend li strong { color: var(--ink-2); font-variant-numeric: tabular-nums; }
+.ib-mix-legend .omr-type { width: 22px; }
+
+.ib-head-bloom { min-width: 148px; }
+.ib-head-bloom .ib-reach { margin-bottom: 2px; }
+.ib-head-bloom .ib-reach::before { width: 38px; }
+.ib-head-bloom .ib-head-sub { margin-top: 4px; }
+
+@media (max-width: 860px) {
+  .ib-head { grid-template-columns: 1fr; gap: 16px; }
+  .ib-head-bloom { min-width: 0; }
+}
+
 /* ---- Toolbar: search, three filters, count + layout switch -------------- */
 .ib-bar {
   display: flex;

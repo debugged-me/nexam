@@ -37,6 +37,20 @@ const TYPE_LABELS = {
   mcq: 'MCQ', true_false: 'T/F', matching: 'Match', identification: 'ID',
 };
 
+/** Per-option pick split for choice items — shows which distractor pulled
+    students. Letters aggregate the scan picks (`sa.marked_answer`). */
+function pickDist(w) {
+  if (!w.picks || (w.type !== 'mcq' && w.type !== 'true_false')) return null;
+  const counts = {};
+  for (const raw of String(w.picks).split(',')) {
+    const k = String(raw || '').trim().toUpperCase().slice(0, 1);
+    if (k) counts[k] = (counts[k] || 0) + 1;
+  }
+  const letters = Object.keys(counts).sort();
+  if (!letters.length) return null;
+  return { letters, counts, total: letters.reduce((n, l) => n + counts[l], 0) };
+}
+
 export default function AttentionPage() {
   const toast = useToast();
   const navigate = useNavigate();
@@ -213,6 +227,16 @@ export default function AttentionPage() {
                         <td>
                           <span className="attn-stem">{trimwd(w.stem)}</span>
                           <span className="attn-sub">Item {w.item_number}</span>
+                          {(() => { const d = pickDist(w); return d && (
+                            <span className="attn-dist" role="img"
+                              aria-label={`Picks: ${d.letters.map((l) => `${l} ${d.counts[l]}`).join(', ')}`}>
+                              {d.letters.map((l) => (
+                                <i key={l} data-key={l === String(w.key_answer || '').trim().toUpperCase() || undefined}
+                                  style={{ flexGrow: d.counts[l] }}
+                                  title={`${l}: ${d.counts[l]} of ${d.total}`}>{l}</i>
+                              ))}
+                            </span>
+                          ); })()}
                         </td>
                         <td className="attn-col-type"><span className="badge badge-gray">{TYPE_LABELS[w.type] || w.type || '—'}</span></td>
                         <td><span className="attn-exam" title={w.exam_title}>{trimwd(w.exam_title, 28)}</span></td>

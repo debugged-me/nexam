@@ -506,6 +506,25 @@ export default function SubjectsPage() {
                         {long && <> <button type="button" className="g-more" onClick={() => setViewing(s)}>Read more</button></>}
                       </p>
                       <StageStrip stages={subjectStages(s)} />
+                      {/* Bank composition under the workflow strip — one thin
+                          stacked bar: approved vs drafts vs everything else. */}
+                      {Number(s.question_count) > 0 && (
+                        <div className="sj-comp" role="img"
+                          aria-label={`${s.approved_count || 0} approved, ${s.draft_count || 0} in review, of ${s.question_count} questions`}>
+                          <span className="sj-comp-bar">
+                            {Number(s.approved_count) > 0 && <i className="is-approved" style={{ flexGrow: s.approved_count }} />}
+                            {Number(s.draft_count) > 0 && <i className="is-draft" style={{ flexGrow: s.draft_count }} />}
+                            {Number(s.question_count) - Number(s.approved_count || 0) - Number(s.draft_count || 0) > 0 && (
+                              <i className="is-rest" style={{ flexGrow: s.question_count - (s.approved_count || 0) - (s.draft_count || 0) }} />
+                            )}
+                          </span>
+                          <span className="sj-comp-text">
+                            {s.question_count} {Number(s.question_count) === 1 ? 'question' : 'questions'}
+                            {Number(s.draft_count) > 0 && ` · ${s.draft_count} to review`}
+                            {Number(s.tos_count) > 0 && ` · ${s.tos_count} ${Number(s.tos_count) === 1 ? 'blueprint' : 'blueprints'}`}
+                          </span>
+                        </div>
+                      )}
                       <div className="sj-card-foot">
                         <NextStepLink step={nextStep(s)} />
                       </div>

@@ -21,12 +21,13 @@ import api, { ApiError } from '../lib/api.js';
 import { vtNavigate } from '../lib/viewTransitions.js';
 import { timeAgo } from '../lib/time.js';
 import { useMediaQuery } from '../lib/useMediaQuery.js';
-import { examResults, isPublished } from '../lib/examProgress.js';
+import { isPublished } from '../lib/examProgress.js';
 import DetailsModal from '../components/DetailsModal.jsx';
 import AppShell from '../components/AppShell.jsx';
 import { TableSkeleton } from '../components/Loaders.jsx';
 import { animateRows } from '../lib/animRows.js';
 import EmptyStateArt from '../components/EmptyStateArt.jsx';
+import { Bubbles } from '../components/omr.jsx';
 import {
   StatusPill, BoardGroupHead, CardGroup,
   GroupChip, groupColor, statusOf, statusMeta, STATUS_LABELS, STATUS_ORDER, StatCard,
@@ -41,7 +42,6 @@ const EXAM_COLUMNS = [
   { id: 'subject', accessorFn: (e) => (e.subject_name || '').toLowerCase() },
   { id: 'status',  accessorFn: (e) => EXAM_STATUSES.indexOf(statusOf(e.status)) },
   { id: 'items',   accessorFn: (e) => e.question_count || 0 },
-  { id: 'results', accessorFn: (e) => (Number(e.scan_count) ? Number(e.avg_score) || 0 : -1) },
   { id: 'updated', accessorFn: (e) => e.updated_at || e.created_at || '' },
 ];
 
@@ -69,24 +69,6 @@ function statusCounts(list) {
     counts[tone] = (counts[tone] || 0) + 1;
   }
   return counts;
-}
-
-/** Sheets scanned + class average against the pass mark. */
-function Results({ e }) {
-  const r = examResults(e);
-  if (!r) return <span className="ex-res-none" aria-label="No OMR results">—</span>;
-  return (
-    <span className="ex-res" data-passing={r.avg == null ? undefined : r.passing}>
-      <span className="ex-res-head">
-        <strong title="Class average">{r.avg == null ? '—' : `${Math.round(r.avg)}%`}</strong>
-        <span className="ex-res-cap">{r.caption}</span>
-      </span>
-      <span className="ex-res-bar" role="img" aria-label={r.avg == null ? 'No average yet' : `Class average ${Math.round(r.avg)} percent`}>
-        <i style={{ width: `${r.avg ?? 0}%` }} />
-      </span>
-      {r.toReview > 0 && <span className="ex-res-review">{r.toReview} to confirm</span>}
-    </span>
-  );
 }
 
 export default function ExamsPage() {
@@ -238,6 +220,15 @@ export default function ExamsPage() {
       <>
         {withItems && <span>{count} {count === 1 ? 'item' : 'items'}</span>}
         {!withItems && <span className="ex-meta-items">{count} {count === 1 ? 'item' : 'items'}</span>}
+        {/* Generated set letters as mini cover-stamps — matches the
+            print-pack badge language on the exam detail page. */}
+        {Number(e.set_count_generated) > 0 && (
+          <span className="ex-sets" title={`${e.set_count_generated} sets generated`}>
+            {Array.from({ length: Math.min(Number(e.set_count_generated), 6) }, (_, i) => (
+              <i key={i}>{String.fromCharCode(65 + i)}</i>
+            ))}
+          </span>
+        )}
         {e.duration_minutes ? <span>{e.duration_minutes} min</span> : null}
         {e.tos_id && e.tos_title && (
           <Link to={`/tos/${e.tos_id}`} className="row-meta-icon ex-meta-tos" title={`Blueprint: ${e.tos_title}`}>
@@ -280,8 +271,7 @@ export default function ExamsPage() {
         <td className="is-num col-opt" data-order={count}>
           <span className={`g-count${count ? '' : ' is-zero'}`}>{count || '—'}</span>
         </td>
-        <td><Results e={e} /></td>
-        <td className="g-mute col-opt" title={fmtDate(touched)}>{touchedText(touched)}</td>
+        <td className="g-mute" title={fmtDate(touched)}>{touchedText(touched)}</td>
         <td className="col-actions">
           {/* Same floating menu as right-click — uniform with Subjects/Questions. */}
           <button
@@ -313,7 +303,7 @@ export default function ExamsPage() {
           {showSubject && e.subject_name && <GroupChip color={groupColor(e.subject_id || e.subject_name)}>{e.subject_name}</GroupChip>}
           {examFacts(e, { withItems: true })}
         </span>
-        {examResults(e) && <Results e={e} />}
+
       </li>
     );
   }
@@ -335,6 +325,7 @@ export default function ExamsPage() {
           <EmptyStateArt art="paper" tone={3} />
           <h4>No exams yet</h4>
           <p>Start from a blank paper, or generate one from a blueprint so the Bloom spread is decided for you.</p>
+          <Bubbles className="ex-empty-bubbles" count={8} marked={3} />
           <button className="btn btn-primary" data-tour="exams-new" onClick={() => navigate('/exams/new')}>
             <Plus size={16} /> New exam
           </button>
@@ -402,12 +393,11 @@ export default function ExamsPage() {
               <caption className="sr-only">Exams in your workspace</caption>
               <thead>
                 <tr>
-                  <th className={`col-primary ex-c-title ${showSubject ? 'wp-31' : 'wp-45'} ${sortClass('exam')}`} onClick={sortHandler('exam')} data-name="Exam" data-locked>Exam{renderSortArrow('exam')}</th>
+                  <th className={`col-primary ex-c-title ${showSubject ? 'wp-45' : 'wp-55'} ${sortClass('exam')}`} onClick={sortHandler('exam')} data-name="Exam" data-locked>Exam{renderSortArrow('exam')}</th>
                   {showSubject && <th className={`wp-14 col-opt ${sortClass('subject')}`} onClick={sortHandler('subject')} data-name="Subject">Subject{renderSortArrow('subject')}</th>}
-                  <th className={`wp-12 col-opt ${sortClass('status')}`} onClick={sortHandler('status')} data-name="Status">Status{renderSortArrow('status')}</th>
-                  <th className={`is-num wp-8 col-opt ${sortClass('items')}`} onClick={sortHandler('items')} data-name="Items">Items{renderSortArrow('items')}</th>
-                  <th className={`wp-17 ex-c-res ${sortClass('results')}`} onClick={sortHandler('results')} data-name="OMR results">OMR results{renderSortArrow('results')}</th>
-                  <th className={`wp-13 col-opt ${sortClass('updated')}`} onClick={sortHandler('updated')} data-name="Updated">Updated{renderSortArrow('updated')}</th>
+                  <th className={`${showSubject ? 'wp-12' : 'wp-14'} col-opt ${sortClass('status')}`} onClick={sortHandler('status')} data-name="Status">Status{renderSortArrow('status')}</th>
+                  <th className={`is-num ${showSubject ? 'wp-8' : 'wp-9'} col-opt ${sortClass('items')}`} onClick={sortHandler('items')} data-name="Items">Items{renderSortArrow('items')}</th>
+                  <th className={`${showSubject ? 'wp-16' : 'wp-17'} ex-c-upd ${sortClass('updated')}`} onClick={sortHandler('updated')} data-name="Updated">Updated{renderSortArrow('updated')}</th>
                   <th className="col-actions wp-5 ex-c-act"><span className="sr-only">Actions</span></th>
                 </tr>
               </thead>

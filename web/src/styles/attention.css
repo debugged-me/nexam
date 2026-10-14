@@ -47,6 +47,24 @@
     font-size: .72rem;
     color: var(--ink-3, var(--muted));
 }
+
+/* Pick split — which options students actually bubbled. The key segment
+   is green so a distractor that out-pulled the answer reads instantly. */
+.attn-dist {
+    display: flex; gap: 2px;
+    max-width: 150px; height: 13px;
+    margin-top: 5px;
+}
+.attn-dist i {
+    display: flex; align-items: center; justify-content: center;
+    flex: 1 1 0; min-width: 13px;
+    border-radius: 3px;
+    background: var(--surface-3);
+    color: var(--ink-3, var(--muted));
+    font: 700 .52rem/1 var(--font-display, sans-serif);
+    font-style: normal; letter-spacing: .02em;
+}
+.attn-dist i[data-key] { background: var(--green-600); color: #fff; }
 .attn-exam {
     display: block;
     font-size: .82rem;

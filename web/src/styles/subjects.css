@@ -736,6 +736,15 @@ table.grid td.col-actions { background: var(--surface); z-index: 1; }
 }
 
 /* ---- Next step ------------------------------------------------------------ */
+/* Composition strip — approved/draft share of the subject's bank at a glance. */
+.sj-comp { margin-top: 10px; }
+.sj-comp-bar { display: flex; gap: 1px; height: 5px; }
+.sj-comp-bar i { border-radius: 99px; min-width: 3px; }
+.sj-comp-bar i.is-approved { background: var(--green-600); }
+.sj-comp-bar i.is-draft    { background: var(--amber-600); }
+.sj-comp-bar i.is-rest     { background: var(--surface-3); }
+.sj-comp-text { display: block; margin-top: 5px; font-size: .7rem; color: var(--ink-3); }
+
 .sj-card-foot { display: flex; margin-top: 14px; }
 .sj-next {
   display: inline-flex;

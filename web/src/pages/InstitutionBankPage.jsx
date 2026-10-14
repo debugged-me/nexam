@@ -186,8 +186,59 @@ export default function InstitutionBankPage() {
 
   const reuseTitle = subjects.length ? 'Copy into your review queue as a draft' : 'Create a subject first to reuse questions';
 
+  // Catalog stats describe the whole bank, not the filtered slice — the
+  // header is a masthead for the institution's pool.
+  const bankStats = useMemo(() => {
+    if (!questions?.length) return null;
+    const typeCounts = {};
+    const subjectCounts = {};
+    const bloomSet = new Set();
+    let maxBloom = 0;
+    for (const q of questions) {
+      typeCounts[q.type] = (typeCounts[q.type] || 0) + 1;
+      const label = subjectLabel(q);
+      subjectCounts[label] = (subjectCounts[label] || 0) + 1;
+      const level = BLOOM_LEVELS[q.bloom];
+      if (level) { bloomSet.add(q.bloom); maxBloom = Math.max(maxBloom, level); }
+    }
+    const [topSubject] = Object.entries(subjectCounts).sort((a, b) => b[1] - a[1]);
+    return { total: questions.length, typeCounts, subjects: Object.keys(subjectCounts).length, bloomLevels: bloomSet.size, maxBloom, topSubject };
+  }, [questions]);
+
+  const bloomKeyByLevel = useMemo(() => Object.fromEntries(Object.entries(BLOOM_LEVELS).map(([k, v]) => [v, k])), []);
+
   return (
     <AppShell pageClass="institution" activeNav="institution" pageTitle="Institution question bank" wide>
+      {bankStats && (
+        <section className="ib-head" aria-label="Shared bank at a glance">
+          <div className="ib-head-lead">
+            <span className="eyebrow">Shared bank</span>
+            <p className="ib-head-total"><strong>{bankStats.total}</strong> approved {bankStats.total === 1 ? 'question' : 'questions'} · {bankStats.subjects} {bankStats.subjects === 1 ? 'subject' : 'subjects'}</p>
+            <p className="ib-head-sub">
+              Every item was reviewed by an instructor. Reuse copies a question into your draft queue.
+              {bankStats.topSubject && <> Largest pool: {bankStats.topSubject[0]} ({bankStats.topSubject[1]}).</>}
+            </p>
+          </div>
+          <div className="ib-head-mix">
+            <span className="ib-head-cap">Type mix</span>
+            <div className="ib-mix" role="img" aria-label={Object.keys(TYPE_LABELS).map((t) => `${TYPE_LABELS[t]} ${bankStats.typeCounts[t] || 0}`).join(', ')}>
+              {Object.keys(TYPE_LABELS).map((t) => bankStats.typeCounts[t] > 0 && (
+                <i key={t} data-type={t} style={{ flexGrow: bankStats.typeCounts[t] }} />
+              ))}
+            </div>
+            <ul className="ib-mix-legend">
+              {Object.keys(TYPE_LABELS).map((t) => bankStats.typeCounts[t] > 0 && (
+                <li key={t}><TypeGlyph type={t} /><strong>{bankStats.typeCounts[t]}</strong><span>{TYPE_LABELS[t]}</span></li>
+              ))}
+            </ul>
+          </div>
+          <div className="ib-head-bloom">
+            <span className="ib-head-cap">Bloom reach</span>
+            <span className="g-bloom ib-reach" data-level={bankStats.maxBloom}>{bankStats.bloomLevels} of 6 levels</span>
+            <span className="ib-head-sub">up to {BLOOM_LABELS[bloomKeyByLevel[bankStats.maxBloom]] || '—'}</span>
+          </div>
+        </section>
+      )}
       <section className="ib-bar" aria-label="Shared bank filters" data-tour="institution-filters">
         <label className="ds-search ib-search" htmlFor="institution-search">
           <Search size={15} aria-hidden="true" />

@@ -25,7 +25,10 @@ const labelOf = (line) => line.match(/^([\p{L}][^:]{0,100}):/u)?.[1].trim().toLo
 
 // Recognized column labels provide a lossless outline, independent of LLM
 // omissions. Unknown layouts use validated model extraction instead.
-export function explicitOutline(text) {
+// An indented bullet under a topic ("  - Patintero" under "Larong Task") is
+// a sub-item: it becomes "Larong Task — Patintero" and the sub-items stand in
+// for their parent. `{ raw: true }` returns every item's plain text instead.
+export function explicitOutline(text, { raw = false } = {}) {
   const lines = String(text).split('\n');
   const periods = syllabusPeriods(text);
   const labelCounts = new Map();
@@ -39,27 +42,39 @@ export function explicitOutline(text) {
     return Boolean(label && (SECTION_LABEL.test(label) || labelCounts.get(label) > 1));
   };
   const topics = [];
-  let frame = ''; let outcomes = []; let inTopics = false; let inOutcomes = false;
+  const intro = /^(?:at the end|students (?:will|should))/i;
+  let frame = ''; let outcomes = []; let inTopics = false; let inOutcomes = false; let parent = null;
   for (const line of lines) {
     const trimmed = line.trim();
     if (/^Time\s*Frame\s*:/i.test(trimmed)) {
       frame = periods.find((p) => normalizeText(p.evidence) === normalizeText(trimmed))?.evidence || '';
-      outcomes = []; inTopics = false; inOutcomes = false;
+      outcomes = []; inTopics = false; inOutcomes = false; parent = null;
     }
     if (/^(?:ILO|Intended Learning Outcomes?)\s*:/i.test(trimmed)) {
       inOutcomes = true; inTopics = false;
-      const value = trimmed.replace(/^[^:]+:\s*/, '').replace(/^[-•]\s*/, '');
-      if (value && !/^(?:at the end|students (?:will|should))/i.test(value)) outcomes.push(value);
+      const value = trimmed.replace(/^[^:]+:\s*/, '').replace(BULLET, '');
+      if (value && !intro.test(value)) outcomes.push(value);
       continue;
     }
     const topicLine = trimmed.match(/^Topics?\s*:\s*(.*)$/i);
-    if (topicLine) { inTopics = true; inOutcomes = false; }
-    else if (endsSection(trimmed)) { inTopics = false; inOutcomes = false; }
+    if (topicLine) { inTopics = true; inOutcomes = false; parent = null; }
+    else if (endsSection(trimmed)) { inTopics = false; inOutcomes = false; parent = null; }
     const value = (topicLine ? topicLine[1] : trimmed).replace(BULLET, '').trim();
-    if (inTopics && value) topics.push({ topic: value, learning_outcomes: [...outcomes], schedule_evidence: frame });
-    else if (inOutcomes && BULLET.test(trimmed) && value) outcomes.push(value);
+    if (inTopics && value) {
+      const item = { topic: value, learning_outcomes: [...outcomes], schedule_evidence: frame };
+      if (!raw && !topicLine && parent && /^\s{2,}[-–—•▪◦*]/.test(line)) {
+        parent.hasSubItems = true;
+        topics.push({ ...item, topic: `${parent.topic} — ${value}` });
+      } else {
+        parent = item;
+        topics.push(item);
+      }
+    } else if (inOutcomes && value && !intro.test(value)) {
+      // Every line of the ILO cell is an outcome, bulleted or not.
+      outcomes.push(value);
+    }
   }
-  return topics;
+  return topics.filter((t) => !t.hasSubItems).map(({ hasSubItems, ...t }) => t); // eslint-disable-line no-unused-vars
 }
 
 export function prepareSyllabusBlueprint(parsed, text, materialId) {
@@ -79,17 +94,30 @@ export function prepareSyllabusBlueprint(parsed, text, materialId) {
   const repeated = [];
   const topics = [];
   const lower = normalized.toLowerCase();
+  const listLines = String(text).split('\n').map((l) => normalizeText(l.replace(/^\s*(?:Topics?\s*:\s*)?/i, '').replace(BULLET, '')));
   for (const candidate of candidates) {
     let title = normalizeText(candidate.topic);
     if (!title) continue;
-    // Prefer the syllabus's own spelling when only letter case differs.
-    const at = lower.indexOf(title.toLowerCase());
-    if (at >= 0) title = normalized.slice(at, at + title.length);
+    // When only letter case differs, take the syllabus's own spelling —
+    // from an outline line first, not an earlier sentence that happens to
+    // contain the same words in lowercase.
+    if (!normalized.includes(title)) {
+      const line = listLines.find((l) => l.toLowerCase() === title.toLowerCase());
+      const at = lower.indexOf(title.toLowerCase());
+      if (line) title = line;
+      else if (at >= 0) title = normalized.slice(at, at + title.length);
+    }
     if (title.length > 255 || !inSyllabus(title)) { unverified.push(title.slice(0, 120)); continue; }
     if (seen.has(title.toLowerCase())) { repeated.push(title); continue; }
     seen.add(title.toLowerCase());
     const outcomes = (candidate.learning_outcomes || []).filter((s) => typeof s === 'string' && normalized.includes(normalizeText(s)));
     topics.push({ topic: title, learning_outcomes: outcomes, schedule: verifiedSchedule(candidate, text, materialId), instructional_hours: 0 });
+  }
+  // Sub-items listed as "Parent — sub-item" stand in for their parent, so
+  // the parent is not a separate row (same result as the structured path).
+  for (let i = topics.length - 1; i >= 0; i--) {
+    const head = topics[i].topic.toLowerCase();
+    if (topics.some((t, j) => j !== i && t.topic.toLowerCase().startsWith(head) && /^\s+[—–-]\s+\S/.test(t.topic.slice(head.length)))) topics.splice(i, 1);
   }
   if (!topics.length) {
     throw new Error('No course topic could be verified against the syllabus text. Review the document layout or enter topics manually.');

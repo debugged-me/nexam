@@ -57,18 +57,83 @@ async function extractDocx(filePath) {
   const { value: html } = await mammoth.convertToHtml({ buffer });
   if (!html || !html.trim()) throw new Error('No text found in this DOCX file.');
 
-  return docxHtmlToText(html);
+  let listItems = [];
+  try { listItems = await docxListItems(buffer); } catch { /* nesting is optional */ }
+  return docxHtmlToText(html, { listItems });
 }
 
-/** Pure serializer, shared by DOCX extraction and regression tests. */
-export function docxHtmlToText(html) {
+/**
+ * List paragraphs in document order with their indent and level. mammoth's
+ * HTML flattens lists whose sub-items use a separate bullet definition
+ * (common in syllabi: "Larong Task" then indented "- Patintero"), so the
+ * nesting is read from Word's own paragraph and numbering properties.
+ */
+export async function docxListItems(buffer) {
+  const zip = await JSZip.loadAsync(buffer);
+  const read = async (name) => (zip.file(name) ? zip.file(name).async('string') : '');
+  const xml = (src) => cheerio.load(src, { xml: { xmlMode: true } });
+  const twips = (el) => Number(el.attr('w:left') ?? el.attr('w:start')) || 0;
+
+  const numbering = xml(await read('word/numbering.xml'));
+  const levelIndent = new Map(); // abstractNumId:ilvl -> indent
+  numbering('w\\:abstractNum').each((_, a) => {
+    const id = numbering(a).attr('w:abstractNumId');
+    numbering(a).children('w\\:lvl').each((__, l) => {
+      levelIndent.set(`${id}:${numbering(l).attr('w:ilvl')}`, twips(numbering(l).find('w\\:pPr > w\\:ind').first()));
+    });
+  });
+  const abstractOf = new Map();
+  numbering('w\\:num').each((_, n) => {
+    abstractOf.set(numbering(n).attr('w:numId'), numbering(n).children('w\\:abstractNumId').attr('w:val'));
+  });
+
+  const doc = xml(await read('word/document.xml'));
+  const items = [];
+  doc('w\\:p').each((_, p) => {
+    const pPr = doc(p).children('w\\:pPr');
+    const numPr = pPr.children('w\\:numPr');
+    if (!numPr.length) return;
+    const numId = numPr.children('w\\:numId').attr('w:val');
+    const ilvl = Number(numPr.children('w\\:ilvl').attr('w:val')) || 0;
+    const own = pPr.children('w\\:ind');
+    const indent = own.length && (own.attr('w:left') ?? own.attr('w:start')) != null
+      ? twips(own) : levelIndent.get(`${abstractOf.get(numId)}:${ilvl}`) || 0;
+    const text = doc(p).find('w\\:t').map((__, t) => doc(t).text()).get().join('').replace(/\s+/g, ' ').trim();
+    if (text) items.push({ text, indent, ilvl });
+  });
+  return items;
+}
+
+/**
+ * Pure serializer, shared by DOCX extraction and regression tests.
+ * `listItems` (from docxListItems) marks sub-items: a list item indented
+ * deeper than the cell's top-level items is written as "  - item".
+ */
+export function docxHtmlToText(html, { listItems = [] } = {}) {
   const $ = cheerio.load(`<div id="nexam-docx-root">${html}</div>`);
+  let cursor = 0;
+  // mammoth emits list items in document order, so each <li> claims the next
+  // Word list paragraph with the same text (looking a few ahead for safety).
+  const nestingOf = (text) => {
+    for (let i = cursor; i < Math.min(listItems.length, cursor + 8); i++) {
+      if (listItems[i].text === text) { cursor = i + 1; return listItems[i]; }
+    }
+    return null;
+  };
   const cellLines = (cell) => {
-    const blocks = $(cell).find('p, li').map((_, el) => {
+    const entries = $(cell).find('p, li').map((_, el) => {
       const t = $(el).text().replace(/\s+/g, ' ').trim();
       if (!t) return null;
-      return el.tagName === 'li' ? `- ${t}` : t;
+      return { text: t, li: el.tagName === 'li', nest: el.tagName === 'li' ? nestingOf(t) : null };
     }).get().filter(Boolean);
+    const nested = entries.filter((e) => e.nest);
+    const topIndent = nested.length ? Math.min(...nested.map((e) => e.nest.indent)) : 0;
+    const topLevel = nested.length ? Math.min(...nested.map((e) => e.nest.ilvl)) : 0;
+    const blocks = entries.map((e) => {
+      if (!e.li) return e.text;
+      const deeper = e.nest && (e.nest.ilvl > topLevel || e.nest.indent > topIndent + 60);
+      return `${deeper ? '  ' : ''}- ${e.text}`;
+    });
     if (blocks.length) return blocks;
     const t = $(cell).text().replace(/\s+/g, ' ').trim();
     return t ? [t] : [];

@@ -65,7 +65,7 @@ export function instructionalBlockReason(question, chunks) {
   const meta = readJson(question.generation_meta, {});
   const evidence = normalizeText(question.evidence || meta?.evidence).replace(/^Topics?:\s*/i, '').replace(BULLET, '');
   if (!evidence) return null;
-  const headings = chunks.flatMap((c) => explicitOutline(c.sourceText || c.text).map((t) => normalizeText(t.topic)));
+  const headings = chunks.flatMap((c) => explicitOutline(c.sourceText || c.text, { raw: true }).map((t) => normalizeText(t.topic)));
   if (headings.includes(evidence)) return 'A topic heading alone does not establish an exam answer. Use substantive lesson evidence.';
   return null;
 }

@@ -55,7 +55,7 @@ export default async function syllabusTosHandler(job) {
   const userPrompt = `Parse the following course syllabus and extract:
 1. A course title (if present)
 2. A list of topics, each with:
-   - topic: one outline item. Each bullet or line item under the outline's Topics column becomes its own topic — never merge bullets or collapse a whole period into one topic. Name indented sub-items "Parent — sub-item" (e.g. "Larong Task — Patintero").
+   - topic: one outline item. Each bullet or line item under the outline's Topics column becomes its own topic — never merge bullets or collapse a whole period into one topic. Name indented sub-items "Parent — sub-item" (e.g. "Larong Task — Patintero") and do not also list the parent on its own.
    - instructional_hours: hours explicitly stated for this topic; use 0 if not specified. Never estimate
    - hours_evidence: exact passage containing this topic and its explicitly stated hours; empty when absent
    - learning_outcomes: array of learning outcome strings (empty if not specified)

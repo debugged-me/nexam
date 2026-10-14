@@ -307,3 +307,28 @@ test('blind solvers never see the key, avoid the writer, and a disagreement hold
   await solveBlind(knowledgeDraft, { mode: 'grounded', context: 'SOURCE TEXT' }, async (s, p) => { seen = p; return { text: '{"answer":"A","reason":"r"}', provider: 'groq', model: 'qwen' }; });
   assert.match(seen, /SOURCE TEXT/);
 });
+
+test('indented DOCX sub-items keep their parent context and replace the parent row', () => {
+  const html = '<table><tr><td>ILO</td><td>Topics</td><td>Resources</td></tr><tr><td colspan="3">Time Frame: Prelim (Week 1-5)</td></tr>'
+    + '<tr><td><p>Play Larong Pinoy</p><p>Know its benefits</p></td><td><ul><li>Different recreational games</li><li>Larong Task</li><li>Patintero</li><li>Dodge Ball</li></ul></td><td>Book</td></tr></table>';
+  const listItems = [
+    { text: 'Different recreational games', indent: 720, ilvl: 0 }, { text: 'Larong Task', indent: 720, ilvl: 0 },
+    { text: 'Patintero', indent: 1440, ilvl: 0 }, { text: 'Dodge Ball', indent: 1440, ilvl: 0 },
+  ];
+  const text = docxHtmlToText(html, { listItems });
+  assert.match(text, /\n {2}- Patintero/);
+  const { topics } = prepareSyllabusBlueprint({ topics: [] }, text, 'material');
+  assert.deepEqual(topics.map((t) => t.topic), ['Different recreational games', 'Larong Task — Patintero', 'Larong Task — Dodge Ball']);
+  // Every line of the ILO cell is an outcome, bulleted or not.
+  assert.deepEqual(topics[0].learning_outcomes, ['Play Larong Pinoy', 'Know its benefits']);
+  // Without nesting data the items stay flat (older behaviour, nothing lost).
+  assert.equal(prepareSyllabusBlueprint({ topics: [] }, docxHtmlToText(html), 'material').topics.length, 4);
+});
+
+test('AI-listed sub-items replace their parent, and case fixes prefer outline lines over prose', () => {
+  const text = 'Course description: students explore global citizenship today.\nTopics:\n- Global Citizenship\n- Folk dances\n  - Polka';
+  const p = prepareSyllabusBlueprint({ topics: [
+    { topic: 'global citizenship' }, { topic: 'Folk dances' }, { topic: 'Folk dances — Polka' },
+  ] }, text, 'material');
+  assert.deepEqual(p.topics.map((t) => t.topic), ['Global Citizenship', 'Folk dances — Polka']);
+});

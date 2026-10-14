@@ -108,9 +108,12 @@ QR payload: `{ v, examId, setId, set, count, types[] }`.
   needs the index — wizard stages come from `pipelineStage()`
   (`services/pipelineStage.js`).
 - `prepareSyllabusBlueprint()` (`services/syllabusBlueprint.js`) keeps only
-  topics verifiable in the syllabus text (case/dash/quote tolerant, "Parent —
-  sub-item" allowed); unverifiable AI topics are left out and listed in
-  `tos.source_meta.warnings`, never silently. Hours are never invented:
+  topics verifiable in the syllabus text (case/dash/quote tolerant);
+  unverifiable AI topics are left out and listed in
+  `tos.source_meta.warnings`, never silently. Indented sub-items become
+  "Parent — sub-item" topics that replace the parent row — DOCX nesting is
+  read from Word's list indents (`docxListItems()` in `extractors.js`)
+  because mammoth flattens separately-defined sub-lists. Hours are never invented:
   per-topic hours need verbatim evidence; otherwise a stated course total
   (e.g. "54 hours per semester") is split as *proposed* hours. Item count and
   Bloom weights are planning defaults. Finalizing a blueprint with

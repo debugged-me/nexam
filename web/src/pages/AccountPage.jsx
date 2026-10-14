@@ -13,7 +13,7 @@ import { useAuth } from '../features/auth/AuthContext.jsx';
 import UserAvatar from '../components/UserAvatar.jsx';
 import AvatarPickerModal from '../components/AvatarPickerModal.jsx';
 import { useLetterheadSrc, useLetterheadFootSrc } from '../lib/useLetterheadSrc.js';
-import { Lock, Mail, Check, Save, Eye, EyeOff, Camera, Trash2, Palette } from 'lucide-react';
+import { Lock, Mail, Check, Save, Eye, EyeOff, Camera, Trash2, Palette, ShieldCheck, ScrollText, ArrowUpRight } from 'lucide-react';
 
 function nameFormFrom(user) {
   return {
@@ -406,6 +406,39 @@ export default function AccountPage() {
                   <li>Only you see and print your letterhead.</li>
                 </ul>
               </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Privacy & terms — always reachable so the AI/data story stays
+            reviewable, not buried in a signup checkbox. */}
+        <div className="card" data-tour="account-legal">
+          <div className="card-header">
+            <span className="card-title">Privacy &amp; terms</span>
+          </div>
+          <div className="card-body account-legal">
+            <p>
+              Nexam is AI-assisted. Your uploads stay private to your account and
+              are used only to ground your own questions — never to train outside
+              models or to serve other instructors.
+            </p>
+            <div className="account-legal-links">
+              <Link to="/privacy" className="account-legal-link">
+                <span className="account-legal-ico"><ShieldCheck size={16} /></span>
+                <span className="account-legal-copy">
+                  <strong>Data Privacy Notice</strong>
+                  <small>What we collect, how AI features use it, and your choices.</small>
+                </span>
+                <ArrowUpRight size={14} />
+              </Link>
+              <Link to="/terms" className="account-legal-link">
+                <span className="account-legal-ico"><ScrollText size={16} /></span>
+                <span className="account-legal-copy">
+                  <strong>Terms of Use</strong>
+                  <small>Who may use it, acceptable use, and how AI drafting works.</small>
+                </span>
+                <ArrowUpRight size={14} />
+              </Link>
             </div>
           </div>
         </div>

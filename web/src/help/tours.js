@@ -615,6 +615,11 @@ export const TOURS = [
         title: 'Your letterhead',
         description: 'Upload your school or department letterhead (and an optional footer) — it heads every printed exam, answer key, and report you generate. Only you see it.',
       },
+      {
+        sel: '[data-tour="account-legal"]', side: 'left',
+        title: 'Privacy & terms, always reachable',
+        description: 'The Data Privacy Notice and Terms of Use live here permanently — review anytime how your uploads, drafts, and student data are handled by the AI features.',
+      },
     ],
   },
   {

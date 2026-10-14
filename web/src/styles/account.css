@@ -239,4 +239,37 @@
 .password-toggle:hover { color: var(--ink-2); }
 .password-toggle:focus-visible { outline: 2px solid var(--action-600); outline-offset: 1px; }
 
+/* Privacy & terms card — doc links that read as real links, not nav. */
+.account-legal > p {
+  margin: 0 0 12px;
+  font-size: var(--text-sm);
+  line-height: 1.55;
+  color: var(--ink-2);
+}
+.account-legal-links { display: flex; flex-direction: column; gap: 8px; }
+.account-legal-link {
+  display: flex; align-items: center; gap: 11px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  color: var(--ink-2);
+  text-decoration: none;
+  transition: border-color .15s ease, background-color .15s ease;
+}
+.account-legal-link:hover { border-color: var(--action-600); background: var(--action-50); }
+.account-legal-link:focus-visible { outline: 2px solid var(--action-600); outline-offset: 2px; }
+.account-legal-ico {
+  flex-shrink: 0;
+  width: 30px; height: 30px;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: 8px;
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  color: var(--action-600);
+}
+.account-legal-copy { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.account-legal-copy strong { font-size: var(--text-sm); font-weight: 650; color: var(--ink); }
+.account-legal-copy small { font-size: var(--text-xs); color: var(--ink-3); line-height: 1.4; }
+.account-legal-link > svg:last-child { color: var(--ink-faint); }
+
 }

@@ -20,14 +20,22 @@ const DOCS = {
           'Content you create — subjects, questions, TOS blueprints, exams, and their results.',
           'Materials you upload — PDFs, documents, URLs, or pasted text used to ground question generation.',
           'Exam results you record — scores and item analysis, including any student identifiers you choose to enter.',
-          'Technical data — basic request logs needed to keep the service secure and reliable.',
+          'Technical data — request and sign-in logs, kept for security and for your administrator’s audit trail.',
+        ],
+      },
+      {
+        h: 'How AI features use your content',
+        items: [
+          'Uploaded materials are chunked and indexed inside your account so generated questions can cite your own sources.',
+          'Drafting and verification may send a lesson excerpt, blueprint cell, or draft question to the AI services configured by your institution (for example Google Gemini or Groq), or to models running locally.',
+          'Independent “blind-solve” checks send the draft question — without its answer key — to a different model to verify it.',
+          'These requests carry only the text needed for the task. Your name, email, credentials, and student records are never sent to AI providers.',
         ],
       },
       {
         h: 'How we use it',
         items: [
           'To provide the workspace: store, organize, and render your content back to you.',
-          'To ground AI features: uploaded materials are chunked and embedded so generated questions can cite your sources.',
           'To check originality: approved questions form an institution-wide, read-only similarity bank.',
           'To analyze results: item analysis and exam statistics computed from data you entered.',
         ],
@@ -38,22 +46,24 @@ const DOCS = {
           'Sell or rent your data to anyone.',
           'Show your private drafts, materials, or results to other instructors.',
           'Use your content to train models outside this service.',
+          'Send your account details or student records to AI providers.',
         ],
       },
       {
         h: 'Sharing',
         items: [
-          'Approved questions become part of a shared, institution-wide read-only bank; other instructors may reuse them.',
-          'AI providers receive only the text chunks needed to draft a question — never your account details or student data.',
+          'Approved questions become part of a shared, institution-wide read-only bank; other instructors may reuse them. Your drafts, rejected items, and uploaded materials are never shared.',
+          'Administrators can see account status and sign-in logs for security — not your materials, drafts, or results.',
           'We disclose data only if required by law or your institution’s policies.',
         ],
       },
       {
         h: 'Security',
         items: [
-          'Passwords are stored hashed; sessions use short-lived signed tokens.',
+          'Passwords are stored hashed; sessions use short-lived signed tokens, and password-reset links are single-use and expire.',
           'Uploaded files and student PII are stored encrypted at rest.',
           'Access is scoped: every private record belongs to your instructor account and the API enforces that on each request.',
+          'These practices follow the Data Privacy Act of 2012 (RA 10173) principles of proportionality and transparency.',
         ],
       },
       {
@@ -99,9 +109,9 @@ const DOCS = {
       {
         h: 'AI-assisted drafting',
         items: [
-          'Generated questions are drafts — you review, edit, and approve them before they are used.',
-          'Every AI draft is grounded in your uploaded materials and must cite its evidence before approval.',
-          'You are responsible for the accuracy and appropriateness of the exams you finalize and distribute.',
+          'Generated questions are drafts — they cannot be used or exported until you review and approve them.',
+          'Drafts grounded in your materials must cite their evidence span; drafts written from model knowledge are labeled and need your explicit confirmation.',
+          'Automated checks — source verification and independent blind-solve — catch much, but not everything. Your review is the final quality gate, and you are responsible for the exams you finalize and distribute.',
         ],
       },
       {

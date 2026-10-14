@@ -121,7 +121,7 @@ export default function AppLayout() {
     : NAV_ITEMS;
   const navGroups = isAdmin
     ? (user?.role === 'superadmin' ? ['home', 'Manage', 'Oversight', 'Security'] : ['home', 'Manage', 'Oversight'])
-    : ['home', 'Workspace', 'Assessment', 'Institution'];
+    : ['home', 'Workspace', 'Assessment', 'Institution', 'AI'];
   const activeKey = isAdmin
     ? location.pathname.split('/')[2] || 'dashboard'
     : activeFor(location.pathname) || meta.activeNav;

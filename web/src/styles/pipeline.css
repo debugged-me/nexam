@@ -1,0 +1,243 @@
+/**
+ * pipeline.css — the "How AI works" live generation console.
+ * Built on theme tokens so it follows light/dark mode and the accent
+ * color picked in Appearance — no hardcoded deck theme.
+ */
+@scope (.page--pipeline) {
+
+.pc-deck {
+  background:
+    radial-gradient(1100px 340px at 30% -20%, var(--accent-wash), transparent 62%),
+    var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg, 14px);
+  padding: 18px 20px 20px;
+  color: var(--ink);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  box-shadow: var(--shadow-md);
+}
+
+/* ── Top strip ─────────────────────────────────────────────── */
+.pc-top {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+.pc-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 5px 10px;
+  border-radius: 999px;
+  font: 700 .66rem/1 var(--font-body);
+  letter-spacing: .12em;
+}
+.pc-status i {
+  width: 7px; height: 7px; border-radius: 50%;
+  background: var(--ink-faint);
+}
+.pc-status--live { background: var(--green-50); color: var(--green-600); }
+.pc-status--live i { background: var(--green-600); box-shadow: 0 0 8px var(--green-600); animation: pc-pulse 1.4s ease-in-out infinite; }
+.pc-status--idle { background: var(--surface-3); color: var(--ink-3); }
+.pc-status--idle[data-state="done"] { background: var(--accent-wash); color: var(--accent); }
+.pc-status--idle[data-state="done"] i { background: var(--accent); }
+.pc-status--idle[data-state="failed"], .pc-status--idle[data-state="cancelled"] { background: var(--red-50); color: var(--red-600); }
+.pc-status--idle[data-state="failed"] i, .pc-status--idle[data-state="cancelled"] i { background: var(--red-600); }
+@keyframes pc-pulse { 50% { opacity: .35; } }
+
+.pc-heading { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.pc-heading strong {
+  font: 650 .92rem/1.2 var(--font-display);
+  color: var(--ink);
+}
+.pc-heading span {
+  font: 500 .72rem/1.3 var(--font-body);
+  color: var(--ink-faint);
+}
+.pc-ambient {
+  font: 600 .68rem/1 var(--font-body);
+  letter-spacing: .02em;
+  color: var(--amber-700);
+  background: var(--amber-50);
+  border: 1px solid var(--amber-100);
+  padding: 5px 9px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+.pc-conn[data-off] { color: var(--amber-600); font: 600 .72rem/1 var(--font-body); }
+.pc-top-actions {
+  margin-left: auto;
+  display: flex; align-items: center; gap: 10px;
+}
+.pc-stop {
+  display: inline-flex; align-items: center; gap: 6px;
+  font: 600 .74rem/1 var(--font-body);
+  color: var(--red-600);
+  background: var(--red-50);
+  border: 1px solid var(--red-100);
+  border-radius: 999px;
+  padding: 7px 13px;
+  cursor: pointer;
+  transition: background .15s;
+}
+.pc-stop:hover { background: var(--red-100); }
+
+/* ── KPI band ──────────────────────────────────────────────── */
+.pc-kpis {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 10px;
+}
+.pc-kpi {
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.pc-kpi b {
+  font: 700 1.45rem/1 var(--font-mono);
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+.pc-kpi b em { font-style: normal; font-size: .85rem; color: var(--ink-faint); }
+.pc-kpi span {
+  font: 600 .58rem/1 var(--font-body);
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+.pc-kpi[data-tone="blue"] b { color: var(--accent); }
+.pc-kpi[data-tone="green"] b { color: var(--green-600); }
+.pc-kpi[data-tone="rose"] b { color: var(--red-600); }
+.pc-kpi[data-tone="slate"] b { color: var(--ink-3); }
+.pc-kpi-bar {
+  margin-top: 6px; height: 4px; border-radius: 2px;
+  background: var(--surface-3); overflow: hidden; display: block;
+}
+.pc-kpi-bar i {
+  display: block; height: 100%;
+  background: linear-gradient(90deg, var(--accent), var(--blue-600));
+  border-radius: 2px; transition: width .5s ease;
+}
+
+/* ── Flow graph ────────────────────────────────────────────── */
+.pc-graph { width: 100%; height: auto; display: block; }
+
+.pc-edge {
+  fill: none;
+  stroke: var(--line-strong);
+  stroke-width: 1.6;
+}
+.pc-arrowhead {
+  fill: none;
+  stroke: var(--line-strong);
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+/* The writing channel flows gently for the whole run… */
+.pc-edge[data-live] {
+  stroke: var(--accent);
+  opacity: .45;
+  stroke-dasharray: 4 8;
+  animation: pc-flow 1.6s linear infinite;
+}
+/* …while an outcome edge flashes bright only as its particle rides it. */
+.pc-edge[data-pulse] {
+  opacity: 1;
+  stroke-width: 2.2;
+  stroke-dasharray: 7 5;
+  animation: pc-flow .55s linear infinite;
+}
+.pc-edge[data-pulse="blue"] { stroke: var(--accent); }
+.pc-edge[data-pulse="green"] { stroke: var(--green-600); }
+.pc-edge[data-pulse="rose"] { stroke: var(--red-600); }
+.pc-edge[data-pulse="slate"] { stroke: var(--ink-faint); }
+@keyframes pc-flow { to { stroke-dashoffset: -12; } }
+
+/* Steady dots riding the working channel while a run is live. */
+.pc-stream { fill: var(--accent); opacity: .85; }
+
+.pc-node rect {
+  fill: var(--surface-2);
+  stroke: var(--line-strong);
+  stroke-width: 1.2;
+  transition: stroke .3s, fill .3s;
+}
+.pc-node-label {
+  fill: var(--ink-2);
+  font: 650 11px/1 var(--font-display);
+  letter-spacing: .1em;
+}
+.pc-node-sub {
+  fill: var(--ink-faint);
+  font: 500 9px/1 var(--font-body);
+  letter-spacing: .03em;
+}
+.pc-node[data-hot] rect {
+  fill: var(--accent-wash);
+  stroke: var(--accent);
+  filter: drop-shadow(0 0 7px var(--accent-line));
+}
+.pc-node[data-hot] .pc-node-label { fill: var(--accent); }
+.pc-node[data-hot] .pc-node-sub { fill: var(--ink-3); }
+.pc-node[data-count] rect { stroke: var(--accent-line); }
+.pc-node[data-count] .pc-node-sub { fill: var(--ink-3); }
+
+/* ── "Now" caption under the graph ─────────────────────────── */
+.pc-now {
+  display: flex; align-items: center; gap: 10px;
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  padding: 10px 14px;
+  font-size: .82rem;
+  min-height: 40px;
+}
+.pc-now-tag {
+  flex-shrink: 0;
+  font: 700 .6rem/1 var(--font-body);
+  letter-spacing: .14em; text-transform: uppercase;
+  color: var(--accent);
+  background: var(--accent-wash);
+  border: 1px solid var(--accent-line);
+  padding: 4px 8px;
+  border-radius: 999px;
+}
+.pc-now-tag[data-tone="done"] { color: var(--green-600); background: var(--green-50); border-color: var(--green-100); }
+.pc-now-text { color: var(--ink-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pc-now-idle { color: var(--ink-faint); }
+
+.pc-chip {
+  flex-shrink: 0;
+  font: 700 .58rem/1 var(--font-body);
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  padding: 3px 7px;
+  border-radius: 4px;
+}
+.pc-chip[data-kind="grounded"] { background: var(--green-50); color: var(--green-600); }
+.pc-chip[data-kind="knowledge"] { background: var(--amber-50); color: var(--amber-600); }
+
+/* ── Settled footer / empty state ──────────────────────────── */
+.pc-done {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  border-top: 1px solid var(--line); padding-top: 14px;
+  font-size: .85rem; color: var(--ink-2);
+}
+.pc-empty { color: var(--ink-3); font-size: .9rem; }
+
+@media (max-width: 860px) {
+  .pc-kpis { grid-template-columns: repeat(3, 1fr); }
+  .pc-top { flex-wrap: wrap; }
+}
+@media (max-width: 480px) {
+  .pc-kpis { grid-template-columns: repeat(2, 1fr); }
+  .pc-deck { padding: 14px; }
+}
+}

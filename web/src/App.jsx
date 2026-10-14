@@ -41,6 +41,7 @@ const ExamAnalyticsPage = lazy(() => import('./pages/ExamAnalyticsPage.jsx'));
 const AttentionPage = lazy(() => import('./pages/AttentionPage.jsx'));
 const ItemAnalysisPage = lazy(() => import('./pages/ItemAnalysisPage.jsx'));
 const AiEvalPage = lazy(() => import('./pages/AiEvalPage.jsx'));
+const PipelinePage = lazy(() => import('./pages/PipelinePage.jsx'));
 const AccountPage = lazy(() => import('./pages/AccountPage.jsx'));
 const AppearancePage = lazy(() => import('./pages/AppearancePage.jsx'));
 const WizardPage = lazy(() => import('./pages/WizardPage.jsx'));
@@ -295,6 +296,7 @@ export default function App() {
                   <Route path="/analytics/attention" element={<AttentionPage />} />
                   <Route path="/analytics/items/:examId" element={<ItemAnalysisPage />} />
                   <Route path="/analytics/ai-eval" element={<AiEvalPage />} />
+                  <Route path="/pipeline" element={<PipelinePage />} />
                 </Route>
 
                 {/* Default → dashboard (which redirects to /login if not authed) */}

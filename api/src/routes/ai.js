@@ -86,6 +86,7 @@ function streamDraft(row) {
     answer: row.answer,
     topic: row.topic,
     bloom: row.bloom,
+    grounding: meta?.grounding === 'knowledge' ? 'knowledge' : 'grounded',
     evidence: typeof meta?.evidence === 'string' ? meta.evidence : null,
   };
 }

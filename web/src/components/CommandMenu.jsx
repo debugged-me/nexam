@@ -17,8 +17,9 @@ const GROUP_LABELS = {
   Workspace: 'Workspace',
   Assessment: 'Assessment',
   Institution: 'Institution',
+  AI: 'AI',
 };
-const GROUP_ORDER = ['quick', 'home', 'Workspace', 'Assessment', 'Institution'];
+const GROUP_ORDER = ['quick', 'home', 'Workspace', 'Assessment', 'Institution', 'AI'];
 
 // Items without a `group` (Build an exam, Account settings) lead the list.
 const GROUPED = (() => {

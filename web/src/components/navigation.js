@@ -15,6 +15,7 @@ import {
   ScrollText,
   Settings2,
   Megaphone,
+  Radio,
 } from 'lucide-react';
 
 export const NAV_ITEMS = [
@@ -106,6 +107,14 @@ export const NAV_ITEMS = [
     group: 'Institution',
     description: 'Discover approved questions to reuse',
     prefetch: ['/questions/institution', '/subjects'],
+  },
+  {
+    label: 'How AI works',
+    key: 'pipeline',
+    icon: Radio,
+    to: '/pipeline',
+    group: 'AI',
+    description: 'Watch the AI write your exam, live',
   },
 ];
 

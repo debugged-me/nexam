@@ -233,7 +233,7 @@ router.post('/login', async (req, res, next) => {
     }
 
     const [rows] = await pool.query(
-      `SELECT id, full_name, email, password_hash, role, email_verified, status, avatar_path, avatar_v, theme, font, text_size, accent, radius FROM users WHERE email = :email LIMIT 1`,
+      `SELECT id, full_name, email, password_hash, role, email_verified, status, avatar_path, avatar_v, letterhead_path, letterhead_v, letterhead_foot_path, letterhead_foot_v, theme, font, text_size, accent, radius FROM users WHERE email = :email LIMIT 1`,
       { email }
     );
     const user = rows[0];
@@ -297,6 +297,10 @@ router.post('/login', async (req, res, next) => {
         role: user.role,
         has_avatar: !!user.avatar_path,
         avatar_v: user.avatar_v,
+        has_letterhead: !!user.letterhead_path,
+        letterhead_v: user.letterhead_v,
+        has_letterhead_foot: !!user.letterhead_foot_path,
+        letterhead_foot_v: user.letterhead_foot_v,
         theme: user.theme,
         font: user.font,
         text_size: user.text_size,
@@ -789,8 +793,9 @@ router.post('/reset-link', async (req, res, next) => {
 router.get('/me', requireAnyAuth, async (req, res, next) => {
   try {
     const [rows] = await pool.query(
-      `SELECT id, first_name, middle_name, last_name, name_ext, full_name, email, role, email_verified, status, avatar_path, avatar_v, theme, font, text_size, accent, radius, created_at,
-        (avatar_path IS NOT NULL) AS has_avatar FROM users WHERE id = :id LIMIT 1`,
+      `SELECT id, first_name, middle_name, last_name, name_ext, full_name, email, role, email_verified, status, avatar_path, avatar_v, letterhead_v, letterhead_foot_v, theme, font, text_size, accent, radius, created_at,
+        (avatar_path IS NOT NULL) AS has_avatar, (letterhead_path IS NOT NULL) AS has_letterhead,
+        (letterhead_foot_path IS NOT NULL) AS has_letterhead_foot FROM users WHERE id = :id LIMIT 1`,
       { id: req.user.id }
     );
     if (!rows[0]) return res.status(404).json({ error: 'User not found.' });
@@ -817,8 +822,9 @@ router.put('/me', requireAnyAuth, async (req, res, next) => {
     );
 
     const [rows] = await pool.query(
-      `SELECT id, first_name, middle_name, last_name, name_ext, full_name, email, role, email_verified, avatar_v, theme, font, text_size, accent, radius,
-        (avatar_path IS NOT NULL) AS has_avatar, created_at FROM users WHERE id = :id`,
+      `SELECT id, first_name, middle_name, last_name, name_ext, full_name, email, role, email_verified, avatar_v, letterhead_v, letterhead_foot_v, theme, font, text_size, accent, radius,
+        (avatar_path IS NOT NULL) AS has_avatar, (letterhead_path IS NOT NULL) AS has_letterhead,
+        (letterhead_foot_path IS NOT NULL) AS has_letterhead_foot, created_at FROM users WHERE id = :id`,
       { id: req.user.id }
     );
     res.json({ user: rows[0] });
@@ -1016,6 +1022,118 @@ router.delete('/avatar', requireAnyAuth, async (req, res, next) => {
     await removeAvatarFile(rows[0]?.avatar_path);
     await pool.query(`UPDATE users SET avatar_path = NULL, avatar_v = 0 WHERE id = :id`, { id: req.user.id });
     res.json({ message: 'Profile photo removed.', has_avatar: false, avatar_v: 0 });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// ── Print letterhead ───────────────────────────────────
+// Institutional banner rendered at the top of printed exams and reports.
+// Same storage contract as avatars: private dir, encrypted at rest,
+// streamed only to its owner.
+const LETTERHEAD_DIR = path.resolve(process.cwd(), 'upload/letterheads');
+
+/** POST /api/auth/letterhead — upload/replace the caller's print letterhead. */
+router.post('/letterhead', requireAnyAuth, avatarMiddleware, async (req, res, next) => {
+  try {
+    if (!req.file) return res.status(400).json({ error: 'No image uploaded.' });
+    const ext = sniffImageExt(req.file.buffer);
+    if (!ext) return res.status(415).json({ error: 'File is not a valid PNG, JPG, WebP, or GIF image.' });
+    await fs.mkdir(LETTERHEAD_DIR, { recursive: true });
+    const filePath = path.join(LETTERHEAD_DIR, `${req.user.id}${ext}`);
+    await fs.writeFile(filePath, req.file.buffer, { mode: 0o600 });
+    await encryptFileAtRest(filePath);
+
+    const [rows] = await pool.query(`SELECT letterhead_path FROM users WHERE id = :id`, { id: req.user.id });
+    if (rows[0]?.letterhead_path && rows[0].letterhead_path !== filePath) await removeAvatarFile(rows[0].letterhead_path);
+
+    const letterheadV = Math.floor(Date.now() / 1000);
+    await pool.query(`UPDATE users SET letterhead_path = :p, letterhead_v = :v WHERE id = :id`,
+      { p: filePath, v: letterheadV, id: req.user.id });
+    res.json({ message: 'Letterhead updated.', has_letterhead: true, letterhead_v: letterheadV });
+  } catch (err) {
+    next(err);
+  }
+});
+
+/** GET /api/auth/letterhead — stream the caller's own letterhead image. */
+router.get('/letterhead', requireAnyAuth, async (req, res, next) => {
+  try {
+    const [rows] = await pool.query(`SELECT letterhead_path FROM users WHERE id = :id`, { id: req.user.id });
+    const letterheadPath = rows[0]?.letterhead_path;
+    if (!letterheadPath) return res.status(404).json({ error: 'No letterhead.' });
+    const buf = await readProtectedFile(letterheadPath);
+    res.set('Cache-Control', 'private, max-age=300');
+    res.set('X-Content-Type-Options', 'nosniff');
+    res.set('Content-Security-Policy', "default-src 'none'");
+    res.type(AVATAR_TYPES[path.extname(letterheadPath).toLowerCase()] || 'application/octet-stream');
+    res.send(buf);
+  } catch (err) {
+    if (err?.code === 'ENOENT') return res.status(404).json({ error: 'No letterhead.' });
+    next(err);
+  }
+});
+
+/** DELETE /api/auth/letterhead — remove the caller's print letterhead. */
+router.delete('/letterhead', requireAnyAuth, async (req, res, next) => {
+  try {
+    const [rows] = await pool.query(`SELECT letterhead_path FROM users WHERE id = :id`, { id: req.user.id });
+    await removeAvatarFile(rows[0]?.letterhead_path);
+    await pool.query(`UPDATE users SET letterhead_path = NULL, letterhead_v = 0 WHERE id = :id`, { id: req.user.id });
+    res.json({ message: 'Letterhead removed.', has_letterhead: false, letterhead_v: 0 });
+  } catch (err) {
+    next(err);
+  }
+});
+
+/** POST /api/auth/letterhead-foot — upload/replace the optional print footer banner. */
+router.post('/letterhead-foot', requireAnyAuth, avatarMiddleware, async (req, res, next) => {
+  try {
+    if (!req.file) return res.status(400).json({ error: 'No image uploaded.' });
+    const ext = sniffImageExt(req.file.buffer);
+    if (!ext) return res.status(415).json({ error: 'File is not a valid PNG, JPG, WebP, or GIF image.' });
+    await fs.mkdir(LETTERHEAD_DIR, { recursive: true });
+    const filePath = path.join(LETTERHEAD_DIR, `${req.user.id}-foot${ext}`);
+    await fs.writeFile(filePath, req.file.buffer, { mode: 0o600 });
+    await encryptFileAtRest(filePath);
+
+    const [rows] = await pool.query(`SELECT letterhead_foot_path FROM users WHERE id = :id`, { id: req.user.id });
+    if (rows[0]?.letterhead_foot_path && rows[0].letterhead_foot_path !== filePath) await removeAvatarFile(rows[0].letterhead_foot_path);
+
+    const letterheadFootV = Math.floor(Date.now() / 1000);
+    await pool.query(`UPDATE users SET letterhead_foot_path = :p, letterhead_foot_v = :v WHERE id = :id`,
+      { p: filePath, v: letterheadFootV, id: req.user.id });
+    res.json({ message: 'Footer banner updated.', has_letterhead_foot: true, letterhead_foot_v: letterheadFootV });
+  } catch (err) {
+    next(err);
+  }
+});
+
+/** GET /api/auth/letterhead-foot — stream the caller's own footer banner. */
+router.get('/letterhead-foot', requireAnyAuth, async (req, res, next) => {
+  try {
+    const [rows] = await pool.query(`SELECT letterhead_foot_path FROM users WHERE id = :id`, { id: req.user.id });
+    const footPath = rows[0]?.letterhead_foot_path;
+    if (!footPath) return res.status(404).json({ error: 'No footer banner.' });
+    const buf = await readProtectedFile(footPath);
+    res.set('Cache-Control', 'private, max-age=300');
+    res.set('X-Content-Type-Options', 'nosniff');
+    res.set('Content-Security-Policy', "default-src 'none'");
+    res.type(AVATAR_TYPES[path.extname(footPath).toLowerCase()] || 'application/octet-stream');
+    res.send(buf);
+  } catch (err) {
+    if (err?.code === 'ENOENT') return res.status(404).json({ error: 'No footer banner.' });
+    next(err);
+  }
+});
+
+/** DELETE /api/auth/letterhead-foot — remove the caller's print footer banner. */
+router.delete('/letterhead-foot', requireAnyAuth, async (req, res, next) => {
+  try {
+    const [rows] = await pool.query(`SELECT letterhead_foot_path FROM users WHERE id = :id`, { id: req.user.id });
+    await removeAvatarFile(rows[0]?.letterhead_foot_path);
+    await pool.query(`UPDATE users SET letterhead_foot_path = NULL, letterhead_foot_v = 0 WHERE id = :id`, { id: req.user.id });
+    res.json({ message: 'Footer banner removed.', has_letterhead_foot: false, letterhead_foot_v: 0 });
   } catch (err) {
     next(err);
   }

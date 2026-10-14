@@ -20,6 +20,8 @@ import { useToast } from '../components/Toast.jsx';
 import EmptyStateArt from '../components/EmptyStateArt.jsx';
 import api from '../lib/api.js';
 import { downloadCsv, downloadXlsx } from '../lib/exports.js';
+import PrintDocHead from '../components/PrintDocHead.jsx';
+import PrintDocFoot from '../components/PrintDocFoot.jsx';
 import AppShell from '../components/AppShell.jsx';
 import { useGridTable, DsPager, DsPageSize } from '../components/DataTable.jsx';
 import KpiCard from '../components/KpiCard.jsx';
@@ -258,11 +260,11 @@ export default function AnalyticsPage() {
 
       {/* ── Print document: a real report, not flattened app cards ── */}
       <div className="print-doc print-only">
-        <div className="print-doc-head">
-          <div className="pd-org">nexam — Results &amp; insights</div>
-          <div className="pd-title">Class Performance Report</div>
-          <div className="pd-meta">Generated {new Date().toLocaleString()} · {parseInt(o.total_scans || 0, 10)} scanned sheets across {parseInt(o.total_exams || 0, 10)} exams</div>
-        </div>
+        <PrintDocHead
+          org={<>nexam — Results &amp; insights</>}
+          title="Class Performance Report"
+          meta={<>Generated {new Date().toLocaleString()} · {parseInt(o.total_scans || 0, 10)} scanned sheets across {parseInt(o.total_exams || 0, 10)} exams</>}
+        />
 
         <div className="report-section-title">Summary</div>
         <table className="report-table">
@@ -340,10 +342,10 @@ export default function AnalyticsPage() {
           </>
         )}
 
-        <div className="print-doc-foot">
-          <span>nexam — Results &amp; insights</span>
-          <span>Class Performance Report</span>
-        </div>
+        <PrintDocFoot
+          left={<>nexam — Results &amp; insights</>}
+          right="Class Performance Report"
+        />
       </div>
 
       {/* ── Interactive UI (hidden on paper) ── */}
@@ -619,11 +621,11 @@ export function ExamDetail({ examId, detail, onBack }) {
 
       {/* ── Print document: a real report, not flattened app cards ── */}
       <div className="print-doc print-only">
-        <div className="print-doc-head">
-          <div className="pd-org">nexam — Results &amp; insights</div>
-          <div className="pd-title">{examTitle} — Exam Report</div>
-          <div className="pd-meta">Generated {new Date().toLocaleString()} · {parseInt(s.total_scans || 0, 10)} students · class average {fmtPct1(s.avg_score ?? 0)}%</div>
-        </div>
+        <PrintDocHead
+          org={<>nexam — Results &amp; insights</>}
+          title={<>{examTitle} — Exam Report</>}
+          meta={<>Generated {new Date().toLocaleString()} · {parseInt(s.total_scans || 0, 10)} students · class average {fmtPct1(s.avg_score ?? 0)}%</>}
+        />
 
         <div className="report-section-title">Summary</div>
         <table className="report-table">
@@ -687,10 +689,10 @@ export function ExamDetail({ examId, detail, onBack }) {
           </>
         )}
 
-        <div className="print-doc-foot">
-          <span>nexam — Results &amp; insights</span>
-          <span>{examTitle}</span>
-        </div>
+        <PrintDocFoot
+          left={<>nexam — Results &amp; insights</>}
+          right={examTitle}
+        />
       </div>
 
       {/* ── Interactive UI (hidden on paper) ── */}

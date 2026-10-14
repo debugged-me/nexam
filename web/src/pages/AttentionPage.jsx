@@ -15,6 +15,8 @@ import {
 } from 'lucide-react';
 import { useToast } from '../components/Toast.jsx';
 import EmptyStateArt from '../components/EmptyStateArt.jsx';
+import PrintDocHead from '../components/PrintDocHead.jsx';
+import PrintDocFoot from '../components/PrintDocFoot.jsx';
 import { useContextMenu, useCopyText } from '../components/ContextMenu.jsx';
 import { useGridTable, DsPager, DsPageSize } from '../components/DataTable.jsx';
 import KpiCard from '../components/KpiCard.jsx';
@@ -112,14 +114,14 @@ export default function AttentionPage() {
       {/* ── Print document ── */}
       {items.length > 0 && (
         <div className="print-doc print-only">
-          <div className="print-doc-head">
-            <div className="pd-org">nexam — Results &amp; insights</div>
-            <div className="pd-title">Items Needing Attention</div>
-            <div className="pd-meta">
+          <PrintDocHead
+            org={<>nexam — Results &amp; insights</>}
+            title="Items Needing Attention"
+            meta={<>
               Generated {new Date().toLocaleString()} · {items.length} item{items.length === 1 ? '' : 's'}
               {examFilter && exams.find((e) => e.id === examFilter) ? ` · ${exams.find((e) => e.id === examFilter).title}` : ''}
-            </div>
-          </div>
+            </>}
+          />
           <table className="report-table">
             <thead><tr><th>Question</th><th>Type</th><th>Exam</th><th>Topic</th><th>Bloom</th><th>Resp.</th><th>Correct %</th></tr></thead>
             <tbody ref={animateRows}>
@@ -136,10 +138,10 @@ export default function AttentionPage() {
               ))}
             </tbody>
           </table>
-          <div className="print-doc-foot">
-            <span>nexam — Results &amp; insights</span>
-            <span>Items Needing Attention</span>
-          </div>
+          <PrintDocFoot
+            left={<>nexam — Results &amp; insights</>}
+            right="Items Needing Attention"
+          />
         </div>
       )}
 

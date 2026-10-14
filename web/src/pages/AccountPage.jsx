@@ -12,7 +12,8 @@ import { PageLoader } from '../components/Loaders.jsx';
 import { useAuth } from '../features/auth/AuthContext.jsx';
 import UserAvatar from '../components/UserAvatar.jsx';
 import AvatarPickerModal from '../components/AvatarPickerModal.jsx';
-import { User, Lock, Mail, Calendar, Check, Save, Eye, EyeOff, Camera, Trash2, Palette } from 'lucide-react';
+import { useLetterheadSrc, useLetterheadFootSrc } from '../lib/useLetterheadSrc.js';
+import { Lock, Mail, Check, Save, Eye, EyeOff, Camera, Trash2, Palette } from 'lucide-react';
 
 function nameFormFrom(user) {
   return {
@@ -35,10 +36,75 @@ export default function AccountPage() {
   const [savingPw, setSavingPw] = useState(false);
   const [photoBusy, setPhotoBusy] = useState(false);
   const [pickerOpen, setPickerOpen] = useState(false);
+  const [lhBusy, setLhBusy] = useState(false);
+  const lhSrc = useLetterheadSrc(profile);
+  const lhFootSrc = useLetterheadFootSrc(profile);
 
   function handlePhotoUploaded(result) {
     setProfile((p) => (p ? { ...p, has_avatar: 1, avatar_v: result.avatar_v } : p));
     refreshUser?.();
+  }
+
+  async function handleLetterheadPick(e) {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    setLhBusy(true);
+    try {
+      const result = await api.uploadFile('/auth/letterhead', file);
+      setProfile((p) => (p ? { ...p, has_letterhead: 1, letterhead_v: result.letterhead_v } : p));
+      refreshUser?.();
+      toast.success('Letterhead saved — it will head your printed exams and reports.');
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : 'Could not upload the letterhead.');
+    } finally {
+      setLhBusy(false);
+    }
+  }
+
+  async function handleLetterheadRemove() {
+    setLhBusy(true);
+    try {
+      await api.del('/auth/letterhead');
+      setProfile((p) => (p ? { ...p, has_letterhead: 0, letterhead_v: 0 } : p));
+      refreshUser?.();
+      toast.success('Letterhead removed — printouts use the default header again.');
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : 'Could not remove the letterhead.');
+    } finally {
+      setLhBusy(false);
+    }
+  }
+
+  async function handleFootPick(e) {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    setLhBusy(true);
+    try {
+      const result = await api.uploadFile('/auth/letterhead-foot', file);
+      setProfile((p) => (p ? { ...p, has_letterhead_foot: 1, letterhead_foot_v: result.letterhead_foot_v } : p));
+      refreshUser?.();
+      toast.success('Footer banner saved — it prints at the bottom of your documents.');
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : 'Could not upload the footer banner.');
+    } finally {
+      setLhBusy(false);
+    }
+  }
+
+  async function handleFootRemove() {
+    setLhBusy(true);
+    try {
+      await api.del('/auth/letterhead-foot');
+      setProfile((p) => (p ? { ...p, has_letterhead_foot: 0, letterhead_foot_v: 0 } : p));
+      refreshUser?.();
+      toast.success('Footer banner removed.');
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : 'Could not remove the footer banner.');
+    } finally {
+      setLhBusy(false);
+    }
   }
 
   async function handlePhotoRemove() {
@@ -103,34 +169,56 @@ export default function AccountPage() {
 
   if (!profile) return <AppShell pageClass="account" activeNav="account" pageTitle="Account"><PageLoader label="Loading your profile…" /></AppShell>;
 
-  const initials = (profile.full_name || 'U').split(' ').map((p) => p[0]).slice(0, 2).join('').toUpperCase();
+  const roleLabel = { instructor: 'Instructor', admin: 'Administrator', superadmin: 'Superadmin' }[profile.role] || 'Instructor';
 
   return (
     <AppShell pageClass="account" activeNav="account" pageTitle="Account">
 
-      {/* Profile summary stats */}
-      <div className="stats-grid mb-3" data-tour="account-stats">
-        <div className="stat-card">
-          <div className="stat-icon blue"><User size={20} /></div>
-          <div className="stat-info">
-            <div className="stat-value stat-value-sm" title={profile.full_name}>{profile.full_name}</div>
-            <div className="stat-label">Name</div>
+      {/* Identity hero */}
+      <div className="card account-hero" data-tour="account-stats">
+        <UserAvatar user={profile} className="avatar account-hero-avatar" />
+        <div className="account-hero-meta">
+          <h2 className="account-hero-name">{profile.full_name}</h2>
+          <div className="account-hero-line">
+            <Mail size={13} />
+            <span>{profile.email}</span>
+            {profile.email_verified
+              ? <span className="badge badge-green">Verified</span>
+              : <span className="badge badge-amber">Unverified</span>}
+          </div>
+          <div className="account-hero-line account-hero-line--sub">
+            {roleLabel} · Member since {new Date(profile.created_at).toLocaleDateString('en', { month: 'long', day: 'numeric', year: 'numeric' })}
           </div>
         </div>
-        <div className="stat-card">
-          <div className="stat-icon green"><Mail size={20} /></div>
-          <div className="stat-info">
-            <div className="stat-value stat-value-sm stat-value-literal" title={profile.email}>{profile.email}</div>
-            <div className="stat-label">Email{profile.email_verified ? ' (Verified)' : ''}</div>
-          </div>
+        <div className="account-hero-actions">
+          <button
+            type="button"
+            className="btn btn-outline btn-sm"
+            disabled={photoBusy}
+            onClick={() => setPickerOpen(true)}
+          >
+            <Camera size={15} /> {profile.has_avatar ? 'Change photo' : 'Upload photo'}
+          </button>
+          {!!profile.has_avatar && (
+            <button
+              type="button"
+              className="btn btn-ghost btn-sm"
+              disabled={photoBusy}
+              onClick={handlePhotoRemove}
+            >
+              <Trash2 size={14} /> Remove
+            </button>
+          )}
+          <Link to="/appearance" className="btn btn-outline btn-sm">
+            <Palette size={15} /> Appearance
+          </Link>
         </div>
-        <div className="stat-card">
-          <div className="stat-icon amber"><Calendar size={20} /></div>
-          <div className="stat-info">
-            <div className="stat-value stat-value-sm">{new Date(profile.created_at).toLocaleDateString('en', { month: 'short', day: 'numeric', year: 'numeric' })}</div>
-            <div className="stat-label">Member Since</div>
-          </div>
-        </div>
+        {pickerOpen && (
+          <AvatarPickerModal
+            onClose={() => setPickerOpen(false)}
+            onUploaded={handlePhotoUploaded}
+          />
+        )}
       </div>
 
       <div className="detail-grid-2">
@@ -140,9 +228,6 @@ export default function AccountPage() {
           <div className="card-header">
             <span className="card-title">Profile</span>
             <div className="card-header-actions">
-              <Link to="/appearance" className="btn btn-outline btn-sm">
-                <Palette size={15} /> Appearance
-              </Link>
               {!editingName && (
                 <button type="button" className="btn btn-outline btn-sm" onClick={() => setEditingName(true)}>
                   <Lock size={16} /> Edit
@@ -151,38 +236,6 @@ export default function AccountPage() {
             </div>
           </div>
           <div className="card-body">
-            <div className="account-photo-row" data-tour="account-photo">
-              <UserAvatar user={profile} className="avatar account-photo" />
-              <div className="account-photo-meta">
-                <strong>Profile photo</strong>
-              </div>
-              <div className="account-photo-actions">
-                <button
-                  type="button"
-                  className="btn btn-outline btn-sm"
-                  disabled={photoBusy}
-                  onClick={() => setPickerOpen(true)}
-                >
-                  <Camera size={15} /> {profile.has_avatar ? 'Change' : 'Upload'}
-                </button>
-                {!!profile.has_avatar && (
-                  <button
-                    type="button"
-                    className="btn btn-outline btn-sm"
-                    disabled={photoBusy}
-                    onClick={handlePhotoRemove}
-                  >
-                    <Trash2 size={15} /> Remove
-                  </button>
-                )}
-              </div>
-              {pickerOpen && (
-                <AvatarPickerModal
-                  onClose={() => setPickerOpen(false)}
-                  onUploaded={handlePhotoUploaded}
-                />
-              )}
-            </div>
             {editingName ? (
               <form onSubmit={handleSaveName} noValidate>
                 <div className="form-row">
@@ -279,6 +332,81 @@ export default function AccountPage() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+
+        {/* Print letterhead — mini paper preview, Appearance-style */}
+        <div className="card account-letterhead-card" data-tour="account-letterhead">
+          <div className="card-header">
+            <span className="card-title">Print letterhead</span>
+          </div>
+          <div className="card-body">
+            <div className="lh-layout">
+              <div className="lh-doc" aria-hidden="true">
+                {lhSrc
+                  ? <img className="lh-doc-banner" src={lhSrc} alt="" />
+                  : <div className="lh-doc-org">nexam — Faculty workspace</div>}
+                <div className="lh-doc-title">Midterm Examination</div>
+                <div className="lh-doc-meta">PE 3 — Physical Education · 60 minutes · 30 items · Set A</div>
+                <div className="lh-doc-lines">
+                  <i style={{ width: '96%' }} /><i style={{ width: '88%' }} /><i style={{ width: '70%' }} />
+                </div>
+                <div className="lh-doc-bubbles">
+                  {['A', 'B', 'C', 'D'].map((l, i) => (
+                    <span key={l} className={`lh-bub${i === 1 ? ' is-key' : ''}`}>{l}</span>
+                  ))}
+                </div>
+                {lhFootSrc && <img className="lh-doc-footbanner" src={lhFootSrc} alt="" />}
+              </div>
+              <div className="lh-side">
+                <p>
+                  Banner images printed at the top — and optionally the bottom —
+                  of your exam papers, answer keys, and reports. The header
+                  replaces the default nexam title block.
+                </p>
+                <div className="lh-controls">
+                  <div className="lh-control">
+                    <div className="lh-control-meta">
+                      <strong>Header banner</strong>
+                      <small>Shown above the document title.</small>
+                    </div>
+                    <div className="lh-control-btns">
+                      <label className={`btn btn-outline btn-sm${lhBusy ? ' is-disabled' : ''}`}>
+                        <Camera size={15} /> {profile.has_letterhead ? 'Change' : 'Upload'}
+                        <input type="file" accept="image/png,image/jpeg,image/webp,image/gif" hidden disabled={lhBusy} onChange={handleLetterheadPick} />
+                      </label>
+                      {!!profile.has_letterhead && (
+                        <button type="button" className="btn btn-ghost btn-sm" disabled={lhBusy} onClick={handleLetterheadRemove}>
+                          <Trash2 size={14} /> Remove
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                  <div className="lh-control">
+                    <div className="lh-control-meta">
+                      <strong>Footer banner <small className="lh-optional">optional</small></strong>
+                      <small>Printed under the footer line.</small>
+                    </div>
+                    <div className="lh-control-btns">
+                      <label className={`btn btn-outline btn-sm${lhBusy ? ' is-disabled' : ''}`}>
+                        <Camera size={15} /> {profile.has_letterhead_foot ? 'Change' : 'Upload'}
+                        <input type="file" accept="image/png,image/jpeg,image/webp,image/gif" hidden disabled={lhBusy} onChange={handleFootPick} />
+                      </label>
+                      {!!profile.has_letterhead_foot && (
+                        <button type="button" className="btn btn-ghost btn-sm" disabled={lhBusy} onClick={handleFootRemove}>
+                          <Trash2 size={14} /> Remove
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+                <ul className="lh-notes">
+                  <li>Wide banner images look best (roughly 4:1 or wider).</li>
+                  <li>PNG, JPG, WebP, or GIF — up to 5 MB.</li>
+                  <li>Only you see and print your letterhead.</li>
+                </ul>
+              </div>
+            </div>
           </div>
         </div>
 

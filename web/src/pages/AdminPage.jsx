@@ -35,6 +35,8 @@ import { useToast } from '../components/Toast.jsx';
 import { useContextMenu, useCopyText } from '../components/ContextMenu.jsx';
 import { useConfirm } from '../components/ConfirmDialog.jsx';
 import Modal from '../components/Modal.jsx';
+import PrintDocHead from '../components/PrintDocHead.jsx';
+import PrintDocFoot from '../components/PrintDocFoot.jsx';
 import AppShell from '../components/AppShell.jsx';
 import Tooltip from '../components/Tooltip.jsx';
 import KpiCard from '../components/KpiCard.jsx';
@@ -2097,11 +2099,11 @@ function ReportsTab({ toast, scoped }) {
         <>
           {/* ── Print document: a paginated memo, not flattened app cards ── */}
           <div className="print-doc print-only">
-            <div className="print-doc-head">
-              <div className="pd-org">nexam — Administrator Console</div>
-              <div className="pd-title">{reportTitle}</div>
-              <div className="pd-meta">{printMeta}</div>
-            </div>
+            <PrintDocHead
+              org={<>nexam — Administrator Console</>}
+              title={reportTitle}
+              meta={printMeta}
+            />
 
             <div className="report-section-title">{scoped ? 'Totals' : 'System totals'}</div>
             <table className="report-table">
@@ -2155,10 +2157,10 @@ function ReportsTab({ toast, scoped }) {
               </>
             )}
 
-            <div className="print-doc-foot">
-              <span>nexam — Administrator Console</span>
-              <span>{reportTitle}</span>
-            </div>
+            <PrintDocFoot
+              left={<>nexam — Administrator Console</>}
+              right={reportTitle}
+            />
           </div>
 
           {/* ── Interactive UI (hidden on paper) ── */}

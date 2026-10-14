@@ -8,6 +8,8 @@
  * `includeKey` appends a separated answer-key page (instructor copy).
  */
 import { subjectLabel } from '../lib/subjectProgress.js';
+import PrintDocHead from './PrintDocHead.jsx';
+import PrintDocFoot from './PrintDocFoot.jsx';
 
 const TYPE_LABELS = {
   mcq: 'Multiple Choice',
@@ -29,16 +31,16 @@ export default function ExamPaper({ exam, questions, tos, setLabel = 'A', includ
     <div className="print-only">
       <div className="print-doc exam-paper">
         {/* ── Document header ─────────────────────────── */}
-        <div className="print-doc-head">
-          <div className="pd-org">{org}</div>
-          <div className="pd-title">{exam.title}</div>
-          <div className="pd-meta">
+        <PrintDocHead
+          org={org}
+          title={exam.title}
+          meta={<>
             {subjectLabel(exam)}
             {exam.duration_minutes ? ` · ${exam.duration_minutes} minutes` : ''}
             {` · ${items.length} items`}
             {setLabel ? ` · Set ${setLabel}` : ''}
-          </div>
-        </div>
+          </>}
+        />
 
         {/* ── Student fill-in ─────────────────────────── */}
         <div className="pd-student">
@@ -73,20 +75,20 @@ export default function ExamPaper({ exam, questions, tos, setLabel = 'A', includ
           <span className="pd-quote-by">— Christian D. Larson</span>
         </div>
 
-        <div className="print-doc-foot">
-          <span>{exam.title} · Set {setLabel} · {items.length} items</span>
-          <span>Generated {fmtDate()}{tos?.title ? ` · Blueprint: ${tos.title}` : ''}</span>
-        </div>
+        <PrintDocFoot
+          left={<>{exam.title} · Set {setLabel} · {items.length} items</>}
+          right={<>Generated {fmtDate()}{tos?.title ? ` · Blueprint: ${tos.title}` : ''}</>}
+        />
       </div>
 
       {/* ── Answer key (separate page, instructor copy) ── */}
       {includeKey && (
         <div className="print-doc answer-key">
-          <div className="print-doc-head">
-            <div className="pd-org">{org}</div>
-            <div className="pd-title">Answer Key — {exam.title}</div>
-            <div className="pd-meta">Set {setLabel} · {items.length} items · Instructor copy — do not distribute</div>
-          </div>
+          <PrintDocHead
+            org={org}
+            title={<>Answer Key — {exam.title}</>}
+            meta={<>Set {setLabel} · {items.length} items · Instructor copy — do not distribute</>}
+          />
           <div className="answer-key-grid">
             {items.map((q, i) => (
               <div className="ak" key={q.id}>
@@ -95,10 +97,10 @@ export default function ExamPaper({ exam, questions, tos, setLabel = 'A', includ
               </div>
             ))}
           </div>
-          <div className="print-doc-foot">
-            <span>Answer key · {exam.title} · Set {setLabel}</span>
-            <span>Generated {fmtDate()}</span>
-          </div>
+          <PrintDocFoot
+            left={<>Answer key · {exam.title} · Set {setLabel}</>}
+            right={<>Generated {fmtDate()}</>}
+          />
         </div>
       )}
     </div>

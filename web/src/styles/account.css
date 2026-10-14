@@ -67,6 +67,49 @@
 
 @media (max-width: 768px) { .account-layout { grid-template-columns: 1fr; } }
 
+/* Identity hero — avatar + name + contact line + actions, one roomy strip. */
+.account-hero {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  padding: 20px 22px;
+  margin-bottom: 16px;
+}
+.account-hero-avatar {
+  width: 72px;
+  height: 72px;
+  font-size: 1.5rem;
+  flex-shrink: 0;
+}
+.account-hero-meta { flex: 1; min-width: 0; }
+.account-hero-name {
+  font-family: var(--font-display);
+  font-size: 1.3rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--ink);
+  margin: 0 0 4px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.account-hero-line {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: var(--text-sm);
+  color: var(--ink-2);
+  min-width: 0;
+}
+.account-hero-line svg { color: var(--ink-faint); flex-shrink: 0; }
+.account-hero-line > span:first-of-type { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.account-hero-line--sub { color: var(--ink-3); font-size: var(--text-xs); margin-top: 3px; }
+.account-hero-actions { display: flex; gap: 8px; flex-shrink: 0; flex-wrap: wrap; justify-content: flex-end; }
+@media (max-width: 768px) {
+  .account-hero { flex-wrap: wrap; }
+  .account-hero-actions { width: 100%; justify-content: flex-start; }
+}
+
 /* Profile photo row */
 .account-photo-row {
   display: flex;
@@ -83,6 +126,94 @@
 @media (max-width: 560px) {
   .account-photo-row { flex-wrap: wrap; }
   .account-photo-actions { width: 100%; }
+}
+
+/* Print letterhead — a mini paper preview of what the print header becomes,
+   next to notes + actions. Spans the full detail grid. */
+.account-letterhead-card { grid-column: 1 / -1; }
+.lh-layout {
+  display: grid;
+  grid-template-columns: 1.4fr 1fr;
+  gap: 24px;
+  align-items: center;
+}
+.lh-doc {
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-sm);
+  padding: 16px 20px 14px;
+}
+.lh-doc-banner { display: block; width: 100%; max-height: 58px; object-fit: contain; }
+.lh-doc-footbanner { display: block; width: 100%; max-height: 58px; object-fit: contain; margin-top: 10px; }
+.lh-doc-org {
+  font: 700 9px var(--font-display);
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  text-align: center;
+  color: #555;
+}
+.lh-doc-title {
+  font: 700 15px var(--font-display);
+  letter-spacing: -0.01em;
+  text-align: center;
+  color: #111;
+  margin: 4px 0 2px;
+}
+.lh-doc-meta {
+  font-size: 9px;
+  text-align: center;
+  color: #666;
+  padding-bottom: 8px;
+  border-bottom: 2.5px double #222;
+  margin-bottom: 10px;
+}
+.lh-doc-lines i {
+  display: block;
+  height: 5px;
+  background: #E4E7EB;
+  border-radius: 2px;
+  margin: 5px 0;
+}
+.lh-doc-bubbles { display: flex; gap: 10px; margin-top: 8px; }
+.lh-bub {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 17px;
+  height: 17px;
+  border-radius: 50%;
+  border: 1.2px solid #9AA1A9;
+  font-size: 7.5px;
+  font-weight: 700;
+  color: #9AA1A9;
+}
+.lh-bub.is-key { background: #1F2430; border-color: #1F2430; color: #fff; }
+.lh-side p { font-size: var(--text-sm); color: var(--ink-2); margin: 0 0 12px; }
+.lh-controls { display: flex; flex-direction: column; gap: 10px; margin-bottom: 12px; }
+.lh-control {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface-2);
+}
+.lh-control-meta { min-width: 0; }
+.lh-control-meta strong { display: block; font-size: var(--text-sm); color: var(--ink); }
+.lh-control-meta small { display: block; font-size: var(--text-xs); color: var(--ink-3); margin-top: 1px; }
+.lh-control-meta .lh-optional { display: inline; color: var(--ink-faint); font-weight: 500; }
+.lh-control-btns { display: flex; gap: 6px; flex-shrink: 0; }
+.lh-notes { margin: 0; padding-left: 16px; font-size: var(--text-xs); color: var(--ink-3); }
+.lh-notes li { margin-bottom: 4px; }
+@media (max-width: 560px) {
+  .lh-control { flex-wrap: wrap; }
+}
+.btn.is-disabled { opacity: .55; pointer-events: none; }
+@media (max-width: 900px) {
+  .lh-layout { grid-template-columns: 1fr; }
 }
 
 /* Password visibility toggle (same metrics as the auth screens) */

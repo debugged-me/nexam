@@ -16,6 +16,8 @@ import { downloadCsv, downloadXlsx } from '../lib/exports.js';
 import AppShell from '../components/AppShell.jsx';
 import { TableSkeleton } from '../components/Loaders.jsx';
 import Modal from '../components/Modal.jsx';
+import PrintDocHead from '../components/PrintDocHead.jsx';
+import PrintDocFoot from '../components/PrintDocFoot.jsx';
 import { ItemScatterChart } from '../components/AnalyticsCharts.jsx';
 import { BLOOM_LABELS } from '../lib/insights.js';
 import { cleanOptionText, resolveAnswerIndex } from '../lib/questionAnswers.js';
@@ -126,11 +128,11 @@ export default function ItemAnalysisPage() {
 
       {items?.length > 0 && (
         <div className="print-doc print-only">
-          <div className="print-doc-head">
-            <div className="pd-org">nexam — Results &amp; insights</div>
-            <div className="pd-title">Item Analysis Report</div>
-            <div className="pd-meta">Generated {new Date().toLocaleString()} · {items.length} items</div>
-          </div>
+          <PrintDocHead
+            org={<>nexam — Results &amp; insights</>}
+            title="Item Analysis Report"
+            meta={<>Generated {new Date().toLocaleString()} · {items.length} items</>}
+          />
           <div className="report-section-title">Question performance</div>
           <table className="report-table">
             <thead>
@@ -140,10 +142,10 @@ export default function ItemAnalysisPage() {
               {itemRows.map((r, i) => <tr key={i}>{r.map((c, j) => <td key={j}>{c}</td>)}</tr>)}
             </tbody>
           </table>
-          <div className="print-doc-foot">
-            <span>nexam — Results &amp; insights</span>
-            <span>Item Analysis Report</span>
-          </div>
+          <PrintDocFoot
+            left={<>nexam — Results &amp; insights</>}
+            right="Item Analysis Report"
+          />
         </div>
       )}
 

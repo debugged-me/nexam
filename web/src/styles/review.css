@@ -301,6 +301,17 @@
 
 /* ---- Question content ------------------------------------------------ */
 
+/* Item number + stem — numbered like a printed test item. */
+.rv-item { display: flex; gap: 12px; }
+.rv-item-num {
+    flex: 0 0 auto;
+    padding-top: 2px;
+    font: 600 .78rem/1.6 var(--font-mono);
+    color: var(--ink-faint);
+    letter-spacing: .02em;
+}
+.rv-item .rv-stem { flex: 1 1 auto; min-width: 0; }
+
 .rv-stem {
     margin-bottom: var(--space-4);
     font-size: 1.0625rem;
@@ -350,21 +361,29 @@
 .rv-options-tf > li { flex: 1 1 180px; }
 .rv-options-tf > .rv-options-warn { flex: 1 1 100%; }
 
+/* OMR bubble — an open letter ring per option; the key shades solid ink,
+   so a draft reads like the answer sheet it will print on. */
 .rv-option-letter {
     flex: 0 0 auto;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 22px;
-    height: 22px;
-    border-radius: var(--radius-xs);
-    background: var(--surface-3);
+    width: 24px;
+    height: 24px;
+    margin-top: -1px;
+    border: 1.5px solid var(--ink-faint);
+    border-radius: 50%;
+    background: transparent;
     font-family: var(--font-display, "Google Sans", sans-serif);
-    font-size: var(--text-xs);
+    font-size: .64rem;
     font-weight: 700;
     color: var(--ink-3);
 }
-.rv-options li.is-correct .rv-option-letter { background: var(--green-100); color: var(--green-700); }
+.rv-options li.is-correct .rv-option-letter {
+    border-color: var(--ink);
+    background: var(--ink);
+    color: var(--surface);
+}
 
 .rv-option-text {
     flex: 1 1 auto;
@@ -424,28 +443,32 @@
     text-align: right;
 }
 
+/* The matched response letter is a shaded answer bubble. */
 .rv-match-letter {
     flex: 0 0 auto;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    min-width: 26px;
-    height: 24px;
-    padding: 0 6px;
-    border-radius: var(--radius-xs);
-    background: var(--green-50);
+    min-width: 25px;
+    height: 25px;
+    padding: 0;
+    border: 1.5px solid var(--ink);
+    border-radius: 50%;
+    background: var(--ink);
     font-family: var(--font-display, "Google Sans", sans-serif);
-    font-size: var(--text-sm);
+    font-size: .64rem;
     font-weight: 700;
-    color: var(--green-700);
+    color: var(--surface);
 }
 .rv-match-letter.is-missing { background: var(--amber-50); color: var(--amber-700); }
 
+/* Fill-in-the-blank reads as a write-in rule line, not a bordered box. */
 .rv-answer p {
-    padding: 10px 12px;
-    border: 1px solid var(--line);
-    border-radius: var(--radius);
-    background: var(--surface-2);
+    padding: 2px 2px 9px;
+    border: none;
+    border-bottom: 1.5px solid var(--line-strong);
+    border-radius: 0;
+    background: transparent;
     font-size: var(--text-base);
     line-height: 1.5;
     color: var(--ink);

@@ -102,13 +102,17 @@
    row with its own icon and target, not a 28px button. A blue top rule ties
    the pack to the brand without painting the whole card. */
 .print-packs { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px; }
+/* Each pack reads as a small stack of paper — a second sheet edge peeks
+   below the card so a set reads as a physical packet, not a list card. */
 .print-pack {
   position: relative;
   overflow: hidden;
   border: 1px solid var(--line);
   border-radius: var(--radius-lg);
   background: var(--surface);
-  box-shadow: var(--shadow-md);
+  box-shadow: var(--shadow-md),
+    0 6px 0 -2px var(--surface),
+    0 7px 0 -1.5px var(--line);
 }
 .print-pack::before { content: ''; position: absolute; inset: 0 0 auto 0; height: 1px; background: var(--line); }
 .print-pack-head {
@@ -118,16 +122,18 @@
   gap: 10px;
   padding: 16px 16px 12px;
 }
+/* The set label is stamped like the code box on a printed exam cover. */
 .print-pack-set {
   display: inline-flex;
   align-items: center;
-  min-height: 30px;
+  min-height: 27px;
   padding: 0 10px;
-  border-radius: 8px;
-  background: var(--surface-2);
-  color: var(--ink);
-  font: 650 .9375rem/1 var(--font-display, "Google Sans", sans-serif);
-  letter-spacing: -.01em;
+  border-radius: 7px;
+  background: var(--action-600);
+  color: #fff;
+  font: 700 .72rem/1 var(--font-display, "Google Sans", sans-serif);
+  letter-spacing: .08em;
+  text-transform: uppercase;
 }
 .print-pack-meta { color: var(--ink-3); font-size: .75rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .print-pack-qr { color: var(--ink-faint); }
@@ -162,6 +168,16 @@ button.print-pack-file {
   cursor: pointer;
 }
 button.print-pack-file > span { text-align: left; }
+
+/* The OMR row is the scannable artefact — set off by a dashed rule and a
+   real bubble strip under the label. */
+.print-pack-file.is-omr {
+  margin-top: 5px;
+  padding-top: 11px;
+  border-top: 1px dashed var(--line-strong);
+  border-radius: 0 0 9px 9px;
+}
+.pp-omr-bubbles { width: 48px; margin: 3px 0 1px; }
 
 /* OMR preview — the served PDF fills the modal body like a paper sheet. */
 .omr-preview-frame {

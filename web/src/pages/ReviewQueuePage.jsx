@@ -887,7 +887,10 @@ export default function ReviewQueuePage() {
                   />
                 ) : (
                   <>
-                    <RichText as="p" className="rv-stem" text={current.stem} />
+                    <div className="rv-item">
+                      <span className="rv-item-num" aria-hidden="true">{String(cursor + 1).padStart(2, '0')}.</span>
+                      <RichText as="p" className="rv-stem" text={current.stem} />
+                    </div>
                     <QuestionBody question={current} />
                     {current.explanation && (
                       <div className="rv-explanation">

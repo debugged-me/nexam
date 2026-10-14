@@ -27,6 +27,7 @@ import { CardsSkeleton } from '../components/Loaders.jsx';
 import { StatusPill, GroupChip, groupColor, statusOf } from '../components/Board.jsx';
 import StageRail from '../components/StageRail.jsx';
 import { PassDoughnut, DistBarChart } from '../components/AnalyticsCharts.jsx';
+import { Bubbles } from '../components/omr.jsx';
 import Reveal from '../components/Reveal.jsx';
 import celebrate from '../lib/celebrate.js';
 
@@ -414,8 +415,8 @@ export default function ExamDetailPage() {
                     <a className="print-pack-file" href={downloadUrl('answerkey', label)} target="_blank" rel="noreferrer">
                       <FileCheck size={16} aria-hidden="true" /><span><strong>Answer key</strong><small>PDF</small></span><Download size={14} aria-hidden="true" />
                     </a>
-                    <button type="button" className="print-pack-file is-btn" onClick={() => setOmrPreview(label)}>
-                      <ScanLine size={16} aria-hidden="true" /><span><strong>OMR sheet</strong><small>Preview · QR-linked</small></span><Eye size={14} aria-hidden="true" />
+                    <button type="button" className="print-pack-file is-btn is-omr" onClick={() => setOmrPreview(label)}>
+                      <ScanLine size={16} aria-hidden="true" /><span><strong>OMR sheet</strong><Bubbles className="pp-omr-bubbles" count={4} marked={1} /><small>Preview · QR-linked</small></span><Eye size={14} aria-hidden="true" />
                     </button>
                   </div>
                 </article>

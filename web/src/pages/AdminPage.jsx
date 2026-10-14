@@ -49,6 +49,7 @@ import { timeAgo } from '../lib/time.js';
 import { useAuth } from '../features/auth/AuthContext.jsx';
 import api, { ApiError } from '../lib/api.js';
 import { downloadCsv, downloadXlsx } from '../lib/exports.js';
+import { barsPng, multiLinePng } from '../lib/reportCharts.js';
 import { CountsBarChart, LoginTrendChart } from '../components/AnalyticsCharts.jsx';
 import { BLOOM_LABELS, BLOOM_ORDER } from '../lib/insights.js';
 
@@ -2049,12 +2050,16 @@ function ReportsTab({ toast, scoped }) {
   })();
   const jobRows = (data?.jobMix || []).map((r) => [r.kind, r.n, r.failed || 0]);
   const reportTitle = scoped ? 'Instructor Activity Report' : 'Institution Usage Report';
+  const reportMeta = {
+    title: reportTitle,
+    pairs: [
+      ['Generated', data ? new Date(data.generatedAt).toLocaleString() : ''],
+      ['Prepared by', user?.full_name || user?.email || ''],
+    ],
+  };
 
   function exportCsv() {
     const lines = [
-      [`nexam — ${reportTitle.toLowerCase()}`],
-      ['Generated', new Date(data.generatedAt).toLocaleString(), 'Prepared by', user?.email || ''],
-      [],
       ['Section', 'Metric', 'Value'],
       ...metricRows.map(([m, v]) => ['Totals', m, v]),
       [],
@@ -2076,17 +2081,48 @@ function ReportsTab({ toast, scoped }) {
     ];
     // downloadCsv takes uniform headers/rows — flatten into a single table.
     const maxCols = Math.max(...lines.map((l) => l.length));
-    downloadCsv('nexam-usage-report', Array(maxCols).fill(''), lines.map((l) => [...l, ...Array(maxCols - l.length).fill('')]));
+    downloadCsv('nexam-usage-report', Array(maxCols).fill(''), lines.map((l) => [...l, ...Array(maxCols - l.length).fill('')]), reportMeta);
   }
 
-  function exportXlsx() {
-    downloadXlsx('nexam-usage-report', [
+  async function exportXlsx() {
+    const charts = [
+      trendRows.length > 1 && {
+        title: 'Activity by month',
+        image: multiLinePng({
+          labels: trendRows.map((r) => r[0]),
+          series: scoped
+            ? [{ label: 'Scans', values: trendRows.map((r) => r[1]), color: '#2E7CD6' }]
+            : [
+                { label: 'Scans', values: trendRows.map((r) => r[1]), color: '#B07D1E' },
+                { label: 'Sign-ins', values: trendRows.map((r) => r[2]), color: '#2E7CD6' },
+                { label: 'Succeeded', values: trendRows.map((r) => r[3]), color: '#23A265' },
+              ],
+        }),
+      },
+      bloomRows.length && {
+        title: 'Questions by Bloom level',
+        image: barsPng({ horizontal: true, labels: bloomRows.map((r) => r[0]), values: bloomRows.map((r) => r[1]), pct: false, h: Math.max(210, bloomRows.length * 30 + 60) }),
+      },
+      typeRows.length && {
+        title: 'Questions by type',
+        image: barsPng({ labels: typeRows.map((r) => r[0]), values: typeRows.map((r) => r[1]), pct: false, h: 210 }),
+      },
+    ].filter(Boolean);
+    const kpis = metricRows.slice(0, 6).map(([m, v], i) => ({ label: m, value: v, tone: ['blue', 'green', 'amber', 'rose'][i % 4] }));
+    downloadXlsx('nexam-usage-report', {
+      title: reportTitle,
+      subtitle: 'Institution usage report',
+      meta: reportMeta.pairs,
+      overview: { kpis, charts },
+      sheets: [
       { title: 'Totals', headers: ['Metric', 'Value'], rows: metricRows },
       { title: 'Instructors', headers: instructorCols, rows: instructorRows },
-      { title: 'Question mix', headers: ['Group', 'Value', 'Questions'], rows: [...bloomRows.map(([b, n]) => ['Bloom', b, n]), ...typeRows.map(([ty, n]) => ['Type', ty, n])] },
+      { title: 'Question mix', headers: ['Group', 'Value', 'Questions'], rows: [...bloomRows.map(([b, n]) => ['Bloom', b, n]), ...typeRows.map(([ty, n]) => ['Type', ty, n])],
+        footer: ['', 'Total', [...bloomRows, ...typeRows].reduce((a, r) => a + (r[1] || 0), 0)] },
       { title: 'Activity', headers: trendCols, rows: trendRows },
       ...(scoped ? [] : [{ title: 'AI jobs', headers: ['Kind', 'Runs', 'Failed'], rows: jobRows }]),
-    ]);
+      ],
+    });
   }
 
   const printMeta = `Generated ${data ? fmtTime(data.generatedAt) : ''} · Prepared by ${user?.full_name || user?.email || 'administrator'}`;

@@ -20,6 +20,7 @@ import { useToast } from '../components/Toast.jsx';
 import EmptyStateArt from '../components/EmptyStateArt.jsx';
 import api from '../lib/api.js';
 import { downloadCsv, downloadXlsx } from '../lib/exports.js';
+import { barsPng, linePng, bandColor } from '../lib/reportCharts.js';
 import PrintDocHead from '../components/PrintDocHead.jsx';
 import PrintDocFoot from '../components/PrintDocFoot.jsx';
 import AppShell from '../components/AppShell.jsx';
@@ -192,11 +193,13 @@ export default function AnalyticsPage() {
   const weakExportRows = weakItems.map((w) => [w.stem, w.exam_title, parseInt(w.responses || 0, 10), `${w.correctRate}%`]);
   const scanExportRows = recentScans.map((rs) => [rs.student_name || 'Unknown', rs.exam_title, `${Number(rs.score || 0).toFixed(1)}%`, fmtScanned(rs.scanned_at)]);
 
+  const reportMeta = {
+    title: 'Results & insights report',
+    pairs: [['Generated', new Date().toLocaleString()]],
+  };
+
   function exportCsv() {
     const lines = [
-      ['nexam — Results & insights report'],
-      ['Generated', new Date().toLocaleString()],
-      [],
       ['Summary', 'Metric', 'Value'],
       ...summaryRows.map(([m, v]) => ['', m, v]),
       [],
@@ -219,19 +222,47 @@ export default function AnalyticsPage() {
       ...scanExportRows.map((r) => ['', ...r]),
     ];
     const maxCols = Math.max(...lines.map((l) => l.length));
-    downloadCsv('nexam-analytics-report', Array(maxCols).fill(''), lines.map((l) => [...l, ...Array(maxCols - l.length).fill('')]));
+    downloadCsv('nexam-analytics-report', Array(maxCols).fill(''), lines.map((l) => [...l, ...Array(maxCols - l.length).fill('')]), reportMeta);
   }
 
-  function exportXlsx() {
-    downloadXlsx('nexam-analytics-report', [
+  async function exportXlsx() {
+    const pct = (v) => { const n = parseFloat(v); return Number.isFinite(n) ? n : null; };
+    const charts = [
+      examAvgRows.length && {
+        title: 'Average score by exam',
+        image: barsPng({ labels: examAvgRows.map((r) => r[0]), values: examAvgRows.map((r) => pct(r[3]) ?? 0), banded: true }),
+      },
+      themeExportRows.length && {
+        title: 'Mastery by topic',
+        image: barsPng({ horizontal: true, banded: true, labels: themeExportRows.map((r) => r[0]), values: themeExportRows.map((r) => pct(r[3]) ?? 0), h: Math.max(230, themeExportRows.length * 32 + 70) }),
+      },
+      bloomExportRows.length && {
+        title: 'Mastery by cognitive level',
+        image: barsPng({ labels: bloomExportRows.map((r) => r[0]), values: bloomExportRows.map((r) => pct(r[3]) ?? 0), banded: true }),
+      },
+      trendExportRows.length > 1 && {
+        title: 'Class average trend',
+        image: linePng({ labels: trendExportRows.map((r) => r[0]), values: trendExportRows.map((r) => pct(r[2]) ?? 0) }),
+      },
+    ].filter(Boolean);
+    const kpis = summaryRows.map(([m, v], i) => ({ label: m, value: v, tone: ['blue', 'green', 'amber', 'rose'][i % 4] }));
+    downloadXlsx('nexam-analytics-report', {
+      title: 'Results & insights',
+      subtitle: 'Performance across exams, topics, and cognitive levels',
+      meta: reportMeta.pairs,
+      overview: { kpis, charts },
+      sheets: [
       { title: 'Summary', headers: ['Metric', 'Value'], rows: summaryRows },
       { title: 'Exam averages', headers: ['Exam', 'Subject', 'Scans', 'Average', 'Lowest', 'Highest'], rows: examAvgRows },
-      { title: 'Mastery by topic', headers: ['Topic', 'Items', 'Responses', 'Correct %'], rows: themeExportRows },
-      { title: 'Cognitive level', headers: ['Level', 'Items', 'Responses', 'Correct %'], rows: bloomExportRows },
+      { title: 'Mastery by topic', headers: ['Topic', 'Items', 'Responses', 'Correct %'], rows: themeExportRows,
+        footer: ['Total', themeExportRows.reduce((a, r) => a + r[1], 0), themeExportRows.reduce((a, r) => a + r[2], 0), ''] },
+      { title: 'Cognitive level', headers: ['Level', 'Items', 'Responses', 'Correct %'], rows: bloomExportRows,
+        footer: ['Total', bloomExportRows.reduce((a, r) => a + r[1], 0), bloomExportRows.reduce((a, r) => a + r[2], 0), ''] },
       { title: 'Score trend', headers: ['Date', 'Scans', 'Average %'], rows: trendExportRows },
       { title: 'Needs attention', headers: ['Question', 'Exam', 'Responses', 'Correct %'], rows: weakExportRows },
       { title: 'Recent scans', headers: ['Student', 'Exam', 'Score', 'Scanned'], rows: scanExportRows },
-    ]);
+      ],
+    });
   }
 
   return (
@@ -554,11 +585,16 @@ export function ExamDetail({ examId, detail, onBack }) {
   const setRows = (setComparison || []).map((sc) => [sc.set_label, parseInt(sc.scans || 0, 10), `${Number(sc.avg_score || 0).toFixed(1)}%`]);
   const distRows = BINS.map((b) => [`${b}–${b + 9}%`, parseInt(distMap[b] || 0, 10)]);
 
+  const examReportMeta = {
+    title: `${examTitle} — analytics report`,
+    pairs: [
+      ['Exam', examTitle],
+      ['Generated', new Date().toLocaleString()],
+    ],
+  };
+
   function exportCsv() {
     const lines = [
-      [`nexam — ${examTitle} — analytics report`],
-      ['Generated', new Date().toLocaleString()],
-      [],
       ['Summary', 'Metric', 'Value'],
       ...summaryRows.map(([m, v]) => ['', m, v]),
       [],
@@ -578,18 +614,50 @@ export function ExamDetail({ examId, detail, onBack }) {
       ...distRows.map((r) => ['', ...r]),
     ];
     const maxCols = Math.max(...lines.map((l) => l.length));
-    downloadCsv(`nexam-${examTitle.replace(/\W+/g, '-').toLowerCase()}-report`, Array(maxCols).fill(''), lines.map((l) => [...l, ...Array(maxCols - l.length).fill('')]));
+    downloadCsv(`nexam-${examTitle.replace(/\W+/g, '-').toLowerCase()}-report`, Array(maxCols).fill(''), lines.map((l) => [...l, ...Array(maxCols - l.length).fill('')]), examReportMeta);
   }
 
-  function exportXlsx() {
-    downloadXlsx(`nexam-${examTitle.replace(/\W+/g, '-').toLowerCase()}-report`, [
+  async function exportXlsx() {
+    const pct = (v) => { const n = parseFloat(v); return Number.isFinite(n) ? n : null; };
+    const charts = [
+      distRows.some((r) => r[1] > 0) && {
+        title: 'Score distribution',
+        image: barsPng({
+          labels: distRows.map((r) => r[0]), values: distRows.map((r) => r[1]), pct: false,
+          colors: BINS.map((b) => bandColor(b + 5)), maxLabel: 8,
+        }),
+      },
+      setRows.length > 1 && {
+        title: 'Set comparison — average score',
+        image: barsPng({ labels: setRows.map((r) => `Set ${r[0]}`), values: setRows.map((r) => pct(r[2]) ?? 0), banded: true, h: 200 }),
+      },
+      themeExportRows.length && {
+        title: 'Mastery by topic',
+        image: barsPng({ horizontal: true, banded: true, labels: themeExportRows.map((r) => r[0]), values: themeExportRows.map((r) => pct(r[3]) ?? 0), h: Math.max(230, themeExportRows.length * 32 + 70) }),
+      },
+      bloomExportRows.length && {
+        title: 'Mastery by cognitive level',
+        image: barsPng({ labels: bloomExportRows.map((r) => r[0]), values: bloomExportRows.map((r) => pct(r[3]) ?? 0), banded: true }),
+      },
+    ].filter(Boolean);
+    const kpis = summaryRows.map(([m, v], i) => ({ label: m, value: v, tone: ['blue', 'green', 'amber', 'rose'][i % 4] }));
+    downloadXlsx(`nexam-${examTitle.replace(/\W+/g, '-').toLowerCase()}-report`, {
+      title: examTitle,
+      subtitle: 'Exam analytics',
+      meta: examReportMeta.pairs,
+      overview: { kpis, charts },
+      sheets: [
       { title: 'Summary', headers: ['Metric', 'Value'], rows: summaryRows },
-      { title: 'Student scores', headers: ['#', 'Student', 'Set', 'Score', 'Correct', 'Status', 'Scanned'], rows: studentRows },
-      { title: 'Mastery by topic', headers: ['Topic', 'Items', 'Responses', 'Correct %'], rows: themeExportRows },
-      { title: 'Cognitive level', headers: ['Level', 'Items', 'Responses', 'Correct %'], rows: bloomExportRows },
+      { title: 'Student scores', headers: ['#', 'Student', 'Set', 'Score', 'Correct', 'Status', 'Scanned'], rows: studentRows,
+        footer: ['', 'TOTAL', '', '', '', `${studentRows.length} students`, ''] },
+      { title: 'Mastery by topic', headers: ['Topic', 'Items', 'Responses', 'Correct %'], rows: themeExportRows,
+        footer: ['Total', themeExportRows.reduce((a, r) => a + r[1], 0), themeExportRows.reduce((a, r) => a + r[2], 0), ''] },
+      { title: 'Cognitive level', headers: ['Level', 'Items', 'Responses', 'Correct %'], rows: bloomExportRows,
+        footer: ['Total', bloomExportRows.reduce((a, r) => a + r[1], 0), bloomExportRows.reduce((a, r) => a + r[2], 0), ''] },
       { title: 'Set comparison', headers: ['Set', 'Scans', 'Average %'], rows: setRows },
       { title: 'Distribution', headers: ['Range', 'Students'], rows: distRows },
-    ]);
+      ],
+    });
   }
 
   return (

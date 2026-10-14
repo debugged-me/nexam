@@ -13,6 +13,7 @@ import EmptyStateArt from '../components/EmptyStateArt.jsx';
 import { useContextMenu, useCopyText } from '../components/ContextMenu.jsx';
 import api from '../lib/api.js';
 import { downloadCsv, downloadXlsx } from '../lib/exports.js';
+import { barsPng } from '../lib/reportCharts.js';
 import AppShell from '../components/AppShell.jsx';
 import { TableSkeleton } from '../components/Loaders.jsx';
 import Modal from '../components/Modal.jsx';
@@ -59,13 +60,14 @@ export default function ItemAnalysisPage() {
   const toast = useToast();
   const navigate = useNavigate();
   const [items, setItems] = useState(() => api.peek(`/analytics/exam/${examId}/items`)?.items ?? null);
+  const [examInfo, setExamInfo] = useState(() => api.peek(`/analytics/exam/${examId}/items`)?.exam ?? null);
   const [selected, setSelected] = useState(null);
   const { menuEl, openMenu } = useContextMenu();
   const copyText = useCopyText();
 
   const load = useCallback(() => {
     api.get(`/analytics/exam/${examId}/items`)
-      .then((d) => setItems(d.items || []))
+      .then((d) => { setItems(d.items || []); setExamInfo(d.exam || null); })
       .catch((err) => {
         toast.error(err.message || 'Item analysis not found.');
         navigate('/analytics');
@@ -97,12 +99,46 @@ export default function ItemAnalysisPage() {
   });
   const ITEM_HEADERS = ['#', 'Set', 'Question', 'Correct answer', 'Correct rate', 'Difficulty', 'Discrimination (r)', 'Responses', 'Ambiguous', 'Distribution'];
 
+  const reportMeta = {
+    title: 'Item analysis',
+    pairs: [
+      ['Exam', examInfo?.title || ''],
+      ['Subject', examInfo?.subject || ''],
+      ['Generated', new Date().toLocaleString()],
+    ],
+  };
+
   function exportCsv() {
-    downloadCsv('nexam-item-analysis', ITEM_HEADERS, itemRows);
+    downloadCsv('nexam-item-analysis', ITEM_HEADERS, itemRows, reportMeta);
   }
 
-  function exportXlsx() {
-    downloadXlsx('nexam-item-analysis', [{ title: 'Item analysis', headers: ITEM_HEADERS, rows: itemRows }]);
+  async function exportXlsx() {
+    const rates = (items || []).map((it) => it.correctRate);
+    const kpis = [
+      { label: 'Items analyzed', value: items?.length ?? 0, tone: 'blue' },
+      { label: 'Mean correct rate', value: rates.length ? `${(rates.reduce((a, b) => a + b, 0) / rates.length).toFixed(1)}%` : '—', tone: 'green' },
+      { label: 'Hard items (<30%)', value: (items || []).filter((it) => it.difficulty === 'hard').length, tone: 'amber' },
+      { label: 'Ambiguous marks', value: (items || []).reduce((a, it) => a + (it.ambiguousCount || 0), 0), tone: 'rose' },
+    ];
+    const charts = rates.length ? [{
+      title: 'Correct rate by item',
+      image: barsPng({
+        labels: (items || []).map((it) => `${it.itemNumber}${it.set ? ` ${it.set}` : ''}`),
+        values: rates, banded: true, h: 230, maxLabel: 8,
+      }),
+    }] : [];
+    downloadXlsx('nexam-item-analysis', {
+      title: 'Item analysis',
+      subtitle: examInfo ? `${examInfo.title} · ${examInfo.subject}` : '',
+      meta: reportMeta.pairs,
+      overview: { kpis, charts },
+      sheets: [{
+        title: 'Item analysis', headers: ITEM_HEADERS, rows: itemRows,
+        footer: [`${itemRows.length} items`, '', '', '', '', '', '',
+          (items || []).reduce((a, it) => a + (it.totalResponses || 0), 0),
+          (items || []).reduce((a, it) => a + (it.ambiguousCount || 0), 0), ''],
+      }],
+    });
   }
 
   return (

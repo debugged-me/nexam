@@ -238,7 +238,7 @@ router.get('/exam/:examId/items', requireAuth, async (req, res, next) => {
 
     // Ownership check
     const [examRows] = await pool.query(
-      `SELECT e.id FROM exams e
+      `SELECT e.id, e.title, s.name AS subject_name FROM exams e
        JOIN subjects s ON s.id = e.subject_id
        WHERE e.id = :examId AND s.instructor_id = :userId`,
       { examId, userId: req.user.id }
@@ -362,7 +362,7 @@ router.get('/exam/:examId/items', requireAuth, async (req, res, next) => {
       });
     }
 
-    res.json({ items: itemAnalysis });
+    res.json({ items: itemAnalysis, exam: { id: examRows[0].id, title: examRows[0].title, subject: examRows[0].subject_name } });
   } catch (err) {
     next(err);
   }

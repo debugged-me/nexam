@@ -115,6 +115,17 @@ export const env = {
     },
   },
 
+  // Google sign-in (SSO). clientId is the WEB OAuth client ID — public, the
+  // browser needs it to render the button. clientIds holds extra accepted
+  // audiences (Android/iOS client IDs) for mobile tokens. The DB settings
+  // `google_client_id` / `google_client_ids` override these at runtime.
+  google: {
+    clientId: process.env.GOOGLE_CLIENT_ID || '',
+    clientIds: (process.env.GOOGLE_CLIENT_IDS || '').split(',').map((s) => s.trim()).filter(Boolean),
+    // Only needed for the web popup (authorization-code) sign-in flow.
+    clientSecret: process.env.GOOGLE_CLIENT_SECRET || '',
+  },
+
   // SMTP used by the email service for verification and password-reset codes.
   smtp: {
     host: process.env.NEXAM_SMTP_HOST || 'mail.mati.gov.ph',

@@ -369,6 +369,43 @@ a { color: inherit; text-decoration: none; }
 .btn-register:disabled { opacity: .6; cursor: default; }
 .btn-register svg { width: 14px; height: 14px; }
 
+/* Divider + Google SSO button under the primary submit. */
+.auth-divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 16px 0 14px;
+  color: var(--ink-faint);
+  font-size: .75rem;
+}
+.auth-divider::before,
+.auth-divider::after {
+  content: '';
+  flex: 1;
+  border-top: 1px solid var(--line);
+}
+/* Google SSO — our own button (Google's iframe can't be forced to English).
+   Mirrors .btn-login sizing but uses the secondary outlined surface. */
+.btn-google {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+  height: 44px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface);
+  color: var(--ink);
+  font: 600 .875rem var(--font-body);
+  cursor: pointer;
+  transition: background-color .18s ease, border-color .18s ease, transform .18s ease;
+}
+.btn-google:hover:not(:disabled) { background: var(--surface-2); border-color: var(--line-strong); }
+.btn-google:active:not(:disabled) { transform: scale(.985); }
+.btn-google:disabled { opacity: .7; cursor: default; }
+.btn-google svg { flex: 0 0 auto; }
+
 .form-links { margin-top: 14px; text-align: center; }
 .form-links a { color: var(--action-600); font-size: .8125rem; font-weight: 500; }
 .form-links a:hover { text-decoration: underline; text-underline-offset: 3px; }

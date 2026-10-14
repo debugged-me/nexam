@@ -89,6 +89,36 @@ class AuthController {
     }
   }
 
+  /// The server's Google web client ID, or '' when SSO is not configured.
+  /// The login screen fetches this once to decide whether to show the button
+  /// and to pass it to the Google SDK as serverClientId.
+  Future<String> googleClientId(String baseUrl) =>
+      _api.fetchGoogleClientId(baseUrl: baseUrl);
+
+  /// Log in with a Google ID token minted by the google_sign_in SDK.
+  Future<bool> loginWithGoogle({
+    required String baseUrl,
+    required String idToken,
+  }) async {
+    _loading = true;
+    _error = null;
+
+    try {
+      session = await _api.loginWithGoogle(baseUrl: baseUrl, idToken: idToken);
+      await _store.saveSession(session!);
+      _loading = false;
+      return true;
+    } on ApiException catch (e) {
+      _error = e.message;
+      _loading = false;
+      return false;
+    } catch (e) {
+      _error = 'An unexpected error occurred.';
+      _loading = false;
+      return false;
+    }
+  }
+
   /// Replace the active session (after a profile edit) and persist it.
   Future<void> applySession(InstructorSession updated) async {
     session = updated;

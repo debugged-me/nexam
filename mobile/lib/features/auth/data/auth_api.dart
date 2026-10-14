@@ -44,6 +44,41 @@ class AuthApi {
     return InstructorSession.fromApi(data, baseUrl: normalizeBaseUrl(baseUrl));
   }
 
+  /// GET /api/auth/google-client — the web client ID used as serverClientId
+  /// when minting a Google ID token. Empty string means the server has no
+  /// Google sign-in configured and the button should stay hidden.
+  Future<String> fetchGoogleClientId({required String baseUrl}) async {
+    try {
+      final response = await _safeRequest(
+        () => _client.get(_uri(baseUrl, '/api/auth/google-client')),
+      );
+      final data = _decode(response);
+      return data['clientId']?.toString() ?? '';
+    } catch (_) {
+      // SSO status is best-effort — a failure hides the button, it should
+      // never block the password form.
+      return '';
+    }
+  }
+
+  /// POST /api/auth/google — exchange a Google ID token for a JWT. New
+  /// emails are provisioned as instructors (active on auto-approve domains,
+  /// pending otherwise); the server returns the same shape as /login.
+  Future<InstructorSession> loginWithGoogle({
+    required String baseUrl,
+    required String idToken,
+  }) async {
+    final response = await _safeRequest(
+      () => _client.post(
+        _uri(baseUrl, '/api/auth/google'),
+        headers: _jsonHeaders,
+        body: jsonEncode({'credential': idToken}),
+      ),
+    );
+    final data = _decode(response);
+    return InstructorSession.fromApi(data, baseUrl: normalizeBaseUrl(baseUrl));
+  }
+
   /// GET /api/auth/me — verify the token is still valid and fetch the profile.
   Future<InstructorSession> fetchCurrentSession({
     required String baseUrl,

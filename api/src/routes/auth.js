@@ -3,6 +3,7 @@
  * Flutter mobile app:
  *
  *   POST /api/auth/login      — email + password → JWT
+ *   POST /api/auth/google     — Google ID token → JWT (auto-provisions)
  *   POST /api/auth/register   — create account, send OTP
  *   POST /api/auth/verify     — verify OTP code, mark email_verified
  *   POST /api/auth/resend     — resend OTP (rate-limited)
@@ -20,6 +21,7 @@ import { Router } from 'express';
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
 import crypto from 'crypto';
+import { OAuth2Client } from 'google-auth-library';
 import multer from 'multer';
 import fs from 'fs/promises';
 import path from 'path';
@@ -83,6 +85,37 @@ async function isAutoApproveDomain(email) {
   const allowed = String(raw).split(/[\s,]+/).map((d) => d.trim().toLowerCase()).filter(Boolean);
   const domain = String(email || '').split('@')[1]?.toLowerCase();
   return Boolean(domain) && allowed.some((a) => domain === a || domain.endsWith(`.${a}`));
+}
+
+/**
+ * Google sign-in audiences. `google_client_id` is the web OAuth client ID —
+ * the browser needs it to render the button, so it is not secret. Mobile
+ * clients mint ID tokens under their own platform client IDs, which the
+ * superadmin lists in `google_client_ids`; both are accepted audiences.
+ * DB settings override the env values.
+ */
+const googleOauth = new OAuth2Client();
+
+async function googleAudiences() {
+  const web = (await getSetting('google_client_id', env.google.clientId)) || '';
+  const extras = (await getSetting('google_client_ids', '')) || '';
+  const all = [web, ...extras.split(/[\s,]+/)]
+    .map((s) => s.trim())
+    .filter(Boolean);
+  return [...new Set([...all, ...env.google.clientIds])];
+}
+
+/**
+ * Exchange a web-popup authorization code for an ID token. 'postmessage' is
+ * Google's magic redirect_uri for the popup/hybrid flow — no real redirect.
+ */
+async function exchangeGoogleCode(code) {
+  const webId = String(await getSetting('google_client_id', env.google.clientId) || '').trim();
+  const secret = String(await getSetting('google_client_secret', env.google.clientSecret) || '').trim();
+  if (!webId || !secret) return null;
+  const client = new OAuth2Client(webId, secret, 'postmessage');
+  const { tokens } = await client.getToken(code);
+  return tokens.id_token || null;
 }
 
 // ── Login throttle: escalating delay between failed attempts ──
@@ -196,6 +229,21 @@ router.get('/captcha', async (req, res, next) => {
 });
 
 /**
+ * GET /api/auth/google-client
+ * Returns the web Google client ID so the client can render the sign-in
+ * button. Empty string when Google sign-in is not configured — clients hide
+ * the button in that case. Mobile apps use the same value as serverClientId.
+ */
+router.get('/google-client', async (req, res, next) => {
+  try {
+    const web = (await getSetting('google_client_id', env.google.clientId)) || '';
+    res.json({ clientId: String(web).trim() });
+  } catch (err) {
+    next(err);
+  }
+});
+
+/**
  * Enforce reCAPTCHA on requests marked client: 'web' (the React app sends
  * this marker; Flutter clients do not, so mobile auth is unaffected).
  */
@@ -280,6 +328,162 @@ router.post('/login', async (req, res, next) => {
     }
 
     loginClear(key);
+    logLogin({ userId: user.id, email, success: true, ip, userAgent: ua });
+
+    const token = jwt.sign(
+      { id: user.id, email: user.email, role: user.role },
+      env.jwt.secret,
+      { expiresIn: env.jwt.expiresIn }
+    );
+
+    res.json({
+      token,
+      user: {
+        id: user.id,
+        full_name: user.full_name,
+        email: user.email,
+        role: user.role,
+        has_avatar: !!user.avatar_path,
+        avatar_v: user.avatar_v,
+        has_letterhead: !!user.letterhead_path,
+        letterhead_v: user.letterhead_v,
+        has_letterhead_foot: !!user.letterhead_foot_path,
+        letterhead_foot_v: user.letterhead_foot_v,
+        theme: user.theme,
+        font: user.font,
+        text_size: user.text_size,
+        accent: user.accent,
+        radius: user.radius,
+      },
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+/**
+ * POST /api/auth/google
+ * Body: { credential } — a Google ID token (mobile SDK), or
+ *       { code }       — an authorization code from the web popup flow,
+ *                        exchanged server-side for an ID token.
+ *
+ * The token is verified against every configured client ID, then the email
+ * claim resolves the account. New emails are provisioned as instructors with
+ * email_verified=1 (Google already proved ownership): active immediately on
+ * an auto-approve domain, pending elsewhere — same rule as password
+ * registration. Existing accounts re-run the standard status checks. No
+ * reCAPTCHA: a verified Google account is stronger proof than the checkbox.
+ */
+router.post('/google', async (req, res, next) => {
+  try {
+    const { credential, code } = req.body || {};
+    const hasCredential = typeof credential === 'string' && credential.length >= 20 && credential.length <= 8192;
+    const hasCode = typeof code === 'string' && code.length >= 8 && code.length <= 4096;
+    if (!hasCredential && !hasCode) {
+      return res.status(400).json({ error: 'A Google sign-in token is required.' });
+    }
+
+    const ip = req.ip;
+    const key = rateKey('google', ip, ip);
+    if (rateExceeded(key, 20, 300)) {
+      return res.status(429).json({ error: 'Too many sign-in attempts. Please try again in a few minutes.' });
+    }
+
+    const audiences = await googleAudiences();
+    if (!audiences.length) {
+      return res.status(503).json({ error: 'Google sign-in is not configured on this server.' });
+    }
+
+    const ua = req.get('user-agent');
+
+    // Web popup flow: swap the authorization code for an ID token. Needs the
+    // web client secret — the mobile SDK path skips this entirely.
+    let idToken = hasCredential ? credential : null;
+    if (!idToken) {
+      try {
+        idToken = await exchangeGoogleCode(code);
+      } catch {
+        idToken = null;
+      }
+      if (!idToken) {
+        rateRecord(key, 300);
+        return res.status(401).json({ error: 'Google sign-in failed. Please try again.' });
+      }
+    }
+
+    let claims;
+    try {
+      const ticket = await googleOauth.verifyIdToken({ idToken, audience: audiences });
+      claims = ticket.getPayload();
+    } catch {
+      rateRecord(key, 300);
+      return res.status(401).json({ error: 'Google sign-in failed. Please try again.' });
+    }
+
+    const email = String(claims?.email || '').toLowerCase().trim();
+    const googleVerified = claims?.email_verified === true || claims?.email_verified === 'true';
+    if (!email || !googleVerified) {
+      return res.status(403).json({ error: 'Google could not verify that email address.' });
+    }
+
+    const fields = `id, full_name, email, password_hash, role, email_verified, status, avatar_path, avatar_v, letterhead_path, letterhead_v, letterhead_foot_path, letterhead_foot_v, theme, font, text_size, accent, radius`;
+    let [rows] = await pool.query(`SELECT ${fields} FROM users WHERE email = :email LIMIT 1`, { email });
+    let user = rows[0];
+    let created = false;
+
+    if (!user) {
+      // New Google user — provision an instructor. The random hash means the
+      // account has no password; a reset link can set one later if wanted.
+      const autoApprove = await isAutoApproveDomain(email);
+      const id = uuid();
+      const firstName = String(claims.given_name || '').trim().slice(0, 100)
+        || email.split('@')[0].slice(0, 100) || 'Instructor';
+      const lastName = String(claims.family_name || '').trim().slice(0, 100);
+      const password_hash = await bcrypt.hash(crypto.randomBytes(32).toString('hex'), 12);
+      await pool.query(
+        `INSERT INTO users
+           (id, email, password_hash, first_name, middle_name, last_name, name_ext, full_name, role, email_verified, status)
+         VALUES
+           (:id, :email, :password_hash, :first_name, '', :last_name, '', :full_name, 'instructor', 1, :status)`,
+        {
+          id, email, password_hash,
+          first_name: firstName,
+          last_name: lastName,
+          full_name: composeFullName(firstName, '', lastName, ''),
+          status: autoApprove ? 'active' : 'pending',
+        }
+      );
+      [rows] = await pool.query(`SELECT ${fields} FROM users WHERE id = :id LIMIT 1`, { id });
+      user = rows[0];
+      created = true;
+    } else if (!user.email_verified) {
+      // Google proves mailbox ownership — settle any dangling verification.
+      await pool.query(`UPDATE users SET email_verified = 1 WHERE id = :id`, { id: user.id });
+      user.email_verified = 1;
+    }
+
+    if (user.status === 'pending') {
+      logLogin({ userId: user.id, email, success: false, reason: 'pending_approval', ip, userAgent: ua });
+      return res.status(403).json({
+        error: created
+          ? 'Account registered via Google. Please wait for the administrator to approve it — you can sign in once approved.'
+          : 'Your account is awaiting approval by the administrator.',
+        pendingApproval: true,
+        accountCreated: created,
+      });
+    }
+
+    if (user.status === 'rejected') {
+      logLogin({ userId: user.id, email, success: false, reason: 'rejected', ip, userAgent: ua });
+      return res.status(403).json({ error: 'This account was not approved. Contact your administrator.' });
+    }
+
+    if (!['instructor', 'admin', 'superadmin'].includes(user.role)) {
+      logLogin({ userId: user.id, email, success: false, reason: 'role_denied', ip, userAgent: ua });
+      return res.status(403).json({ error: 'Nexam is restricted to faculty/instructor accounts.' });
+    }
+
+    rateClear(key);
     logLogin({ userId: user.id, email, success: true, ip, userAgent: ua });
 
     const token = jwt.sign(

@@ -15,6 +15,7 @@ import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { Mail, Lock, Eye, EyeOff, AlertCircle, ArrowRight } from 'lucide-react';
 import { useAuth } from './AuthContext.jsx';
 import { useToast } from '../../components/Toast.jsx';
+import GoogleSignInButton from '../../components/GoogleSignInButton.jsx';
 import api, { ApiError } from '../../lib/api.js';
 import { useAuthEntrance } from './authEntrance.js';
 import AuthGlow from './AuthGlow.jsx';
@@ -31,8 +32,19 @@ export default function LoginPage() {
   const [showPw, setShowPw] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [googleClientId, setGoogleClientId] = useState('');
 
   useAuthEntrance(pageRef);
+
+  // Google sign-in is optional — the server reports the web client ID only
+  // when a superadmin configured it; otherwise the button stays hidden.
+  useEffect(() => {
+    let live = true;
+    api.get('/auth/google-client')
+      .then((d) => { if (live && d?.clientId) setGoogleClientId(d.clientId); })
+      .catch(() => {});
+    return () => { live = false; };
+  }, []);
 
   // Post-verify redirect lands here with a one-shot toast in router state.
   useEffect(() => {
@@ -61,6 +73,21 @@ export default function LoginPage() {
         return;
       }
       setError(err.message || 'Sign-in failed. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleGoogleCode(code) {
+    setError('');
+    setLoading(true);
+    try {
+      const data = await api.post('/auth/google', { code });
+      login(data.token, data.user);
+      navigate(['admin', 'superadmin'].includes(data.user.role) ? '/admin/dashboard' : '/dashboard');
+    } catch (err) {
+      // The server message covers pending/rejected accounts — show it as-is.
+      setError(err.message || 'Google sign-in failed. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -181,6 +208,15 @@ export default function LoginPage() {
                 {!loading && <ArrowRight size={15} aria-hidden="true" />}
               </button>
             </div>
+
+            {googleClientId && (
+              <>
+                <div className="auth-divider anim-in"><span>or</span></div>
+                <div className="anim-in">
+                  <GoogleSignInButton clientId={googleClientId} onCode={handleGoogleCode} disabled={loading} />
+                </div>
+              </>
+            )}
 
             <div className="form-links anim-in">
               <Link to="/forgot">Forgot password?</Link>

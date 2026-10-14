@@ -412,6 +412,7 @@ router.get('/audit-logs', requireSuperadmin, async (req, res, next) => {
 const EDITABLE_KEYS = [
   'recaptcha_site_key',
   'recaptcha_secret_key',
+  'google_client_secret',
   'gemini_api_key',
   'gemini_model',
   'gemini_fallback_models',
@@ -440,6 +441,9 @@ router.get('/settings', requireSuperadmin, async (req, res, next) => {
     const ollamaKey = await getSetting('ollama_api_key', null);
     const ollamaModel = await getSetting('ollama_model', env.ai.ollama.model);
     const autoApproveDomains = await getSetting('auto_approve_domains', '');
+    const googleClientId = await getSetting('google_client_id', env.google.clientId);
+    const googleClientIds = await getSetting('google_client_ids', env.google.clientIds.join(','));
+    const googleClientSecret = await getSetting('google_client_secret', env.google.clientSecret);
     const cfg = await getAiConfig();
     // Which pool keys the page can edit: settings-held keys, or ones always
     // appended from api/.env (removable only there).
@@ -450,6 +454,13 @@ router.get('/settings', requireSuperadmin, async (req, res, next) => {
 
     res.json({
       autoApproveDomains,
+      google: {
+        // Client IDs are public (the browser needs one) — returned unmasked.
+        clientId: googleClientId || '',
+        clientIds: googleClientIds || '',
+        secretSet: Boolean(googleClientSecret),
+        secretMasked: mask(googleClientSecret),
+      },
       recaptcha: {
         siteKey,
         secretSet: Boolean(secret),
@@ -561,6 +572,35 @@ router.put('/settings', requireSuperadmin, async (req, res, next) => {
         { k: 'auto_approve_domains', v: [...new Set(parts)].join(',') }
       );
       changed.push('auto_approve_domains');
+    }
+    // Google client IDs are also always written — an empty web client ID is
+    // meaningful: it turns Google sign-in off.
+    const clientIdRe = /^[A-Za-z0-9][A-Za-z0-9._-]{0,199}$/;
+    if (typeof body.google_client_id === 'string') {
+      const v = body.google_client_id.trim();
+      if (v && !clientIdRe.test(v)) {
+        return res.status(400).json({ error: 'Enter the Google OAuth client ID, such as 123-abc.apps.googleusercontent.com.' });
+      }
+      await pool.query(
+        `INSERT INTO settings (setting_key, setting_value)
+         VALUES (:k, :v)
+         ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value)`,
+        { k: 'google_client_id', v }
+      );
+      changed.push('google_client_id');
+    }
+    if (typeof body.google_client_ids === 'string') {
+      const parts = body.google_client_ids.split(/[\s,]+/).map((s) => s.trim()).filter(Boolean);
+      if (parts.length > 10 || parts.some((p) => !clientIdRe.test(p))) {
+        return res.status(400).json({ error: 'Enter extra client IDs comma-separated, such as 123-abc.apps.googleusercontent.com.' });
+      }
+      await pool.query(
+        `INSERT INTO settings (setting_key, setting_value)
+         VALUES (:k, :v)
+         ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value)`,
+        { k: 'google_client_ids', v: [...new Set(parts)].join(',') }
+      );
+      changed.push('google_client_ids');
     }
     for (const key of EDITABLE_KEYS) {
       const v = body[key];

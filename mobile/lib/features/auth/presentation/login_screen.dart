@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/pill_field.dart';
@@ -34,6 +35,10 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _obscurePassword = true;
   bool _submitting = false;
 
+  /// The web client ID the server reports for Google sign-in — also the
+  /// serverClientId the SDK mints ID tokens against. Empty hides the button.
+  String _googleClientId = '';
+
   /// Sensible dev default: the Android emulator reaches the host machine
   /// through 10.0.2.2; everything else (web included) can try localhost
   /// first. Whatever the user last used still wins via [SessionStore].
@@ -47,6 +52,14 @@ class _LoginScreenState extends State<LoginScreen> {
     super.initState();
     final saved = widget.controller.savedBaseUrl;
     _baseUrl = saved.isNotEmpty ? saved : _platformDefaultUrl;
+    _loadGoogleConfig();
+  }
+
+  /// Whether the server has Google sign-in configured — best-effort, so a
+  /// failure just hides the button rather than blocking the form.
+  Future<void> _loadGoogleConfig() async {
+    final id = await widget.controller.googleClientId(_baseUrl);
+    if (mounted && id.isNotEmpty) setState(() => _googleClientId = id);
   }
 
   @override
@@ -71,6 +84,44 @@ class _LoginScreenState extends State<LoginScreen> {
       email: _emailController.text,
       password: _passwordController.text,
     );
+
+    if (!mounted) return;
+    setState(() => _submitting = false);
+
+    if (success) {
+      widget.onLoginSuccess();
+    } else if (widget.controller.error != null) {
+      _showError(widget.controller.error!);
+    }
+  }
+
+  /// Google SSO — the SDK mints an ID token whose audience is the server's
+  /// web client ID; the API verifies it and applies the same approval rules
+  /// as password sign-in. A cancelled sheet is silent, not an error.
+  Future<void> _submitGoogle() async {
+    FocusScope.of(context).unfocus();
+    setState(() => _submitting = true);
+
+    bool success = false;
+    try {
+      await GoogleSignIn.instance.initialize(serverClientId: _googleClientId);
+      final account = await GoogleSignIn.instance.authenticate();
+      final idToken = account.authentication.idToken;
+      if (idToken == null) {
+        throw StateError('Google did not return a sign-in token.');
+      }
+      success = await widget.controller.loginWithGoogle(
+        baseUrl: _baseUrl,
+        idToken: idToken,
+      );
+    } on GoogleSignInException catch (e) {
+      if (e.code != GoogleSignInExceptionCode.canceled &&
+          e.code != GoogleSignInExceptionCode.interrupted) {
+        _showError('Google sign-in failed. Please try again.');
+      }
+    } catch (_) {
+      _showError('Google sign-in failed. Please try again.');
+    }
 
     if (!mounted) return;
     setState(() => _submitting = false);
@@ -355,6 +406,54 @@ class _LoginScreenState extends State<LoginScreen> {
                                   )
                                 : const Text('Log In'),
                           ),
+                          if (_googleClientId.isNotEmpty) ...[
+                            const SizedBox(height: 16),
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: Divider(
+                                      color: AppTheme.cardBorder),
+                                ),
+                                Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 12),
+                                  child: Text(
+                                    'or',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: AppTheme.textMuted,
+                                    ),
+                                  ),
+                                ),
+                                Expanded(
+                                  child: Divider(
+                                      color: AppTheme.cardBorder),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 16),
+                            OutlinedButton(
+                              style: OutlinedButton.styleFrom(
+                                foregroundColor: AppTheme.textDark,
+                                minimumSize:
+                                    const Size(double.infinity, 54),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius:
+                                      BorderRadius.circular(16),
+                                ),
+                                side: BorderSide(
+                                    color: AppTheme.cardBorder),
+                              ),
+                              onPressed: _submitting
+                                  ? null
+                                  : _submitGoogle,
+                              child: const Text(
+                                'Continue with Google',
+                                style: TextStyle(
+                                    fontWeight: FontWeight.w600),
+                              ),
+                            ),
+                          ],
                         ],
                       ),
                     ),

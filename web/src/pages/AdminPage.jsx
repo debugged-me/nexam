@@ -1678,6 +1678,9 @@ function SettingsTab({ toast }) {
           recaptcha_site_key: d.recaptcha?.siteKey || '',
           recaptcha_secret_key: '',
           auto_approve_domains: d.autoApproveDomains || '',
+          google_client_id: d.google?.clientId || '',
+          google_client_ids: d.google?.clientIds || '',
+          google_client_secret: '',
           gemini_model: d.ai?.geminiModel || '',
           gemini_fallback_models: d.ai?.geminiFallbackModels || '',
           gemini_embedding_model: d.ai?.geminiEmbeddingModel || '',
@@ -1858,6 +1861,29 @@ function SettingsTab({ toast }) {
               {field('auto_approve_domains', 'Auto-approve email domains', {
                 placeholder: 'dorsu.edu.ph, deped.gov.ph',
                 hint: 'Verified emails on these domains (and their subdomains) activate instantly — all others wait for admin approval. Clear the field to require approval for everyone.',
+              })}
+            </div>
+          </section>
+
+          <section className="adm-card">
+            <header className="adm-card-head">
+              <LogIn size={15} />
+              <h3>Google sign-in</h3>
+              {data.google?.clientId && <span className="adm-tag adm-tag-ok">enabled</span>}
+            </header>
+            <div className="adm-card-body">
+              {field('google_client_id', 'Web client ID', {
+                placeholder: '123-abc.apps.googleusercontent.com',
+                hint: 'OAuth client ID from Google Cloud Console → Credentials. Shown to visitors, so it is not secret. Clear the field to turn Google sign-in off.',
+              })}
+              {field('google_client_secret', 'Web client secret', {
+                type: 'password',
+                placeholder: data.google?.secretMasked || 'Not configured',
+                hint: 'Needed for the web popup sign-in flow — copy it from the client_secret JSON Google gave you. Leave blank to keep the current secret.',
+              })}
+              {field('google_client_ids', 'Extra client IDs (mobile)', {
+                placeholder: 'Android/iOS client IDs, comma-separated',
+                hint: 'ID tokens issued to these platform client IDs are also accepted. Leave empty if the app uses the web client ID as its server client ID.',
               })}
             </div>
           </section>

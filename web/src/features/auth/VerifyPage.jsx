@@ -16,7 +16,6 @@ import api, { ApiError } from '../../lib/api.js';
 import { useAuth } from './AuthContext.jsx';
 import { useAuthEntrance } from './authEntrance.js';
 import AuthGlow from './AuthGlow.jsx';
-import { OmrSheet } from '../../components/omr.jsx';
 import CodeInput from './CodeInput.jsx';
 
 /** Format a wait time: 25 → "25s", 85 → "1m 25s". */
@@ -205,7 +204,6 @@ export default function VerifyPage() {
               </span>
             </li>
           </ol>
-          <OmrSheet className="auth-omr" rows={3} />
         </aside>
 
         {/* Form card */}

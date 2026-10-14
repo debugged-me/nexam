@@ -11,7 +11,6 @@ import { Mail, AlertCircle, ArrowRight } from 'lucide-react';
 import api, { ApiError } from '../../lib/api.js';
 import { useAuthEntrance } from './authEntrance.js';
 import AuthGlow from './AuthGlow.jsx';
-import { OmrSheet } from '../../components/omr.jsx';
 
 export default function ForgotPage() {
   const navigate = useNavigate();
@@ -83,7 +82,6 @@ export default function ForgotPage() {
               </span>
             </li>
           </ol>
-          <OmrSheet className="auth-omr" rows={3} />
         </aside>
 
         {/* Form card */}

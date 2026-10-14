@@ -145,20 +145,6 @@ a { color: inherit; text-decoration: none; }
 .auth-steps strong { display: block; font: 600 .8125rem var(--font-body); color: var(--ink); }
 .auth-steps small { display: block; margin-top: 1px; color: var(--ink-faint); font-size: .71875rem; }
 
-/* A mini answer sheet pinned in the brand panel's dead corner — the
-   product's signature at the first screen, tilted like a page corner. */
-.auth-omr {
-  position: absolute;
-  top: 30px;
-  right: 26px;
-  width: 108px;
-  transform: rotate(4deg);
-  opacity: .9;
-  pointer-events: none;
-}
-.auth-omr .omr-bubbles { width: 44px; height: 8px; }
-.auth-omr .omr-sheet-row i { font-size: .42rem; }
-
 /* ==========================================================================
    Form card
    ========================================================================== */

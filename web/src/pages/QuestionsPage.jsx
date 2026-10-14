@@ -31,6 +31,7 @@ import { TableSkeleton } from '../components/Loaders.jsx';
 import { animateRows } from '../lib/animRows.js';
 import { subjectLabel } from '../lib/subjectProgress.js';
 import EmptyStateArt from '../components/EmptyStateArt.jsx';
+import { TypeGlyph } from '../components/omr.jsx';
 import { JobsActivityPanel } from '../components/JobsList.jsx';
 import {
   StatusPill, BoardGroupHead,
@@ -861,7 +862,7 @@ export default function QuestionsPage() {
               <RichText text={stem} />
             </button>
             <span className="g-meta q-meta">
-              <span>{TYPE_LABELS[q.type] || q.type}</span>
+              <span><TypeGlyph type={q.type} />{TYPE_LABELS[q.type] || q.type}</span>
               {q.topic && <span title={q.topic}>{q.topic}</span>}
               {q.similarity_flag === 'flagged' && (
                 <Link to={`/questions/${q.id}/similarity`} className="sim-flag" title="Possible duplicate — click to review">

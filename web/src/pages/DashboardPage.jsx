@@ -28,6 +28,7 @@ import AppShell from '../components/AppShell.jsx';
 import KpiCard from '../components/KpiCard.jsx';
 import { CardsSkeleton } from '../components/Loaders.jsx';
 import { StatusPill } from '../components/Board.jsx';
+import { OmrSheet } from '../components/omr.jsx';
 import api, { ApiError } from '../lib/api.js';
 import { vtNavigate } from '../lib/viewTransitions.js';
 import { timeAgo } from '../lib/time.js';
@@ -90,7 +91,7 @@ const readDismissed = () => {
 };
 
 export default function DashboardPage() {
-  const { logout } = useAuth();
+  const { logout, user } = useAuth();
   const navigate = useNavigate();
   const [data, setData] = useState(() => api.peek('/dashboard') ?? null);
   const [error, setError] = useState('');
@@ -381,6 +382,13 @@ export default function DashboardPage() {
   const shownQueue = queueExpanded ? queue : queue.slice(0, 4);
   const hiddenCount = queueExpanded ? 0 : Math.max(0, queue.length - 4);
   const caughtUp = queue.length === 1 && queue[0].key === 'clear';
+
+  // Editorial head — the one place the app talks like a person. First name
+  // falls back to the full-name's first token; greeting follows the clock.
+  const hour = new Date().getHours();
+  const greeting = hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening';
+  const firstName = String(user?.first_name || user?.full_name || '').split(/\s+/)[0];
+  const todayLine = new Date().toLocaleDateString('en', { weekday: 'long', month: 'long', day: 'numeric' });
   const actions = [
     { label: 'Build an exam', hint: 'Guided, start to finish', to: '/wizard', icon: Sparkles, tint: 2 },
     { label: 'Add materials', hint: 'Upload course notes', to: '/materials?upload=1', icon: FolderOpen, tint: 3 },
@@ -437,6 +445,19 @@ export default function DashboardPage() {
   return (
     <AppShell activeNav="dashboard" pageTitle="Overview" pageClass="dashboard">
       <div className="dash-home">
+        <header className="dash-hero">
+          <div className="dash-hero-text">
+            <p className="dash-hero-date">{todayLine}</p>
+            <h1>{greeting}{firstName ? `, ${firstName}` : ''}.</h1>
+            <p className="dash-hero-sub">
+              {caughtUp
+                ? 'All caught up — your bank is ready when you are.'
+                : `${queue.length} ${queue.length === 1 ? 'thing needs' : 'things need'} your attention today.`}
+            </p>
+          </div>
+          <OmrSheet className="dash-hero-sheet" rows={4} />
+        </header>
+
         {visibleAnnouncements.length > 0 && (
           <div className="dash-announce" role="region" aria-label="Staff announcements">
             {visibleAnnouncements.map((a) => (

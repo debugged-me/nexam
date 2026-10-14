@@ -15,6 +15,7 @@ import api, { ApiError } from '../../lib/api.js';
 import Recaptcha from '../../components/Recaptcha.jsx';
 import { useAuthEntrance } from './authEntrance.js';
 import AuthGlow from './AuthGlow.jsx';
+import { OmrSheet } from '../../components/omr.jsx';
 
 export default function RegisterPage() {
   const navigate = useNavigate();
@@ -138,6 +139,7 @@ export default function RegisterPage() {
               </span>
             </li>
           </ol>
+          <OmrSheet className="auth-omr" rows={3} />
         </aside>
 
         {/* Form card */}

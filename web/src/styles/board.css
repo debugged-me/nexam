@@ -1052,24 +1052,30 @@ a.g-link:hover { color: var(--action-600); text-decoration: underline; text-unde
     white-space: nowrap;
 }
 
+/* The swatch became a six-segment step meter — fill length *is* the level,
+   so "Analyze" reads as 4-of-6 on the scale, not just another color. The
+   mask cuts one continuous fill into six cells (an answer-column rhythm);
+   data-level sets --fill, so every existing .g-bloom gets it for free. */
 .g-bloom::before {
     content: "";
-    width: 12px;
-    height: 12px;
+    width: 30px;
+    height: 9px;
     flex: 0 0 auto;
-    border-radius: 2px;
-    background: var(--line-strong);
-    /* The low end of the ramp (Remember) is near-white on a white row — a
-       hairline keeps every swatch visible without bending the scale. */
-    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--bloom-6) 30%, transparent);
+    background: linear-gradient(
+        90deg,
+        var(--bloom-5) var(--fill, 0%),
+        var(--surface-3) var(--fill, 0%)
+    );
+    -webkit-mask-image: repeating-linear-gradient(90deg, #000 0 3.6px, transparent 3.6px 5px);
+    mask-image: repeating-linear-gradient(90deg, #000 0 3.6px, transparent 3.6px 5px);
 }
 
-.g-bloom[data-level="1"]::before { background: var(--bloom-1); }
-.g-bloom[data-level="2"]::before { background: var(--bloom-2); }
-.g-bloom[data-level="3"]::before { background: var(--bloom-3); }
-.g-bloom[data-level="4"]::before { background: var(--bloom-4); }
-.g-bloom[data-level="5"]::before { background: var(--bloom-5); }
-.g-bloom[data-level="6"]::before { background: var(--bloom-6); }
+.g-bloom[data-level="1"]::before { --fill: 16.667%; }
+.g-bloom[data-level="2"]::before { --fill: 33.333%; }
+.g-bloom[data-level="3"]::before { --fill: 50%; }
+.g-bloom[data-level="4"]::before { --fill: 66.667%; }
+.g-bloom[data-level="5"]::before { --fill: 83.333%; }
+.g-bloom[data-level="6"]::before { --fill: 100%; }
 
 /* ---- Code chip — the one thing that stays a chip ---------------------- */
 

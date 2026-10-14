@@ -26,6 +26,7 @@ import RichText from '../components/RichText.jsx';
 import { useToast } from '../components/Toast.jsx';
 import { useContextMenu, useCopyText } from '../components/ContextMenu.jsx';
 import { groupColor } from '../components/Board.jsx';
+import { TypeGlyph } from '../components/omr.jsx';
 import api from '../lib/api.js';
 
 const BLOOM_LABELS = {
@@ -65,7 +66,7 @@ function QuestionMeta({ question }) {
         <span>{subjectLabel(question)}</span>
       </span>
       {level && <span className="g-bloom" data-level={level}>{BLOOM_LABELS[question.bloom]}</span>}
-      <span className="ib-meta-text">{TYPE_LABELS[question.type] || question.type}</span>
+      <span className="ib-meta-text"><TypeGlyph type={question.type} />{TYPE_LABELS[question.type] || question.type}</span>
       {question.topic && <span className="ib-meta-text ib-meta-topic" title={question.topic}>{question.topic}</span>}
       {!!question.owned_by_viewer && <span className="ib-yours">Yours</span>}
     </div>

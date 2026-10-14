@@ -15,6 +15,7 @@ import { Lock, Eye, EyeOff, AlertCircle, Mail, ArrowRight } from 'lucide-react';
 import api, { ApiError } from '../../lib/api.js';
 import { useAuthEntrance } from './authEntrance.js';
 import AuthGlow from './AuthGlow.jsx';
+import { OmrSheet } from '../../components/omr.jsx';
 import CodeInput from './CodeInput.jsx';
 
 export default function ResetPage() {
@@ -141,6 +142,7 @@ export default function ResetPage() {
               </span>
             </li>
           </ol>
+          <OmrSheet className="auth-omr" rows={3} />
         </aside>
 
         {/* Form card */}

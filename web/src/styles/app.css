@@ -672,13 +672,29 @@ a[class]:hover, button[class]:hover { transition-timing-function: ease-out; }
 /* Colored KPI identity — each card takes a wash of its icon color so the
    stats read distinctly from the page and from each other. The icon tile
    flips to a surface chip so it stays visible on the tinted card. */
-.stat-card:has(.stat-icon) .stat-icon { --tile-bg: var(--surface); }
-.stat-card:has(.stat-icon.blue)   { background: color-mix(in srgb, var(--blue-50) 72%, var(--surface));   border-color: var(--blue-100); }
-.stat-card:has(.stat-icon.green)  { background: color-mix(in srgb, var(--green-50) 72%, var(--surface));  border-color: var(--green-100); }
-.stat-card:has(.stat-icon.amber)  { background: color-mix(in srgb, var(--amber-50) 72%, var(--surface));  border-color: var(--amber-100); }
-.stat-card:has(.stat-icon.red)    { background: color-mix(in srgb, var(--red-50) 72%, var(--surface));    border-color: var(--red-100); }
-.stat-card:has(.stat-icon.purple) { background: color-mix(in srgb, var(--purple-50) 72%, var(--surface)); border-color: color-mix(in srgb, var(--purple-50) 70%, var(--purple-600)); }
-.stat-card:has(.stat-icon.cyan)   { background: color-mix(in srgb, var(--teal-50) 72%, var(--surface));   border-color: color-mix(in srgb, var(--teal-50) 70%, var(--teal-600)); }
+/* Tiles stay neutral paper — the accent lives on the icon chip and a small
+   index-tab edge (set below), so the strip reads as one system, not a
+   rainbow. A faint wash keyed to the icon hue keeps the tiles from going
+   fully flat. */
+.stat-card:has(.stat-icon.blue)   { --stat-gc: var(--blue-600); }
+.stat-card:has(.stat-icon.green)  { --stat-gc: var(--green-600); }
+.stat-card:has(.stat-icon.amber)  { --stat-gc: var(--amber-600); }
+.stat-card:has(.stat-icon.red)    { --stat-gc: var(--red-600); }
+.stat-card:has(.stat-icon.purple) { --stat-gc: var(--purple-600); }
+.stat-card:has(.stat-icon.cyan)   { --stat-gc: var(--teal-600); }
+.stat-card:has(.stat-icon) {
+  background: color-mix(in srgb, var(--stat-gc, var(--ink-faint)) 8%, var(--surface));
+  border-color: color-mix(in srgb, var(--stat-gc, var(--line)) 18%, var(--line));
+}
+.stat-card:has(.stat-icon)::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 16px;
+  width: 26px; height: 3px;
+  border-radius: 0 0 3px 3px;
+  background: var(--stat-gc, transparent);
+  opacity: .8;
+}
 .stat-card:hover { border-color: var(--line-strong); box-shadow: var(--shadow-card-hover); transform: translateY(-1px); }
 .stat-icon {
   position: absolute;
@@ -707,10 +723,10 @@ a[class]:hover, button[class]:hover { transition-timing-function: ease-out; }
 .stat-value {
   padding-right: 40px;
   font-family: var(--font-display, "Google Sans", sans-serif);
-  font-size: 1.55rem;
+  font-size: 1.9rem;
   font-weight: 700;
-  letter-spacing: -.03em;
-  line-height: 1.1;
+  letter-spacing: -.035em;
+  line-height: 1.05;
   color: var(--ink);
   font-variant-numeric: tabular-nums;
 }
@@ -746,19 +762,31 @@ a[class]:hover, button[class]:hover { transition-timing-function: ease-out; }
 .tint-8 { color: var(--gc-8); background: color-mix(in srgb, var(--gc-8) 12%, var(--surface)); }
 
 .dash-kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(220px, 100%), 1fr)); gap: 12px; }
-.dash-kpi { position: relative; display: flex; flex-direction: column; min-width: 0; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-lg); padding: 14px 16px; box-shadow: var(--shadow-md); overflow: hidden; transform: perspective(720px) rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg)); transition: border-color .16s, box-shadow .16s, transform .18s ease-out; text-decoration: none; color: var(--ink); }
-/* Colored KPI washes — same treatment as .stat-card: each card takes a
-   tint of its accent so the metrics read distinctly. Icon flips to a
-   surface chip so it stays visible on the tinted card. */
-.dash-kpi:has(.tint-1) { background: color-mix(in srgb, var(--gc-1) 12%, var(--surface)); border-color: color-mix(in srgb, var(--gc-1) 28%, var(--line)); }
-.dash-kpi:has(.tint-2) { background: color-mix(in srgb, var(--gc-2) 12%, var(--surface)); border-color: color-mix(in srgb, var(--gc-2) 28%, var(--line)); }
-.dash-kpi:has(.tint-3) { background: color-mix(in srgb, var(--gc-3) 12%, var(--surface)); border-color: color-mix(in srgb, var(--gc-3) 28%, var(--line)); }
-.dash-kpi:has(.tint-4) { background: color-mix(in srgb, var(--gc-4) 13%, var(--surface)); border-color: color-mix(in srgb, var(--gc-4) 28%, var(--line)); }
-.dash-kpi:has(.tint-5) { background: color-mix(in srgb, var(--gc-5) 12%, var(--surface)); border-color: color-mix(in srgb, var(--gc-5) 28%, var(--line)); }
-.dash-kpi:has(.tint-6) { background: color-mix(in srgb, var(--gc-6) 12%, var(--surface)); border-color: color-mix(in srgb, var(--gc-6) 28%, var(--line)); }
-.dash-kpi:has(.tint-7) { background: color-mix(in srgb, var(--gc-7) 12%, var(--surface)); border-color: color-mix(in srgb, var(--gc-7) 28%, var(--line)); }
-.dash-kpi:has(.tint-8) { background: color-mix(in srgb, var(--gc-8) 13%, var(--surface)); border-color: color-mix(in srgb, var(--gc-8) 28%, var(--line)); }
-.dash-kpi:not(.is-hero):has(.dash-kpi-icon) .dash-kpi-icon { background: var(--surface); }
+.dash-kpi { position: relative; display: flex; flex-direction: column; min-width: 0; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-lg); padding: 16px 16px 14px; box-shadow: var(--shadow-md); overflow: hidden; transform: perspective(720px) rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg)); transition: border-color .16s, box-shadow .16s, transform .18s ease-out; text-decoration: none; color: var(--ink); }
+/* Neutral paper tiles — each carries only a whisper of its group hue plus
+   a small index-tab edge keyed to the icon chip below, so the strip reads
+   as one system instead of a pastel rainbow. */
+.dash-kpi:has(.tint-1) { --tile-gc: var(--gc-1); }
+.dash-kpi:has(.tint-2) { --tile-gc: var(--gc-2); }
+.dash-kpi:has(.tint-3) { --tile-gc: var(--gc-3); }
+.dash-kpi:has(.tint-4) { --tile-gc: var(--gc-4); }
+.dash-kpi:has(.tint-5) { --tile-gc: var(--gc-5); }
+.dash-kpi:has(.tint-6) { --tile-gc: var(--gc-6); }
+.dash-kpi:has(.tint-7) { --tile-gc: var(--gc-7); }
+.dash-kpi:has(.tint-8) { --tile-gc: var(--gc-8); }
+.dash-kpi:not(.is-hero) {
+  background: color-mix(in srgb, var(--tile-gc, var(--ink-faint)) 8%, var(--surface));
+  border-color: color-mix(in srgb, var(--tile-gc, var(--line)) 18%, var(--line));
+}
+.dash-kpi:not(.is-hero)::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 16px;
+  width: 26px; height: 3px;
+  border-radius: 0 0 3px 3px;
+  background: var(--tile-gc, transparent);
+  opacity: .8;
+}
 .dash-kpi:hover { border-color: var(--line-strong); box-shadow: var(--shadow-sm); transform: perspective(720px) rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg)) translateY(-1px); }
 /* Pointer-tracked sheen — follows the cursor across the tile. */
 .dash-kpi::after {
@@ -783,7 +811,7 @@ a[class]:hover, button[class]:hover { transition-timing-function: ease-out; }
 .dash-kpi-arrow { color: var(--ink-faint); opacity: 0; transition: opacity .15s; }
 .dash-kpi:hover .dash-kpi-arrow { opacity: 1; }
 .dash-kpi-num { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
-.dash-kpi-num strong { font: 700 1.55rem/1.15 var(--font-display); letter-spacing: -.03em; font-variant-numeric: tabular-nums; }
+.dash-kpi-num strong { font: 700 1.9rem/1.1 var(--font-display); letter-spacing: -.035em; font-variant-numeric: tabular-nums; }
 .dash-kpi-label { font-size: .68rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--ink-faint); margin-top: 7px; }
 .dash-kpi > small { font-size: .72rem; color: var(--ink-faint); margin-top: 3px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .dash-delta { display: inline-flex; align-items: center; gap: 3px; font-size: .68rem; font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; }
@@ -2204,3 +2232,46 @@ select.form-control:not([multiple]) {
   border-radius: var(--radius);
   background: var(--surface-2);
 }
+
+/* ==========================================================================
+   OMR signature marks — the answer-sheet bubble as product identity.
+   Drawn quiet in ink so the motif does the talking, not color.
+   ========================================================================== */
+.omr-bubbles { display: block; }
+.omr-bubbles .omr-open { fill: none; stroke: var(--ink-faint); stroke-width: 1.1; }
+.omr-bubbles .omr-fill { fill: var(--ink-2); stroke: none; }
+
+.omr-type { display: inline-block; width: 24px; height: 10px; flex: 0 0 auto; vertical-align: -1px; margin-right: 5px; }
+.omr-type .omr-open { fill: none; stroke: var(--ink-faint); stroke-width: 1.15; }
+.omr-type .omr-fill { fill: var(--ink-2); }
+.omr-type .omr-link { fill: none; stroke: var(--ink-faint); stroke-width: 1.15; stroke-linecap: round; }
+.omr-type .omr-fill--soft { opacity: .65; }
+
+/* Mini answer-sheet fragment — a clipped card that bleeds off a corner,
+   so it reads as a real sheet under the workspace rather than an icon. */
+.omr-sheet {
+  display: grid;
+  gap: 7px;
+  padding: 11px 13px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: var(--surface);
+  box-shadow: var(--shadow-md);
+}
+.omr-sheet-head {
+  display: block;
+  height: 5px;
+  width: 62%;
+  border-radius: 3px;
+  background: var(--line-strong);
+  opacity: .75;
+}
+.omr-sheet-row { display: flex; align-items: center; gap: 8px; }
+.omr-sheet-row i {
+  font: 500 .5rem/1 var(--font-mono);
+  font-style: normal;
+  color: var(--ink-faint);
+  letter-spacing: .03em;
+}
+.omr-sheet-row .omr-bubbles { width: 52px; height: 9px; }
+@media print { .omr-sheet, .omr-type { display: none !important; } }

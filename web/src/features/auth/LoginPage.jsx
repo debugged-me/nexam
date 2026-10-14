@@ -18,6 +18,7 @@ import { useToast } from '../../components/Toast.jsx';
 import api, { ApiError } from '../../lib/api.js';
 import { useAuthEntrance } from './authEntrance.js';
 import AuthGlow from './AuthGlow.jsx';
+import { OmrSheet } from '../../components/omr.jsx';
 
 export default function LoginPage() {
   const { login } = useAuth();
@@ -107,6 +108,7 @@ export default function LoginPage() {
               </span>
             </li>
           </ol>
+          <OmrSheet className="auth-omr" rows={3} />
         </aside>
 
         {/* Form card */}

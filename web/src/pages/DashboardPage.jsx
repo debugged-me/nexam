@@ -134,7 +134,7 @@ function LiveRunBanner() {
   const cta = done && drafted > 0 ? 'Review them' : 'Watch it live';
 
   return (
-    <section className="dash-card dash-live" aria-labelledby="dash-live-title"
+    <section className="dash-card dash-live" aria-labelledby="dash-live-title" data-tour="dash-live"
       data-live={running ? 'true' : undefined} data-state={done ? 'done' : (status || job.status)}>
       <header className="dash-card-head">
         <h2 id="dash-live-title">

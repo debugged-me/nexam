@@ -394,7 +394,7 @@ export default function PipelinePage() {
         </div>
 
         {/* ── Breakdown panels ── */}
-        <div className="pc-row">
+        <div className="pc-row" data-tour="pipe-stats">
           <div className="pc-panel">
             <header className="pc-panel-head">
               <h3>Drafts by cognitive level</h3>

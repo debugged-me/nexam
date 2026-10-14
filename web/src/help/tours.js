@@ -86,6 +86,11 @@ export const TOURS = [
         description: 'Scan completed OMR sheets with the mobile app — item difficulty and class performance roll up here.',
       },
       {
+        sel: '[data-tour="nav-pipeline"]', minWidth: 992, side: 'right',
+        title: 'Watch the AI work',
+        description: 'How AI works is a live window into question generation — your blueprint feeds the pipeline, each stage lights as it runs, and you can see exactly where every question ends up.',
+      },
+      {
         sel: '[data-tour="shell-build"]', minWidth: 992, side: 'right',
         title: 'The shortcut',
         description: 'Build an exam walks this exact pipeline as a guided path — pick a subject and it carries you stage by stage.',
@@ -109,6 +114,11 @@ export const TOURS = [
         sel: '[data-tour="dash-focus"]', side: 'left',
         title: 'Where to look each day',
         description: 'A prioritized queue: scans needing verification, drafts awaiting review, named blueprint shortfalls, and publish-ready exams — each row deep-links to where the work happens.',
+      },
+      {
+        sel: '[data-tour="dash-live"]', side: 'left',
+        title: 'AI at work, right here',
+        description: 'While a generation run is live this card streams its progress — which cell it is writing, the outcome mix (queued, covered, reused, held), and drafts by cognitive level. Watch it live opens the full pipeline view; the card disappears when nothing is running.',
       },
       {
         title: 'That’s the whole system',
@@ -561,6 +571,11 @@ export const TOURS = [
         title: 'Runs and the brake',
         description: 'Switch between recent runs with the picker — finished runs replay their questions. Stop ends a live run cleanly; drafts already written stay in your queue.',
       },
+      {
+        sel: '[data-tour="pipe-stats"]', side: 'top',
+        title: 'Reading a run afterwards',
+        description: 'Below the graph, the donut shows where cells ended up, the bars spread drafts across Bloom levels, the pace line tracks writing speed, and the latest list previews each question — all replayable for finished runs.',
+      },
     ],
   },
   {
@@ -579,6 +594,11 @@ export const TOURS = [
         sel: '[data-tour="account-password"]', side: 'left',
         title: 'Security',
         description: 'Change your password here; the eye toggles reveal what you type.',
+      },
+      {
+        sel: '[data-tour="account-letterhead"]', side: 'left',
+        title: 'Your letterhead',
+        description: 'Upload your school or department letterhead (and an optional footer) — it heads every printed exam, answer key, and report you generate. Only you see it.',
       },
     ],
   },

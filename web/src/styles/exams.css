@@ -182,4 +182,92 @@
     table.grid.ex-table th.ex-c-act { width: 10%; }
 }
 
+/* ---- OMR readout — the page signature: a mini answer sheet shaded to the
+   class average beside the exam fact run, replacing generic KPI tiles. ----- */
+.ex-scanband {
+    display: flex;
+    align-items: center;
+    gap: 26px;
+    margin-bottom: 1.1rem;
+    padding: 15px 20px;
+    border: 1px solid var(--line);
+    border-radius: var(--radius-lg);
+    background: var(--surface);
+    box-shadow: var(--shadow-md);
+}
+.ex-scanband-lead { display: flex; align-items: center; gap: 14px; flex: none; }
+.ex-sheet {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 9px 11px 8px;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    background: var(--surface-2);
+}
+.ex-sheet-head { height: 3px; margin-bottom: 2px; border-radius: 2px; background: var(--line-strong); opacity: .5; }
+.ex-sheet-row { display: flex; align-items: center; gap: 4px; }
+.ex-sheet-n {
+    width: 10px;
+    flex: none;
+    color: var(--ink-faint);
+    font: 500 .48rem/1 var(--font-display);
+    font-style: normal;
+    text-align: right;
+}
+.ex-sheet-b { width: 7px; height: 7px; flex: none; border: 1px solid var(--ink-faint); border-radius: 50%; }
+.ex-sheet-b.is-marked { background: var(--ink-2); border-color: var(--ink-2); }
+.ex-scanband-score { display: flex; flex-direction: column; }
+.ex-scanband-score strong {
+    color: var(--ink);
+    font: 650 1.9rem/1.05 var(--font-display);
+    font-variant-numeric: tabular-nums;
+}
+.ex-scanband-cap { color: var(--ink-2); font-size: var(--text-xs); font-weight: 600; }
+.ex-scanband-sub { margin-top: 2px; color: var(--ink-faint); font-size: var(--text-xs); }
+.ex-scanband-facts {
+    display: flex;
+    flex: 1;
+    justify-content: flex-end;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+.ex-scanband-facts li { display: flex; flex-direction: column; align-items: flex-start; gap: 1px; padding: 0 18px; }
+.ex-scanband-facts li + li { border-left: 1px solid var(--line); }
+.ex-scanband-facts strong {
+    color: var(--ink);
+    font: 650 1.25rem/1.15 var(--font-display);
+    font-variant-numeric: tabular-nums;
+}
+.ex-scanband-facts span { color: var(--ink-3); font-size: var(--text-xs); white-space: nowrap; }
+
+/* Row meta chip — "8 sheets · 80%" for exams that have scans. */
+.ex-scan-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 1px 8px;
+    border: 1px solid var(--line);
+    border-radius: 99px;
+    background: var(--surface-2);
+    color: var(--ink-2);
+    font-size: .68rem;
+    font-weight: 600;
+}
+.ex-scan-chip svg { color: var(--ink-faint); }
+.ex-scan-chip em { color: var(--green-700); font-style: normal; }
+
+@media (max-width: 900px) {
+    .ex-scanband { flex-direction: column; align-items: stretch; gap: 14px; }
+    .ex-scanband-facts { justify-content: flex-start; }
+    .ex-scanband-facts li { padding: 0 14px; }
+    .ex-scanband-facts li:first-child { padding-left: 0; }
+}
+@media (max-width: 599px) {
+    .ex-scanband-facts { flex-wrap: wrap; gap: 10px 0; }
+    .ex-scanband-facts li { flex: 1 1 40%; padding: 0; }
+    .ex-scanband-facts li + li { border-left: 0; }
+}
+
 }

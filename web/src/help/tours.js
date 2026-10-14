@@ -158,6 +158,11 @@ export const TOURS = [
         description: 'Everything in nexam hangs off a subject. Create one and it unlocks its own materials shelf, blueprints, private question bank, and exams.',
       },
       {
+        sel: '[data-tour="subjects-pipe"]', side: 'bottom',
+        title: 'The whole pipeline at a glance',
+        description: 'Instead of bare totals, this funnel counts how many subjects have reached each stage — materials indexed, blueprint finalized, questions approved, exam assembled — so the backlog is visible. When drafts wait on you, a flag links straight to the review queue.',
+      },
+      {
         sel: '[data-tour="subjects-new"]', side: 'bottom', align: 'end',
         title: 'Create a subject',
         description: 'A name is enough to start. Once it exists, you can upload materials into it and begin building assessments.',
@@ -199,6 +204,11 @@ export const TOURS = [
       {
         title: 'Stage 3 · the exam’s contract',
         description: 'A Table of Specifications is the promise an exam makes: exactly how many items each topic and Bloom level contributes. Exams are assembled to satisfy it exactly.',
+      },
+      {
+        sel: '[data-tour="tos-band"]', side: 'bottom',
+        title: 'Every blueprint’s fill, in cells',
+        description: 'Each row is a blueprint; every cell is a share of its planned items — green is banked, blue waits on your approval, gray is still to generate. The matrix follows your search and filter, and a row click opens that blueprint.',
       },
       {
         sel: '[data-tour="tos-new"]', side: 'bottom', align: 'end',
@@ -372,6 +382,11 @@ export const TOURS = [
       {
         title: 'Where assessments ship',
         description: 'Every exam here is built only from questions you approved — the pipeline’s guarantees end as papers in your hand.',
+      },
+      {
+        sel: '[data-tour="exams-scanband"]', side: 'bottom',
+        title: 'The OMR readout',
+        description: 'The shaded answer sheet marks the class average across every scanned sheet; the fact run counts exams, published papers, drafts, and generated sets. Rows that have scans carry the same reading as a chip.',
       },
       {
         sel: '[data-tour="exams-new"]', side: 'bottom',

@@ -33,7 +33,7 @@ import { animateRows } from '../lib/animRows.js';
 import { timeAgo } from '../lib/time.js';
 import { subjectStages, nextStep, attentionScore } from '../lib/subjectProgress.js';
 import EmptyStateArt from '../components/EmptyStateArt.jsx';
-import { groupColor, StatCard } from '../components/Board.jsx';
+import { groupColor } from '../components/Board.jsx';
 
 const PAGE_SIZE = 25;
 const VIEW_KEY = 'nexam:subjects:view';
@@ -242,6 +242,21 @@ export default function SubjectsPage() {
     { drafts: 0, approved: 0, exams: 0 },
   ), [subjects]);
 
+  // The page's signature strip — a workflow funnel: how many subjects have
+  // reached each stage of materials → blueprint → questions → exam.
+  const pipeline = useMemo(() => {
+    const list = subjects || [];
+    const reach = (fn) => list.reduce((a, s) => a + (fn(s) ? 1 : 0), 0);
+    const pending = list.reduce((a, s) => a + (Number(s.material_pending) || 0), 0);
+    const bpDrafts = list.reduce((a, s) => a + Math.max(0, (Number(s.tos_count) || 0) - (Number(s.tos_finalized) || 0)), 0);
+    return [
+      { key: 'materials', label: 'Materials', count: reach((s) => Number(s.material_ready) > 0), sub: pending ? `${pending} processing` : 'indexed' },
+      { key: 'blueprint', label: 'Blueprint', count: reach((s) => Number(s.tos_finalized) > 0), sub: bpDrafts ? `${bpDrafts} in draft` : 'finalized' },
+      { key: 'questions', label: 'Questions', count: reach((s) => Number(s.approved_count) > 0), sub: totals.drafts ? `${totals.drafts} in review` : 'approved' },
+      { key: 'exam', label: 'Exam', count: reach((s) => Number(s.exam_count) > 0), sub: 'assembled' },
+    ];
+  }, [subjects, totals]);
+
   function toggleSelectMode() {
     setSelectMode((v) => {
       if (!v) setSelected(new Set());
@@ -399,12 +414,32 @@ export default function SubjectsPage() {
         </div>
       ) : (
         <>
-        <div className="stats-grid">
-          <StatCard icon={BookOpen} tint="blue" value={subjects.length} label="Subjects" />
-          <StatCard icon={ClipboardCheck} tint="amber" value={totals.drafts} label="Drafts to review" />
-          <StatCard icon={CircleCheck} tint="green" value={totals.approved} label="Approved questions" />
-          <StatCard icon={FileText} tint="cyan" value={totals.exams} label="Exams" />
-        </div>
+        <section className="sj-pipe" data-tour="subjects-pipe" aria-label="How far your subjects have progressed">
+          <div className="sj-pipe-lead">
+            <span className="sj-pipe-count">{subjects.length}</span>
+            <span className="sj-pipe-cap">{subjects.length === 1 ? 'subject' : 'subjects'} in the pipeline</span>
+          </div>
+          <ol className="sj-pipe-flow">
+            {pipeline.map((st) => (
+              <li key={st.key} className="sj-pipe-stage" data-on={st.count > 0 || undefined}>
+                <span className="sj-pipe-stage-head">
+                  <strong>{st.count}</strong>
+                  <span className="sj-pipe-of">of {subjects.length}</span>
+                </span>
+                <span className="sj-pipe-stage-bar" aria-hidden="true">
+                  <i style={{ width: `${subjects.length ? (st.count / subjects.length) * 100 : 0}%` }} />
+                </span>
+                <span className="sj-pipe-stage-name">{st.label}</span>
+                <span className="sj-pipe-stage-sub">{st.sub}</span>
+              </li>
+            ))}
+          </ol>
+          {totals.drafts > 0 && (
+            <Link to="/questions/review" className="sj-pipe-flag">
+              <strong>{totals.drafts}</strong> to review <ArrowRight size={13} aria-hidden="true" />
+            </Link>
+          )}
+        </section>
         <section
           className="dataset"
           data-dataset

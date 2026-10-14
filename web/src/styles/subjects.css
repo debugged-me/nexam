@@ -867,4 +867,87 @@ table.grid td.col-actions { background: var(--surface); z-index: 1; }
   }
 }
 
+/* ---- Pipeline strip — the page signature: how many subjects have reached
+   each workflow stage, replacing the generic four-tile KPI band. ---------- */
+.sj-pipe {
+    display: flex;
+    align-items: center;
+    gap: 26px;
+    margin-bottom: 1.1rem;
+    padding: 15px 20px;
+    border: 1px solid var(--line);
+    border-radius: var(--radius-lg);
+    background: var(--surface);
+    box-shadow: var(--shadow-md);
+}
+.sj-pipe-lead { display: flex; align-items: baseline; gap: 8px; flex: none; }
+.sj-pipe-count {
+    color: var(--ink);
+    font: 650 2rem/1 var(--font-display);
+    font-variant-numeric: tabular-nums;
+}
+.sj-pipe-cap { max-width: 96px; color: var(--ink-3); font-size: var(--text-xs); line-height: 1.35; }
+.sj-pipe-flow { display: flex; flex: 1; min-width: 0; margin: 0; padding: 0; list-style: none; }
+.sj-pipe-stage { position: relative; flex: 1; min-width: 0; padding: 0 16px; }
+.sj-pipe-stage:first-child { padding-left: 0; }
+.sj-pipe-stage:last-child { padding-right: 0; }
+.sj-pipe-stage + .sj-pipe-stage { border-left: 1px solid var(--line); }
+/* Chevron riding the divider — the "flows into" cue. */
+.sj-pipe-stage + .sj-pipe-stage::before {
+    content: '';
+    position: absolute;
+    left: -4.5px;
+    top: 10px;
+    width: 7px;
+    height: 7px;
+    border-top: 1.5px solid var(--line-strong);
+    border-right: 1.5px solid var(--line-strong);
+    background: var(--surface);
+    transform: rotate(45deg);
+}
+.sj-pipe-stage-head { display: flex; align-items: baseline; gap: 6px; }
+.sj-pipe-stage-head strong {
+    color: var(--ink-faint);
+    font: 650 1.4rem/1.1 var(--font-display);
+    font-variant-numeric: tabular-nums;
+}
+.sj-pipe-stage[data-on] .sj-pipe-stage-head strong { color: var(--ink); }
+.sj-pipe-of { color: var(--ink-faint); font-size: .68rem; white-space: nowrap; }
+.sj-pipe-stage-bar {
+    display: block;
+    height: 4px;
+    margin: 8px 0 7px;
+    overflow: hidden;
+    border-radius: 99px;
+    background: var(--surface-3);
+}
+.sj-pipe-stage-bar i { display: block; height: 100%; border-radius: inherit; background: var(--action-600); }
+.sj-pipe-stage-name { display: block; color: var(--ink-2); font-size: .72rem; font-weight: 600; }
+.sj-pipe-stage-sub { display: block; color: var(--ink-faint); font-size: .66rem; line-height: 1.35; }
+.sj-pipe-flag {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    flex: none;
+    padding: 7px 13px;
+    border-radius: 99px;
+    background: var(--amber-50);
+    color: var(--amber-700);
+    font-size: var(--text-xs);
+    font-weight: 600;
+    text-decoration: none;
+}
+.sj-pipe-flag:hover { background: var(--amber-100); color: var(--amber-700); }
+.sj-pipe-flag strong { font-size: .95rem; }
+.sj-pipe-flag:focus-visible { outline: 2px solid var(--action-600); outline-offset: 2px; }
+
+@media (max-width: 900px) {
+    .sj-pipe { flex-direction: column; align-items: stretch; gap: 14px; }
+    .sj-pipe-cap { max-width: none; }
+    .sj-pipe-flow { display: grid; grid-template-columns: 1fr 1fr; gap: 12px 16px; }
+    .sj-pipe-stage { padding: 0; }
+    .sj-pipe-stage + .sj-pipe-stage { border-left: 0; }
+    .sj-pipe-stage + .sj-pipe-stage::before { content: none; }
+}
+
 }

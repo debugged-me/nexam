@@ -11,8 +11,8 @@ import '../styles/tos.css';
 import { useEffect, useState, useCallback, useMemo } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import {
-  Plus, Pencil, Trash2, Info, Eye, Ellipsis, FilePlus2, Upload, Check, Layers, Copy, PanelsTopLeft,
-  FileCheck, Database, Search, Filter, ListPlus, Lock, Sparkles, ClipboardCheck,
+  Plus, Pencil, Trash2, Info, Eye, Ellipsis, FilePlus2, Upload, Check, Layers, Copy,
+  Search, Filter, ListPlus, Lock, Sparkles, ClipboardCheck,
   CircleCheck,
 } from 'lucide-react';
 import { useToast } from '../components/Toast.jsx';
@@ -36,7 +36,7 @@ import {
 } from '../lib/blueprintProgress.js';
 import {
   StatusPill, BoardGroupHead, NextStepLink, CardGroup,
-  GroupChip, groupColor, statusOf, statusMeta, STATUS_ORDER, StatCard,
+  GroupChip, groupColor, statusOf, statusMeta, STATUS_ORDER,
 } from '../components/Board.jsx';
 
 const DEFAULT_BLOOM = { remember: 15, understand: 20, apply: 20, analyze: 20, evaluate: 15, create: 10 };
@@ -133,6 +133,38 @@ function Coverage({ t }) {
 
 /** Next step for a row, with this page's icon for it. */
 const stepFor = (t) => { const step = blueprintNextStep(t); return { ...step, icon: NEXT_ICONS[step.key] }; };
+
+const MATRIX_CELLS = 44; // cells per blueprint row in the coverage matrix
+
+/** One blueprint as a matrix row — cells are shares of the plan, coloured by
+ *  state: approved, awaiting approval, still to generate. Links to the TOS. */
+function MatrixRow({ t }) {
+  const cov = blueprintCoverage(t);
+  const cells = cov.total ? Math.min(cov.total, MATRIX_CELLS) : 12;
+  const unit = (cov.total || cells) / cells;
+  const ready = Math.min(cells, Math.round(cov.ready / unit));
+  const pending = Math.min(cells - ready, Math.round(cov.pending / unit));
+  return (
+    <li>
+      <Link
+        to={`/tos/${t.id}`}
+        className="bp-mrow"
+        style={{ '--gc': groupColor(t.subject_id || t.subject_name) }}
+        aria-label={`${t.title}: ${cov.covered} of ${cov.total} items banked`}
+        title={t.title}
+      >
+        <span className="bp-mrow-dot" aria-hidden="true" />
+        <span className="bp-mrow-name">{t.title}</span>
+        <span className="bp-mrow-cells" aria-hidden="true">
+          {Array.from({ length: cells }, (_, i) => (
+            <i key={i} data-s={i < ready ? 'ready' : i < ready + pending ? 'pending' : 'missing'} />
+          ))}
+        </span>
+        <span className="bp-mrow-count">{cov.total ? `${cov.covered}/${cov.total}` : '—'}</span>
+      </Link>
+    </li>
+  );
+}
 
 export default function TosPage() {
   const toast = useToast();
@@ -441,12 +473,29 @@ export default function TosPage() {
         </div>
       ) : (
         <>
-        <div className="stats-grid stats-4">
-          <StatCard icon={PanelsTopLeft} tint="blue" value={tosList.length} label="Blueprints" />
-          <StatCard icon={FileCheck} tint="green" value={tosStats.finalized} label="Finalized" />
-          <StatCard icon={FilePlus2} tint="purple" value={tosStats.ready} label="Exam-ready" />
-          <StatCard icon={Database} tint="cyan" value={tosStats.items ? `${tosStats.banked} / ${tosStats.items}` : '—'} label="Items banked" />
-        </div>
+        <section className="bp-band" data-tour="tos-band" aria-label="Banked coverage across blueprints">
+          <div className="bp-band-lead">
+            <span className="bp-band-num">
+              <strong>{tosStats.banked}</strong><span>/{tosStats.items}</span>
+            </span>
+            <span className="bp-band-cap">items banked</span>
+            <span className="bp-band-sub">
+              {tosList.length} blueprint{tosList.length === 1 ? '' : 's'} · {tosStats.finalized} finalized
+              {tosStats.ready > 0 && ` · ${tosStats.ready} exam-ready`}
+            </span>
+            <span className="bp-band-legend" aria-hidden="true">
+              <span><i data-s="ready" />approved</span>
+              <span><i data-s="pending" />awaiting approval</span>
+              <span><i data-s="missing" />to generate</span>
+            </span>
+          </div>
+          <ul className="bp-band-rows">
+            {rows.length === 0
+              ? <li className="bp-band-empty">No blueprints in this view — clear the search or filter.</li>
+              : rows.slice(0, 6).map((t) => <MatrixRow key={t.id} t={t} />)}
+            {rows.length > 6 && <li className="bp-band-more">+{rows.length - 6} more below</li>}
+          </ul>
+        </section>
         <div className="dataset" data-view={asCards ? 'cards' : 'table'}>
           <div className="dataset-bar">
             <div className="dataset-bar-lead">

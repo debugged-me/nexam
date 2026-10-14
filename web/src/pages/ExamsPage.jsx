@@ -11,8 +11,8 @@ import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import {
   Plus, Pencil, Trash2, Info, Eye, Ellipsis, Search, FileCheck, Layers,
-  Copy, FileText, ScanLine,
-  ChartColumn, Gauge, PanelsTopLeft,
+  Copy, ScanLine,
+  ChartColumn, PanelsTopLeft,
 } from 'lucide-react';
 import { useToast } from '../components/Toast.jsx';
 import { useContextMenu, useCopyText } from '../components/ContextMenu.jsx';
@@ -30,7 +30,7 @@ import EmptyStateArt from '../components/EmptyStateArt.jsx';
 import { Bubbles } from '../components/omr.jsx';
 import {
   StatusPill, BoardGroupHead, CardGroup,
-  GroupChip, groupColor, statusOf, statusMeta, STATUS_LABELS, STATUS_ORDER, StatCard,
+  GroupChip, groupColor, statusOf, statusMeta, STATUS_LABELS, STATUS_ORDER,
 } from '../components/Board.jsx';
 import { useGridTable } from '../components/DataTable.jsx';
 
@@ -69,6 +69,30 @@ function statusCounts(list) {
     counts[tone] = (counts[tone] || 0) + 1;
   }
   return counts;
+}
+
+const SHEET_ROWS = 4;
+const SHEET_COLS = 6;
+
+/** Mini answer sheet shaded to the class average — the page's OMR mark.
+ *  Marks scatter (i*7 permutation) so it reads like a real filled sheet. */
+function ScoreSheet({ avg }) {
+  const total = SHEET_ROWS * SHEET_COLS;
+  const filled = avg == null ? 0 : Math.round((Math.min(Math.max(avg, 0), 100) / 100) * total);
+  return (
+    <span className="ex-sheet" aria-hidden="true">
+      <span className="ex-sheet-head" />
+      {Array.from({ length: SHEET_ROWS }, (_, r) => (
+        <span className="ex-sheet-row" key={r}>
+          <i className="ex-sheet-n">{r + 1}</i>
+          {Array.from({ length: SHEET_COLS }, (_, c) => {
+            const order = ((r * SHEET_COLS + c) * 7) % total;
+            return <i key={c} className={`ex-sheet-b${order < filled ? ' is-marked' : ''}`} />;
+          })}
+        </span>
+      ))}
+    </span>
+  );
 }
 
 export default function ExamsPage() {
@@ -128,12 +152,14 @@ export default function ExamsPage() {
   const examStats = useMemo(() => (exams || []).reduce(
     (acc, e) => {
       if (isPublished(e)) acc.published += 1;
+      if (statusOf(e.status) === 'draft') acc.drafts += 1;
+      acc.sets += Number(e.set_count_generated) || 0;
       const scans = Number(e.scan_count) || 0;
       acc.scans += scans;
       if (scans && e.avg_score != null) { acc.scoreSum += Number(e.avg_score) * scans; acc.scored += scans; }
       return acc;
     },
-    { published: 0, scans: 0, scoreSum: 0, scored: 0 },
+    { published: 0, drafts: 0, sets: 0, scans: 0, scoreSum: 0, scored: 0 },
   ), [exams]);
   const overallAvg = examStats.scored ? Math.round(examStats.scoreSum / examStats.scored) : null;
 
@@ -230,6 +256,16 @@ export default function ExamsPage() {
           </span>
         )}
         {e.duration_minutes ? <span>{e.duration_minutes} min</span> : null}
+        {Number(e.scan_count) > 0 && (
+          <span
+            className="ex-scan-chip"
+            title={`${e.scan_count} OMR sheet${Number(e.scan_count) === 1 ? '' : 's'} scanned${e.avg_score != null ? ` · class average ${Math.round(Number(e.avg_score))}%` : ''}`}
+          >
+            <ScanLine size={12} aria-hidden="true" />
+            {e.scan_count}
+            {e.avg_score != null && <em>{Math.round(Number(e.avg_score))}%</em>}
+          </span>
+        )}
         {e.tos_id && e.tos_title && (
           <Link to={`/tos/${e.tos_id}`} className="row-meta-icon ex-meta-tos" title={`Blueprint: ${e.tos_title}`}>
             <PanelsTopLeft size={13} aria-hidden="true" /><span>{e.tos_title}</span>
@@ -333,12 +369,26 @@ export default function ExamsPage() {
       ) : (
         <>
         <p className="ex-delivery-note">Print exam papers or export to an LMS. For optional OMR grading, scan completed answer sheets with the Nexam mobile app.</p>
-        <div className="stats-grid stats-4">
-          <StatCard icon={FileText} tint="blue" value={exams.length} label="Exams" />
-          <StatCard icon={FileCheck} tint="green" value={examStats.published} label="Published" />
-          <StatCard icon={ScanLine} tint="purple" value={examStats.scans} label="OMR sheets scanned" />
-          <StatCard icon={Gauge} tint="cyan" value={overallAvg == null ? '—' : `${overallAvg}%`} label="OMR average score" />
-        </div>
+        <section className="ex-scanband" data-tour="exams-scanband" aria-label="Exams and OMR scoring summary">
+          <div className="ex-scanband-lead">
+            <ScoreSheet avg={overallAvg} />
+            <div className="ex-scanband-score">
+              <strong>{overallAvg != null ? `${overallAvg}%` : '—'}</strong>
+              <span className="ex-scanband-cap">class average</span>
+              <span className="ex-scanband-sub">
+                {examStats.scans
+                  ? `${examStats.scans} OMR sheet${examStats.scans === 1 ? '' : 's'} scanned`
+                  : 'No sheets scanned yet'}
+              </span>
+            </div>
+          </div>
+          <ul className="ex-scanband-facts">
+            <li><strong>{exams.length}</strong><span>exam{exams.length === 1 ? '' : 's'}</span></li>
+            <li><strong>{examStats.published}</strong><span>published</span></li>
+            <li><strong>{examStats.drafts}</strong><span>draft{examStats.drafts === 1 ? '' : 's'}</span></li>
+            <li><strong>{examStats.sets}</strong><span>sets generated</span></li>
+          </ul>
+        </section>
         <section className="dataset" data-density="comfortable">
           <div className="dataset-bar" data-tour="exams-toolbar">
             <div className="dataset-bar-lead">

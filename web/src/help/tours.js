@@ -535,6 +535,35 @@ export const TOURS = [
     ],
   },
   {
+    id: 'pipeline', name: 'How AI works', patterns: ['/pipeline'], roles: INSTRUCTOR,
+    steps: [
+      {
+        title: 'Watch the AI think',
+        description: 'This page shows a question-generation run as it happens — every stage of the pipeline lights up while the AI works through your blueprint. Nothing here approves anything: drafts still wait in your review queue.',
+      },
+      {
+        sel: '[data-tour="pipe-graph"]', side: 'top',
+        title: 'The flow, left to right',
+        description: 'Your blueprint and question bank feed the chain: retrieve lesson evidence → draft → check the evidence → second opinion. Blue streams are the working channel; a colored flash shows where each question ended up — queued for you, reused from the bank, already covered, or held back for lack of proof.',
+      },
+      {
+        sel: '[data-tour="pipe-kpis"]', side: 'bottom',
+        title: 'The counters',
+        description: 'Drafted, reused, covered, and held back tally live, alongside blueprint progress and pace — a full run’s scoreboard at a glance.',
+      },
+      {
+        sel: '[data-tour="pipe-now"]', side: 'top',
+        title: 'What it’s doing right now',
+        description: 'The current blueprint cell — topic and Bloom level — while writing, then the newest question once a run settles.',
+      },
+      {
+        sel: '[data-tour="pipe-controls"]', side: 'bottom', align: 'end',
+        title: 'Runs and the brake',
+        description: 'Switch between recent runs with the picker — finished runs replay their questions. Stop ends a live run cleanly; drafts already written stay in your queue.',
+      },
+    ],
+  },
+  {
     id: 'account', name: 'Account', patterns: ['/account'], roles: ANYONE,
     steps: [
       {

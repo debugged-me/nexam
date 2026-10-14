@@ -44,17 +44,13 @@ const OUTCOMES = new Set(['queued', 'adopted', 'skipped', 'refused']);
 const rightX = (k) => NODES[k].x + (OUTCOMES.has(k) ? OUTCOME_W : NW) / 2;
 const leftX = (k) => NODES[k].x - (OUTCOMES.has(k) ? OUTCOME_W : NW) / 2;
 
-/** Rounded elbow: right out of node a, vertical jog at the midpoint,
- *  then right into node b — flowchart routing, no sagging diagonals. */
-function seg(a, b, r = 12) {
+/** Sankey-style smooth stream: horizontal tangents both ends so the band
+ *  reads as a flowing channel, not a wire. */
+function seg(a, b) {
   const ax = rightX(a); const ay = NODES[a].y;
   const bx = leftX(b); const by = NODES[b].y;
-  if (ay === by) return `L ${bx} ${by}`;
-  const mx = ax + (bx - ax) / 2;
-  const dy = Math.sign(by - ay);
-  const rr = Math.max(2, Math.min(r, Math.abs(bx - ax) / 2 - 1, Math.abs(by - ay) / 2 - 1));
-  return `L ${mx - rr} ${ay} Q ${mx} ${ay} ${mx} ${ay + dy * rr} ` +
-         `L ${mx} ${by - dy * rr} Q ${mx} ${by} ${mx + rr} ${by} L ${bx} ${by}`;
+  const dx = Math.max(30, Math.abs(bx - ax) * 0.5);
+  return `C ${ax + dx} ${ay}, ${bx - dx} ${by}, ${bx} ${by}`;
 }
 function chain(keys) {
   let d = `M ${rightX(keys[0])} ${NODES[keys[0]].y}`;
@@ -133,15 +129,15 @@ export default function PipelinePage() {
   const prev = useRef({ adopted: 0, skipped: 0, drafted: 0, refused: 0, jobId: null });
   const burstSeq = useRef(0);
 
-  const spawn = (journey, color, n = 1) => {
+  const spawn = (journey, color, n = 1, tone = journey.tone) => {
     const items = Array.from({ length: n }, (_, i) => ({ id: ++burstSeq.current, path: journey.path, color, delay: i * 0.18 }));
     setBursts((b) => [...b, ...items]);
     setTimeout(() => setBursts((b) => b.filter((p) => !items.some((it) => it.id === p.id))), 2600);
-    // Light this journey's edges while the particle rides them.
-    setPulses((h) => { const next = { ...h }; journey.edges.forEach((k) => { next[k] = journey.tone; }); return next; });
+    // Light this journey's edges in the same color while the particle rides them.
+    setPulses((h) => { const next = { ...h }; journey.edges.forEach((k) => { next[k] = tone; }); return next; });
     setTimeout(() => setPulses((h) => {
       const next = { ...h };
-      journey.edges.forEach((k) => { if (next[k] === journey.tone) delete next[k]; });
+      journey.edges.forEach((k) => { if (next[k] === tone) delete next[k]; });
       return next;
     }), 2400);
   };
@@ -173,7 +169,8 @@ export default function PipelinePage() {
     const p = prev.current;
     if (drafts.length > p.drafted) {
       drafts.slice(p.drafted).forEach((d, i) => {
-        setTimeout(() => spawn(JOURNEYS.draft, d.grounding === 'knowledge' ? 'var(--amber-600)' : 'var(--accent)'), i * 120);
+        const knowledge = d.grounding === 'knowledge';
+        setTimeout(() => spawn(JOURNEYS.draft, knowledge ? 'var(--amber-600)' : 'var(--accent)', 1, knowledge ? 'amber' : 'blue'), i * 120);
       });
       p.drafted = drafts.length;
     }
@@ -200,7 +197,7 @@ export default function PipelinePage() {
           {others.map((o) => (
             <span key={o.label} className="pc-ambient">{o.label}{o.n > 1 ? ` ×${o.n}` : ''}</span>
           ))}
-          <span className="pc-top-actions">
+          <span className="pc-top-actions" data-tour="pipe-controls">
             {feed.connected === false && running && <span className="pc-conn" data-off="true">reconnecting…</span>}
             {genJobs.length > 1 && (
               <Select
@@ -223,7 +220,7 @@ export default function PipelinePage() {
         </header>
 
         {/* ── KPI band ── */}
-        <div className="pc-kpis">
+        <div className="pc-kpis" data-tour="pipe-kpis">
           <div className="pc-kpi" data-tone="blue"><b>{drafted}</b><span>drafted</span></div>
           <div className="pc-kpi" data-tone="green"><b>{adopted}</b><span>reused</span></div>
           <div className="pc-kpi" data-tone="slate"><b>{skipped}</b><span>covered</span></div>
@@ -237,26 +234,26 @@ export default function PipelinePage() {
         </div>
 
         {/* ── Flow graph ── */}
-        <svg className="pc-graph" viewBox="0 0 960 320" role="img"
+        <svg className="pc-graph" viewBox="0 0 960 320" role="img" data-tour="pipe-graph"
           aria-label="Question generation pipeline: blueprint and bank feed retrieve, draft, review, decide, then queue, adopt, skip, or refuse">
           <defs>
             <filter id="pc-glow" x="-60%" y="-60%" width="220%" height="220%">
               <feGaussianBlur stdDeviation="3" result="b" />
               <feMerge><feMergeNode in="b" /><feMergeNode in="SourceGraphic" /></feMerge>
             </filter>
-            <marker id="pc-arrow" viewBox="0 0 8 8" refX="7" refY="4"
-              markerWidth="7" markerHeight="7" orient="auto-start-reverse">
-              <path d="M 0 1 L 7 4 L 0 7" className="pc-arrowhead" />
-            </marker>
           </defs>
           {EDGES.map(([a, b]) => {
             const key = `${a}|${b}`;
             const live = running && LIVE_EDGES.has(key);
             const pulse = pulses[key];
+            const d = `M ${rightX(a)} ${NODES[a].y} ${seg(a, b)}`;
             return (
-              <path key={key} className="pc-edge" markerEnd="url(#pc-arrow)"
-                data-live={live || undefined} data-pulse={pulse || undefined}
-                d={`M ${rightX(a)} ${NODES[a].y} ${seg(a, b)}`} />
+              <g key={key}>
+                {/* wide soft band — the conduit */}
+                <path className="pc-band" data-live={live || undefined} data-pulse={pulse || undefined} d={d} />
+                {/* thin animated core — the flow */}
+                <path className="pc-edge" data-live={live || undefined} data-pulse={pulse || undefined} d={d} />
+              </g>
             );
           })}
           {/* Steady stream of dots along the working channel while live. */}
@@ -291,7 +288,7 @@ export default function PipelinePage() {
         </svg>
 
         {/* ── What it's doing right now ── */}
-        <div className="pc-now" aria-live="polite">
+        <div className="pc-now" aria-live="polite" data-tour="pipe-now">
           {nowSlot ? (
             <>
               <span className="pc-now-tag">Now</span>

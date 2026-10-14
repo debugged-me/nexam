@@ -128,36 +128,44 @@
 /* ── Flow graph ────────────────────────────────────────────── */
 .pc-graph { width: 100%; height: auto; display: block; }
 
+/* Sankey-style streams: a wide translucent band (the conduit) with a thin
+ * animated core running through it — the "flowing" look of agent consoles. */
+.pc-band {
+  fill: none;
+  stroke: var(--surface-3);
+  stroke-width: 4.5;
+  stroke-linecap: round;
+  opacity: .7;
+}
 .pc-edge {
   fill: none;
   stroke: var(--line-strong);
-  stroke-width: 1.6;
+  stroke-width: 1.5;
 }
-.pc-arrowhead {
-  fill: none;
-  stroke: var(--line-strong);
-  stroke-width: 1.6;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-}
-/* The writing channel flows gently for the whole run… */
+/* The writing channel glows for the whole run… */
+.pc-band[data-live] { stroke: var(--accent-wash); }
 .pc-edge[data-live] {
   stroke: var(--accent);
-  opacity: .45;
-  stroke-dasharray: 4 8;
-  animation: pc-flow 1.6s linear infinite;
+  stroke-dasharray: 2 8;
+  stroke-linecap: round;
+  animation: pc-flow 1s linear infinite;
 }
-/* …while an outcome edge flashes bright only as its particle rides it. */
+/* …while an outcome stream flashes its color only as the result rides it. */
 .pc-edge[data-pulse] {
-  opacity: 1;
-  stroke-width: 2.2;
-  stroke-dasharray: 7 5;
-  animation: pc-flow .55s linear infinite;
+  stroke-width: 2.4;
+  stroke-dasharray: 8 4;
+  animation: pc-flow .5s linear infinite;
 }
 .pc-edge[data-pulse="blue"] { stroke: var(--accent); }
+.pc-edge[data-pulse="amber"] { stroke: var(--amber-600); }
 .pc-edge[data-pulse="green"] { stroke: var(--green-600); }
 .pc-edge[data-pulse="rose"] { stroke: var(--red-600); }
 .pc-edge[data-pulse="slate"] { stroke: var(--ink-faint); }
+.pc-band[data-pulse="blue"] { stroke: var(--accent-wash); }
+.pc-band[data-pulse="amber"] { stroke: var(--amber-50); }
+.pc-band[data-pulse="green"] { stroke: var(--green-50); }
+.pc-band[data-pulse="rose"] { stroke: var(--red-50); }
+.pc-band[data-pulse="slate"] { stroke: var(--surface-3); }
 @keyframes pc-flow { to { stroke-dashoffset: -12; } }
 
 /* Steady dots riding the working channel while a run is live. */

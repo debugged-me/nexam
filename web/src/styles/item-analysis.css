@@ -137,10 +137,31 @@
 }
 .ia-detail-answer .badge { font-size: .82rem; }
 
+/* The question's options as written — letter chips, key row tinted green. */
+.ia-opts {
+  display: flex; flex-direction: column; gap: 6px;
+  margin: 0; padding: 0; list-style: none;
+}
+.ia-opts li {
+  display: flex; align-items: baseline; gap: 9px;
+  padding: 7px 10px;
+  border: 1px solid var(--line, #e2e7ee);
+  border-radius: 8px;
+  font-size: .82rem; color: var(--ink-2, var(--muted));
+}
+.ia-opts li i {
+  font-style: normal; font-weight: 700; font-size: .72rem;
+  color: var(--ink-3, var(--muted));
+  min-width: 12px; text-align: center;
+}
+.ia-opts li.is-key { border-color: var(--green-600, #2b8a5c); background: var(--green-50, #eaf5ee); color: var(--ink); }
+.ia-opts li.is-key i { color: var(--green-700, #1c7c46); }
+.ia-detail-note { margin: 0; font-size: .82rem; color: var(--ink-2, var(--muted)); line-height: 1.55; }
+
 .ia-dist-list { display: flex; flex-direction: column; gap: 6px; }
 .ia-dist-row {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 110px 64px;
+  grid-template-columns: auto minmax(0, 1fr) 110px 64px;
   align-items: center;
   gap: 10px;
 }
@@ -151,6 +172,16 @@
 }
 .ia-dist-answer.is-correct { color: var(--green-700, #1c7c46); font-weight: 700; }
 .ia-dist-answer.is-correct::after { content: " ✓"; }
+/* The option text behind each letter — what "C" actually said on the paper. */
+.ia-dist-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: .78rem;
+  color: var(--ink-3, var(--muted));
+}
+.ia-answer-text { font-size: .84rem; color: var(--ink); margin-left: 8px; }
 .ia-dist-bar {
   height: 8px;
   background: var(--surface-2, #F1F0F5);
@@ -175,7 +206,7 @@
 }
 
 @media (max-width: 600px) {
-  .ia-dist-row { grid-template-columns: minmax(0, 1fr) 70px 56px; }
+  .ia-dist-row { grid-template-columns: auto minmax(0, 1fr) 70px 56px; }
 }
 
 /* ── Badge colors for difficulty ───────────────────── */

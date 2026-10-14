@@ -18,9 +18,39 @@ import { TableSkeleton } from '../components/Loaders.jsx';
 import Modal from '../components/Modal.jsx';
 import { ItemScatterChart } from '../components/AnalyticsCharts.jsx';
 import { BLOOM_LABELS } from '../lib/insights.js';
+import { cleanOptionText, resolveAnswerIndex } from '../lib/questionAnswers.js';
 
 const DIFF_CLASS = { easy: 'green', medium: 'amber', hard: 'red' };
 const TYPE_LABELS = { mcq: 'MCQ', true_false: 'T/F', matching: 'Match', identification: 'ID' };
+
+/** Show a scanned/stored answer as { letter, optionText, optionIndex } —
+    accepts the canonical letter and the legacy full-text shape. */
+function answerDisplay(item, value) {
+  const raw = String(value ?? '').trim();
+  if (!raw) return { label: '—', text: null, idx: -1 };
+  if (item.type === 'true_false') {
+    const isT = raw.toUpperCase().startsWith('T');
+    return { label: isT ? 'T' : 'F', text: isT ? 'True' : 'False', idx: isT ? 0 : 1 };
+  }
+  if (item.type !== 'mcq') return { label: raw, text: null, idx: -1 };
+  const opts = optionList(item);
+  if (!opts.length) return { label: raw, text: null, idx: -1 };
+  const idx = /^[A-Z]$/i.test(raw)
+    ? raw.toUpperCase().charCodeAt(0) - 65
+    : resolveAnswerIndex(opts, raw);
+  return idx >= 0 && idx < opts.length
+    ? { label: 'ABCDEFGHIJ'[idx], text: cleanOptionText(opts[idx]), idx }
+    : { label: raw, text: null, idx: -1 };
+}
+
+/** Plain option text list — mcq options, or the fixed True/False pair. */
+function optionList(item) {
+  if (item.type === 'true_false') return ['True', 'False'];
+  if (item.type !== 'mcq') return [];
+  let opts = item.options;
+  if (typeof opts === 'string') { try { opts = JSON.parse(opts); } catch { return []; } }
+  return Array.isArray(opts) ? opts : [];
+}
 
 export default function ItemAnalysisPage() {
   const { examId } = useParams();
@@ -45,18 +75,24 @@ export default function ItemAnalysisPage() {
   // Per-set rows: Set A item 2 and Set B item 2 are different questions.
   const hasSets = (items || []).some((it) => it.set);
 
-  const itemRows = (items || []).map((it) => [
-    it.itemNumber,
-    it.set || '—',
-    it.stem || `Item ${it.itemNumber}`,
-    it.correctAnswer || '—',
-    `${it.correctRate}%`,
-    it.difficulty ? it.difficulty[0].toUpperCase() + it.difficulty.slice(1) : '—',
-    it.discrimination ?? '—',
-    it.totalResponses,
-    it.ambiguousCount,
-    (it.answerDistribution || []).map((ad) => `${ad.marked_answer ?? 'blank'}:${ad.count}`).join('  '),
-  ]);
+  const itemRows = (items || []).map((it) => {
+    const key = answerDisplay(it, it.answer || it.correctAnswer);
+    return [
+      it.itemNumber,
+      it.set || '—',
+      it.stem || `Item ${it.itemNumber}`,
+      key.text ? `${key.label} — ${key.text}` : key.label,
+      `${it.correctRate}%`,
+      it.difficulty ? it.difficulty[0].toUpperCase() + it.difficulty.slice(1) : '—',
+      it.discrimination ?? '—',
+      it.totalResponses,
+      it.ambiguousCount,
+      (it.answerDistribution || []).map((ad) => {
+        const d = answerDisplay(it, ad.marked_answer);
+        return `${d.label} ${d.text ? `(${d.text.slice(0, 30)}${d.text.length > 30 ? '…' : ''}) ` : ''}× ${ad.count}`;
+      }).join('  '),
+    ];
+  });
   const ITEM_HEADERS = ['#', 'Set', 'Question', 'Correct answer', 'Correct rate', 'Difficulty', 'Discrimination (r)', 'Responses', 'Ambiguous', 'Distribution'];
 
   function exportCsv() {
@@ -202,12 +238,26 @@ export default function ItemAnalysisPage() {
             onClose={() => setSelected(null)}
             side
           >
-            {selected && (
+            {selected && (() => {
+              const key = answerDisplay(selected, selected.answer || selected.correctAnswer);
+              const opts = optionList(selected);
+              return (
               <div className="ia-detail">
                 <p className="ia-detail-stem">{selected.stem || `Item ${selected.itemNumber}`}</p>
+                {opts.length > 0 && (
+                  <ul className="ia-opts">
+                    {opts.map((opt, i) => (
+                      <li key={i} className={i === key.idx ? 'is-key' : undefined}>
+                        <i>{'ABCDEFGHIJ'[i]}</i>
+                        <span>{cleanOptionText(opt)}</span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
                 <div className="ia-detail-answer">
                   <span className="ia-detail-label">Correct answer</span>
-                  <span className="badge badge-green">{selected.correctAnswer || '—'}</span>
+                  <span className="badge badge-green">{key.label}</span>
+                  {key.text && <span className="ia-answer-text">{key.text}</span>}
                 </div>
                 <div className="ia-detail-block">
                   <span className="ia-detail-label">How students answered</span>
@@ -217,10 +267,14 @@ export default function ItemAnalysisPage() {
                     <div className="ia-dist-list">
                       {selected.answerDistribution.map((ad, i) => {
                         const share = selected.totalResponses ? Math.round((ad.count / selected.totalResponses) * 100) : 0;
+                        const isKey = answerDisplay(selected, ad.marked_answer).label === key.label;
                         return (
                           <div className="ia-dist-row" key={i}>
-                            <span className={`ia-dist-answer ${ad.marked_answer === selected.correctAnswer ? 'is-correct' : ''}`}>
-                              {ad.marked_answer ?? '(blank)'}
+                            <span className={`ia-dist-answer ${isKey ? 'is-correct' : ''}`}>
+                              {answerDisplay(selected, ad.marked_answer).label}
+                            </span>
+                            <span className="ia-dist-text" title={answerDisplay(selected, ad.marked_answer).text || undefined}>
+                              {answerDisplay(selected, ad.marked_answer).text || ''}
                             </span>
                             <span className="ia-dist-bar">
                               <span className="ia-dist-fill" style={{ width: `${share}%` }} />
@@ -232,12 +286,19 @@ export default function ItemAnalysisPage() {
                     </div>
                   )}
                 </div>
+                {selected.explanation && (
+                  <div className="ia-detail-block">
+                    <span className="ia-detail-label">Explanation</span>
+                    <p className="ia-detail-note">{selected.explanation}</p>
+                  </div>
+                )}
                 <div className="ia-detail-stats">
                   <span>Ambiguous marks: <strong>{selected.ambiguousCount}</strong></span>
                   <span>Wrong answers: <strong>{selected.wrongCount}</strong></span>
                 </div>
               </div>
-            )}
+              );
+            })()}
           </Modal>
         </div>
         </>

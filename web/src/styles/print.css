@@ -51,6 +51,14 @@
   html, body { background: #fff !important; }
   body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 
+  /* The app canvas tint lives on layout wrappers, not body — every layer
+     between body and the document must go white or the gray prints as a
+     frame around the page. */
+  #root, .app-shell, .main-content, .page, [class*="page--"] {
+    background: #fff !important;
+    background-image: none !important;
+  }
+
   .app-shell { display: block; }
   .main-content {
     margin: 0 !important;

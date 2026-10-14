@@ -44,6 +44,7 @@ export function ToastProvider({ children }) {
       {children}
       <Toaster
         position="top-center"
+        offset={{ top: 'calc(var(--topbar-height) + 8px)' }}
         richColors
         gap={8}
         visibleToasts={4}

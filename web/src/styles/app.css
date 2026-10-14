@@ -12,7 +12,7 @@ body {
   background: var(--canvas);
   color: var(--ink);
   min-height: 100vh;
-  font-size: 14px;
+  font-size: .875rem;
   line-height: 1.55;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -79,12 +79,12 @@ html.vt-nav ::view-transition-image-pair(vt-shared-entity) { isolation: auto; }
    768px; the desktop popover keeps its floating look. */
 .ctx-sheet-overlay {
   position: fixed; inset: 0;
-  background: rgba(15, 18, 24, .38);
-  z-index: 100001;
+  background: var(--overlay);
+  z-index: var(--z-sheet);
 }
 .ctx-sheet {
   position: fixed; left: 0; right: 0; bottom: 0;
-  z-index: 100002;
+  z-index: var(--z-sheet-top);
   display: flex; flex-direction: column;
   background: var(--surface);
   border-radius: 16px 16px 0 0;
@@ -131,7 +131,7 @@ svg.lucide { stroke-width: 1.5; }
   position: fixed;
   top: 0;
   left: 0;
-  z-index: 1000;
+  z-index: var(--z-sidebar);
   display: flex;
   flex-direction: column;
   font-family: var(--font-display);
@@ -272,8 +272,8 @@ svg.lucide { stroke-width: 1.5; }
   display: none;
   position: fixed;
   inset: 0;
-  background: rgba(28, 30, 37, .42);
-  z-index: 998;
+  background: var(--overlay);
+  z-index: var(--z-mobile-nav);
 }
 .mobile-sidebar-overlay.show { display: block; }
 .sidebar.mobile-open { transform: translateX(0); box-shadow: var(--shadow-lg); }
@@ -312,7 +312,7 @@ svg.lucide { stroke-width: 1.5; }
   justify-content: space-between;
   position: sticky;
   top: 0;
-  z-index: 100;
+  z-index: var(--z-sticky);
   gap: 1rem;
 }
 
@@ -448,7 +448,7 @@ img.avatar { object-fit: cover; display: block; }
   border-radius: var(--radius);
   box-shadow: var(--shadow-lg);
   padding: 6px;
-  z-index: 300;
+  z-index: var(--z-dropdown);
 }
 .user-dropdown[hidden] { display: none; }
 
@@ -525,7 +525,7 @@ img.avatar { object-fit: cover; display: block; }
   background: transparent;
   color: var(--ink-3);
   font-family: var(--font-body);
-  font-size: 10px;
+  font-size: .625rem;
   font-weight: 500;
   cursor: pointer;
   transition: background-color .14s ease, color .14s ease, box-shadow .14s ease;
@@ -1509,7 +1509,7 @@ select.form-control:not([multiple]) {
 /* Enter/exit motion is driven by motion/react inside ContextMenu.jsx. */
 .ctx-menu {
   position: fixed;
-  z-index: 100001;
+  z-index: var(--z-sheet);
   min-width: 220px;
   padding: 4px;
   background: var(--surface);
@@ -1528,7 +1528,7 @@ select.form-control:not([multiple]) {
   background: transparent;
   color: var(--ink-2);
   font-family: var(--font-body);
-  font-size: 12.5px;
+  font-size: .78125rem;
   font-weight: 500;
   text-align: left;
   white-space: nowrap;
@@ -1609,7 +1609,7 @@ select.form-control:not([multiple]) {
 /* Portaled labels stay visible outside the scrollable icon rail.
    Positioning comes from Radix's popper — this block is visuals only. */
 .sidebar-tooltip {
-  z-index: 1100;
+  z-index: var(--z-rail-tip);
   max-width: 240px;
   padding: 8px 12px;
   border-radius: 6px;
@@ -1626,7 +1626,7 @@ select.form-control:not([multiple]) {
 
 /* Radix tooltip used inside page content (row actions, topbar buttons). */
 .nx-tip {
-  z-index: 100010;
+  z-index: var(--z-tip);
   max-width: 240px;
   padding: 5px 9px;
   border-radius: var(--radius-xs);
@@ -1683,7 +1683,7 @@ select.form-control:not([multiple]) {
 .user-trigger { border-radius: 7px; }
 .user-trigger .avatar { background: var(--action-100); color: var(--action-700); border-color: var(--action-100); }
 .command-dialog { width: min(550px, calc(100vw - 32px)); max-height: min(650px, calc(100dvh - 48px)); margin: min(15vh, 110px) auto auto; padding: 0; border: 1px solid var(--line-strong); border-radius: 12px; background: var(--surface); box-shadow: var(--shadow-lg); color: var(--ink); overflow: hidden; }
-.command-dialog::backdrop { background: rgba(28, 30, 37, .3); backdrop-filter: blur(3px); }
+.command-dialog::backdrop { background: var(--overlay-light); backdrop-filter: blur(3px); }
 .command-surface { display: flex; flex-direction: column; max-height: min(650px, calc(100dvh - 48px)); }
 .command-search { display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-bottom: 1px solid var(--line); color: var(--ink-3); }
 .command-search input { min-width: 0; flex: 1; border: 0; padding: 8px 0; background: none; color: var(--ink); font: 400 .9rem var(--font-body); outline: none; }
@@ -1736,7 +1736,7 @@ select.form-control:not([multiple]) {
   position: fixed;
   top: 10px;
   left: 10px;
-  z-index: 100000;
+  z-index: var(--z-skiplink);
   padding: 10px 14px;
   border-radius: var(--radius-sm);
   background: var(--ink);
@@ -1842,7 +1842,7 @@ select.form-control:not([multiple]) {
 .nx-layer.nx-layer { display: contents; }
 
 .nx-pop {
-  z-index: 100005; /* above modals (10000) and the context menu, below tooltips */
+  z-index: var(--z-popover); /* above modals and the context menu, below tooltips */
   max-width: min(360px, calc(100vw - 24px));
   max-height: var(--radix-popover-content-available-height, 70vh);
   overflow: auto;

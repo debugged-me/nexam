@@ -264,13 +264,13 @@
 .mat-dropveil {
   position: fixed;
   inset: 0;
-  z-index: 10050;
+  z-index: var(--z-dropveil);
   pointer-events: none;
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 20px;
-  background: rgba(18, 16, 32, .4);
+  background: var(--overlay);
 }
 .mat-dropveil-card {
   border: 2px dashed var(--ink-3);
@@ -425,6 +425,7 @@
 }
 .mat-source-tab.active { color: var(--action-700); border-bottom-color: var(--action-600); }
 .mat-source-tab:hover { color: var(--ink); }
+.mat-source-tab svg { vertical-align: -2px; margin-right: 6px; }
 
 @media (max-width: 991px) {
   .mat-icon-btn, .mat-dropzone, .mat-gen, .mat-retry { min-height: 44px; }

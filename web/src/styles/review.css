@@ -565,7 +565,7 @@
     background: var(--surface);
     color: var(--ink-3);
     font-family: var(--font-body, "Inter", sans-serif);
-    font-size: 10px;
+    font-size: .625rem;
     font-weight: 600;
     line-height: 1;
 }

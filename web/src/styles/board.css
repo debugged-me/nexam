@@ -992,7 +992,7 @@ a.g-title:focus-visible { outline: 2px solid var(--brand-accent); outline-offset
     margin-left: 6px;
     padding: 1px 6px;
     border-radius: 4px;
-    font-size: 11px;
+    font-size: .6875rem;
     font-weight: 500;
     color: var(--warn-ink, #8F6617);
     background: var(--warn-bg, #F2E7C8);

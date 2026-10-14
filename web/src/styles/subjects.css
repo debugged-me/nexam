@@ -828,11 +828,6 @@ table.grid td.col-actions { background: var(--surface); z-index: 1; }
   .dataset-bar-lead, .dataset-bar-trail { flex-wrap: wrap; }
 }
 
-/* Below desktop the table keeps its columns legible and scrolls instead. */
-@media (max-width: 991px) {
-  table.grid { min-width: 880px; }
-}
-
 @media (max-width: 768px) {
   .dataset { --grid-x: 12px; }
   .dataset-bar { flex-wrap: wrap; align-items: stretch; }

@@ -1,5 +1,9 @@
-/* legal.css — public legal documents (privacy, terms) */
-.legal-page {
+/* legal.css — public legal documents (privacy, terms).
+   Scoped to .legal-page like every other page stylesheet; the page root
+   styles itself via :scope since a scope root can't match its own rules. */
+@scope (.legal-page) {
+
+:scope {
   min-height: 100vh;
   background: var(--canvas);
   color: var(--ink);
@@ -110,4 +114,6 @@
 @media (max-width: 600px) {
   .legal-doc { padding: 32px 18px 64px; }
   .legal-doc h1 { font-size: 1.5rem; }
+}
+
 }

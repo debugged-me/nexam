@@ -533,7 +533,7 @@
 }
 
 .q-import-bloom {
-    font-size: 10px;
+    font-size: .625rem;
     font-weight: 700;
     letter-spacing: .04em;
     text-transform: uppercase;
@@ -544,7 +544,7 @@
 }
 
 .q-import-preview-tag {
-    font-size: 10px;
+    font-size: .625rem;
     font-weight: 700;
     letter-spacing: .04em;
     text-transform: uppercase;
@@ -633,4 +633,8 @@
     }
 
     .q-dataset .row-actions .btn-xs { min-width: 44px; min-height: 44px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .qmix-bloom-col i { transition: none; }
 }

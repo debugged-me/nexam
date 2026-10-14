@@ -50,7 +50,7 @@
   border: 1px solid var(--line);
   border-radius: var(--radius);
   box-shadow: var(--shadow-lg);
-  z-index: 300;
+  z-index: var(--z-dropdown);
   overflow: hidden;
 }
 
@@ -251,6 +251,11 @@
 @keyframes jobs-pulse {
   0%, 100% { opacity: 1; transform: scale(1); }
   50% { opacity: .4; transform: scale(.75); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .jobs-spin, .jobs-live-dot { animation: none; }
+  .jobs-row-bar > span { transition: none; }
 }
 .jobs-panel-heading { min-width: 0; display: flex; flex-direction: column; gap: 1px; }
 .jobs-panel-heading strong {

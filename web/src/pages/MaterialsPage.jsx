@@ -746,13 +746,13 @@ export default function MaterialsPage() {
         {/* Source tabs */}
         <div className="mat-source-tabs">
           <button className={`mat-source-tab ${uploadMode === 'file' ? 'active' : ''}`} onClick={() => setUploadMode('file')}>
-            <Upload size={14} style={{ verticalAlign: 'middle', marginRight: 6 }} />File
+            <Upload size={14} />File
           </button>
           <button className={`mat-source-tab ${uploadMode === 'url' ? 'active' : ''}`} onClick={() => setUploadMode('url')}>
-            <Link2 size={14} style={{ verticalAlign: 'middle', marginRight: 6 }} />URL / Video
+            <Link2 size={14} />URL / Video
           </button>
           <button className={`mat-source-tab ${uploadMode === 'text' ? 'active' : ''}`} onClick={() => setUploadMode('text')}>
-            <FileText size={14} style={{ verticalAlign: 'middle', marginRight: 6 }} />Text
+            <FileText size={14} />Text
           </button>
         </div>
 

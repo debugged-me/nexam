@@ -11,18 +11,18 @@
   .assessment-editor fieldset { border: 0; padding: 0; min-width: 0; }
   .assessment-editor legend { display: flex; align-items: center; gap: 6px; font-weight: 600; padding: 0; margin-bottom: 8px; }
   .assessment-periods { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
-  .assessment-periods > span { width: 100%; color: var(--muted); font-size: 12px; }
+  .assessment-periods > span { width: 100%; color: var(--muted); font-size: var(--text-xs); }
   .assessment-topic-list, .assessment-passages { display: grid; gap: 8px; margin-top: 12px; }
   .assessment-topic, .assessment-passage { padding: 12px; border: 1px solid var(--border); border-radius: var(--radius-md); min-width: 0; }
   .assessment-check { display: flex; align-items: center; gap: 10px; cursor: pointer; min-height: 44px; }
   .assessment-check input { width: 18px; height: 18px; flex-shrink: 0; accent-color: var(--action-600); }
   .assessment-check span { min-width: 0; overflow-wrap: anywhere; }
-  .assessment-check small { display: block; font-size: 12px; font-weight: 400; color: var(--muted); margin-top: 4px; }
+  .assessment-check small { display: block; font-size: var(--text-xs); font-weight: 400; color: var(--muted); margin-top: 4px; }
   .assessment-editor details { margin-top: 8px; }
   .assessment-editor summary { cursor: pointer; min-height: 44px; display: list-item; align-content: center; color: var(--muted); }
   .assessment-editor blockquote { margin: 8px 0; padding-left: 12px; border-left: 3px solid var(--border); white-space: pre-wrap; }
   .assessment-editor details p, .assessment-editor textarea { overflow-wrap: anywhere; white-space: pre-wrap; }
-  .assessment-note { border-left: 3px solid var(--amber-400); padding: 8px 12px; font-size: 13px; background: var(--amber-50); color: var(--text); }
+  .assessment-note { border-left: 3px solid var(--amber-600); padding: 8px 12px; font-size: var(--text-sm); background: var(--amber-50); color: var(--text); }
   .assessment-selected > div { padding-block: 12px; border-bottom: 1px solid var(--border); }
   .assessment-selected p { max-height: 180px; overflow: auto; }
   .assessment-confirm { font-weight: 500; }

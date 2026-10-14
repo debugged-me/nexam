@@ -107,7 +107,7 @@
   border-radius: var(--radius-sm);
   border: 1px solid var(--line);
 }
-.swatch small { font-size: 10px; color: var(--ink-3); text-align: center; }
+.swatch small { font-size: .625rem; color: var(--ink-3); text-align: center; }
 
 .card + .card { margin-top: 16px; }
 
@@ -248,7 +248,7 @@
 .pair-shot { grid-column: 1 / -1; width: 100%; }
 .pair-shot-name {
   margin-top: 2px;
-  font-size: 10px;
+  font-size: .625rem;
   color: var(--ink-faint);
 }
 

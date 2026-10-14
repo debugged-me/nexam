@@ -268,6 +268,26 @@
   --shadow-lg: 0 8px 24px rgba(15, 15, 15, .10), 0 2px 6px rgba(15, 15, 15, .05);
   --shadow-card-hover: 0 2px 6px rgba(15, 15, 15, .05), 0 12px 32px rgba(15, 15, 15, .09);
 
+  /* ---- Scrims — one shared veil behind modals, sheets, drawers, veils ---- */
+  --overlay:       rgba(15, 18, 24, .40);
+  --overlay-light: rgba(15, 18, 24, .30);
+
+  /* ---- Layer ladder — global chrome, in stacking order -------------------
+     Values preserve the historical numbers. Local stacking (z ≤ ~60 inside
+     a component) stays numeric; only cross-component layers live here. */
+  --z-sticky:    100;    /* topbar + full-screen boot splash */
+  --z-dropdown:  300;    /* topbar dropdowns, jobs panel */
+  --z-mobile-nav: 998;   /* mobile sidebar scrim, below the sidebar itself */
+  --z-sidebar:   1000;   /* fixed sidebar */
+  --z-rail-tip:  1100;   /* collapsed-rail tooltips (nav only) */
+  --z-modal:     10000;
+  --z-dropveil:  10050;  /* drag-over veil, above modals */
+  --z-skiplink:  100000;
+  --z-sheet:     100001; /* sheet scrim + context menu share this layer */
+  --z-sheet-top: 100002; /* sheet surface above its own scrim */
+  --z-popover:   100005; /* radix popovers — above modals and menus */
+  --z-tip:       100010; /* tooltips above everything */
+
   /* ---- Type scale ---- */
   --text-xs:   .75rem;
   --text-sm:   .8125rem;
@@ -499,6 +519,10 @@
   --shadow-md: 0 4px 12px rgba(0, 0, 0, .40), 0 1px 3px rgba(0, 0, 0, .30);
   --shadow-lg: 0 8px 24px rgba(0, 0, 0, .45), 0 2px 6px rgba(0, 0, 0, .30);
   --shadow-card-hover: 0 2px 6px rgba(0, 0, 0, .35), 0 12px 32px rgba(0, 0, 0, .45);
+
+  /* Scrims deepen so veiled content still reads dimmed on dark canvas */
+  --overlay:       rgba(0, 0, 0, .55);
+  --overlay-light: rgba(0, 0, 0, .38);
 
   /* Nav rail */
   --sb-bg: #17191D;

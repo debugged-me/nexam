@@ -12,6 +12,8 @@ export function normText(s) {
 
 /** Strip a leading option label so 'B) Paris' compares equal to 'Paris'. */
 export function cleanOptionText(opt) {
+  // Older rows may carry {key,text} option objects — read the text field.
+  if (opt && typeof opt === 'object') opt = opt.text ?? opt.label ?? opt.value ?? '';
   return String(opt ?? '').replace(/^\s*[A-Za-z]\s*[).:-]\s*/, '').trim();
 }
 

@@ -215,7 +215,41 @@
     box-shadow: var(--shadow-md);
 }
 
-.rv-card { padding: var(--space-6); }
+.rv-card { position: relative; padding: var(--space-6); animation: rv-card-in .34s ease backwards; overflow: hidden; touch-action: pan-y; transition: transform .32s cubic-bezier(.2, .9, .3, 1.2); }
+.rv-card.is-dragging { transition: none; cursor: grabbing; user-select: none; }
+.rv-card.is-deciding > :not(.rv-stamp) { opacity: .55; transition: opacity .18s; }
+@keyframes rv-card-in {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: none; }
+}
+
+/* Decision stamp — rubber-stamp overlay while the card hands off to the next.
+   Fixed to the viewport so it is always on screen, even mid-card on a tall item. */
+.rv-stamp {
+    position: fixed; top: 50%; left: 50%; z-index: 30;
+    transform: translate(-50%, -50%) rotate(-7deg);
+    padding: 10px 22px;
+    border: 3px solid currentColor; border-radius: 10px;
+    font: 800 1.5rem/1 var(--font-display); letter-spacing: .14em; text-transform: uppercase;
+    background: color-mix(in oklab, var(--surface) 82%, transparent);
+    animation: rv-stamp-in .4s cubic-bezier(.2, 1.5, .35, 1) both;
+    pointer-events: none;
+}
+.rv-stamp.is-approved { color: var(--green-600); box-shadow: 0 0 0 6px color-mix(in oklab, var(--green-600) 14%, transparent); }
+.rv-stamp.is-rejected { color: var(--red-600); box-shadow: 0 0 0 6px color-mix(in oklab, var(--red-600) 14%, transparent); }
+/* Drag hint — same stamp look, opacity driven by pull distance, no slam-in */
+.rv-stamp-hint { animation: none; transition: none; }
+.rv-stamp-hint.is-approved { rotate: 7deg; }
+.rv-stamp-hint.is-rejected { rotate: -7deg; }
+@keyframes rv-stamp-in {
+    0% { opacity: 0; transform: translate(-50%, -50%) rotate(-14deg) scale(1.9); }
+    60% { opacity: 1; transform: translate(-50%, -50%) rotate(-7deg) scale(.96); }
+    100% { opacity: 1; transform: translate(-50%, -50%) rotate(-7deg) scale(1); }
+}
+@media (prefers-reduced-motion: reduce) {
+    .rv-card { animation: none; }
+    .rv-stamp { animation: none; }
+}
 .rv-panel { padding: var(--space-4); }
 .rv-panel .empty-state { border: 0; }
 

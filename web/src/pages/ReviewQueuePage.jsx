@@ -135,6 +135,10 @@ export default function ReviewQueuePage() {
   const [lastAction, setLastAction] = useState(null);
   const [editing, setEditing] = useState(null);
   const [busy, setBusy] = useState(false);
+  const [pendingAction, setPendingAction] = useState(null); // 'approved' | 'rejected' while the write lands
+  const [stamp, setStamp] = useState(null);                 // brief stamped overlay before the card advances
+  const [drag, setDrag] = useState(0);                      // px — throwable card: right approves, left rejects
+  const dragRef = useRef(null);                             // { pointerId, startX, started }
   const [confirmBulk, setConfirmBulk] = useState(false);
   const [confirmClear, setConfirmClear] = useState(false);
   const [confirmBypass, setConfirmBypass] = useState(false);
@@ -335,6 +339,7 @@ export default function ReviewQueuePage() {
     const item = current;
     const at = cursor;
     setBusy(true);
+    setPendingAction(action);
     try {
       const body = action === 'approved'
         ? { ...(opts.allowSimilarityFailure ? { allowSimilarityFailure: true } : {}), ...(opts.confirmKnowledge ? { confirmKnowledge: true } : {}) }
@@ -356,6 +361,10 @@ export default function ReviewQueuePage() {
           'Approved without duplicate check — it joins your bank unverified and stays out of the shared institution bank until a check succeeds.'
         );
       }
+      // Let the stamped result read for a beat before the next card slides in.
+      setStamp(action);
+      await new Promise((r) => setTimeout(r, 460));
+      setStamp(null);
       const n = findNext(queue, next, at);
       if (n >= 0) setCursor(n);
     } catch (err) {
@@ -363,6 +372,8 @@ export default function ReviewQueuePage() {
         err instanceof ApiError ? err.message : `Could not ${action === 'approved' ? 'approve' : 'reject'} this question.`
       );
     } finally {
+      setStamp(null);
+      setPendingAction(null);
       setBusy(false);
     }
   }, [current, cursor, busy, decisions, queue, similarityReady, confirm]);
@@ -812,7 +823,49 @@ export default function ReviewQueuePage() {
             </div>
           ) : current ? (
             <>
-              <article className="rv-card" aria-label={`Draft ${cursor + 1} of ${total}`} data-tour="review-card">
+              <article key={current.id}
+                className={`rv-card${pendingAction ? ' is-deciding' : ''}${drag ? ' is-dragging' : ''}`}
+                style={drag ? { transform: `translateX(${drag}px) rotate(${drag / 34}deg)` } : undefined}
+                onPointerDown={(e) => {
+                  if (editing || busy || e.button !== 0) return;
+                  if (e.target.closest('button, a, input, textarea, select, [role="button"], [role="switch"], blockquote, details, summary')) return;
+                  dragRef.current = { pointerId: e.pointerId, startX: e.clientX, started: false };
+                }}
+                onPointerMove={(e) => {
+                  const d = dragRef.current;
+                  if (!d || d.pointerId !== e.pointerId) return;
+                  const dx = e.clientX - d.startX;
+                  if (!d.started && Math.abs(dx) > 10) {
+                    d.started = true;
+                    e.currentTarget.setPointerCapture?.(e.pointerId);
+                  }
+                  if (d.started) setDrag(dx * 0.85);
+                }}
+                onPointerUp={() => {
+                  const d = dragRef.current;
+                  dragRef.current = null;
+                  if (d?.started) {
+                    if (drag > 120) decide('approved');
+                    else if (drag < -120) decide('rejected');
+                  }
+                  setDrag(0);
+                }}
+                onPointerCancel={() => { dragRef.current = null; setDrag(0); }}
+                aria-label={`Draft ${cursor + 1} of ${total}`} data-tour="review-card">
+                {stamp && (
+                  <span className={`rv-stamp is-${stamp}`} role="status" aria-live="polite">
+                    {stamp === 'approved' ? 'Approved' : 'Rejected'}
+                  </span>
+                )}
+                {drag !== 0 && Math.abs(drag) > 14 && !stamp && (
+                  <span
+                    className={`rv-stamp rv-stamp-hint is-${drag > 0 ? 'approved' : 'rejected'}`}
+                    style={{ opacity: Math.min(1, Math.abs(drag) / 130) }}
+                    aria-hidden="true"
+                  >
+                    {drag > 0 ? 'Approve' : 'Reject'}
+                  </span>
+                )}
                 <div className="rv-card-meta">
                   <span className="rv-chip rv-chip-type">{TYPE_LABELS[current.type] || current.type}</span>
                   {current.subject_name && <span className="rv-chip">{current.subject_name}</span>}
@@ -922,10 +975,10 @@ export default function ReviewQueuePage() {
                   )}
                   <div className="rv-actions-main">
                     <button type="button" className="rv-act is-approve" onClick={() => decide('approved')} disabled={busy || !similarityReady || !!currentDecision}>
-                      <Check size={18} /> Approve <kbd className="rv-kbd">A</kbd>
+                      {pendingAction === 'approved' ? <span className="btn-spinner" /> : <Check size={18} />} Approve <kbd className="rv-kbd">A</kbd>
                     </button>
                     <button type="button" className="rv-act is-reject" onClick={() => decide('rejected')} disabled={busy || !!currentDecision}>
-                      <X size={18} /> Reject <kbd className="rv-kbd">R</kbd>
+                      {pendingAction === 'rejected' ? <span className="btn-spinner" /> : <X size={18} />} Reject <kbd className="rv-kbd">R</kbd>
                     </button>
                     <button
                       type="button"

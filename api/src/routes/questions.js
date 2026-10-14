@@ -82,9 +82,15 @@ const confirmedMeta = (question, userId) => JSON.stringify({
   instructorConfirmation: { by: userId, at: new Date().toISOString() },
 });
 
+/** Options persist as plain strings; tolerate {text|label|value} entry objects. */
+const normalizeOptionList = (list) => (Array.isArray(list) ? list
+  .map((o) => String(o && typeof o === 'object' ? (o.text ?? o.label ?? o.value ?? '') : o).trim())
+  .filter(Boolean) : null);
+
 /** Validate question fields. Returns { error } or { data }. */
 function validate(body) {
-  const { subject_id, type, stem, bloom, status, options, answer } = body || {};
+  const { subject_id, type, stem, bloom, status, answer } = body || {};
+  const options = normalizeOptionList(body?.options);
   if (!subject_id) return { error: 'Subject is required.' };
   if (!type || !QUESTION_TYPES.includes(type)) return { error: 'Invalid question type.' };
   if (!stem || !String(stem).trim()) return { error: 'Question stem is required.' };
@@ -95,7 +101,7 @@ function validate(body) {
   // MCQ needs ≥2 options and an answer that resolves to one of them —
   // accepts a bare letter ('B'), 'B) text', or the option text itself.
   if (type === 'mcq') {
-    const opts = Array.isArray(options) ? options.filter((o) => String(o).trim()) : [];
+    const opts = options || [];
     if (opts.length < 2) return { error: 'Multiple-choice questions need at least two options.' };
     if (answerOptionIndex(opts, answer) < 0) return { error: 'Answer must resolve to one of the options.' };
   }
@@ -336,7 +342,7 @@ router.post('/', async (req, res, next) => {
 
     const id = uuid();
     const optionsJson = req.body.type === 'mcq' && Array.isArray(req.body.options)
-      ? JSON.stringify(req.body.options) : null;
+      ? JSON.stringify(normalizeOptionList(req.body.options)) : null;
 
     await pool.query(
       `INSERT INTO questions
@@ -422,7 +428,7 @@ router.put('/:id', async (req, res, next) => {
 
     const nextType = req.body.type || q.type;
     const optionsJson = ['mcq', 'matching'].includes(nextType)
-      ? (Array.isArray(req.body.options) ? JSON.stringify(req.body.options) : (q.type === nextType ? q.options : null))
+      ? (Array.isArray(req.body.options) ? JSON.stringify(normalizeOptionList(req.body.options)) : (q.type === nextType ? q.options : null))
       : null;
 
     const nextStem = String(req.body.stem || q.stem).trim();
@@ -462,7 +468,10 @@ router.put('/:id', async (req, res, next) => {
         answer: nextAnswer,
         explanation: req.body.explanation !== undefined ? (req.body.explanation || null) : q.explanation,
         status: newStatus,
-        similarityFlag: contentChanged ? 'none' : q.similarity_flag,
+        // The 'rejected' flag is a decision marker, not a check result — lift it
+        // when the row is restored to draft, or it keeps blocking approval.
+        similarityFlag: contentChanged ? 'none'
+          : (q.status === 'rejected' && newStatus !== 'rejected' ? 'none' : q.similarity_flag),
         similarityScore: contentChanged ? null : q.similarity_score,
         similarityCheckedAt: contentChanged ? null : q.similarity_checked_at,
         similarityError: contentChanged ? null : q.similarity_error,

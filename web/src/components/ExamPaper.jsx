@@ -7,6 +7,8 @@
  *
  * `includeKey` appends a separated answer-key page (instructor copy).
  */
+import { subjectLabel } from '../lib/subjectProgress.js';
+
 const TYPE_LABELS = {
   mcq: 'Multiple Choice',
   true_false: 'True or False',
@@ -31,7 +33,7 @@ export default function ExamPaper({ exam, questions, tos, setLabel = 'A', includ
           <div className="pd-org">{org}</div>
           <div className="pd-title">{exam.title}</div>
           <div className="pd-meta">
-            {exam.subject_code ? `${exam.subject_code} — ` : ''}{exam.subject_name || ''}
+            {subjectLabel(exam)}
             {exam.duration_minutes ? ` · ${exam.duration_minutes} minutes` : ''}
             {` · ${items.length} items`}
             {setLabel ? ` · Set ${setLabel}` : ''}

@@ -29,6 +29,7 @@ import useJobs, { isActiveJob } from '../lib/useJobs.js';
 import AppShell from '../components/AppShell.jsx';
 import { TableSkeleton } from '../components/Loaders.jsx';
 import { animateRows } from '../lib/animRows.js';
+import { subjectLabel } from '../lib/subjectProgress.js';
 import EmptyStateArt from '../components/EmptyStateArt.jsx';
 import { JobsActivityPanel } from '../components/JobsList.jsx';
 import {
@@ -1198,7 +1199,7 @@ export default function QuestionsPage() {
             <select id="qf-subject" className="form-control form-select" value={filters.subject_id}
               onChange={(e) => updateFilters({ ...filters, subject_id: e.target.value, tos_id: '' })}>
               <option value="">All subjects</option>
-              {subjects.map((s) => <option key={s.id} value={s.id}>{s.code || s.name} — {s.name}</option>)}
+              {subjects.map((s) => <option key={s.id} value={s.id}>{subjectLabel(s)}</option>)}
             </select>
           </div>
           <div className="form-group">
@@ -1303,7 +1304,7 @@ export default function QuestionsPage() {
                   <option value="" disabled>Select a subject…</option>
                   {subjects.map((s) => (
                     <option key={s.id} value={s.id}>
-                      {s.name}{s.code ? ` (${s.code})` : ''}
+                      {subjectLabel(s)}
                     </option>
                   ))}
                 </select>

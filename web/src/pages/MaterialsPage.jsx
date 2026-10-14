@@ -31,6 +31,7 @@ import api, { ApiError, getToken } from '../lib/api.js';
 import AppShell from '../components/AppShell.jsx';
 import { TableSkeleton } from '../components/Loaders.jsx';
 import { animateRows } from '../lib/animRows.js';
+import { subjectLabel } from '../lib/subjectProgress.js';
 import EmptyStateArt from '../components/EmptyStateArt.jsx';
 import { StatusPill, StatCard, groupColor } from '../components/Board.jsx';
 import Select from '../components/Select.jsx';
@@ -498,7 +499,7 @@ export default function MaterialsPage() {
     const used = new Set((materials || []).map((m) => String(m.subject_id)));
     return [
       { value: ALL, label: 'All subjects' },
-      ...subjects.filter((s) => used.has(String(s.id))).map((s) => ({ value: String(s.id), label: s.code ? `${s.code} — ${s.name}` : s.name })),
+      ...subjects.filter((s) => used.has(String(s.id))).map((s) => ({ value: String(s.id), label: subjectLabel(s) })),
     ];
   }, [materials, subjects]);
 
@@ -717,7 +718,7 @@ export default function MaterialsPage() {
             <select id="mat-subject" className="form-control" value={form.subject_id}
               onChange={(e) => setSubject(e.target.value)}>
               <option value="">Select…</option>
-              {subjects.map((s) => <option key={s.id} value={s.id}>{s.code || s.name} — {s.name}</option>)}
+              {subjects.map((s) => <option key={s.id} value={s.id}>{subjectLabel(s)}</option>)}
             </select>
             {form.subject_id && (
               <small className="form-hint">Remembered for the rest of this session, so a batch never re-asks.</small>
@@ -870,7 +871,7 @@ export default function MaterialsPage() {
         onClose={() => { setViewing(null); setViewContent(null); }}
         fields={viewing ? [
           { label: 'Status', value: <StatusPill status={viewing.status} small inline />, kind: 'meta' },
-          { label: 'Subject', value: (() => { const s = matSubjectOf(viewing); return s ? `${s.name}${s.code ? ` (${s.code})` : ''}` : null; })(), kind: 'meta' },
+          { label: 'Subject', value: (() => { const s = matSubjectOf(viewing); return s ? subjectLabel(s) : null; })(), kind: 'meta' },
           { label: 'Source', value: viewing.source_type, kind: 'meta' },
           { label: 'Chunks', value: viewing.chunk_count || 0, kind: 'stat' },
           viewing.status === 'failed' ? { label: 'Error', value: viewing.error } : null,

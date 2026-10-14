@@ -27,6 +27,7 @@ import { useToast } from '../components/Toast.jsx';
 import EmptyStateArt from '../components/EmptyStateArt.jsx';
 import Modal from '../components/Modal.jsx';
 import api, { ApiError } from '../lib/api.js';
+import { subjectLabel } from '../lib/subjectProgress.js';
 import AppShell from '../components/AppShell.jsx';
 import { PageLoader } from '../components/Loaders.jsx';
 
@@ -181,7 +182,7 @@ export default function WizardPage() {
           >
             <option value="">Select subject…</option>
             {subjects.map((s) => (
-              <option key={s.id} value={s.id}>{s.code || s.name} — {s.name}</option>
+              <option key={s.id} value={s.id}>{subjectLabel(s)}</option>
             ))}
           </select>
           <button className="wizard-refresh" onClick={loadPipeline} title="Refresh" aria-label="Refresh workflow status">

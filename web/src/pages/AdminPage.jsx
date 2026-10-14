@@ -42,6 +42,7 @@ import { StatusPill, groupColor } from '../components/Board.jsx';
 import { useGridTable, DatasetFoot } from '../components/DataTable.jsx';
 import { TableSkeleton } from '../components/Loaders.jsx';
 import { animateRows } from '../lib/animRows.js';
+import { subjectLabel } from '../lib/subjectProgress.js';
 import { timeAgo } from '../lib/time.js';
 import { useAuth } from '../features/auth/AuthContext.jsx';
 import api, { ApiError } from '../lib/api.js';
@@ -85,6 +86,16 @@ function fmtDate(ts) {
   return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 }
 
+/** Normalize stored IPs for display: IPv4-mapped forms collapse to the
+ *  dotted quad and loopback reads as "localhost" instead of "::1". */
+function fmtIp(ip) {
+  const s = String(ip || '').trim();
+  if (!s) return '—';
+  if (s === '::1' || s === '::ffff:127.0.0.1' || s === '127.0.0.1') return 'localhost';
+  const v4 = /^::ffff:(\d{1,3}(?:\.\d{1,3}){3})$/.exec(s);
+  return v4 ? v4[1] : s;
+}
+
 function initialsOf(u) {
   const parts = [u.first_name, u.last_name].filter(Boolean);
   const src = parts.length ? parts : String(u.full_name || u.email || 'U').split(' ');
@@ -102,19 +113,13 @@ function VerifiedMark({ yes }) {
 }
 
 /**
- * Shared per-view header — the same .page-header anatomy the instructor
- * pages use: eyebrow naming the console tier, title, description, actions.
+ * Shared per-view action row — the topbar already carries the view title,
+ * so the console only renders controls, not a repeated heading.
  */
-function AdminHeader({ tier, title, sub, children }) {
+function AdminHeader({ children }) {
+  if (!children) return null;
   return (
     <div className="page-header print-skip">
-      <div>
-        <span className="eyebrow"><ShieldCheck size={13} />{tier}</span>
-        <h1>{title}</h1>
-        <p className="page-sub">{sub}</p>
-      </div>
-      {/* Always rendered — an empty actions row keeps the title from being
-          treated as the only child (board.css right-aligns that case). */}
       <div className="header-actions">{children}</div>
     </div>
   );
@@ -375,7 +380,7 @@ function EditUserModal({ user, onClose, onSaved }) {
 }
 
 // ── Dashboard tab ──────────────────────────────────────
-function DashboardTab({ toast, tier }) {
+function DashboardTab({ toast }) {
   const [data, setData] = useState(() => api.peek('/admin/stats') ?? null);
   const [editing, setEditing] = useState(null);
   const { menuEl, openMenu } = useContextMenu();
@@ -397,7 +402,7 @@ function DashboardTab({ toast, tier }) {
 
   return (
     <>
-      <AdminHeader tier={tier} title="Overview" sub={VIEW_META.dashboard.sub}>
+      <AdminHeader>
         <button type="button" className="btn btn-outline btn-sm" onClick={load}>
           <RefreshCw size={14} /> Refresh
         </button>
@@ -530,7 +535,7 @@ function DashboardTab({ toast, tier }) {
                     </div>
                     <div className="adm-row-side">
                       <StatusPill status={r.success ? 'active' : 'failed'} label={r.success ? 'Success' : 'Failed'} small />
-                      <span className="adm-mono adm-nowrap">{r.ip || '—'}</span>
+                      <span className="adm-mono adm-nowrap">{fmtIp(r.ip)}</span>
                       <span className="adm-muted adm-nowrap">{fmtShort(r.created_at)}</span>
                     </div>
                   </div>
@@ -592,7 +597,7 @@ function DashboardTab({ toast, tier }) {
 }
 
 // ── Users tab ──────────────────────────────────────────
-function UsersTab({ toast, role, tier }) {
+function UsersTab({ toast, role }) {
   const [searchParams, setSearchParams] = useSearchParams();
   const filter = USER_FILTERS.includes(searchParams.get('status')) ? searchParams.get('status') : 'all';
   const [users, setUsers] = useState(null);
@@ -655,7 +660,7 @@ function UsersTab({ toast, role, tier }) {
 
   return (
     <>
-      <AdminHeader tier={tier} title="User management" sub={VIEW_META.users.sub}>
+      <AdminHeader>
         <button type="button" className="btn btn-primary btn-sm" onClick={() => setAdding(true)} data-tour="admin-add">
           <UserPlus size={14} /> Add user
         </button>
@@ -784,7 +789,7 @@ function UsersTab({ toast, role, tier }) {
 }
 
 // ── Announcements tab ────────────────────────────────
-function AnnouncementsTab({ toast, tier }) {
+function AnnouncementsTab({ toast }) {
   const [rows, setRows] = useState(null);
   const [query, setQuery] = useState('');
   const [editing, setEditing] = useState(null); // announcement being edited, or {} for new
@@ -864,7 +869,7 @@ function AnnouncementsTab({ toast, tier }) {
 
   return (
     <>
-      <AdminHeader tier={tier} title="Announcements" sub={VIEW_META.announcements.sub}>
+      <AdminHeader>
         <button type="button" className="btn btn-primary btn-sm" onClick={() => setEditing({})}>
           <Plus size={14} /> New announcement
         </button>
@@ -1057,7 +1062,7 @@ function AnnouncementModal({ announcement, onClose, onSaved }) {
 const BANK_BLOOMS = BLOOM_ORDER;
 const BANK_TYPES = ['mcq', 'true_false', 'matching', 'identification'];
 
-function BankTab({ toast, tier }) {
+function BankTab({ toast }) {
   const [data, setData] = useState(null);
   const [query, setQuery] = useState('');
   const [filters, setFilters] = useState({ subject: '', bloom: '', type: '' });
@@ -1116,7 +1121,7 @@ function BankTab({ toast, tier }) {
 
   return (
     <>
-      <AdminHeader tier={tier} title="Question bank" sub={VIEW_META.bank.sub}>
+      <AdminHeader>
         <RefreshButton onClick={load} />
       </AdminHeader>
 
@@ -1137,7 +1142,7 @@ function BankTab({ toast, tier }) {
             </label>
             <select className="form-control form-select adm-select" value={filters.subject} onChange={setFilter('subject')} aria-label="Filter by subject">
               <option value="">All subjects</option>
-              {subjects.map((s) => <option key={s.id} value={s.id}>{s.code ? `${s.code} — ` : ''}{s.name}</option>)}
+              {subjects.map((s) => <option key={s.id} value={s.id}>{subjectLabel(s)}</option>)}
             </select>
             <select className="form-control form-select adm-select" value={filters.bloom} onChange={setFilter('bloom')} aria-label="Filter by Bloom level">
               <option value="">All Bloom levels</option>
@@ -1208,9 +1213,7 @@ function BankTab({ toast, tier }) {
                       </td>
                       <td>{TYPE_LABELS[q.type] || q.type}</td>
                       <td>{BLOOM_LABELS[q.bloom] || q.bloom || '—'}</td>
-                      <td className="g-mute" title={q.subject_code ? `${q.subject_code} — ${q.subject_name}` : q.subject_name}>
-                        {q.subject_code ? `${q.subject_code} — ` : ''}{q.subject_name}
-                      </td>
+                      <td className="g-mute" title={subjectLabel(q)}>{subjectLabel(q)}</td>
                       <td className="g-mute" title={q.author || ''}>{q.author || '—'}</td>
                       <td className="g-mute" title={fmtTime(q.created_at)}>{fmtDate(q.created_at)}</td>
                     </tr>
@@ -1238,7 +1241,7 @@ function BankViewModal({ question: q, onClose }) {
       size="md"
       icon={CircleHelp}
       title={TYPE_LABELS[q.type] || 'Question'}
-      subtitle={`${q.subject_code ? `${q.subject_code} — ` : ''}${q.subject_name || ''}`}
+      subtitle={subjectLabel(q)}
       onClose={onClose}
       footer={(
         <button type="button" className="btn btn-outline" onClick={() => copyText(q.stem, 'Question')}>
@@ -1251,7 +1254,7 @@ function BankViewModal({ question: q, onClose }) {
         <dl className="adm-detail-grid">
           <div><dt>Bloom level</dt><dd>{BLOOM_LABELS[q.bloom] || q.bloom || '—'}</dd></div>
           <div><dt>Topic</dt><dd>{q.topic || '—'}</dd></div>
-          <div><dt>Subject</dt><dd>{q.subject_code ? `${q.subject_code} — ` : ''}{q.subject_name}</dd></div>
+          <div><dt>Subject</dt><dd>{subjectLabel(q)}</dd></div>
           <div><dt>Author</dt><dd>{q.author || '—'}</dd></div>
           <div><dt>Added</dt><dd>{fmtTime(q.created_at)}</dd></div>
         </dl>
@@ -1261,7 +1264,7 @@ function BankViewModal({ question: q, onClose }) {
 }
 
 // ── Login logs tab ─────────────────────────────────────
-function LoginsTab({ toast, tier }) {
+function LoginsTab({ toast }) {
   const [logs, setLogs] = useState(null);
   const [query, setQuery] = useState('');
   const { menuEl, openMenu } = useContextMenu();
@@ -1298,7 +1301,6 @@ function LoginsTab({ toast, tier }) {
 
   return (
     <>
-      <AdminHeader tier={tier} title="Login logs" sub={VIEW_META.logins.sub} />
 
       <section className="dataset">
         <div className="dataset-bar" data-tour="admin-toolbar">
@@ -1371,7 +1373,7 @@ function LoginsTab({ toast, tier }) {
                       <td>{l.email}</td>
                       <td><StatusPill status={l.success ? 'active' : 'failed'} label={l.success ? 'Success' : 'Failed'} /></td>
                       <td className="g-mute" title={l.reason || ''}>{l.reason || '—'}</td>
-                      <td><span className="g-code">{l.ip || '—'}</span></td>
+                      <td><span className="g-code">{fmtIp(l.ip)}</span></td>
                       <td className="g-mute" title={l.user_agent || ''}>{l.user_agent || '—'}</td>
                     </tr>
                   ))}
@@ -1443,7 +1445,7 @@ function auditTargetText(l) {
   return [noun, l.target_id ? `#${l.target_id}` : null].filter(Boolean).join(' ') || '—';
 }
 
-function AuditTab({ toast, tier }) {
+function AuditTab({ toast }) {
   const [logs, setLogs] = useState(null);
   const [query, setQuery] = useState('');
   const { menuEl, openMenu } = useContextMenu();
@@ -1482,7 +1484,6 @@ function AuditTab({ toast, tier }) {
 
   return (
     <>
-      <AdminHeader tier={tier} title="Audit trail" sub={VIEW_META.audit.sub} />
 
       <section className="dataset">
         <div className="dataset-bar" data-tour="admin-toolbar">
@@ -1558,7 +1559,7 @@ function AuditTab({ toast, tier }) {
                       <td className="g-mute" title={typeof l.detail === 'string' ? l.detail : (l.detail ? JSON.stringify(l.detail) : '')}>
                         {auditDetailText(l.detail)}
                       </td>
-                      <td><span className="g-code">{l.ip || '—'}</span></td>
+                      <td><span className="g-code">{fmtIp(l.ip)}</span></td>
                     </tr>
                   ))}
                 </tbody>
@@ -1681,7 +1682,7 @@ function PoolKeyRows({ provider, rows, masked, sources, savedCount, removed, mod
 }
 
 // ── Settings tab ───────────────────────────────────────
-function SettingsTab({ toast, tier }) {
+function SettingsTab({ toast }) {
   const [data, setData] = useState(null);
   const [form, setForm] = useState({});
   // Draft key edits — one row per pool slot; blank rows keep the saved key.
@@ -1848,7 +1849,6 @@ function SettingsTab({ toast, tier }) {
 
   return (
     <>
-      <AdminHeader tier={tier} title="Settings" sub={VIEW_META.settings.sub} />
 
       {!data ? (
         <TableSkeleton rows={4} />
@@ -2023,7 +2023,7 @@ function SettingsTab({ toast, tier }) {
  * report (the same anatomy as the instructor analytics reports), plus
  * CSV/XLSX exports.
  */
-function ReportsTab({ toast, tier, scoped }) {
+function ReportsTab({ toast, scoped }) {
   const { user } = useAuth();
   const [data, setData] = useState(null);
 
@@ -2117,7 +2117,7 @@ function ReportsTab({ toast, tier, scoped }) {
 
   return (
     <>
-      <AdminHeader tier={tier} title={reportTitle} sub={VIEW_META.reports.sub}>
+      <AdminHeader>
         <button type="button" className="btn btn-outline btn-sm" onClick={() => window.print()} disabled={!data} title="Print the report as a document">
           <Printer size={14} /> Print
         </button>
@@ -2348,18 +2348,17 @@ export default function AdminPage() {
   if (!allowed.includes(view)) return <Navigate to="/admin/dashboard" replace />;
 
   const meta = VIEW_META[view];
-  const tier = user?.role === 'superadmin' ? 'Superadmin console' : 'Admin console';
 
   return (
     <AppShell activeNav={view} pageClass="admin" pageTitle={meta.title} wide>
-      {view === 'dashboard' && <DashboardTab toast={toast} tier={tier} />}
-      {view === 'users' && <UsersTab toast={toast} role={user?.role} tier={tier} />}
-      {view === 'announcements' && <AnnouncementsTab toast={toast} tier={tier} />}
-      {view === 'reports' && <ReportsTab toast={toast} tier={tier} scoped={user?.role !== 'superadmin'} />}
-      {view === 'bank' && <BankTab toast={toast} tier={tier} />}
-      {view === 'logins' && <LoginsTab toast={toast} tier={tier} />}
-      {view === 'audit' && <AuditTab toast={toast} tier={tier} />}
-      {view === 'settings' && <SettingsTab toast={toast} tier={tier} />}
+      {view === 'dashboard' && <DashboardTab toast={toast} />}
+      {view === 'users' && <UsersTab toast={toast} role={user?.role} />}
+      {view === 'announcements' && <AnnouncementsTab toast={toast} />}
+      {view === 'reports' && <ReportsTab toast={toast} scoped={user?.role !== 'superadmin'} />}
+      {view === 'bank' && <BankTab toast={toast} />}
+      {view === 'logins' && <LoginsTab toast={toast} />}
+      {view === 'audit' && <AuditTab toast={toast} />}
+      {view === 'settings' && <SettingsTab toast={toast} />}
     </AppShell>
   );
 }

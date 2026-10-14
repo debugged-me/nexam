@@ -28,6 +28,7 @@ import { useConfirm } from '../components/ConfirmDialog.jsx';
 import EmptyStateArt from '../components/EmptyStateArt.jsx';
 import Modal from '../components/Modal.jsx';
 import api, { ApiError } from '../lib/api.js';
+import { subjectLabel } from '../lib/subjectProgress.js';
 import { isKnowledgeQuestion, needsKnowledgeConfirm, confirmKnowledge } from '../lib/knowledge.js';
 import useJobs, { isActiveJob } from '../lib/useJobs.js';
 import AppShell from '../components/AppShell.jsx';
@@ -673,7 +674,7 @@ export default function ReviewQueuePage() {
       >
         <option value="">All subjects</option>
         {subjects.map((s) => (
-          <option key={s.id} value={s.id}>{s.code ? `${s.code} — ${s.name}` : s.name}</option>
+          <option key={s.id} value={s.id}>{subjectLabel(s)}</option>
         ))}
       </select>
       <button

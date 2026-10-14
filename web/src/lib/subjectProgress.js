@@ -13,6 +13,17 @@
 const n = (v) => Number(v) || 0;
 const plural = (count, one, many = `${one}s`) => `${count} ${count === 1 ? one : many}`;
 
+/** "CODE — Name" — skipped when the name already opens with the code, so
+ *  "PE 3 — Physical Education" never renders as "PE 3 — PE 3 — …". Accepts
+ *  {code,name} or {subject_code,subject_name} shapes. */
+export function subjectLabel(s) {
+  const name = String(s?.name ?? s?.subject_name ?? '').trim();
+  const code = String(s?.code ?? s?.subject_code ?? '').trim();
+  if (!name) return code;
+  if (!code) return name;
+  return name.toLowerCase().startsWith(code.toLowerCase()) ? name : `${code} — ${name}`;
+}
+
 export function subjectStages(s) {
   const ready = n(s.material_ready);
   const materials = n(s.material_count);

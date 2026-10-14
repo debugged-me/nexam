@@ -28,6 +28,7 @@ import AppShell from '../components/AppShell.jsx';
 import { TableSkeleton } from '../components/Loaders.jsx';
 import EmptyStateArt from '../components/EmptyStateArt.jsx';
 import { animateRows } from '../lib/animRows.js';
+import { subjectLabel } from '../lib/subjectProgress.js';
 import { timeAgo } from '../lib/time.js';
 import { useMediaQuery } from '../lib/useMediaQuery.js';
 import {
@@ -562,7 +563,7 @@ export default function TosPage() {
                   value={editing.subject_id || ''}
                   onChange={(e) => setEditing({ ...editing, subject_id: e.target.value })}>
                   <option value="">Select a subject…</option>
-                  {subjects.map((s) => <option key={s.id} value={s.id}>{s.name}{s.code ? ` (${s.code})` : ''}</option>)}
+                  {subjects.map((s) => <option key={s.id} value={s.id}>{subjectLabel(s)}</option>)}
                 </select>
               </div>
               <div className="form-group">

@@ -409,6 +409,7 @@ export default function DashboardPage() {
       to: '/questions',
       icon: CircleHelp,
       tint: 2,
+      hero: true,
       delta: deltaChip(deltas.questions),
       spark: daily.map((d) => d.q || 0),
     },
@@ -467,12 +468,13 @@ export default function DashboardPage() {
               i={i}
               icon={metric.icon}
               tint={metric.tint}
+              hero={metric.hero}
               value={metric.value}
               label={metric.label}
               hint={metric.hint}
               delta={metric.delta}
               spark={metric.spark}
-              sparkColor={`var(--gc-${metric.tint})`}
+              sparkColor={metric.hero ? 'rgba(255,255,255,.9)' : `var(--gc-${metric.tint})`}
             />
           ))}
         </div>

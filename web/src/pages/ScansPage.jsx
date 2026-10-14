@@ -12,8 +12,8 @@ import '../styles/scans.css';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import {
-  AlertCircle, CheckCircle, ClipboardList, Copy, Ellipsis, GraduationCap,
-  Layers, ScanLine, Search,
+  AlertCircle, CheckCircle, ClipboardList, Copy, Download, Ellipsis,
+  GraduationCap, Layers, ScanLine, Search,
 } from 'lucide-react';
 import api from '../lib/api.js';
 import { useToast } from '../components/Toast.jsx';
@@ -21,11 +21,14 @@ import { useContextMenu, useCopyText } from '../components/ContextMenu.jsx';
 import { useGridTable, DatasetFoot } from '../components/DataTable.jsx';
 import EmptyStateArt from '../components/EmptyStateArt.jsx';
 import AppShell from '../components/AppShell.jsx';
+import ExportDialog from '../components/ExportDialog.jsx';
+import PrintDocHead from '../components/PrintDocHead.jsx';
 import ScanReviewModal from '../components/ScanReviewModal.jsx';
 import StudentsPanel from '../components/StudentsPanel.jsx';
 import Tooltip from '../components/Tooltip.jsx';
 import { TableSkeleton } from '../components/Loaders.jsx';
 import { animateRows } from '../lib/animRows.js';
+import { downloadCsv, downloadXlsx } from '../lib/exports.js';
 import { fmtScanned, timeAgo } from '../lib/time.js';
 
 const COLUMNS = [
@@ -157,6 +160,95 @@ export default function ScansPage() {
     setParams(next === 'sheets' ? {} : { tab: next }, { replace: true });
   }
 
+  // ── Export / print — same machinery as the analytics reports ──
+  // printScope overrides the on-screen filters for one print run —
+  // "Print Set A only" doesn't disturb the table you're looking at.
+  const [printScope, setPrintScope] = useState(null); // { examId, setLabel, filter, query, pending }
+  const [exportOpen, setExportOpen] = useState(false);
+  // expSc is the dialog's own scope — seeded from the table filters when
+  // the sheet opens, then independent of them.
+  const [expSc, setExpSc] = useState(null);
+  const scope = printScope || { examId, setLabel, filter, query };
+
+  const SCAN_HEADERS = ['Student', 'Student ID', 'Exam', 'Set', 'Score', 'Status', 'Scanned'];
+  const scanRowsFor = (sc) => (scans || [])
+    .filter((s) =>
+      (!sc.examId || s.exam_id === sc.examId)
+      && (!sc.setLabel || s.set_label === sc.setLabel)
+      && (sc.filter !== 'review' || s.needs_review)
+      && (sc.filter !== 'done' || !s.needs_review)
+      && (!sc.query
+        || (s.student_name || '').toLowerCase().includes(String(sc.query).toLowerCase())
+        || (s.student_number || '').toLowerCase().includes(String(sc.query).toLowerCase())))
+    .map((s) => [
+      s.student_name || 'Unknown',
+      s.student_number || '',
+      s.exam_title || '',
+      s.set_label || '',
+      `${Number(s.score || 0).toFixed(1)}%`,
+      s.needs_review ? 'Needs review' : 'Reviewed',
+      fmtScanned(s.scanned_at),
+    ]);
+
+  const printRows = scanRowsFor(scope);
+  // A column identical on every printed row collapses into the header —
+  // Exam goes to the title, Set to the meta line.
+  const printExam = scope.examId
+    ? exams.find((ex) => ex.id === scope.examId)?.title
+    : (new Set(printRows.map((r) => r[2])).size === 1 ? printRows[0]?.[2] : null);
+  const printSet = scope.setLabel
+    || (new Set(printRows.map((r) => r[3])).size === 1 ? printRows[0]?.[3] : null);
+  const dropCols = [printExam && 2, printSet && 3].filter((i) => i !== false);
+  const printHeaders = SCAN_HEADERS.filter((_, i) => !dropCols.includes(i));
+  const printCells = printRows.map((r) => r.filter((_, i) => !dropCols.includes(i)));
+  const printMeta = [
+    ['Generated', new Date().toLocaleString()],
+    ['Sheets', String(printCells.length)],
+    ...(printSet ? [['Set', printSet]] : []),
+    ...(scope.filter && scope.filter !== 'all' ? [['Status', scope.filter === 'review' ? 'Needs review' : 'Reviewed']] : []),
+    ...(scope.query ? [['Search', scope.query]] : []),
+  ];
+
+  // Fire the print dialog once the scoped doc has rendered, then reset so
+  // the doc follows the live filters again.
+  useEffect(() => {
+    if (!printScope?.pending) return undefined;
+    const after = () => setPrintScope(null);
+    window.addEventListener('afterprint', after);
+    const t = setTimeout(() => window.print(), 60);
+    return () => { window.removeEventListener('afterprint', after); clearTimeout(t); };
+  }, [printScope]);
+
+  function scopeMeta(sc, rowCount) {
+    const ex = exams.find((e) => e.id === sc.examId)?.title;
+    return [
+      ['Generated', new Date().toLocaleString()],
+      ['Sheets', String(rowCount)],
+      ...(ex ? [['Exam', ex]] : []),
+      ...(sc.setLabel ? [['Set', sc.setLabel]] : []),
+      ...(sc.filter && sc.filter !== 'all' ? [['Status', sc.filter === 'review' ? 'Needs review' : 'Reviewed']] : []),
+    ];
+  }
+
+  function exportCsvFile(sc) {
+    const rows = scanRowsFor(sc);
+    downloadCsv('nexam-scans', SCAN_HEADERS, rows, { title: 'Scan records', pairs: scopeMeta(sc, rows.length) });
+  }
+
+  async function exportXlsxFile(sc) {
+    const rows = scanRowsFor(sc);
+    try {
+      await downloadXlsx('nexam-scans', {
+        title: 'Scan records',
+        subtitle: 'Every scanned OMR answer sheet',
+        meta: scopeMeta(sc, rows.length),
+        sheets: [{ title: 'Scans', headers: SCAN_HEADERS, rows }],
+      });
+    } catch {
+      toast.error('Could not build the Excel file.');
+    }
+  }
+
   function scanMenu(e, s) {
     openMenu(e, [
       { label: 'Open sheet', icon: ScanLine, onClick: () => setReviewScanId(s.id) },
@@ -198,7 +290,7 @@ export default function ScansPage() {
   return (
     <AppShell pageClass="scans" activeNav="scans" pageTitle="OMR scans" wide>
       {tab === 'students' ? <StudentsPanel tabs={tabsEl} /> : (
-        <section className="dataset" data-dataset>
+        <section className="dataset print-skip" data-dataset>
           <div className="dataset-bar">
             <div className="dataset-bar-lead">
               <label className="ds-search" htmlFor="scans-search">
@@ -242,7 +334,17 @@ export default function ScansPage() {
                 </select>
               </span>
             </div>
-            <div className="dataset-bar-trail">{tabsEl}</div>
+            <div className="dataset-bar-trail">
+              <button
+                type="button"
+                className="btn btn-outline btn-sm"
+                onClick={() => { setExpSc({ examId, setLabel, filter }); setExportOpen(true); }}
+                title="Print or export the scan list"
+              >
+                <Download size={15} /> Export
+              </button>
+              {tabsEl}
+            </div>
           </div>
 
           {/* Status strip — same idiom as the question bank: segmented
@@ -352,6 +454,77 @@ export default function ScansPage() {
         onClose={() => setReviewScanId(null)}
         onSaved={afterReview}
       />
+
+      {/* Print document — hidden on screen, the only thing on paper. When
+          the doc is scoped to one exam, the exam name lives in the title
+          instead of repeating on every row. */}
+      {tab === 'sheets' && (
+        <div className="print-doc print-only">
+          <PrintDocHead
+            org="nexam — OMR scans"
+            title={printExam ? `${printExam} — Scan Records` : 'Scan Records'}
+            meta={<>{printMeta.map(([k, v]) => `${k}: ${v}`).join('  ·  ')}</>}
+          />
+          <table className="report-table">
+            <thead>
+              <tr>{printHeaders.map((h) => <th key={h}>{h}</th>)}</tr>
+            </thead>
+            <tbody>
+              {printCells.map((r, i) => (
+                <tr key={i}>{r.map((c, j) => <td key={j}>{c || '—'}</td>)}</tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {exportOpen && expSc && (
+        <ExportDialog
+          title="Print or export sheets"
+          subtitle="Pick the slice — defaults follow the current table filters"
+          count={scanRowsFor(expSc).length}
+          noun="sheet"
+          hint="One exam on paper? Its name moves to the document title and the column drops out. Files keep every column and record the slice in the report header."
+          onClose={() => setExportOpen(false)}
+          onRun={(fmt) => {
+            setExportOpen(false);
+            if (fmt === 'print') setPrintScope({ ...expSc, pending: true });
+            else if (fmt === 'xlsx') exportXlsxFile(expSc);
+            else exportCsvFile(expSc);
+          }}
+        >
+          <div className="form-group">
+            <label className="form-label" htmlFor="exp-exam">Exam</label>
+            <select id="exp-exam" className="form-control form-select" value={expSc.examId}
+              onChange={(e) => setExpSc({ ...expSc, examId: e.target.value, setLabel: '' })}>
+              <option value="">All exams</option>
+              {exams.map((x) => <option key={x.id} value={x.id}>{x.title}</option>)}
+            </select>
+          </div>
+          <div className="form-group">
+            <label className="form-label" htmlFor="exp-set">Set</label>
+            <select id="exp-set" className="form-control form-select" value={expSc.setLabel}
+              onChange={(e) => setExpSc({ ...expSc, setLabel: e.target.value })}>
+              <option value="">All sets</option>
+              {[...new Set((scans || [])
+                .filter((s) => !expSc.examId || s.exam_id === expSc.examId)
+                .map((s) => s.set_label).filter(Boolean))].sort()
+                .map((l) => <option key={l} value={l}>Set {l}</option>)}
+            </select>
+          </div>
+          <div className="form-group">
+            <label className="form-label" htmlFor="exp-status">Status</label>
+            <select id="exp-status" className="form-control form-select" value={expSc.filter}
+              onChange={(e) => setExpSc({ ...expSc, filter: e.target.value })}>
+              <option value="all">All sheets</option>
+              <option value="review">Needs review only</option>
+              <option value="done">Reviewed only</option>
+            </select>
+          </div>
+        </ExportDialog>
+      )}
     </AppShell>
   );
 }
+
+

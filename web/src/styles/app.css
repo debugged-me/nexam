@@ -2280,3 +2280,73 @@ select.form-control:not([multiple]) {
 }
 .omr-sheet-row .omr-bubbles { width: 52px; height: 9px; }
 @media print { .omr-sheet, .omr-type { display: none !important; } }
+
+/* ── Export sheet (components/ExportDialog.jsx) — shared across pages, so
+   these live unscoped: the portaled Modal sheet picks them up anywhere.
+   Format cards use the KPI-tile idiom: tinted icon + action ring on the
+   selected card; .exp-sec is the slimmer multi-select row for report
+   sections. ── */
+.exp-fmts { display: flex; flex-direction: column; gap: 0.5rem; margin-bottom: 1rem; }
+
+.exp-fmt {
+  display: flex; align-items: center; gap: 0.7rem;
+  padding: 0.6rem 0.7rem; border-radius: var(--radius-md);
+  border: 1px solid var(--line); background: var(--surface);
+  font: inherit; color: inherit; text-align: left; cursor: pointer;
+  transition: border-color .12s ease, background .12s ease, box-shadow .12s ease;
+}
+.exp-fmt:hover { border-color: var(--line-strong); background: var(--surface-2); }
+.exp-fmt.is-on {
+  border-color: var(--action-600);
+  background: var(--action-50);
+  box-shadow: 0 0 0 1px var(--action-600);
+}
+
+.exp-fmt-ico {
+  width: 34px; height: 34px; flex: none; border-radius: var(--radius-sm);
+  display: grid; place-items: center;
+  background: var(--surface-2); color: var(--ink-2);
+  transition: background .12s ease, color .12s ease;
+}
+.exp-fmt.is-on .exp-fmt-ico { background: var(--action-600); color: #fff; }
+
+.exp-fmt-body { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.exp-fmt-name { font-weight: 600; font-size: 0.84rem; color: var(--ink); }
+.exp-fmt-hint { font-size: 0.72rem; color: var(--ink-3); }
+
+.exp-secs { display: flex; flex-direction: column; gap: 0.4rem; margin-bottom: 0.25rem; }
+
+.exp-sec {
+  display: flex; align-items: center; gap: 0.6rem;
+  padding: 0.45rem 0.65rem; border-radius: var(--radius-md);
+  border: 1px solid var(--line); background: var(--surface);
+  font: inherit; color: inherit; text-align: left; cursor: pointer;
+  transition: border-color .12s ease, background .12s ease;
+}
+.exp-sec:hover:not(:disabled) { border-color: var(--line-strong); }
+.exp-sec:disabled { opacity: 0.5; cursor: default; }
+.exp-sec.is-on { border-color: var(--action-600); background: var(--action-50); }
+
+.exp-sec-check {
+  width: 18px; height: 18px; flex: none; border-radius: 5px;
+  display: grid; place-items: center;
+  border: 1.5px solid var(--line-strong); color: transparent;
+  transition: background .12s ease, border-color .12s ease, color .12s ease;
+}
+.exp-sec.is-on .exp-sec-check { background: var(--action-600); border-color: var(--action-600); color: #fff; }
+
+.exp-sec-name { flex: 1; font-weight: 500; font-size: 0.82rem; color: var(--ink); }
+.exp-sec-n { font-size: 0.72rem; color: var(--ink-3); font-variant-numeric: tabular-nums; }
+
+.exp-count {
+  display: flex; align-items: baseline; gap: 0.45rem;
+  margin-top: 1rem; padding: 0.55rem 0.7rem;
+  border-radius: var(--radius-md);
+  background: var(--surface-2); border: 1px solid var(--line);
+  color: var(--ink-2); font-size: 0.8rem;
+}
+.exp-count-n {
+  font-family: var(--font-display, inherit);
+  font-weight: 700; font-size: 1.05rem; line-height: 1;
+  color: var(--action-600); font-variant-numeric: tabular-nums;
+}

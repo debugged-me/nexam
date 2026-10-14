@@ -11,8 +11,8 @@
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  Copy, Ellipsis, Merge, Pencil, Search,
-  AlertCircle, CheckCircle,
+  Copy, Download, Ellipsis, Merge, Pencil,
+  Search, AlertCircle, BookOpen, CheckCircle,
 } from 'lucide-react';
 import api, { ApiError } from '../lib/api.js';
 import { useToast } from './Toast.jsx';
@@ -20,10 +20,13 @@ import { useConfirm } from './ConfirmDialog.jsx';
 import { useContextMenu, useCopyText } from './ContextMenu.jsx';
 import { useGridTable, DatasetFoot } from './DataTable.jsx';
 import EmptyStateArt from './EmptyStateArt.jsx';
+import ExportDialog from './ExportDialog.jsx';
 import Modal from './Modal.jsx';
+import PrintDocHead from './PrintDocHead.jsx';
 import Tooltip from './Tooltip.jsx';
 import { TableSkeleton } from './Loaders.jsx';
 import { animateRows } from '../lib/animRows.js';
+import { downloadCsv, downloadXlsx } from '../lib/exports.js';
 import { fmtScanned, timeAgo } from '../lib/time.js';
 
 const COLUMNS = [
@@ -45,6 +48,7 @@ export default function StudentsPanel({ tabs }) {
 
   const [students, setStudents] = useState(null);
   const [query, setQuery] = useState('');
+  const [subjectId, setSubjectId] = useState('');
   const [renaming, setRenaming] = useState(null);       // student row
   const [merging, setMerging] = useState(null);         // source student row
   const [mergeTarget, setMergeTarget] = useState('');
@@ -57,19 +61,27 @@ export default function StudentsPanel({ tabs }) {
   }, [toast]);
   useEffect(() => { load(); }, [load]);
 
-  // Search is client-side substring over the decrypted roster — the API
-  // already returns every row scoped to this instructor.
+  // Search + subject filter are client-side — the API already returns
+  // every roster row scoped to this instructor.
+  const subjectOptions = useMemo(() => (
+    [...new Map((students || [])
+      .filter((s) => s.subject_id)
+      .map((s) => [s.subject_id, s.subject_code || '']))]
+      .map(([id, code]) => ({ id, code }))
+  ), [students]);
+
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    if (!q) return students || [];
     return (students || []).filter((s) =>
-      (s.full_name || '').toLowerCase().includes(q)
-      || (s.student_number || '').toLowerCase().includes(q));
-  }, [students, query]);
+      (!subjectId || s.subject_id === subjectId)
+      && (!q
+        || (s.full_name || '').toLowerCase().includes(q)
+        || (s.student_number || '').toLowerCase().includes(q)));
+  }, [students, query, subjectId]);
 
   const grid = useGridTable({
     data: filtered, columns: COLUMNS, pageSize: 15,
-    storageKey: 'students-roster', resetKey: query,
+    storageKey: 'students-roster', resetKey: `${query}|${subjectId}`,
     initialSorting: [{ id: 'name', desc: false }],
   });
   const { pageRows, sortClass, sortHandler, renderSortArrow } = grid;
@@ -132,6 +144,81 @@ export default function StudentsPanel({ tabs }) {
     }
   }
 
+  // ── Export / print — same machinery as the analytics reports ──
+  // printScope overrides the on-screen filters for one print run so a
+  // per-subject class list prints without touching the table.
+  const ROSTER_HEADERS = ['Student', 'Student ID', 'Subject', 'Sheets', 'Needs review', 'Last scanned'];
+  const [printScope, setPrintScope] = useState(null); // { subject, status, query, pending }
+  const [exportOpen, setExportOpen] = useState(false);
+  const [expSc, setExpSc] = useState(null);
+  const pscope = printScope || { subject: subjectId, status: 'all', query };
+
+  const subjectLabelFor = (id) => subjectOptions.find((o) => o.id === id)?.code;
+  const rosterRowsFor = (sc) => (students || [])
+    .filter((s) =>
+      (!sc.subject || s.subject_id === sc.subject)
+      && (sc.status !== 'review' || s.needs_review)
+      && (sc.status !== 'clear' || !s.needs_review)
+      && (!sc.query
+        || (s.full_name || '').toLowerCase().includes(String(sc.query).toLowerCase())
+        || (s.student_number || '').toLowerCase().includes(String(sc.query).toLowerCase())))
+    .map((s) => [
+      s.full_name,
+      s.student_number || '',
+      s.subject_code || '',
+      s.scan_count || 0,
+      s.needs_review ? 'Yes' : '',
+      s.last_scanned_at ? fmtScanned(s.last_scanned_at) : '',
+    ]);
+
+  function rosterPairs(sc, count) {
+    const subj = sc.subject ? subjectLabelFor(sc.subject) : null;
+    return [
+      ['Generated', new Date().toLocaleString()],
+      ['Students', String(count)],
+      ...(subj ? [['Subject', subj]] : []),
+      ...(sc.status && sc.status !== 'all' ? [['Review', sc.status === 'review' ? 'Needs review' : 'Clear']] : []),
+      ...(sc.query ? [['Search', sc.query]] : []),
+    ];
+  }
+
+  // A subject identical on every printed row moves to the title/meta and
+  // its column drops out — the same collapse the sheets doc does for exam.
+  const printRows = rosterRowsFor(pscope);
+  const printSubject = pscope.subject
+    ? subjectLabelFor(pscope.subject)
+    : (new Set(printRows.map((r) => r[2])).size === 1 && printRows.length ? printRows[0][2] || null : null);
+  const printHeaders = ROSTER_HEADERS.filter((_, i) => !(printSubject && i === 2));
+  const printCells = printRows.map((r) => r.filter((_, i) => !(printSubject && i === 2)));
+  const printPairs = rosterPairs(pscope, printCells.length);
+
+  useEffect(() => {
+    if (!printScope?.pending) return undefined;
+    const after = () => setPrintScope(null);
+    window.addEventListener('afterprint', after);
+    const t = setTimeout(() => window.print(), 60);
+    return () => { window.removeEventListener('afterprint', after); clearTimeout(t); };
+  }, [printScope]);
+
+  function exportCsvFile(sc) {
+    const rows = rosterRowsFor(sc);
+    downloadCsv('nexam-students', ROSTER_HEADERS, rows, { title: 'Student roster', pairs: rosterPairs(sc, rows.length) });
+  }
+
+  async function exportXlsxFile(sc) {
+    const rows = rosterRowsFor(sc);
+    try {
+      await downloadXlsx('nexam-students', {
+        title: 'Student roster',
+        subtitle: 'Roster built from OMR scans',
+        meta: rosterPairs(sc, rows.length),
+        sheets: [{ title: 'Students', headers: ROSTER_HEADERS, rows }],
+      });
+    } catch {
+      toast.error('Could not build the Excel file.');
+    }
+  }
+
   function studentMenu(e, s) {
     openMenu(e, [
       { label: 'Rename / fix ID', icon: Pencil, onClick: () => setRenaming(s) },
@@ -144,7 +231,7 @@ export default function StudentsPanel({ tabs }) {
 
   return (
     <>
-      <section className="dataset" data-dataset>
+      <section className="dataset print-skip" data-dataset>
         <div className="dataset-bar">
           <div className="dataset-bar-lead">
             <label className="ds-search" htmlFor="students-search">
@@ -161,11 +248,31 @@ export default function StudentsPanel({ tabs }) {
               />
               <kbd aria-hidden="true">/</kbd>
             </label>
+            <span className="b-groupby">
+              <BookOpen size={14} aria-hidden="true" />
+              <select
+                aria-label="Filter by subject"
+                data-active={subjectId ? 'true' : undefined}
+                value={subjectId}
+                onChange={(e) => setSubjectId(e.target.value)}
+              >
+                <option value="">All subjects</option>
+                {subjectOptions.map((o) => <option key={o.id} value={o.id}>{o.code || 'Untitled'}</option>)}
+              </select>
+            </span>
           </div>
           <div className="dataset-bar-trail">
             {pendingReview > 0 && (
               <span className="st-flag"><AlertCircle size={13} /> {pendingReview} with sheets to review</span>
             )}
+            <button
+              type="button"
+              className="btn btn-outline btn-sm"
+              onClick={() => { setExpSc({ subject: subjectId, status: 'all' }); setExportOpen(true); }}
+              title="Print or export the roster"
+            >
+              <Download size={15} /> Export
+            </button>
             {tabs}
           </div>
         </div>
@@ -260,14 +367,14 @@ export default function StudentsPanel({ tabs }) {
       >
         {renaming && (
           <form id="student-rename" className="st-form" onSubmit={saveRename}>
-            <label className="form-label">
-              Full name
-              <input className="input" name="fullName" defaultValue={renaming.full_name} maxLength={200} required autoFocus />
-            </label>
-            <label className="form-label">
-              Student ID <span className="text-muted">(leave blank to clear)</span>
-              <input className="input" name="studentNumber" defaultValue={renaming.student_number || ''} maxLength={50} />
-            </label>
+            <div className="form-group">
+              <label className="form-label" htmlFor="st-rename-name">Full name</label>
+              <input id="st-rename-name" className="form-control" name="fullName" defaultValue={renaming.full_name} maxLength={200} required autoFocus />
+            </div>
+            <div className="form-group">
+              <label className="form-label" htmlFor="st-rename-num">Student ID <span className="text-muted">(leave blank to clear)</span></label>
+              <input id="st-rename-num" className="form-control" name="studentNumber" defaultValue={renaming.student_number || ''} maxLength={50} />
+            </div>
             <p className="meta-sm text-muted">
               Scans match students by ID first, then exact name — keeping both accurate prevents duplicate records.
             </p>
@@ -316,6 +423,62 @@ export default function StudentsPanel({ tabs }) {
           </div>
         )}
       </Modal>
+
+      {/* Print document — hidden on screen, the only thing on paper. Same
+          print-doc/report-table machinery the analytics reports use. A
+          uniform subject moves to the title instead of repeating per row. */}
+      <div className="print-doc print-only">
+        <PrintDocHead
+          org="nexam — OMR scans"
+          title={printSubject ? `${printSubject} — Student Roster` : 'Student Roster'}
+          meta={<>{printPairs.map(([k, v]) => `${k}: ${v}`).join('  ·  ')}</>}
+        />
+        <table className="report-table">
+          <thead>
+            <tr>{printHeaders.map((h) => <th key={h}>{h}</th>)}</tr>
+          </thead>
+          <tbody>
+            {printCells.map((r, i) => (
+              <tr key={i}>{r.map((c, j) => <td key={j}>{c || '—'}</td>)}</tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      {exportOpen && expSc && (
+        <ExportDialog
+          title="Print or export roster"
+          subtitle="Pick the slice — defaults follow the current subject filter"
+          count={rosterRowsFor(expSc).length}
+          noun="student"
+          hint="One subject on paper? Its code moves to the document title and the column drops out. Files keep every column and record the slice in the report header."
+          onClose={() => setExportOpen(false)}
+          onRun={(fmt) => {
+            setExportOpen(false);
+            if (fmt === 'print') setPrintScope({ ...expSc, pending: true });
+            else if (fmt === 'xlsx') exportXlsxFile(expSc);
+            else exportCsvFile(expSc);
+          }}
+        >
+          <div className="form-group">
+            <label className="form-label" htmlFor="exp-subject">Subject</label>
+            <select id="exp-subject" className="form-control form-select" value={expSc.subject}
+              onChange={(e) => setExpSc({ ...expSc, subject: e.target.value })}>
+              <option value="">All subjects</option>
+              {subjectOptions.map((o) => <option key={o.id} value={o.id}>{o.code || 'Untitled'}</option>)}
+            </select>
+          </div>
+          <div className="form-group">
+            <label className="form-label" htmlFor="exp-rstatus">Review status</label>
+            <select id="exp-rstatus" className="form-control form-select" value={expSc.status}
+              onChange={(e) => setExpSc({ ...expSc, status: e.target.value })}>
+              <option value="all">Everyone</option>
+              <option value="review">With sheets to review</option>
+              <option value="clear">Clear only</option>
+            </select>
+          </div>
+        </ExportDialog>
+      )}
     </>
   );
 }

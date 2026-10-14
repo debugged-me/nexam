@@ -13,8 +13,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import {
   FileText, ScanLine, Users, AlertCircle,
   TrendingUp, TrendingDown, Sparkles, ListChecks, ArrowLeft,
-  CheckCircle, Lightbulb, AlertTriangle, Layers,
-  Printer, FileDown, FileSpreadsheet,
+  CheckCircle, Lightbulb, AlertTriangle, Layers, Download,
 } from 'lucide-react';
 import { useToast } from '../components/Toast.jsx';
 import EmptyStateArt from '../components/EmptyStateArt.jsx';
@@ -25,6 +24,7 @@ import { barsPng, linePng, bandColor } from '../lib/reportCharts.js';
 import PrintDocHead from '../components/PrintDocHead.jsx';
 import PrintDocFoot from '../components/PrintDocFoot.jsx';
 import AppShell from '../components/AppShell.jsx';
+import ExportDialog, { ExportSections } from '../components/ExportDialog.jsx';
 import { useGridTable, DsPager, DsPageSize } from '../components/DataTable.jsx';
 import KpiCard from '../components/KpiCard.jsx';
 import Reveal from '../components/Reveal.jsx';
@@ -148,6 +148,20 @@ export default function AnalyticsPage() {
 
   useEffect(() => { load(); }, [load]);
 
+  // ── Export sheet state (printScope overrides the on-screen doc for one
+  // print run, then resets via afterprint — same pattern as /scans) ──
+  const [exportOpen, setExportOpen] = useState(false);
+  const [expSc, setExpSc] = useState(null);            // section ids
+  const [printScope, setPrintScope] = useState(null);  // { sections, pending }
+
+  useEffect(() => {
+    if (!printScope?.pending) return undefined;
+    const after = () => setPrintScope(null);
+    window.addEventListener('afterprint', after);
+    const t = setTimeout(() => window.print(), 60);
+    return () => { window.removeEventListener('afterprint', after); clearTimeout(t); };
+  }, [printScope]);
+
   // ── Loading ──────────────────────────────────────────
   if (!overview) {
     return (
@@ -199,49 +213,54 @@ export default function AnalyticsPage() {
     pairs: [['Generated', new Date().toLocaleString()]],
   };
 
-  function exportCsv() {
-    const lines = [
-      ['Summary', 'Metric', 'Value'],
-      ...summaryRows.map(([m, v]) => ['', m, v]),
-      [],
-      ['Exam averages', 'Exam', 'Subject', 'Scans', 'Average', 'Lowest', 'Highest'],
-      ...examAvgRows.map((r) => ['', ...r]),
-      [],
-      ['Mastery by topic', 'Topic', 'Items', 'Responses', 'Correct %'],
-      ...themeExportRows.map((r) => ['', ...r]),
-      [],
-      ['By cognitive level', 'Level', 'Items', 'Responses', 'Correct %'],
-      ...bloomExportRows.map((r) => ['', ...r]),
-      [],
-      ['Score trend', 'Date', 'Scans', 'Average %'],
-      ...trendExportRows.map((r) => ['', ...r]),
-      [],
-      ['Items needing attention', 'Question', 'Exam', 'Responses', 'Correct %'],
-      ...weakExportRows.map((r) => ['', ...r]),
-      [],
-      ['Recent scans', 'Student', 'Exam', 'Score', 'Scanned'],
-      ...scanExportRows.map((r) => ['', ...r]),
-    ];
+  // Report sections — the export sheet toggles which of these ship in the
+  // document/workbook. Insights are print-only (they are prose, not rows).
+  const REPORT_SECTIONS = [
+    { id: 'summary', label: 'Summary', rows: summaryRows.length },
+    { id: 'insights', label: 'Key insights', rows: insights.length },
+    { id: 'exams', label: 'Exam averages', rows: examAvgRows.length },
+    { id: 'topics', label: 'Mastery by topic', rows: themeExportRows.length },
+    { id: 'bloom', label: 'Cognitive level', rows: bloomExportRows.length },
+    { id: 'trend', label: 'Score trend', rows: trendExportRows.length },
+    { id: 'weak', label: 'Items needing attention', rows: weakExportRows.length },
+    { id: 'scans', label: 'Recent scans', rows: scanExportRows.length },
+  ];
+  const secs = new Set(printScope?.sections ?? REPORT_SECTIONS.map((d) => d.id));
+  const expCount = REPORT_SECTIONS.filter((d) => !expSc || expSc.includes(d.id)).reduce((n, d) => n + d.rows, 0);
+
+  function exportCsv(secSet) {
+    const has = (id) => secSet.has(id);
+    const blocks = [
+      has('summary') && [['Summary', 'Metric', 'Value'], ...summaryRows.map(([m, v]) => ['', m, v])],
+      has('exams') && [['Exam averages', 'Exam', 'Subject', 'Scans', 'Average', 'Lowest', 'Highest'], ...examAvgRows.map((r) => ['', ...r])],
+      has('topics') && [['Mastery by topic', 'Topic', 'Items', 'Responses', 'Correct %'], ...themeExportRows.map((r) => ['', ...r])],
+      has('bloom') && [['By cognitive level', 'Level', 'Items', 'Responses', 'Correct %'], ...bloomExportRows.map((r) => ['', ...r])],
+      has('trend') && [['Score trend', 'Date', 'Scans', 'Average %'], ...trendExportRows.map((r) => ['', ...r])],
+      has('weak') && [['Items needing attention', 'Question', 'Exam', 'Responses', 'Correct %'], ...weakExportRows.map((r) => ['', ...r])],
+      has('scans') && [['Recent scans', 'Student', 'Exam', 'Score', 'Scanned'], ...scanExportRows.map((r) => ['', ...r])],
+    ].filter(Boolean);
+    const lines = blocks.flatMap((b, i) => (i ? [[], ...b] : b));
     const maxCols = Math.max(...lines.map((l) => l.length));
     downloadCsv('nexam-analytics-report', Array(maxCols).fill(''), lines.map((l) => [...l, ...Array(maxCols - l.length).fill('')]), reportMeta);
   }
 
-  async function exportXlsx() {
+  async function exportXlsx(secSet) {
+    const has = (id) => secSet.has(id);
     const pct = (v) => { const n = parseFloat(v); return Number.isFinite(n) ? n : null; };
     const charts = [
-      examAvgRows.length && {
+      has('exams') && examAvgRows.length && {
         title: 'Average score by exam',
         image: barsPng({ labels: examAvgRows.map((r) => r[0]), values: examAvgRows.map((r) => pct(r[3]) ?? 0), banded: true }),
       },
-      themeExportRows.length && {
+      has('topics') && themeExportRows.length && {
         title: 'Mastery by topic',
         image: barsPng({ horizontal: true, banded: true, labels: themeExportRows.map((r) => r[0]), values: themeExportRows.map((r) => pct(r[3]) ?? 0), h: Math.max(230, themeExportRows.length * 32 + 70) }),
       },
-      bloomExportRows.length && {
+      has('bloom') && bloomExportRows.length && {
         title: 'Mastery by cognitive level',
         image: barsPng({ labels: bloomExportRows.map((r) => r[0]), values: bloomExportRows.map((r) => pct(r[3]) ?? 0), banded: true }),
       },
-      trendExportRows.length > 1 && {
+      has('trend') && trendExportRows.length > 1 && {
         title: 'Class average trend',
         image: linePng({ labels: trendExportRows.map((r) => r[0]), values: trendExportRows.map((r) => pct(r[2]) ?? 0) }),
       },
@@ -253,16 +272,16 @@ export default function AnalyticsPage() {
       meta: reportMeta.pairs,
       overview: { kpis, charts },
       sheets: [
-      { title: 'Summary', headers: ['Metric', 'Value'], rows: summaryRows },
-      { title: 'Exam averages', headers: ['Exam', 'Subject', 'Scans', 'Average', 'Lowest', 'Highest'], rows: examAvgRows },
-      { title: 'Mastery by topic', headers: ['Topic', 'Items', 'Responses', 'Correct %'], rows: themeExportRows,
+      has('summary') && { title: 'Summary', headers: ['Metric', 'Value'], rows: summaryRows },
+      has('exams') && { title: 'Exam averages', headers: ['Exam', 'Subject', 'Scans', 'Average', 'Lowest', 'Highest'], rows: examAvgRows },
+      has('topics') && { title: 'Mastery by topic', headers: ['Topic', 'Items', 'Responses', 'Correct %'], rows: themeExportRows,
         footer: ['Total', themeExportRows.reduce((a, r) => a + r[1], 0), themeExportRows.reduce((a, r) => a + r[2], 0), ''] },
-      { title: 'Cognitive level', headers: ['Level', 'Items', 'Responses', 'Correct %'], rows: bloomExportRows,
+      has('bloom') && { title: 'Cognitive level', headers: ['Level', 'Items', 'Responses', 'Correct %'], rows: bloomExportRows,
         footer: ['Total', bloomExportRows.reduce((a, r) => a + r[1], 0), bloomExportRows.reduce((a, r) => a + r[2], 0), ''] },
-      { title: 'Score trend', headers: ['Date', 'Scans', 'Average %'], rows: trendExportRows },
-      { title: 'Needs attention', headers: ['Question', 'Exam', 'Responses', 'Correct %'], rows: weakExportRows },
-      { title: 'Recent scans', headers: ['Student', 'Exam', 'Score', 'Scanned'], rows: scanExportRows },
-      ],
+      has('trend') && { title: 'Score trend', headers: ['Date', 'Scans', 'Average %'], rows: trendExportRows },
+      has('weak') && { title: 'Needs attention', headers: ['Question', 'Exam', 'Responses', 'Correct %'], rows: weakExportRows },
+      has('scans') && { title: 'Recent scans', headers: ['Student', 'Exam', 'Score', 'Scanned'], rows: scanExportRows },
+      ].filter(Boolean),
     });
   }
 
@@ -275,14 +294,13 @@ export default function AnalyticsPage() {
           <p className="page-sub">Performance insights from scanned OMR answer sheets.</p>
         </div>
         <div className="header-actions">
-          <button type="button" className="btn btn-outline btn-sm" onClick={() => window.print()} title="Print this analytics report">
-            <Printer size={16} /> Print
-          </button>
-          <button type="button" className="btn btn-outline btn-sm" onClick={exportCsv} title="Download all sections as CSV">
-            <FileDown size={16} /> CSV
-          </button>
-          <button type="button" className="btn btn-outline btn-sm" onClick={exportXlsx} title="Download a multi-sheet Excel workbook">
-            <FileSpreadsheet size={16} /> Excel
+          <button
+            type="button"
+            className="btn btn-outline btn-sm"
+            onClick={() => { setExpSc(REPORT_SECTIONS.map((d) => d.id)); setExportOpen(true); }}
+            title="Print or export this report"
+          >
+            <Download size={16} /> Export
           </button>
           <Link to="/analytics/ai-eval" className="btn btn-outline btn-sm" data-tour="analytics-ai" title="View AI accuracy, precision, recall, and Bloom-level classification metrics">
             <Sparkles size={16} /> AI Evaluation Metrics
@@ -298,14 +316,18 @@ export default function AnalyticsPage() {
           meta={<>Generated {new Date().toLocaleString()} · {parseInt(o.total_scans || 0, 10)} scanned sheets across {parseInt(o.total_exams || 0, 10)} exams</>}
         />
 
-        <div className="report-section-title">Summary</div>
-        <table className="report-table">
-          <tbody>
-            {summaryRows.map(([m, v]) => <tr key={m}><th>{m}</th><td>{v}</td></tr>)}
-          </tbody>
-        </table>
+        {secs.has('summary') && (
+          <>
+            <div className="report-section-title">Summary</div>
+            <table className="report-table">
+              <tbody>
+                {summaryRows.map(([m, v]) => <tr key={m}><th>{m}</th><td>{v}</td></tr>)}
+              </tbody>
+            </table>
+          </>
+        )}
 
-        {insights.length > 0 && (
+        {secs.has('insights') && insights.length > 0 && (
           <>
             <div className="report-section-title">Key insights</div>
             <ul className="report-list">
@@ -314,7 +336,7 @@ export default function AnalyticsPage() {
           </>
         )}
 
-        {examAvgRows.length > 0 && (
+        {secs.has('exams') && examAvgRows.length > 0 && (
           <>
             <div className="report-section-title">Exam averages</div>
             <table className="report-table">
@@ -324,7 +346,7 @@ export default function AnalyticsPage() {
           </>
         )}
 
-        {themeExportRows.length > 0 && (
+        {secs.has('topics') && themeExportRows.length > 0 && (
           <>
             <div className="report-section-title">Mastery by topic</div>
             <table className="report-table">
@@ -334,7 +356,7 @@ export default function AnalyticsPage() {
           </>
         )}
 
-        {bloomExportRows.length > 0 && (
+        {secs.has('bloom') && bloomExportRows.length > 0 && (
           <>
             <div className="report-section-title">Performance by cognitive level</div>
             <table className="report-table">
@@ -344,7 +366,7 @@ export default function AnalyticsPage() {
           </>
         )}
 
-        {trendExportRows.length > 0 && (
+        {secs.has('trend') && trendExportRows.length > 0 && (
           <>
             <div className="report-section-title">Score trend</div>
             <table className="report-table">
@@ -354,7 +376,7 @@ export default function AnalyticsPage() {
           </>
         )}
 
-        {weakExportRows.length > 0 && (
+        {secs.has('weak') && weakExportRows.length > 0 && (
           <>
             <div className="report-section-title">Items needing attention</div>
             <table className="report-table">
@@ -364,7 +386,7 @@ export default function AnalyticsPage() {
           </>
         )}
 
-        {scanExportRows.length > 0 && (
+        {secs.has('scans') && scanExportRows.length > 0 && (
           <>
             <div className="report-section-title">Recent scans</div>
             <table className="report-table">
@@ -534,6 +556,25 @@ export default function AnalyticsPage() {
           )}
         </div>
       </Reveal>
+
+      {exportOpen && expSc && (
+        <ExportDialog
+          title="Print or export report"
+          subtitle="Class performance report — pick the sections to include"
+          count={expCount}
+          noun="row"
+          hint="Unticked sections drop out of the document entirely — the workbook keeps its cover sheet either way."
+          onClose={() => setExportOpen(false)}
+          onRun={(fmt) => {
+            setExportOpen(false);
+            if (fmt === 'print') setPrintScope({ sections: expSc, pending: true });
+            else if (fmt === 'xlsx') exportXlsx(new Set(expSc));
+            else exportCsv(new Set(expSc));
+          }}
+        >
+          <ExportSections defs={REPORT_SECTIONS} value={expSc} onChange={setExpSc} />
+        </ExportDialog>
+      )}
     </AppShell>
   );
 }
@@ -544,7 +585,19 @@ export default function AnalyticsPage() {
  */
 export function ExamDetail({ examId, detail, onBack, onChanged }) {
   const [reviewScanId, setReviewScanId] = useState(null);
+  const [exportOpen, setExportOpen] = useState(false);
+  const [expSc, setExpSc] = useState(null);            // section ids
+  const [printScope, setPrintScope] = useState(null);  // { sections, pending }
   const grid = useGridTable({ data: detail?.students || [], columns: STUDENT_PAGER_COLUMNS, pageSize: STUDENTS_PER_PAGE, storageKey: 'analytics-students' });
+
+  useEffect(() => {
+    if (!printScope?.pending) return undefined;
+    const after = () => setPrintScope(null);
+    window.addEventListener('afterprint', after);
+    const t = setTimeout(() => window.print(), 60);
+    return () => { window.removeEventListener('afterprint', after); clearTimeout(t); };
+  }, [printScope]);
+
   if (!detail) {
     return <CardsSkeleton tiles={4} />;
   }
@@ -596,49 +649,54 @@ export function ExamDetail({ examId, detail, onBack, onChanged }) {
     ],
   };
 
-  function exportCsv() {
-    const lines = [
-      ['Summary', 'Metric', 'Value'],
-      ...summaryRows.map(([m, v]) => ['', m, v]),
-      [],
-      ['Student scores', '#', 'Student', 'Set', 'Score', 'Correct', 'Status', 'Scanned'],
-      ...studentRows.map((r) => ['', ...r]),
-      [],
-      ['Mastery by topic', 'Topic', 'Items', 'Responses', 'Correct %'],
-      ...themeExportRows.map((r) => ['', ...r]),
-      [],
-      ['By cognitive level', 'Level', 'Items', 'Responses', 'Correct %'],
-      ...bloomExportRows.map((r) => ['', ...r]),
-      [],
-      ['Set comparison', 'Set', 'Scans', 'Average %'],
-      ...setRows.map((r) => ['', ...r]),
-      [],
-      ['Score distribution', 'Range', 'Students'],
-      ...distRows.map((r) => ['', ...r]),
-    ];
+  // Report sections — the export sheet toggles which of these ship.
+  const REPORT_SECTIONS = [
+    { id: 'summary', label: 'Summary', rows: summaryRows.length },
+    { id: 'insights', label: 'Key insights', rows: insights.length },
+    { id: 'students', label: 'Student scores', rows: studentRows.length },
+    { id: 'topics', label: 'Mastery by topic', rows: themeExportRows.length },
+    { id: 'bloom', label: 'Cognitive level', rows: bloomExportRows.length },
+    { id: 'sets', label: 'Set comparison', rows: setRows.length },
+    { id: 'dist', label: 'Score distribution', rows: distRows.length },
+  ];
+  const secs = new Set(printScope?.sections ?? REPORT_SECTIONS.map((d) => d.id));
+  const expCount = REPORT_SECTIONS.filter((d) => !expSc || expSc.includes(d.id)).reduce((n, d) => n + d.rows, 0);
+
+  function exportCsv(secSet) {
+    const has = (id) => secSet.has(id);
+    const blocks = [
+      has('summary') && [['Summary', 'Metric', 'Value'], ...summaryRows.map(([m, v]) => ['', m, v])],
+      has('students') && [['Student scores', '#', 'Student', 'Set', 'Score', 'Correct', 'Status', 'Scanned'], ...studentRows.map((r) => ['', ...r])],
+      has('topics') && [['Mastery by topic', 'Topic', 'Items', 'Responses', 'Correct %'], ...themeExportRows.map((r) => ['', ...r])],
+      has('bloom') && [['By cognitive level', 'Level', 'Items', 'Responses', 'Correct %'], ...bloomExportRows.map((r) => ['', ...r])],
+      has('sets') && [['Set comparison', 'Set', 'Scans', 'Average %'], ...setRows.map((r) => ['', ...r])],
+      has('dist') && [['Score distribution', 'Range', 'Students'], ...distRows.map((r) => ['', ...r])],
+    ].filter(Boolean);
+    const lines = blocks.flatMap((b, i) => (i ? [[], ...b] : b));
     const maxCols = Math.max(...lines.map((l) => l.length));
     downloadCsv(`nexam-${examTitle.replace(/\W+/g, '-').toLowerCase()}-report`, Array(maxCols).fill(''), lines.map((l) => [...l, ...Array(maxCols - l.length).fill('')]), examReportMeta);
   }
 
-  async function exportXlsx() {
+  async function exportXlsx(secSet) {
+    const has = (id) => secSet.has(id);
     const pct = (v) => { const n = parseFloat(v); return Number.isFinite(n) ? n : null; };
     const charts = [
-      distRows.some((r) => r[1] > 0) && {
+      has('dist') && distRows.some((r) => r[1] > 0) && {
         title: 'Score distribution',
         image: barsPng({
           labels: distRows.map((r) => r[0]), values: distRows.map((r) => r[1]), pct: false,
           colors: BINS.map((b) => bandColor(b + 5)), maxLabel: 8,
         }),
       },
-      setRows.length > 1 && {
+      has('sets') && setRows.length > 1 && {
         title: 'Set comparison — average score',
         image: barsPng({ labels: setRows.map((r) => `Set ${r[0]}`), values: setRows.map((r) => pct(r[2]) ?? 0), banded: true, h: 200 }),
       },
-      themeExportRows.length && {
+      has('topics') && themeExportRows.length && {
         title: 'Mastery by topic',
         image: barsPng({ horizontal: true, banded: true, labels: themeExportRows.map((r) => r[0]), values: themeExportRows.map((r) => pct(r[3]) ?? 0), h: Math.max(230, themeExportRows.length * 32 + 70) }),
       },
-      bloomExportRows.length && {
+      has('bloom') && bloomExportRows.length && {
         title: 'Mastery by cognitive level',
         image: barsPng({ labels: bloomExportRows.map((r) => r[0]), values: bloomExportRows.map((r) => pct(r[3]) ?? 0), banded: true }),
       },
@@ -650,16 +708,16 @@ export function ExamDetail({ examId, detail, onBack, onChanged }) {
       meta: examReportMeta.pairs,
       overview: { kpis, charts },
       sheets: [
-      { title: 'Summary', headers: ['Metric', 'Value'], rows: summaryRows },
-      { title: 'Student scores', headers: ['#', 'Student', 'Set', 'Score', 'Correct', 'Status', 'Scanned'], rows: studentRows,
+      has('summary') && { title: 'Summary', headers: ['Metric', 'Value'], rows: summaryRows },
+      has('students') && { title: 'Student scores', headers: ['#', 'Student', 'Set', 'Score', 'Correct', 'Status', 'Scanned'], rows: studentRows,
         footer: ['', 'TOTAL', '', '', '', `${studentRows.length} students`, ''] },
-      { title: 'Mastery by topic', headers: ['Topic', 'Items', 'Responses', 'Correct %'], rows: themeExportRows,
+      has('topics') && { title: 'Mastery by topic', headers: ['Topic', 'Items', 'Responses', 'Correct %'], rows: themeExportRows,
         footer: ['Total', themeExportRows.reduce((a, r) => a + r[1], 0), themeExportRows.reduce((a, r) => a + r[2], 0), ''] },
-      { title: 'Cognitive level', headers: ['Level', 'Items', 'Responses', 'Correct %'], rows: bloomExportRows,
+      has('bloom') && { title: 'Cognitive level', headers: ['Level', 'Items', 'Responses', 'Correct %'], rows: bloomExportRows,
         footer: ['Total', bloomExportRows.reduce((a, r) => a + r[1], 0), bloomExportRows.reduce((a, r) => a + r[2], 0), ''] },
-      { title: 'Set comparison', headers: ['Set', 'Scans', 'Average %'], rows: setRows },
-      { title: 'Distribution', headers: ['Range', 'Students'], rows: distRows },
-      ],
+      has('sets') && { title: 'Set comparison', headers: ['Set', 'Scans', 'Average %'], rows: setRows },
+      has('dist') && { title: 'Distribution', headers: ['Range', 'Students'], rows: distRows },
+      ].filter(Boolean),
     });
   }
 
@@ -672,14 +730,13 @@ export function ExamDetail({ examId, detail, onBack, onChanged }) {
           <p className="page-sub">Class performance and score distribution.</p>
         </div>
         <div className="header-actions">
-          <button type="button" className="btn btn-outline btn-sm" onClick={() => window.print()} title="Print this exam report">
-            <Printer size={16} /> Print
-          </button>
-          <button type="button" className="btn btn-outline btn-sm" onClick={exportCsv} title="Download all sections as CSV">
-            <FileDown size={16} /> CSV
-          </button>
-          <button type="button" className="btn btn-outline btn-sm" onClick={exportXlsx} title="Download a multi-sheet Excel workbook">
-            <FileSpreadsheet size={16} /> Excel
+          <button
+            type="button"
+            className="btn btn-outline btn-sm"
+            onClick={() => { setExpSc(REPORT_SECTIONS.map((d) => d.id)); setExportOpen(true); }}
+            title="Print or export this report"
+          >
+            <Download size={16} /> Export
           </button>
           <Link to={`/analytics/items/${encodeURIComponent(examId)}`} className="btn btn-outline btn-sm">
             <ListChecks size={16} /> Item Analysis
@@ -698,14 +755,18 @@ export function ExamDetail({ examId, detail, onBack, onChanged }) {
           meta={<>Generated {new Date().toLocaleString()} · {parseInt(s.total_scans || 0, 10)} students · class average {fmtPct1(s.avg_score ?? 0)}%</>}
         />
 
-        <div className="report-section-title">Summary</div>
-        <table className="report-table">
-          <tbody>
-            {summaryRows.map(([m, v]) => <tr key={m}><th>{m}</th><td>{v}</td></tr>)}
-          </tbody>
-        </table>
+        {secs.has('summary') && (
+          <>
+            <div className="report-section-title">Summary</div>
+            <table className="report-table">
+              <tbody>
+                {summaryRows.map(([m, v]) => <tr key={m}><th>{m}</th><td>{v}</td></tr>)}
+              </tbody>
+            </table>
+          </>
+        )}
 
-        {insights.length > 0 && (
+        {secs.has('insights') && insights.length > 0 && (
           <>
             <div className="report-section-title">Key insights</div>
             <ul className="report-list">
@@ -714,7 +775,7 @@ export function ExamDetail({ examId, detail, onBack, onChanged }) {
           </>
         )}
 
-        {themeExportRows.length > 0 && (
+        {secs.has('topics') && themeExportRows.length > 0 && (
           <>
             <div className="report-section-title">Mastery by topic</div>
             <table className="report-table">
@@ -724,7 +785,7 @@ export function ExamDetail({ examId, detail, onBack, onChanged }) {
           </>
         )}
 
-        {bloomExportRows.length > 0 && (
+        {secs.has('bloom') && bloomExportRows.length > 0 && (
           <>
             <div className="report-section-title">Performance by cognitive level</div>
             <table className="report-table">
@@ -734,7 +795,7 @@ export function ExamDetail({ examId, detail, onBack, onChanged }) {
           </>
         )}
 
-        {setRows.length > 0 && (
+        {secs.has('sets') && setRows.length > 0 && (
           <>
             <div className="report-section-title">Set comparison</div>
             <table className="report-table">
@@ -744,13 +805,17 @@ export function ExamDetail({ examId, detail, onBack, onChanged }) {
           </>
         )}
 
-        <div className="report-section-title">Score distribution</div>
-        <table className="report-table">
-          <thead><tr><th>Range</th><th>Students</th></tr></thead>
-          <tbody>{distRows.map((r, i) => <tr key={i}>{r.map((c, j) => <td key={j}>{c}</td>)}</tr>)}</tbody>
-        </table>
+        {secs.has('dist') && (
+          <>
+            <div className="report-section-title">Score distribution</div>
+            <table className="report-table">
+              <thead><tr><th>Range</th><th>Students</th></tr></thead>
+              <tbody>{distRows.map((r, i) => <tr key={i}>{r.map((c, j) => <td key={j}>{c}</td>)}</tr>)}</tbody>
+            </table>
+          </>
+        )}
 
-        {studentRows.length > 0 && (
+        {secs.has('students') && studentRows.length > 0 && (
           <>
             <div className="report-section-title">Student scores</div>
             <table className="report-table">
@@ -895,6 +960,25 @@ export function ExamDetail({ examId, detail, onBack, onChanged }) {
         onClose={() => setReviewScanId(null)}
         onSaved={onChanged}
       />
+
+      {exportOpen && expSc && (
+        <ExportDialog
+          title="Print or export report"
+          subtitle={`${examTitle} — pick the sections to include`}
+          count={expCount}
+          noun="row"
+          hint="Unticked sections drop out of the document entirely — the workbook keeps its cover sheet either way."
+          onClose={() => setExportOpen(false)}
+          onRun={(fmt) => {
+            setExportOpen(false);
+            if (fmt === 'print') setPrintScope({ sections: expSc, pending: true });
+            else if (fmt === 'xlsx') exportXlsx(new Set(expSc));
+            else exportCsv(new Set(expSc));
+          }}
+        >
+          <ExportSections defs={REPORT_SECTIONS} value={expSc} onChange={setExpSc} />
+        </ExportDialog>
+      )}
     </>
   );
 }

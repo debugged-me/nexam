@@ -10,11 +10,12 @@ import '../styles/attention.css';
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import {
-  AlertTriangle, ListChecks, ArrowLeft, Printer, Copy,
-  FileText, Target, ScanLine,
+  AlertTriangle, ListChecks, ArrowLeft, Copy,
+  FileText, Target, ScanLine, Download,
 } from 'lucide-react';
 import { useToast } from '../components/Toast.jsx';
 import EmptyStateArt from '../components/EmptyStateArt.jsx';
+import ExportDialog from '../components/ExportDialog.jsx';
 import PrintDocHead from '../components/PrintDocHead.jsx';
 import PrintDocFoot from '../components/PrintDocFoot.jsx';
 import { useContextMenu, useCopyText } from '../components/ContextMenu.jsx';
@@ -24,7 +25,8 @@ import api from '../lib/api.js';
 import AppShell from '../components/AppShell.jsx';
 import { TableSkeleton } from '../components/Loaders.jsx';
 import { animateRows } from '../lib/animRows.js';
-import { BLOOM_LABELS } from '../lib/insights.js';
+import { downloadCsv, downloadXlsx } from '../lib/exports.js';
+import { BLOOM_LABELS, BLOOM_ORDER } from '../lib/insights.js';
 
 const PAGE_SIZE = 20;
 // Rows arrive pre-sorted (lowest correct first) — the table only paginates.
@@ -71,10 +73,95 @@ export default function AttentionPage() {
   const items = useMemo(() => data?.items || [], [data]);
   const exams = useMemo(() => data?.exams || [], [data]);
 
+  // ── Export sheet — scope is exam / Bloom / type. When the page is
+  // exam-filtered the loaded items cover only that exam, so the sheet
+  // fetches the unscoped list once and every scope option gets real rows.
+  const [exportOpen, setExportOpen] = useState(false);
+  const [expSc, setExpSc] = useState(null);            // { examId, bloom, type }
+  const [expAll, setExpAll] = useState(null);          // unscoped items
+  const [printScope, setPrintScope] = useState(null);  // { rows, examId, bloom, type, pending }
+
+  const expPool = expAll ?? items;
+  const scopedItems = (sc) => expPool.filter((w) =>
+    (!sc.examId || w.exam_id === sc.examId)
+    && (!sc.bloom || w.bloom === sc.bloom)
+    && (!sc.type || w.type === sc.type));
+
+  const openExport = async () => {
+    setExpSc({ examId: examFilter, bloom: '', type: '' });
+    setExportOpen(true);
+    if (examFilter && !expAll) {
+      try {
+        const d = await api.get('/analytics/attention');
+        setExpAll(d.items || []);
+      } catch { /* pool stays the loaded subset */ }
+    }
+  };
+
+  useEffect(() => {
+    if (!printScope?.pending) return undefined;
+    const after = () => setPrintScope(null);
+    window.addEventListener('afterprint', after);
+    const t = setTimeout(() => window.print(), 60);
+    return () => { window.removeEventListener('afterprint', after); clearTimeout(t); };
+  }, [printScope]);
+
   const grid = useGridTable({ data: items, columns: PAGER_COLUMNS, pageSize: PAGE_SIZE, storageKey: 'attention', resetKey: examFilter });
   const { pageRows: pageItems } = grid;
 
   const worst = items.length ? Number(items[0].correctRate) : null;
+
+  // ── Export / print plumbing — print doc renders the scoped rows; a
+  // uniform Exam/Bloom/Type collapses into the meta line instead of
+  // repeating per row, the same collapse the scans doc does. ──
+  const ATT_HEADERS = ['Question', 'Type', 'Exam', 'Topic', 'Bloom', 'Resp.', 'Correct %'];
+  const printItems = printScope?.rows ?? items;
+  const scopedTitle = (sc) => sc?.examId ? exams.find((e) => e.id === sc.examId)?.title : null;
+  const printExam = scopedTitle(printScope)
+    || (examFilter ? exams.find((e) => e.id === examFilter)?.title : null)
+    || (new Set(printItems.map((w) => w.exam_title)).size === 1 && printItems.length ? printItems[0].exam_title : null);
+  const printBloom = printScope?.bloom
+    ? (BLOOM_LABELS[printScope.bloom] || printScope.bloom)
+    : (new Set(printItems.map((w) => w.bloom).filter(Boolean)).size === 1 ? (BLOOM_LABELS[printItems[0]?.bloom] || printItems[0]?.bloom) : null);
+  const printType = printScope?.type
+    ? (TYPE_LABELS[printScope.type] || printScope.type)
+    : (new Set(printItems.map((w) => w.type).filter(Boolean)).size === 1 ? (TYPE_LABELS[printItems[0]?.type] || printItems[0]?.type) : null);
+  const dropCols = [printType && 1, printExam && 2, printBloom && 4].filter((i) => i !== false);
+  const printHeaders = ATT_HEADERS.filter((_, i) => !dropCols.includes(i));
+  const attRow = (w) => [
+    w.stem, TYPE_LABELS[w.type] || w.type || '—', w.exam_title, w.topic || '—',
+    BLOOM_LABELS[w.bloom] || w.bloom || '—', w.responses, `${Number(w.correctRate).toFixed(0)}%`,
+  ];
+  const printCells = printItems.map((w) => attRow(w).filter((_, i) => !dropCols.includes(i)));
+
+  function scopePairs(sc, count) {
+    return [
+      ['Generated', new Date().toLocaleString()],
+      ['Items', String(count)],
+      ...(sc.examId ? [['Exam', scopedTitle(sc) || '']] : []),
+      ...(sc.bloom ? [['Bloom', BLOOM_LABELS[sc.bloom] || sc.bloom]] : []),
+      ...(sc.type ? [['Type', TYPE_LABELS[sc.type] || sc.type]] : []),
+    ];
+  }
+
+  function exportCsvFile(sc) {
+    const rows = scopedItems(sc).map(attRow);
+    downloadCsv('nexam-attention', ATT_HEADERS, rows, { title: 'Items needing attention', pairs: scopePairs(sc, rows.length) });
+  }
+
+  async function exportXlsxFile(sc) {
+    const rows = scopedItems(sc).map(attRow);
+    try {
+      await downloadXlsx('nexam-attention', {
+        title: 'Items needing attention',
+        subtitle: 'Lowest correct rate first — items with 3+ scanned responses',
+        meta: scopePairs(sc, rows.length),
+        sheets: [{ title: 'Needs attention', headers: ATT_HEADERS, rows }],
+      });
+    } catch {
+      toast.error('Could not build the Excel file.');
+    }
+  }
 
   // KPI rollup — how wide the problem spreads and how deep it runs.
   const attn = useMemo(() => {
@@ -100,9 +187,9 @@ export default function AttentionPage() {
           </p>
         </div>
         <div className="header-actions">
-          {items.length > 0 && (
-            <button type="button" className="btn btn-outline btn-sm" onClick={() => window.print()} title="Print this list as a document">
-              <Printer size={14} /> Print
+          {data && (
+            <button type="button" className="btn btn-outline btn-sm" onClick={openExport} title="Print or export this list">
+              <Download size={14} /> Export
             </button>
           )}
           <button type="button" className="btn btn-outline btn-sm" onClick={() => navigate('/analytics')}>
@@ -112,29 +199,22 @@ export default function AttentionPage() {
       </div>
 
       {/* ── Print document ── */}
-      {items.length > 0 && (
+      {(items.length > 0 || printScope) && (
         <div className="print-doc print-only">
           <PrintDocHead
             org={<>nexam — Results &amp; insights</>}
-            title="Items Needing Attention"
+            title={printExam ? `${printExam} — Items Needing Attention` : 'Items Needing Attention'}
             meta={<>
-              Generated {new Date().toLocaleString()} · {items.length} item{items.length === 1 ? '' : 's'}
-              {examFilter && exams.find((e) => e.id === examFilter) ? ` · ${exams.find((e) => e.id === examFilter).title}` : ''}
+              Generated {new Date().toLocaleString()} · {printItems.length} item{printItems.length === 1 ? '' : 's'}
+              {printBloom ? ` · Bloom: ${printBloom}` : ''}
+              {printType ? ` · Type: ${printType}` : ''}
             </>}
           />
           <table className="report-table">
-            <thead><tr><th>Question</th><th>Type</th><th>Exam</th><th>Topic</th><th>Bloom</th><th>Resp.</th><th>Correct %</th></tr></thead>
+            <thead><tr>{printHeaders.map((h) => <th key={h}>{h}</th>)}</tr></thead>
             <tbody ref={animateRows}>
-              {items.map((w, i) => (
-                <tr key={i}>
-                  <td>{w.stem}</td>
-                  <td>{TYPE_LABELS[w.type] || w.type || '—'}</td>
-                  <td>{w.exam_title}</td>
-                  <td>{w.topic || '—'}</td>
-                  <td>{BLOOM_LABELS[w.bloom] || w.bloom || '—'}</td>
-                  <td>{w.responses}</td>
-                  <td>{Number(w.correctRate).toFixed(0)}%</td>
-                </tr>
+              {printCells.map((r, i) => (
+                <tr key={i}>{r.map((c, j) => <td key={j}>{c}</td>)}</tr>
               ))}
             </tbody>
           </table>
@@ -278,6 +358,50 @@ export default function AttentionPage() {
           )}
         </div>
         </>
+      )}
+      {exportOpen && expSc && (
+        <ExportDialog
+          title="Print or export"
+          subtitle="Items needing attention — pick the slice to include"
+          count={scopedItems(expSc).length}
+          noun="item"
+          hint="One exam on paper? Its name moves to the document title and the column drops out — same for a single Bloom level or type."
+          onClose={() => setExportOpen(false)}
+          onRun={(fmt) => {
+            setExportOpen(false);
+            if (fmt === 'print') setPrintScope({ ...expSc, rows: scopedItems(expSc), pending: true });
+            else if (fmt === 'xlsx') exportXlsxFile(expSc);
+            else exportCsvFile(expSc);
+          }}
+        >
+          <div className="form-group">
+            <label className="form-label" htmlFor="exp-exam">Exam</label>
+            <select id="exp-exam" className="form-control form-select" value={expSc.examId}
+              onChange={(e) => setExpSc({ ...expSc, examId: e.target.value })}>
+              <option value="">All exams</option>
+              {exams.map((x) => <option key={x.id} value={x.id}>{x.title}</option>)}
+            </select>
+          </div>
+          <div className="form-group">
+            <label className="form-label" htmlFor="exp-bloom">Bloom level</label>
+            <select id="exp-bloom" className="form-control form-select" value={expSc.bloom}
+              onChange={(e) => setExpSc({ ...expSc, bloom: e.target.value })}>
+              <option value="">All levels</option>
+              {[...new Set(expPool.map((w) => w.bloom).filter(Boolean))]
+                .sort((a, b) => (BLOOM_ORDER || []).indexOf(a) - (BLOOM_ORDER || []).indexOf(b))
+                .map((b) => <option key={b} value={b}>{BLOOM_LABELS[b] || b}</option>)}
+            </select>
+          </div>
+          <div className="form-group">
+            <label className="form-label" htmlFor="exp-type">Question type</label>
+            <select id="exp-type" className="form-control form-select" value={expSc.type}
+              onChange={(e) => setExpSc({ ...expSc, type: e.target.value })}>
+              <option value="">All types</option>
+              {[...new Set(expPool.map((w) => w.type).filter(Boolean))]
+                .map((t) => <option key={t} value={t}>{TYPE_LABELS[t] || t}</option>)}
+            </select>
+          </div>
+        </ExportDialog>
       )}
       {menuEl}
     </AppShell>

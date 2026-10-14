@@ -190,7 +190,7 @@ function SheetBody({ scanId, examTitle, onClose, onSaved }) {
                       <label className="scan-match-field">
                         <span className="meta-sm text-muted">Premise letters, e.g. B,A,D</span>
                         <input
-                          className="input"
+                          className="form-control"
                           defaultValue={String(mark || '')}
                           placeholder="B,A,D"
                           onKeyDown={(e) => { if (e.key === 'Enter') pick(a, e.currentTarget.value.trim().toUpperCase()); }}

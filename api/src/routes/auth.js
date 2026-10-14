@@ -380,7 +380,7 @@ router.post('/register', async (req, res, next) => {
 
     // Generate + send OTP
     const otp = await generateOtp(id);
-    const sent = await sendOtpEmail(email, full_name, otp, false);
+    const sent = await sendOtpEmail(email, { first_name, middle_name, last_name, name_ext, full_name }, otp, false);
 
     // Return a verification token (signed JWT, short-lived) so the client
     // can call /verify without a session. The token carries the user id + email.
@@ -493,7 +493,7 @@ router.post('/resend', async (req, res, next) => {
     rateRecord(key, 60);
 
     const [rows] = await pool.query(
-      `SELECT full_name, email FROM users WHERE id = :id LIMIT 1`,
+      `SELECT first_name, middle_name, last_name, name_ext, full_name, email FROM users WHERE id = :id LIMIT 1`,
       { id: payload.uid }
     );
     if (!rows.length) {
@@ -501,7 +501,7 @@ router.post('/resend', async (req, res, next) => {
     }
 
     const otp = await generateOtp(payload.uid);
-    const sent = await sendOtpEmail(rows[0].email, rows[0].full_name, otp, false);
+    const sent = await sendOtpEmail(rows[0].email, rows[0], otp, false);
 
     res.json({
       message: sent
@@ -543,7 +543,7 @@ router.post('/send-verification', async (req, res, next) => {
 
     const generic = 'If that account exists and is unverified, a verification code has been sent.';
     const [rows] = await pool.query(
-      `SELECT id, full_name, email, email_verified FROM users WHERE email = :email LIMIT 1`,
+      `SELECT id, first_name, middle_name, last_name, name_ext, full_name, email, email_verified FROM users WHERE email = :email LIMIT 1`,
       { email }
     );
     const user = rows[0];
@@ -552,7 +552,7 @@ router.post('/send-verification', async (req, res, next) => {
     }
 
     const otp = await generateOtp(user.id);
-    const sent = await sendOtpEmail(user.email, user.full_name, otp, false);
+    const sent = await sendOtpEmail(user.email, user, otp, false);
 
     const verifyToken = jwt.sign(
       { sub: 'verify', uid: user.id, email: user.email },
@@ -604,7 +604,7 @@ router.post('/forgot', async (req, res, next) => {
     rateRecord(key, 3600);
 
     const [rows] = await pool.query(
-      `SELECT id, full_name, email FROM users WHERE email = :email LIMIT 1`,
+      `SELECT id, first_name, middle_name, last_name, name_ext, full_name, email FROM users WHERE email = :email LIMIT 1`,
       { email }
     );
 
@@ -617,7 +617,7 @@ router.post('/forgot', async (req, res, next) => {
 
     const user = rows[0];
     const otp = await generateOtp(user.id);
-    const sent = await sendOtpEmail(user.email, user.full_name, otp, true);
+    const sent = await sendOtpEmail(user.email, user, otp, true);
 
     if (!sent) {
       return res.status(503).json({ error: 'We could not send the email right now. Please try again shortly.' });

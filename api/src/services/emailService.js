@@ -42,10 +42,11 @@ function getTransporter() {
   return _transporter;
 }
 
-/* Design tokens mirrored for email — the product's warm ivory canvas, hairline
-   borders, and action blue. Font stack leads with Google Sans (renders in
-   Gmail/Google clients; other clients fall back cleanly — email clients do
-   not reliably load hosted webfonts). */
+/* Design tokens mirrored for email — the product's cool slate canvas,
+   hairline borders, and action blue (#F5F7FA / #E8EBEF / #2383E2). Font
+   stack leads with Google Sans (renders in Gmail/Google clients; other
+   clients fall back cleanly — email clients do not reliably load hosted
+   webfonts). */
 const FONT = "'Google Sans','Google Sans Text',Roboto,'Helvetica Neue',Arial,sans-serif";
 const MONO = "'SF Mono',Consolas,'Roboto Mono','Courier New',monospace";
 
@@ -58,22 +59,22 @@ const BRAND_MARK = LOGO_ATTACHMENT.length
 function emailShell(content) {
   return `<!DOCTYPE html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>nexam</title></head>
-<body style="margin:0;padding:0;background:#FAF7F2">
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#FAF7F2">
+<body style="margin:0;padding:0;background:#F5F7FA">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#F5F7FA">
 <tr><td align="center" style="padding:44px 16px 52px">
   <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width:520px">
 
-    <tr><td style="background:#FFFFFF;border:1px solid #E9E5DE;border-radius:14px;padding:38px 40px 34px">
+    <tr><td style="background:#FFFFFF;border:1px solid #E8EBEF;border-radius:14px;padding:38px 40px 34px">
       <table role="presentation" cellpadding="0" cellspacing="0"><tr>
         <td>${BRAND_MARK}</td>
-        <td style="padding-left:10px;font-family:${FONT};font-size:16px;font-weight:600;color:#1F2328;letter-spacing:-0.3px">nexam</td>
+        <td style="padding-left:10px;font-family:${FONT};font-size:16px;font-weight:600;color:#26292E;letter-spacing:-0.3px">nexam</td>
       </tr></table>
-      <div style="margin-top:26px;padding-top:28px;border-top:1px solid #EFEDE8">
+      <div style="margin-top:26px;padding-top:28px;border-top:1px solid #EDF0F4">
 ${content}
       </div>
     </td></tr>
 
-    <tr><td align="center" style="padding:22px 12px 0;font-family:${FONT};font-size:11.5px;line-height:1.6;color:#A8ADB5">
+    <tr><td align="center" style="padding:22px 12px 0;font-family:${FONT};font-size:11.5px;line-height:1.6;color:#959BA3">
       nexam — TOS-aligned exam builder<br>
       This is an automated message — please do not reply.
     </td></tr>
@@ -83,13 +84,31 @@ ${content}
 </body></html>`;
 }
 
-const h1 = (text) => `<div style="font-family:${FONT};font-size:21px;font-weight:600;color:#1F2328;letter-spacing:-0.4px;line-height:1.3">${text}</div>`;
+/** Salutation name in formal "LASTNAME, Firstname M." order. Accepts either
+ *  a plain string or a user row with the name-part columns. */
+function formalName(u) {
+  if (!u || typeof u === 'string') return String(u || 'there');
+  const last = String(u.last_name || '').trim();
+  const first = String(u.first_name || '').trim();
+  const mi = String(u.middle_name || '').trim();
+  const ext = String(u.name_ext || '').trim();
+  if (!last && !first) return String(u.full_name || u.email || 'there');
+  const parts = [];
+  if (last) parts.push(`${last},`);
+  if (first) parts.push(first);
+  if (mi) parts.push(`${mi[0].toUpperCase()}.`);
+  if (ext) parts.push(ext);
+  return parts.join(' ');
+}
+
+const h1 = (text) => `<div style="font-family:${FONT};font-size:21px;font-weight:600;color:#26292E;letter-spacing:-0.4px;line-height:1.3">${text}</div>`;
 const eyebrow = (text) => `<div style="font-family:${FONT};font-size:11px;font-weight:600;letter-spacing:.11em;color:#2383E2;text-transform:uppercase;padding-bottom:8px">${text}</div>`;
-const para = (html, marginTop = 14) => `<div style="margin-top:${marginTop}px;font-family:${FONT};font-size:14px;line-height:1.65;color:#4B5158">${html}</div>`;
-const note = (html) => `<div style="margin-top:28px;padding-top:18px;border-top:1px solid #EFEDE8;font-family:${FONT};font-size:12px;line-height:1.65;color:#8A8F98">${html}</div>`;
+const para = (html, marginTop = 14) => `<div style="margin-top:${marginTop}px;font-family:${FONT};font-size:14px;line-height:1.65;color:#4E545B">${html}</div>`;
+const note = (html) => `<div style="margin-top:28px;padding-top:18px;border-top:1px solid #EDF0F4;font-family:${FONT};font-size:12px;line-height:1.65;color:#959BA3">${html}</div>`;
 
 /** Build the HTML body for an OTP email (verification or reset). */
-function buildOtpEmail(name, otp, isReset = false) {
+function buildOtpEmail(user, otp, isReset = false) {
+  const name = formalName(user);
   const action = isReset ? 'reset your password' : 'verify your email';
   const subject = isReset ? 'nexam — Password Reset Code' : 'nexam — Email Verification Code';
 
@@ -99,16 +118,17 @@ function buildOtpEmail(name, otp, isReset = false) {
       ${para(`Hi ${escapeHtml(name)},`)}
       ${para(`Use this code to ${action}. It expires in <strong>15 minutes</strong>.`, 6)}
       <table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr><td align="center" style="padding:24px 0 4px">
-        <div style="display:inline-block;background:#F7F5F1;border:1px solid #E9E5DE;border-radius:10px;padding:16px 38px;font-family:${MONO};font-size:26px;font-weight:600;letter-spacing:7px;color:#1F2328">${escapeHtml(otp)}</div>
+        <div style="display:inline-block;background:#F6F8FA;border:1px solid #E8EBEF;border-radius:10px;padding:16px 38px;font-family:${MONO};font-size:26px;font-weight:600;letter-spacing:7px;color:#26292E">${escapeHtml(otp)}</div>
       </td></tr></table>
-      ${note(`Never share this code — nexam staff will never ask for it.${isReset ? ' If you did not request a reset, you can ignore this email and your password stays unchanged.' : ''}`)}`;
+      ${note(`Enter this code only on the nexam page that asked for it — we\u2019ll never ask you to reply with it or share it with anyone.${isReset ? ' Didn\u2019t request this? Someone may have mistyped their email — you can safely ignore this message and your password stays unchanged.' : ''}`)}`;
 
-  const text = `Hi ${name},\n\nUse this code to ${action}: ${otp}\n\nThis code expires in 15 minutes. Never share it with anyone${isReset ? ' — if you did not request a reset, you can ignore this email' : ''}.\n\n— nexam`;
+  const text = `Hi ${name},\n\nUse this code to ${action}: ${otp}\n\nThis code expires in 15 minutes. Enter it only on the nexam page that asked for it — we\u2019ll never ask you to share it.${isReset ? '\n\nDidn\u2019t request this? Someone may have mistyped their email — you can safely ignore this message and your password stays unchanged.' : ''}\n\n— nexam`;
   return { subject, html: emailShell(content), text };
 }
 
 /** Build the HTML body for a staff-provisioned account's credentials. */
-function buildCredentialsEmail(name, email, password, role) {
+function buildCredentialsEmail(user, email, password, role) {
+  const name = formalName(user);
   const subject = 'nexam — Your account credentials';
   const roleLabel = role === 'admin' ? 'Admin (instructor management)' : 'Instructor';
 
@@ -117,25 +137,26 @@ function buildCredentialsEmail(name, email, password, role) {
       ${h1('Your nexam account')}
       ${para(`Hi ${escapeHtml(name)},`)}
       ${para(`An account has been created for you as <strong>${escapeHtml(roleLabel)}</strong>. Sign in with these credentials:`, 6)}
-      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top:18px"><tr><td style="background:#F7F5F1;border:1px solid #E9E5DE;border-radius:10px;padding:15px 18px">
-        <table role="presentation" cellpadding="0" cellspacing="0" style="font-family:${MONO};font-size:13px;color:#1F2328">
-          <tr><td style="padding:3px 14px 3px 0;color:#8A8F98;font-family:${FONT};font-size:12.5px;white-space:nowrap">Email</td>
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top:18px"><tr><td style="background:#F6F8FA;border:1px solid #E8EBEF;border-radius:10px;padding:15px 18px">
+        <table role="presentation" cellpadding="0" cellspacing="0" style="font-family:${MONO};font-size:13px;color:#26292E">
+          <tr><td style="padding:3px 14px 3px 0;color:#959BA3;font-family:${FONT};font-size:12.5px;white-space:nowrap">Email</td>
               <td style="padding:3px 0">${escapeHtml(email)}</td></tr>
-          <tr><td style="padding:3px 14px 3px 0;color:#8A8F98;font-family:${FONT};font-size:12.5px;white-space:nowrap">Password</td>
+          <tr><td style="padding:3px 14px 3px 0;color:#959BA3;font-family:${FONT};font-size:12.5px;white-space:nowrap">Password</td>
               <td style="padding:3px 0"><strong>${escapeHtml(password)}</strong></td></tr>
         </table>
       </td></tr></table>
       <table role="presentation" cellpadding="0" cellspacing="0" style="margin-top:22px"><tr><td>
         <a href="${escapeHtml(env.webUrl)}/login" style="display:inline-block;background:#2383E2;color:#FFFFFF;text-decoration:none;font-family:${FONT};font-size:14px;font-weight:600;padding:12px 26px;border-radius:10px">Sign in to nexam</a>
       </td></tr></table>
-      ${note('Change this password after your first sign-in (Account → Change password). Never share it — nexam staff will never ask for it.')}`;
+      ${note('Change this password after your first sign-in (Account → Change password). You only ever type it into the nexam sign-in page — we\'ll never ask you to send or share it.')}`;
 
-  const text = `Hi ${name},\n\nA nexam account has been created for you (${roleLabel}).\n\nSign in at ${env.webUrl}/login with:\n  Email: ${email}\n  Password: ${password}\n\nChange this password after your first sign-in. Never share it.\n\n— nexam`;
+  const text = `Hi ${name},\n\nA nexam account has been created for you (${roleLabel}).\n\nSign in at ${env.webUrl}/login with:\n  Email: ${email}\n  Password: ${password}\n\nChange this password after your first sign-in. You only ever type it into the nexam sign-in page — never send or share it.\n\n— nexam`;
   return { subject, html: emailShell(content), text };
 }
 
 /** Build the HTML body for a staff-initiated password-reset link. */
-function buildResetLinkEmail(name, link) {
+function buildResetLinkEmail(user, link) {
+  const name = formalName(user);
   const subject = 'nexam — Reset your password';
 
   const content = `
@@ -146,13 +167,13 @@ function buildResetLinkEmail(name, link) {
       <table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr><td align="center" style="padding:26px 0 10px">
         <a href="${escapeHtml(link)}" style="display:inline-block;background:#2383E2;color:#FFFFFF;text-decoration:none;font-family:${FONT};font-size:14px;font-weight:600;padding:13px 32px;border-radius:10px">Set a new password</a>
       </td></tr>
-      <tr><td style="font-family:${FONT};font-size:11.5px;line-height:1.6;color:#8A8F98;word-break:break-all">
+      <tr><td style="font-family:${FONT};font-size:11.5px;line-height:1.6;color:#959BA3;word-break:break-all">
         If the button doesn't work, paste this link into your browser:<br>
         <a href="${escapeHtml(link)}" style="color:#2383E2;text-decoration:none">${escapeHtml(link)}</a>
       </td></tr></table>
-      ${note('Never share this link with anyone. If you did not expect a reset, you can ignore this email and your password stays unchanged.')}`;
+      ${note('This link works once, expires in 30 minutes, and only ever opens a nexam page. Didn\u2019t expect it? You can safely ignore this email — your password stays unchanged.')}`;
 
-  const text = `Hi ${name},\n\nAn administrator requested a password reset for your account.\n\nSet a new password (link valid for 30 minutes, single use):\n${link}\n\nIf you did not expect this, ignore this email — your password stays unchanged.\n\n— nexam`;
+  const text = `Hi ${name},\n\nAn administrator requested a password reset for your account.\n\nSet a new password (link valid for 30 minutes, single use):\n${link}\n\nThe link only opens a nexam page. If you did not expect this, ignore this email — your password stays unchanged.\n\n— nexam`;
   return { subject, html: emailShell(content), text };
 }
 

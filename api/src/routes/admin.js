@@ -190,7 +190,7 @@ router.post('/users', async (req, res, next) => {
       { id, em, hash, fn, ln, full: `${fn} ${ln}`, role: targetRole, by: req.user.id }
     );
 
-    const emailed = await sendCredentialsEmail(em, `${fn} ${ln}`, password, targetRole);
+    const emailed = await sendCredentialsEmail(em, { first_name: fn, last_name: ln }, password, targetRole);
 
     logAudit({
       actorId: req.user.id, actorEmail: req.user.email,
@@ -323,7 +323,7 @@ router.put('/users/:id', async (req, res, next) => {
 router.post('/users/:id/send-reset', async (req, res, next) => {
   try {
     const [rows] = await pool.query(
-      'SELECT id, email, full_name, role FROM users WHERE id = :id LIMIT 1',
+      'SELECT id, email, first_name, middle_name, last_name, name_ext, full_name, role FROM users WHERE id = :id LIMIT 1',
       { id: req.params.id }
     );
     const target = rows[0];
@@ -346,7 +346,7 @@ router.post('/users/:id/send-reset', async (req, res, next) => {
     );
 
     const link = `${env.webUrl}/reset?key=${token}`;
-    const sent = await sendResetLinkEmail(target.email, target.full_name || target.email, link);
+    const sent = await sendResetLinkEmail(target.email, target, link);
     if (!sent) {
       await pool.query(
         'UPDATE password_reset_tokens SET used_at = NOW() WHERE token_hash = :hash',

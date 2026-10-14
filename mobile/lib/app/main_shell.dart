@@ -121,8 +121,8 @@ class _NavBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      decoration: const BoxDecoration(
-        color: Colors.white,
+      decoration: BoxDecoration(
+        color: AppTheme.card,
         border: Border(
           top: BorderSide(color: AppTheme.cardBorder),
         ),

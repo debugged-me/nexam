@@ -134,7 +134,7 @@ class _ScanDetailScreenState extends State<ScanDetailScreen> {
       context: context,
       isScrollControlled: true,
       showDragHandle: true,
-      backgroundColor: Colors.white,
+      backgroundColor: AppTheme.card,
       shape: const RoundedRectangleBorder(
         borderRadius:
             BorderRadius.vertical(top: Radius.circular(24)),
@@ -402,7 +402,7 @@ class _ScanDetailScreenState extends State<ScanDetailScreen> {
                 : Icons.edit_note_rounded;
 
     return Material(
-      color: Colors.white,
+      color: AppTheme.card,
       borderRadius: BorderRadius.circular(AppTheme.radiusMd),
       child: InkWell(
         onTap: () => _correctItem(item),
@@ -443,38 +443,109 @@ class _ScanDetailScreenState extends State<ScanDetailScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      marked.isEmpty ? '(blank)' : marked,
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w700,
-                        color: corrected
-                            ? AppTheme.primary
-                            : AppTheme.textDark,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      [
-                        _shortType(item.questionType),
+                    _markedAnswer(marked, accent: accent),
+                    const SizedBox(height: 3),
+                    Wrap(
+                      spacing: 6,
+                      runSpacing: 4,
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      children: [
+                        Text(_shortType(item.questionType),
+                            style: AppTheme.body(size: 11.5)),
                         if (item.correctAnswer != null &&
-                            item.correctAnswer!.isNotEmpty)
-                          'key: ${item.correctAnswer}',
-                      ].join('  •  '),
-                      style: AppTheme.body(size: 11.5),
+                            item.correctAnswer!.isNotEmpty) ...[
+                          Text('key:',
+                              style: AppTheme.body(size: 11.5)),
+                          _keyAnswer(item.correctAnswer!, accent),
+                        ],
+                      ],
                     ),
                   ],
                 ),
               ),
               if (item.ambiguous)
-                const Padding(
-                  padding: EdgeInsets.only(right: 6),
+                Padding(
+                  padding: const EdgeInsets.only(right: 6),
                   child: Icon(Icons.warning_amber_rounded,
                       color: AppTheme.warning, size: 17),
                 ),
               Icon(icon, color: accent, size: 19),
             ],
           ),
+        ),
+      ),
+    );
+  }
+
+  /// Letters like 'B', 'T', 'F' or comma lists like 'B,A,D,C' render as
+  /// OMR bubble rings; free text (identification answers) stays text.
+  static bool _isBubbleAnswer(String value) {
+    final parts = value.split(',');
+    return parts.every((p) => RegExp(r'^[A-Z]$').hasMatch(p.trim()));
+  }
+
+  /// The student's mark — filled rings, one per letter in order.
+  Widget _markedAnswer(String marked, {required Color accent}) {
+    if (marked.isEmpty) {
+      return Text('(blank)',
+          style: AppTheme.body(size: 14, color: AppTheme.textFaint));
+    }
+    if (!_isBubbleAnswer(marked)) {
+      return Text(
+        marked,
+        style: TextStyle(
+            fontSize: 14, fontWeight: FontWeight.w700, color: accent),
+      );
+    }
+    final letters = marked.split(',').map((l) => l.trim());
+    return Wrap(
+      spacing: 5,
+      runSpacing: 4,
+      children: [
+        for (final l in letters) _bubble(l, accent, filled: true, size: 24),
+      ],
+    );
+  }
+
+  /// The key — hollow rings, smaller and quieter than the mark.
+  Widget _keyAnswer(String key, Color accent) {
+    if (!_isBubbleAnswer(key)) {
+      return Text(key, style: AppTheme.body(size: 11.5));
+    }
+    final letters = key.split(',').map((l) => l.trim());
+    return Wrap(
+      spacing: 3,
+      runSpacing: 3,
+      children: [
+        for (final l in letters)
+          _bubble(l, AppTheme.textMuted, filled: false, size: 17),
+      ],
+    );
+  }
+
+  /// A single OMR ring — solid fill + white letter for the mark, hollow
+  /// ring + muted letter for the key.
+  Widget _bubble(String letter, Color accent,
+      {required bool filled, required double size}) {
+    return Container(
+      width: size,
+      height: size,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: filled ? accent : Colors.transparent,
+        border: Border.all(
+          color: filled ? accent : AppTheme.textFaint,
+          width: filled ? 1 : 1.2,
+        ),
+      ),
+      child: Text(
+        letter,
+        style: TextStyle(
+          fontSize: size * 0.46,
+          fontWeight: FontWeight.w800,
+          height: 1.1,
+          color: filled ? Colors.white : AppTheme.textMuted,
         ),
       ),
     );
@@ -496,8 +567,8 @@ class _ScanDetailScreenState extends State<ScanDetailScreen> {
   Widget _buildSaveBar() {
     return Container(
       padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
-      decoration: const BoxDecoration(
-        color: Colors.white,
+      decoration: BoxDecoration(
+        color: AppTheme.card,
         border: Border(top: BorderSide(color: AppTheme.cardBorder)),
       ),
       child: SafeArea(

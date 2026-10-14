@@ -13,25 +13,24 @@ InputDecoration pillFieldDecoration({
 }) {
   final shape = OutlineInputBorder(
     borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-    borderSide: const BorderSide(color: AppTheme.cardBorder),
+    borderSide: BorderSide(color: AppTheme.cardBorder),
   );
   return InputDecoration(
     hintText: hint,
     filled: true,
-    fillColor: Colors.white,
+    fillColor: AppTheme.card,
     prefixIcon: icon == null ? null : Icon(icon, size: 19),
     suffixIcon: suffix,
     border: shape,
     enabledBorder: shape,
     focusedBorder: shape.copyWith(
-      borderSide:
-          const BorderSide(color: AppTheme.primary, width: 1.5),
+      borderSide: BorderSide(color: AppTheme.primary, width: 1.5),
     ),
     errorBorder: shape.copyWith(
-      borderSide: const BorderSide(color: AppTheme.error),
+      borderSide: BorderSide(color: AppTheme.error),
     ),
     focusedErrorBorder: shape.copyWith(
-      borderSide: const BorderSide(color: AppTheme.error, width: 1.5),
+      borderSide: BorderSide(color: AppTheme.error, width: 1.5),
     ),
     contentPadding: contentPadding ??
         const EdgeInsets.symmetric(horizontal: 16, vertical: 16),

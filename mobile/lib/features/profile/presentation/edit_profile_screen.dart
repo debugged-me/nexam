@@ -162,9 +162,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
             ),
             if (_session.hasAvatar)
               ListTile(
-                leading: const Icon(Icons.delete_outline_rounded,
+                leading: Icon(Icons.delete_outline_rounded,
                     color: AppTheme.error),
-                title: const Text('Remove photo',
+                title: Text('Remove photo',
                     style: TextStyle(color: AppTheme.error)),
                 onTap: () {
                   Navigator.pop(ctx);
@@ -291,7 +291,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 22),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppTheme.card,
         borderRadius: BorderRadius.circular(AppTheme.radiusLg),
         border: Border.all(color: AppTheme.cardBorder),
       ),
@@ -311,7 +311,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                     decoration: BoxDecoration(
                       color: AppTheme.primary,
                       shape: BoxShape.circle,
-                      border: Border.all(color: Colors.white, width: 2.5),
+                      border: Border.all(color: AppTheme.card, width: 2.5),
                     ),
                     child: _avatarBusy
                         ? const Padding(
@@ -331,7 +331,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
           const SizedBox(height: 12),
           Text(
             _session.fullName,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.w700,
               color: AppTheme.textDark,
@@ -340,7 +340,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
           const SizedBox(height: 2),
           Text(
             _session.email,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 12.5,
               color: AppTheme.textMuted,
             ),
@@ -359,7 +359,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppTheme.card,
         borderRadius: BorderRadius.circular(AppTheme.radiusMd),
         border: Border.all(color: AppTheme.cardBorder),
       ),
@@ -382,7 +382,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppTheme.card,
         borderRadius: BorderRadius.circular(AppTheme.radiusMd),
         border: Border.all(color: AppTheme.cardBorder),
       ),

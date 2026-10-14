@@ -46,7 +46,7 @@ class EmptyState extends StatelessWidget {
         Text(
           title,
           textAlign: TextAlign.center,
-          style: const TextStyle(
+          style: TextStyle(
             fontSize: 15,
             fontWeight: FontWeight.w700,
             color: AppTheme.textDark,
@@ -56,7 +56,7 @@ class EmptyState extends StatelessWidget {
         Text(
           message,
           textAlign: TextAlign.center,
-          style: const TextStyle(
+          style: TextStyle(
             fontSize: 12.5,
             color: AppTheme.textMuted,
             height: 1.4,
@@ -92,7 +92,7 @@ class EmptyState extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppTheme.card,
         borderRadius: BorderRadius.circular(AppTheme.radiusMd),
         border: Border.all(color: AppTheme.cardBorder),
       ),
@@ -163,7 +163,7 @@ class ErrorState extends StatelessWidget {
                 color: AppTheme.tintAmber,
                 borderRadius: BorderRadius.circular(16),
               ),
-              child: const Icon(
+              child: Icon(
                 Icons.cloud_off_rounded,
                 color: AppTheme.warning,
                 size: 24,
@@ -173,7 +173,7 @@ class ErrorState extends StatelessWidget {
             Text(
               message,
               textAlign: TextAlign.center,
-              style: const TextStyle(
+              style: TextStyle(
                 color: AppTheme.textMuted,
                 height: 1.4,
               ),

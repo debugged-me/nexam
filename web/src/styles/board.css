@@ -1707,3 +1707,111 @@ td.dataTables_empty,
 @media (prefers-reduced-motion: reduce) {
   .row-next, .row-next-arrow, .row-card-caret { transition: none; }
 }
+
+/* ── Scanned-sheet review modal ───────────────────── */
+
+/* Row affordance — the whole student row opens the sheet. */
+.row-open { cursor: pointer; }
+.row-open:hover td { background: var(--surface-2); }
+.row-open-btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 30px; height: 30px; border-radius: var(--radius-md, 8px);
+  color: var(--ink-3); background: transparent; border: none;
+  cursor: pointer; transition: background .15s ease, color .15s ease;
+}
+.row-open:hover .row-open-btn, .row-open-btn:focus-visible {
+  background: var(--surface-3, var(--surface-2)); color: var(--ink);
+}
+
+/* Item ledger inside the modal. */
+.scan-items {
+  display: flex; flex-direction: column;
+  border: 1px solid var(--line); border-radius: var(--radius-lg, 12px);
+  overflow: hidden;
+}
+.scan-item + .scan-item { border-top: 1px solid var(--line); }
+.scan-item.is-flagged { background: var(--amber-50); }
+.scan-item.is-edited { background: var(--blue-50, var(--surface-2)); }
+
+.scan-item-row {
+  display: flex; flex-direction: column; gap: 0.45rem;
+  width: 100%; padding: 0.6rem 0.9rem;
+  background: none; border: none; text-align: left; cursor: pointer;
+  font: inherit; color: inherit;
+}
+.scan-item-row:hover { background: var(--surface-2); }
+.scan-item-row:focus-visible { outline: 2px solid var(--action-600); outline-offset: -2px; }
+
+/* Stems wrap — the sheet is narrow, truncation hid the question. */
+.scan-item-top { display: flex; align-items: baseline; gap: 0.55rem; }
+.scan-item-no {
+  flex-shrink: 0; min-width: 1.4rem;
+  font: 600 0.72rem/1.45 var(--font-display, sans-serif);
+  color: var(--ink-3); font-variant-numeric: tabular-nums;
+}
+.scan-item-stem {
+  font-size: 0.82rem; line-height: 1.45; color: var(--ink-2, var(--ink));
+}
+.scan-item-meta {
+  display: flex; align-items: center; gap: 0.45rem;
+  padding-left: calc(1.4rem + 0.55rem);
+}
+
+/* Mark + key cells — bubble-ring metaphor. */
+.scan-mark, .scan-key {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 1.5rem; padding: 0.14rem 0.4rem;
+  border-radius: 999px;
+  font: 700 0.7rem/1.2 var(--font-display, sans-serif);
+  letter-spacing: 0.02em;
+}
+.scan-mark { border: 1.5px solid var(--line-strong, var(--line)); }
+.scan-mark--correct { color: var(--green-600); border-color: var(--green-600); background: color-mix(in srgb, var(--green-600) 10%, transparent); }
+.scan-mark--wrong   { color: var(--red-600);   border-color: var(--red-600);   background: color-mix(in srgb, var(--red-600) 8%, transparent); }
+.scan-mark--flagged { color: var(--amber-700); border-color: var(--amber-600); background: color-mix(in srgb, var(--amber-600) 12%, transparent); }
+.scan-mark--edited  { color: var(--action-600); border-color: var(--action-600); background: color-mix(in srgb, var(--action-600) 10%, transparent); }
+.scan-key { color: var(--ink-3); border: 1.5px dashed var(--line-strong, var(--line)); }
+
+.scan-state {
+  display: inline-flex; align-items: center; justify-content: flex-end; gap: 0.25rem;
+  font: 600 0.68rem/1 var(--font-display, sans-serif);
+}
+.scan-state--correct { color: var(--green-600); }
+.scan-state--wrong   { color: var(--red-600); }
+.scan-state--flagged { color: var(--amber-700); }
+.scan-state--edited  { color: var(--action-600); }
+
+/* Inline correction editor — choice chips sized to the item options. */
+.scan-item-editor {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem;
+  padding: 0.55rem 0.9rem 0.7rem calc(0.9rem + 1.4rem + 0.55rem);
+  border-top: 1px dashed var(--line);
+  background: var(--surface-2);
+}
+.scan-chip {
+  min-width: 2.1rem; height: 2rem; padding: 0 0.55rem;
+  border-radius: 999px; border: 1.5px solid var(--line-strong, var(--line));
+  background: var(--surface); color: var(--ink-2, var(--ink));
+  font: 700 0.74rem/1 var(--font-display, sans-serif);
+  cursor: pointer; transition: all .12s ease;
+}
+.scan-chip:hover { border-color: var(--action-600); color: var(--action-600); }
+.scan-chip.is-on { background: var(--action-600); border-color: var(--action-600); color: #fff; }
+.scan-chip--clear { border-style: dashed; color: var(--ink-3); font-weight: 600; }
+.scan-match-field { display: flex; flex-direction: column; gap: 0.3rem; min-width: 11rem; }
+.scan-match-field .input { height: 2.1rem; }
+
+@media (max-width: 640px) {
+  .scan-item-editor { padding-left: 0.75rem; }
+}
+/* Sheet header + action row inside the modal body. */
+.scan-sheet-head {
+  display: flex; align-items: center; flex-wrap: wrap; gap: 0.55rem;
+  margin-bottom: 0.75rem;
+}
+.scan-sheet-head strong { font-size: 0.95rem; color: var(--ink); }
+.scan-sheet-foot {
+  display: flex; align-items: center; justify-content: flex-end; gap: 0.6rem;
+  margin-top: 0.85rem;
+}
+.scan-sheet-foot .meta-sm { margin-right: auto; }

@@ -66,6 +66,25 @@ Canonical answers:
 
 QR payload: `{ v, examId, setId, set, count, types[] }`.
 
+Scan dedup is two-layer: `client_scan_id` (idempotent retries/outbox
+replays) then `(exam_id, student_id)` — a deliberate rescan of an
+identified student returns `409 DUPLICATE_SCAN` unless the body carries
+`replaceExisting: true`, which deletes prior scans for that pair inside
+the transaction (`scan_answers` cascade). Students are auto-created by
+scans (`findOrCreateStudent`: number blind index, then name hash) and
+managed via `/api/students` — `GET ?q=` (decrypted roster + scan stats),
+`PATCH /:id` (rename rewrites ciphertext + both blind indexes and the
+`scan_results.student_name` snapshots), `POST /merge` (reassigns scans to
+the target name, deletes the source). `GET /api/scans` accepts `q`,
+`student_id`, and `limit` (cap 1000). The web surface is `/scans` —
+one page with two tabs: **Answer sheets** (the flat archive) and
+**Students** (`components/StudentsPanel.jsx`, the roster with
+rename/merge). `/students` redirects to `/scans?tab=students`. The web
+review surface is `ScanReviewModal` — shared by `/scans` and the
+exam-analytics Student Scores table, with its styles global in
+`board.css`. Mobile capture autocompletes name/ID from `/api/students`,
+and a parked DUPLICATE_SCAN outbox entry offers a Replace replay.
+
 ## Security
 
 - Use parameterized MySQL queries and enforce ownership on every private ID.

@@ -118,7 +118,7 @@ class _VerifyEmailScreenState extends State<VerifyEmailScreen> {
                   const SizedBox(height: 6),
                   Text(
                     'We sent a 6-character verification code to ${widget.email}.',
-                    style: const TextStyle(
+                    style: TextStyle(
                         fontSize: 13.5, color: AppTheme.textMuted),
                   ),
                   const SizedBox(height: 24),
@@ -173,7 +173,7 @@ class _VerifyEmailScreenState extends State<VerifyEmailScreen> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      const Text(
+                      Text(
                         "Didn't get the code? ",
                         style: TextStyle(
                             fontSize: 13.5,
@@ -183,7 +183,7 @@ class _VerifyEmailScreenState extends State<VerifyEmailScreen> {
                         onTap: _resending ? null : _resend,
                         child: Text(
                           _resending ? 'Sending…' : 'Resend',
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 13.5,
                             color: AppTheme.primary,
                             fontWeight: FontWeight.w700,

@@ -35,10 +35,19 @@ export default function ExamAnalyticsPage() {
     return () => { cancelled = true; };
   }, [examId, navigate, toast]);
 
+  // Post-review refresh — a saved correction changes scores/statuses, and
+  // the GET cache is stale (the write only invalidates /scans).
+  const refresh = () => {
+    api.invalidate(`/analytics/exam/${examId}`);
+    api.get(`/analytics/exam/${examId}`)
+      .then((d) => setDetail({ examId, ...d }))
+      .catch(() => {});
+  };
+
   return (
     <AppShell pageClass="analytics" activeNav="analytics" pageTitle="Analytics" wide>
       {detail?.examId === examId
-        ? <ExamDetail examId={examId} detail={detail} onBack={() => navigate('/analytics')} />
+        ? <ExamDetail examId={examId} detail={detail} onBack={() => navigate('/analytics')} onChanged={refresh} />
         : <CardsSkeleton tiles={4} />}
     </AppShell>
   );

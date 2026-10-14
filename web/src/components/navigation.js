@@ -16,6 +16,7 @@ import {
   Settings2,
   Megaphone,
   Radio,
+  ScanLine,
 } from 'lucide-react';
 
 export const NAV_ITEMS = [
@@ -80,6 +81,15 @@ export const NAV_ITEMS = [
     group: 'Assessment',
     description: 'Assemble, publish, and export exam sets',
     prefetch: ['/exams'],
+  },
+  {
+    label: 'OMR scans',
+    key: 'scans',
+    icon: ScanLine,
+    to: '/scans',
+    group: 'Assessment',
+    description: 'Scanned sheets and the student roster',
+    prefetch: ['/scans?limit=200'],
   },
   {
     label: 'Results & insights',

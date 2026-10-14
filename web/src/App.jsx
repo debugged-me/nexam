@@ -46,6 +46,7 @@ const AccountPage = lazy(() => import('./pages/AccountPage.jsx'));
 const AppearancePage = lazy(() => import('./pages/AppearancePage.jsx'));
 const WizardPage = lazy(() => import('./pages/WizardPage.jsx'));
 const InstitutionBankPage = lazy(() => import('./pages/InstitutionBankPage.jsx'));
+const ScansPage = lazy(() => import('./pages/ScansPage.jsx'));
 const LegalPage = lazy(() => import('./pages/LegalPage.jsx'));
 const AdminPage = lazy(() => import('./pages/AdminPage.jsx'));
 
@@ -158,6 +159,7 @@ const PAGE_TITLES = [
   ['/analytics/attention', 'Needs attention'],
   ['/analytics/ai-eval', 'AI evaluation'],
   ['/analytics', 'Results & insights'],
+  ['/scans', 'OMR scans'],
   ['/account', 'Account'],
   ['/appearance', 'Appearance'],
 ];
@@ -326,6 +328,8 @@ export default function App() {
                   <Route path="/analytics/attention" element={<AttentionPage />} />
                   <Route path="/analytics/items/:examId" element={<ItemAnalysisPage />} />
                   <Route path="/analytics/ai-eval" element={<AiEvalPage />} />
+                  <Route path="/students" element={<Navigate to="/scans?tab=students" replace />} />
+                  <Route path="/scans" element={<ScansPage />} />
                   <Route path="/pipeline" element={<PipelinePage />} />
                 </Route>
 

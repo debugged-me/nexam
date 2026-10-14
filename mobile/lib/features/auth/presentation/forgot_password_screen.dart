@@ -159,7 +159,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                     _codeSent
                         ? 'We emailed you a 6-character code. Enter it with your new password.'
                         : 'Enter your account email and we\'ll send a reset code.',
-                    style: const TextStyle(
+                    style: TextStyle(
                         fontSize: 13.5, color: AppTheme.textMuted),
                   ),
                   const SizedBox(height: 24),
@@ -272,7 +272,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                     Center(
                       child: GestureDetector(
                         onTap: _busy ? null : _sendCode,
-                        child: const Text(
+                        child: Text(
                           'Resend code',
                           style: TextStyle(
                             fontSize: 13.5,

@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import { useToast } from '../components/Toast.jsx';
 import EmptyStateArt from '../components/EmptyStateArt.jsx';
+import ScanReviewModal from '../components/ScanReviewModal.jsx';
 import api from '../lib/api.js';
 import { downloadCsv, downloadXlsx } from '../lib/exports.js';
 import { barsPng, linePng, bandColor } from '../lib/reportCharts.js';
@@ -501,6 +502,7 @@ export default function AnalyticsPage() {
         <div className="card" data-tour="analytics-scans">
           <div className="card-header">
             <span className="card-title">Recent Scans</span>
+            <a href="#/scans" className="card-link">All scans →</a>
           </div>
           {recentScans.length === 0 ? (
             <div className="empty-state empty-state-md"><EmptyStateArt size={88} art="scan" /><p>No scans yet. Use the mobile app to scan OMR sheets.</p></div>
@@ -540,7 +542,8 @@ export default function AnalyticsPage() {
  * ExamDetail — the exam-level analytics view (score distribution + student scores).
  * Exam-level result summary.
  */
-export function ExamDetail({ examId, detail, onBack }) {
+export function ExamDetail({ examId, detail, onBack, onChanged }) {
+  const [reviewScanId, setReviewScanId] = useState(null);
   const grid = useGridTable({ data: detail?.students || [], columns: STUDENT_PAGER_COLUMNS, pageSize: STUDENTS_PER_PAGE, storageKey: 'analytics-students' });
   if (!detail) {
     return <CardsSkeleton tiles={4} />;
@@ -827,13 +830,18 @@ export function ExamDetail({ examId, detail, onBack }) {
           <div className="table-wrap no-print">
             <table className="data-table">
               <thead>
-                <tr><th>#</th><th>Student</th><th>Set</th><th>Score</th><th>Correct</th><th>Status</th><th>Scanned</th></tr>
+                <tr><th>#</th><th>Student</th><th>Set</th><th>Score</th><th>Correct</th><th>Status</th><th>Scanned</th><th className="wp-4"><span className="sr-only">Open</span></th></tr>
               </thead>
               <tbody>
                 {pageStuds.map((st, i) => {
                   const score = Number(st.score || 0);
                   return (
-                    <tr key={st.scan_id || i}>
+                    <tr
+                      key={st.scan_id || i}
+                      className="row-open"
+                      title="Open scanned sheet"
+                      onClick={() => st.scan_id && setReviewScanId(st.scan_id)}
+                    >
                       <td className="text-muted">{grid.start + i}</td>
                       <td><strong>{st.student_name || 'Unknown'}</strong></td>
                       <td><span className="badge badge-gray">{st.set_label || '—'}</span></td>
@@ -851,6 +859,16 @@ export function ExamDetail({ examId, detail, onBack }) {
                         )}
                       </td>
                       <td className="text-muted meta-sm" title={fmtScanned(st.scanned_at)}>{fmtScannedRel(st.scanned_at)}</td>
+                      <td className="cell-act">
+                        <button
+                          type="button"
+                          className="row-open-btn"
+                          aria-label={`Open sheet for ${st.student_name || 'this student'}`}
+                          onClick={(e) => { e.stopPropagation(); st.scan_id && setReviewScanId(st.scan_id); }}
+                        >
+                          <ScanLine size={15} />
+                        </button>
+                      </td>
                     </tr>
                   );
                 })}
@@ -870,6 +888,13 @@ export function ExamDetail({ examId, detail, onBack }) {
           </div>
         )}
       </div>
+
+      <ScanReviewModal
+        scanId={reviewScanId}
+        examTitle={examTitle}
+        onClose={() => setReviewScanId(null)}
+        onSaved={onChanged}
+      />
     </>
   );
 }

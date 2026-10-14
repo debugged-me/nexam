@@ -244,6 +244,63 @@ void main() {
     expect(out.detections[1].detectedAnswer, 'C');
   });
 
+  test('phone-resolution capture: downscale keeps anchors and marks', () {
+    // A real phone photo is 12 MP — the scanner now caps the working
+    // image at ~1440 px wide. Render the sheet upscaled into a big
+    // frame so the resize path is exercised, not just the small-photo
+    // path the other tests cover.
+    final sheetBytes = renderSheet(
+      types: {'types': ['m4', 't', 'M3', 'm4']},
+      marks: {
+        1: [1], // B
+        2: [1], // F
+        3: [2, 0, 3], // matching → C,A,D
+        4: [0], // A
+      },
+    );
+    final sheet = img.decodePng(sheetBytes)!;
+    final big = img.copyResize(sheet, width: 1800);
+    final frame = img.Image(width: 2400, height: 3200);
+    img.fill(frame, color: img.ColorRgb8(190, 190, 190)); // desk
+    img.compositeImage(frame, big, dstX: 300, dstY: 200);
+    final bytes = Uint8List.fromList(img.encodePng(frame));
+
+    final sw = Stopwatch()..start();
+    final out = OmrScanner().detect(
+      imageBytes: bytes,
+      payload: payloadFor(['m4', 't', 'M3', 'm4']),
+    );
+    sw.stop();
+    // Wall-clock ceiling far above real device time — a regression that
+    // makes the resize useless (or anchoring quadratic) blows past it.
+    expect(sw.elapsedMilliseconds, lessThan(15000),
+        reason: 'phone-res scan took ${sw.elapsedMilliseconds}ms');
+
+    expect(out.aligned, isTrue,
+        reason: 'anchors should survive the downscale');
+    expect(out.detections[0].detectedAnswer, 'B');
+    expect(out.detections[1].detectedAnswer, 'F');
+    expect(out.detections[2].subAnswers, ['C', 'A', 'D']);
+    expect(out.detections[3].detectedAnswer, 'A');
+  });
+
+  test('unaligned sheets flag every detection for review', () {
+    // No anchors → whole-frame fallback. The read may be fine, but it
+    // must be provisional: every item ambiguous, so the server keeps the
+    // sheet in needs_review until an instructor confirms.
+    final image = img.Image(width: 800, height: 1000);
+    img.fill(image, color: img.ColorRgb8(230, 230, 230)); // plain desk
+    final bytes = Uint8List.fromList(img.encodePng(image));
+
+    final out = OmrScanner().detect(
+      imageBytes: bytes,
+      payload: payloadFor(['m4', 'm4']),
+    );
+
+    expect(out.aligned, isFalse);
+    expect(out.detections.every((d) => d.ambiguous), isTrue);
+  });
+
   test('still detects on a slightly rotated capture', () {
     final sheetBytes = renderSheet(
       types: {'types': ['m4', 'm4']},

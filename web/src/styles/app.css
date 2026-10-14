@@ -195,8 +195,8 @@ svg.lucide { stroke-width: 1.5; }
   position: relative;
   display: flex;
   align-items: center;
-  gap: 11px;
-  min-height: 38px;
+  gap: 10px;
+  min-height: 33px;
   padding: 0 11px;
   border-radius: 8px;
   color: var(--sb-text);
@@ -286,6 +286,7 @@ svg.lucide { stroke-width: 1.5; }
   .sidebar { transform: translateX(-100%); }
   .sidebar.mobile-open { transform: translateX(0); }
   .sidebar-close { display: flex; }
+  .nav-item { min-height: 44px; }
 }
 
 /* ==========================================================================
@@ -1601,9 +1602,9 @@ select.form-control:not([multiple]) {
 .sidebar-mark { width: 27px; height: 27px; }
 .sidebar-wordmark { display: flex; align-items: baseline; gap: 6px; font-size: 1.28rem; font-weight: 600; letter-spacing: -.055em; }
 .sidebar-edition { color: var(--action-300); font: 500 .59rem var(--font-body); letter-spacing: .02em; }
-.sidebar-nav { gap: 19px; padding: 8px 12px 20px; }
-.nav-group { display: grid; gap: 2px; }
-.nav-group-label { padding: 0 10px; margin: 0 0 7px; font-size: .61rem; color: var(--sb-title); font-weight: 550; letter-spacing: .085em; text-transform: uppercase; }
+.sidebar-nav { gap: 15px; padding: 8px 12px 20px; }
+.nav-group { display: grid; gap: 1px; }
+.nav-group-label { padding: 0 10px; margin: 0 0 5px; font-size: .61rem; color: var(--sb-title); font-weight: 550; letter-spacing: .085em; text-transform: uppercase; }
 /* Accent rule after each section label. Flex only places the line; the text
    keeps its exact position and the label its height. Follows the accent
    palette via --action-*: draws in once, then a soft light sweeps along it. */

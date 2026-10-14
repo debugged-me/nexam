@@ -196,7 +196,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         actions: [
           IconButton(
             onPressed: _loadData,
-            icon: const Icon(Icons.refresh_rounded,
+            icon: Icon(Icons.refresh_rounded,
                 size: 20, color: AppTheme.textMuted),
             tooltip: 'Refresh',
           ),
@@ -448,7 +448,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 14),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppTheme.card,
         borderRadius: BorderRadius.circular(AppTheme.radiusMd),
         border: Border.all(color: AppTheme.cardBorder),
       ),
@@ -522,7 +522,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       children: [
         Text(
           title,
-          style: const TextStyle(
+          style: TextStyle(
             fontSize: 15,
             fontWeight: FontWeight.w700,
             letterSpacing: -0.2,
@@ -537,8 +537,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
               widget.onNavigate!(tab);
             },
             borderRadius: BorderRadius.circular(999),
-            child: const Padding(
-              padding: EdgeInsets.symmetric(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(
                   horizontal: 8, vertical: 4),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
@@ -551,7 +551,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       color: AppTheme.primary,
                     ),
                   ),
-                  SizedBox(width: 2),
+                  const SizedBox(width: 2),
                   Icon(Icons.chevron_right_rounded,
                       size: 16, color: AppTheme.primary),
                 ],
@@ -578,7 +578,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     }
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppTheme.card,
         borderRadius: BorderRadius.circular(AppTheme.radiusMd),
         border: Border.all(color: AppTheme.cardBorder),
       ),
@@ -612,7 +612,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final visible = _exams.take(4).toList();
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppTheme.card,
         borderRadius: BorderRadius.circular(AppTheme.radiusMd),
         border: Border.all(color: AppTheme.cardBorder),
       ),

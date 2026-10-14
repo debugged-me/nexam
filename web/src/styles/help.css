@@ -16,7 +16,7 @@
   height: 34px;
   padding: 0 12px 0 5px;
   border: 1px solid var(--accent-line);
-  border-radius: 999px;
+  border-radius: 8px;
   background: var(--action-50);
   color: var(--action-700);
   font: 550 .78rem var(--font-body);

@@ -142,13 +142,71 @@ class _ScansScreenState extends State<ScansScreen> {
           ),
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(true),
-            child: const Text('Discard', style: TextStyle(color: AppTheme.error)),
+            child: Text('Discard', style: TextStyle(color: AppTheme.error)),
           ),
         ],
       ),
     );
     if (confirmed != true) return;
     await _outbox?.remove(entry.clientScanId);
+    await _load();
+  }
+
+  /// A queued sheet that hit DUPLICATE_SCAN stays parked until the
+  /// instructor decides — this replays just that entry with
+  /// replaceExisting so the stored result is overwritten on purpose.
+  Future<void> _replacePending(PendingScan entry) async {
+    final name = (entry.studentName?.isNotEmpty == true)
+        ? entry.studentName!
+        : 'this student';
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppTheme.card,
+        title: Text('Replace scanned result?',
+            style: TextStyle(color: AppTheme.textDark, fontWeight: FontWeight.w700)),
+        content: Text(
+          'Overwrite the existing sheet for $name with this queued one? The earlier score is discarded.',
+          style: TextStyle(color: AppTheme.textMuted, fontSize: 13.5),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            style: FilledButton.styleFrom(backgroundColor: AppTheme.primary),
+            child: const Text('Replace'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+
+    setState(() => _syncing = true);
+    try {
+      final outcome = await _outbox!.flush(
+        baseUrl: widget.session.baseUrl,
+        token: widget.session.token,
+        replaceIds: {entry.clientScanId},
+      );
+      if (!mounted) return;
+      if (outcome.sessionExpired) {
+        widget.onSessionExpired();
+        return;
+      }
+      _pending = await _outbox!.list();
+      if (!mounted) return;
+      if (outcome.synced > 0) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: const Text('Replaced and synced.'),
+              backgroundColor: AppTheme.success),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _syncing = false);
+    }
     await _load();
   }
 
@@ -161,7 +219,7 @@ class _ScansScreenState extends State<ScansScreen> {
         actions: [
           IconButton(
             onPressed: _load,
-            icon: const Icon(Icons.refresh_rounded,
+            icon: Icon(Icons.refresh_rounded,
                 size: 20, color: AppTheme.textMuted),
             tooltip: 'Refresh',
           ),
@@ -245,7 +303,7 @@ class _ScansScreenState extends State<ScansScreen> {
                   _syncing
                       ? 'Syncing offline scans…'
                       : '${_pending.length} sheet${_pending.length == 1 ? '' : 's'} waiting to sync',
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 12.5,
                     fontWeight: FontWeight.w700,
                     color: AppTheme.textDark,
@@ -266,6 +324,9 @@ class _ScansScreenState extends State<ScansScreen> {
         ? entry.studentName!
         : 'Unnamed sheet';
     final setLabel = (entry.set?.isNotEmpty == true) ? ' · Set ${entry.set}' : '';
+    // Server told us this student already has a sheet — offer the
+    // deliberate overwrite path instead of only discard.
+    final isDuplicate = (entry.lastError ?? '').contains('already has a scanned sheet');
     return Padding(
       padding: const EdgeInsets.only(top: 8),
       child: Row(
@@ -276,7 +337,7 @@ class _ScansScreenState extends State<ScansScreen> {
               children: [
                 Text(
                   '$name$setLabel',
-                  style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600, color: AppTheme.textDark),
+                  style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600, color: AppTheme.textDark),
                   overflow: TextOverflow.ellipsis,
                 ),
                 Text(
@@ -292,9 +353,16 @@ class _ScansScreenState extends State<ScansScreen> {
               ],
             ),
           ),
+          if (isDuplicate)
+            IconButton(
+              onPressed: _syncing ? null : () => _replacePending(entry),
+              icon: Icon(Icons.swap_horiz_rounded, size: 18, color: AppTheme.primary),
+              tooltip: 'Replace the existing result with this sheet',
+              visualDensity: VisualDensity.compact,
+            ),
           IconButton(
             onPressed: () => _discardPending(entry),
-            icon: const Icon(Icons.delete_outline_rounded, size: 18, color: AppTheme.textMuted),
+            icon: Icon(Icons.delete_outline_rounded, size: 18, color: AppTheme.textMuted),
             tooltip: 'Discard queued scan',
             visualDensity: VisualDensity.compact,
           ),
@@ -347,7 +415,7 @@ class _ScansScreenState extends State<ScansScreen> {
     return Material(
       color: selected
           ? accent.withValues(alpha: 0.12)
-          : Colors.white,
+          : AppTheme.card,
       borderRadius: BorderRadius.circular(999),
       child: InkWell(
         onTap: () {
@@ -383,7 +451,7 @@ class _ScansScreenState extends State<ScansScreen> {
     final needsReview =
         scan['needs_review'] == 1 || scan['needs_review'] == true;
     return Material(
-      color: Colors.white,
+      color: AppTheme.card,
       borderRadius: BorderRadius.circular(AppTheme.radiusMd),
       child: Container(
         decoration: BoxDecoration(

@@ -113,6 +113,10 @@ class ScanApi {
 
   final http.Client _client;
 
+  /// Reads/writes carry a hard ceiling — a stalled connection must surface
+  /// as a network failure (outbox-queued), not a spinner that never ends.
+  static const _timeout = Duration(seconds: 15);
+
   /// POST /api/scans — submit a scanned OMR result.
   ///
   /// [clientScanId] is the idempotency key: minted once per scan and reused
@@ -127,6 +131,7 @@ class ScanApi {
     String? studentName,
     String? studentNumber,
     String? clientScanId,
+    bool replaceExisting = false,
     required List<ScannedAnswer> answers,
   }) async {
     final response = await _safeRequest(
@@ -140,9 +145,10 @@ class ScanApi {
           if (studentName != null) 'studentName': studentName,
           if (studentNumber != null) 'studentNumber': studentNumber,
           if (clientScanId != null) 'clientScanId': clientScanId,
+          if (replaceExisting) 'replaceExisting': true,
           'answers': answers.map((a) => a.toJson()).toList(),
         }),
-      ),
+      ).timeout(_timeout),
     );
     final data = _decode(response);
     return ScanResult.fromJson(data);
@@ -165,7 +171,7 @@ class ScanApi {
       () => _client.get(
         Uri.parse('$baseUrl/api/scans$query'),
         headers: _headers(token),
-      ),
+      ).timeout(_timeout),
     );
     final data = _decode(response);
     final scans = data['scans'] as List? ?? [];
@@ -182,7 +188,7 @@ class ScanApi {
       () => _client.get(
         Uri.parse('$baseUrl/api/scans/exam/$examId'),
         headers: _headers(token),
-      ),
+      ).timeout(_timeout),
     );
     final data = _decode(response);
     final scans = data['scans'] as List? ?? [];
@@ -199,7 +205,7 @@ class ScanApi {
       () => _client.get(
         Uri.parse('$baseUrl/api/scans/$scanId'),
         headers: _headers(token),
-      ),
+      ).timeout(_timeout),
     );
     final data = _decode(response);
     final answers = (data['answers'] as List? ?? [])
@@ -230,7 +236,7 @@ class ScanApi {
               .map((e) => {'itemNumber': e.key, 'markedAnswer': e.value})
               .toList(),
         }),
-      ),
+      ).timeout(_timeout),
     );
     final data = _decode(response);
     return ScanResult.fromJson(data);
@@ -266,7 +272,7 @@ class ScanApi {
     final data = Map<String, dynamic>.from(decoded);
     if (response.statusCode < 200 || response.statusCode >= 300) {
       final message = (data['error'] ?? 'Request failed.').toString();
-      throw ApiException(message, statusCode: response.statusCode);
+      throw ApiException(message, statusCode: response.statusCode, code: data['code']?.toString());
     }
     return data;
   }

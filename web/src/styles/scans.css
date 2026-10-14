@@ -1,0 +1,121 @@
+/* ScansPage: flat archive of every scanned sheet. */
+@scope (.page--scans) {
+
+.sc-row { cursor: pointer; }
+.sc-row:hover td { background: var(--surface-2); }
+.sc-exam { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* Status strip — segmented tabs + mix widget, same idiom as the
+   question bank's q-statusbar. */
+.sc-statusbar {
+  display: flex; align-items: center; justify-content: space-between;
+  flex-wrap: wrap; gap: 8px 20px;
+  padding: 8px var(--grid-x, 12px);
+  border-bottom: 1px solid var(--line);
+}
+.sc-tabs {
+  display: inline-flex; flex-wrap: wrap; gap: 2px;
+  padding: 2px; border-radius: var(--radius-sm);
+  background: var(--surface-2);
+}
+.sc-tab {
+  display: inline-flex; align-items: center; gap: 7px;
+  min-height: 30px; padding: 0 10px;
+  border: 0; border-radius: var(--radius-xs);
+  background: transparent; color: var(--ink-3);
+  font: 500 .8125rem/1 var(--font-body);
+  white-space: nowrap; cursor: pointer;
+}
+.sc-tab:hover { color: var(--ink); }
+.sc-tab[aria-pressed="true"] {
+  background: var(--surface); color: var(--ink);
+  box-shadow: 0 0 0 1px var(--line), var(--shadow-sm);
+}
+.sc-tab:focus-visible { outline: 2px solid var(--action-600); outline-offset: -1px; }
+.sc-tab-count {
+  min-width: 20px; padding: 2px 6px; border-radius: 99px;
+  background: var(--surface-3); color: var(--ink-3);
+  font-size: .6875rem; font-weight: 600;
+  font-variant-numeric: tabular-nums; text-align: center;
+}
+.sc-tab[data-status="review"] .sc-tab-count { background: var(--amber-50); color: var(--amber-700); }
+.sc-tab[data-status="done"] .sc-tab-count { background: var(--green-50); color: var(--green-700); }
+
+/* Score-band histogram + headline stats (the qmix counterpart). */
+.scmix { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+.scmix-bands { display: flex; align-items: flex-end; gap: 3px; height: 24px; }
+.scmix-band {
+  display: flex; align-items: flex-end;
+  width: 8px; height: 100%; overflow: hidden; border-radius: 2px;
+  background: color-mix(in srgb, var(--ink) 6%, transparent);
+}
+.scmix-band i { display: block; width: 100%; border-radius: 2px 2px 0 0; transition: height .5s var(--ease, ease); }
+.scmix-legend { display: flex; gap: 12px; flex-wrap: wrap; font-size: .7rem; color: var(--ink-3); }
+.scmix-item strong { color: var(--ink-2); font-variant-numeric: tabular-nums; }
+
+@media (max-width: 599px) {
+  .sc-statusbar { align-items: stretch; }
+  .sc-tab { min-height: 44px; }
+}
+
+/* The shared .b-groupby selects are transparent ghosts — here they carry
+   a field surface so they read as filters; accent ring once one is set. */
+.dataset-bar .b-groupby select {
+  background-color: var(--surface-2);
+  border-color: var(--line);
+}
+.dataset-bar .b-groupby select:hover { border-color: var(--line-strong); }
+.dataset-bar .b-groupby select[data-active] {
+  border-color: var(--action-600);
+  color: var(--action-700);
+  font-weight: 600;
+}
+.dataset-bar .b-groupby:has(select[data-active]) > svg { color: var(--action-600); opacity: 1; }
+
+/* View tabs vs status tabs: view-level tabs (aria-selected) fill with the
+   action accent; status filters (aria-pressed) stay neutral cards. */
+.sc-tab[aria-selected="true"] {
+  background: var(--action-600); color: #fff;
+  box-shadow: var(--shadow-sm);
+}
+.sc-tab[aria-selected="true"] svg { opacity: 1; color: currentColor; }
+.sc-tab[aria-selected="true"] .sc-tab-count {
+  background: rgba(255, 255, 255, 0.2); color: #fff;
+}
+
+/* ── Students tab (roster) ──────────────────────────────── */
+.st-flag {
+  display: inline-flex; align-items: center; gap: 0.35rem;
+  font: 600 0.72rem/1 var(--font-display, sans-serif);
+  color: var(--amber-700);
+  background: var(--amber-50);
+  border: 1px solid var(--amber-100);
+  border-radius: 999px; padding: 0.35rem 0.7rem;
+}
+
+/* Merge target pick-list — radio rows, clearer than a bare dropdown. */
+.st-pick {
+  display: flex; flex-direction: column; gap: 0.35rem;
+  max-height: 16rem; overflow-y: auto;
+  border: 1px solid var(--line); border-radius: var(--radius-lg);
+  padding: 0.35rem;
+}
+.st-pick-row {
+  display: flex; align-items: center; justify-content: space-between; gap: 0.75rem;
+  padding: 0.55rem 0.7rem; border-radius: var(--radius-md);
+  border: 1px solid transparent; background: none; cursor: pointer;
+  text-align: left; font: inherit; color: inherit;
+  transition: background .12s ease, border-color .12s ease;
+}
+.st-pick-row:hover { background: var(--surface-2); }
+.st-pick-row.is-on {
+  background: var(--blue-50);
+  border-color: var(--action-600);
+}
+.st-pick-row:focus-visible { outline: 2px solid var(--action-600); outline-offset: -2px; }
+.st-pick-name { font-weight: 600; font-size: 0.84rem; color: var(--ink); }
+.st-pick-meta { font-size: 0.72rem; color: var(--ink-3); white-space: nowrap; }
+
+.st-form { display: flex; flex-direction: column; gap: 0.85rem; }
+
+}

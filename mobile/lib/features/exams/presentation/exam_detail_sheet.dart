@@ -10,7 +10,7 @@ void showExamDetailSheet(BuildContext context, ExamSummary exam) {
   showModalBottomSheet<void>(
     context: context,
     showDragHandle: true,
-    backgroundColor: Colors.white,
+    backgroundColor: AppTheme.card,
     shape: const RoundedRectangleBorder(
       borderRadius:
           BorderRadius.vertical(top: Radius.circular(24)),
@@ -31,7 +31,7 @@ void showExamDetailSheet(BuildContext context, ExamSummary exam) {
                     color: AppTheme.tintBlue,
                     borderRadius: BorderRadius.circular(14),
                   ),
-                  child: const Icon(Icons.description_rounded,
+                  child: Icon(Icons.description_rounded,
                       size: 21, color: AppTheme.primary),
                 ),
                 const SizedBox(width: 12),
@@ -88,7 +88,7 @@ void showExamDetailSheet(BuildContext context, ExamSummary exam) {
             const SizedBox(height: 14),
             Row(
               children: [
-                const Icon(Icons.info_outline_rounded,
+                Icon(Icons.info_outline_rounded,
                     size: 15, color: AppTheme.textFaint),
                 const SizedBox(width: 7),
                 Expanded(
@@ -115,7 +115,7 @@ Widget _detailRow(String label,
     decoration: BoxDecoration(
       border: last
           ? null
-          : const Border(
+          : Border(
               bottom: BorderSide(color: AppTheme.cardBorder),
             ),
     ),

@@ -521,6 +521,40 @@ export const TOURS = [
     ],
   },
   {
+    id: 'scans', name: 'OMR scans', patterns: ['/scans'], roles: INSTRUCTOR,
+    steps: [
+      {
+        title: 'Where the paperwork lands',
+        description: 'Every OMR sheet the phone captures becomes a row here — scored by the server, flagged when a bubble is ambiguous, and tied to a student record the roster tab maintains. Nothing on this page is typed in by hand.',
+      },
+      {
+        sel: '[data-tour="scans-views"]', side: 'bottom', align: 'end',
+        title: 'Two views of the same data',
+        description: 'Answer sheets is the flat archive — every scan, one row. Students is the roster scans built up; open it to fix a misspelled name or merge a duplicate so one person never counts twice.',
+      },
+      {
+        sel: '[data-tour="scans-filters"]', side: 'bottom',
+        title: 'Slice by exam or set',
+        description: 'Pick an exam to see only its sheets, then narrow further to Set A or Set B. The same filter state feeds the counts and the chart below.',
+      },
+      {
+        sel: '[data-tour="scans-status"]', side: 'bottom',
+        title: 'Review is a gate',
+        description: 'A sheet with a doubtful bubble stays in “Needs review” until someone resolves it — it never silently counts. The numbers are live: they follow the exam and set you filtered to.',
+      },
+      {
+        sel: '[data-tour="scans-mix"]', side: 'bottom', align: 'end',
+        title: 'The class at a glance',
+        description: 'Four bars sketch the score distribution — red under 60, amber to 74, green to 89, blue for 90+. Beside it: the average, how many distinct students were captured, and the sheet count.',
+      },
+      {
+        sel: '[data-tour="scans-grid"]', side: 'top',
+        title: 'Open a sheet to correct it',
+        description: 'Click a row and the sheet slides in from the right — every item, its recorded mark, and the key. Pick a different answer and the server re-scores the whole sheet. Right-click (or ⋯) for the row actions.',
+      },
+    ],
+  },
+  {
     id: 'analytics', name: 'Analytics', patterns: ['/analytics'], roles: INSTRUCTOR,
     steps: [
       {

@@ -64,6 +64,14 @@ class _NexamOmrAppState extends State<NexamOmrApp> {
       title: 'Nexam OMR',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.build(),
+      darkTheme: AppTheme.buildDark(),
+      themeMode: ThemeMode.system,
+      // Sync the static palette flag with the resolved theme so widget
+      // code reading AppTheme.* getters sees the active mode's colors.
+      builder: (context, child) {
+        AppTheme.brightness = Theme.of(context).brightness;
+        return child ?? const SizedBox.shrink();
+      },
       home: _buildHome(),
     );
   }

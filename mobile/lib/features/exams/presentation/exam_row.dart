@@ -37,7 +37,7 @@ class ExamRow extends StatelessWidget {
                 color: AppTheme.tintBlue,
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: const Icon(
+              child: Icon(
                 Icons.description_rounded,
                 size: 19,
                 color: AppTheme.primary,
@@ -89,7 +89,7 @@ class ExamRow extends StatelessWidget {
               ),
             ),
             const SizedBox(width: 2),
-            const Icon(Icons.chevron_right_rounded,
+            Icon(Icons.chevron_right_rounded,
                 size: 18, color: AppTheme.textFaint),
           ],
         ),

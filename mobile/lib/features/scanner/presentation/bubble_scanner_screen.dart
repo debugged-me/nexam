@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:camera/camera.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -9,6 +11,7 @@ import '../../exams/domain/exam.dart';
 import '../data/omr_scanner.dart';
 import '../data/scan_api.dart';
 import '../data/scan_outbox.dart';
+import '../data/students_api.dart';
 
 /// Capture screen — dark camera UI with an A4 framing guide, student
 /// fields in a glass card, torch toggle, and a shutter button. The photo
@@ -52,11 +55,25 @@ class _BubbleScannerScreenState extends State<BubbleScannerScreen>
 
   final _nameController = TextEditingController();
   final _numberController = TextEditingController();
+  final _nameFocus = FocusNode();
+  final _numberFocus = FocusNode();
+
+  /// Roster autocomplete — debounced GET /api/students?q= while either
+  /// student field is being typed. Picking a row fills the exact stored
+  /// name + number, so the server's number/name match lands on the same
+  /// record instead of spawning a typo'd duplicate.
+  final _studentsApi = StudentsApi();
+  List<StudentSuggestion> _suggestions = [];
+  Timer? _suggestDebounce;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    _nameController.addListener(_onStudentText);
+    _numberController.addListener(_onStudentText);
+    _nameFocus.addListener(() => setState(() {}));
+    _numberFocus.addListener(() => setState(() {}));
     _initCamera();
   }
 
@@ -132,10 +149,58 @@ class _BubbleScannerScreenState extends State<BubbleScannerScreen>
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    _suggestDebounce?.cancel();
     _cameraController?.dispose();
     _nameController.dispose();
     _numberController.dispose();
+    _nameFocus.dispose();
+    _numberFocus.dispose();
     super.dispose();
+  }
+
+  void _onStudentText() {
+    _suggestDebounce?.cancel();
+    _suggestDebounce = Timer(
+      const Duration(milliseconds: 300),
+      _fetchSuggestions,
+    );
+  }
+
+  Future<void> _fetchSuggestions() async {
+    final name = _nameController.text.trim();
+    final number = _numberController.text.trim();
+    final q = name.isNotEmpty ? name : number;
+    if (q.length < 2) {
+      if (_suggestions.isNotEmpty) setState(() => _suggestions = []);
+      return;
+    }
+    try {
+      final results = await _studentsApi.search(
+        baseUrl: widget.baseUrl,
+        token: widget.token,
+        query: q,
+      );
+      if (!mounted) return;
+      setState(() => _suggestions = results.take(5).toList());
+    } on ApiException {
+      // Offline or unreachable — typing still works, suggestions just
+      // disappear. Capture must never depend on the roster call.
+      if (mounted && _suggestions.isNotEmpty) {
+        setState(() => _suggestions = []);
+      }
+    } catch (_) {
+      if (mounted && _suggestions.isNotEmpty) {
+        setState(() => _suggestions = []);
+      }
+    }
+  }
+
+  void _pickSuggestion(StudentSuggestion s) {
+    _nameController.text = s.fullName;
+    _numberController.text = s.studentNumber ?? '';
+    setState(() => _suggestions = []);
+    _nameFocus.unfocus();
+    _numberFocus.unfocus();
   }
 
   Future<void> _captureAndScan() async {
@@ -299,6 +364,9 @@ class _BubbleScannerScreenState extends State<BubbleScannerScreen>
                   padding: const EdgeInsets.fromLTRB(20, 0, 20, 18),
                   child: Column(
                     children: [
+                      if (_suggestions.isNotEmpty &&
+                          (_nameFocus.hasFocus || _numberFocus.hasFocus))
+                        _buildSuggestions(),
                       _buildStudentCard(),
                       const SizedBox(height: 18),
                       _buildShutterRow(),
@@ -394,6 +462,7 @@ class _BubbleScannerScreenState extends State<BubbleScannerScreen>
           Expanded(
             child: _darkField(
               controller: _nameController,
+              focusNode: _nameFocus,
               hint: 'Student name',
               icon: Icons.person_outline_rounded,
             ),
@@ -402,6 +471,7 @@ class _BubbleScannerScreenState extends State<BubbleScannerScreen>
           Expanded(
             child: _darkField(
               controller: _numberController,
+              focusNode: _numberFocus,
               hint: 'Student ID',
               icon: Icons.badge_rounded,
             ),
@@ -413,11 +483,13 @@ class _BubbleScannerScreenState extends State<BubbleScannerScreen>
 
   Widget _darkField({
     required TextEditingController controller,
+    required FocusNode focusNode,
     required String hint,
     required IconData icon,
   }) {
     return TextField(
       controller: controller,
+      focusNode: focusNode,
       style: const TextStyle(color: Colors.white, fontSize: 13.5),
       decoration: InputDecoration(
         isDense: true,
@@ -436,6 +508,64 @@ class _BubbleScannerScreenState extends State<BubbleScannerScreen>
           borderRadius: BorderRadius.circular(10),
           borderSide: BorderSide.none,
         ),
+      ),
+    );
+  }
+
+  /// Roster autocomplete — dark glass list floating above the student
+  /// card. Picking a row is one tap instead of retyping a long name, and
+  /// it fills the canonical stored spelling (the server's exact-match
+  /// dedup needs it to hit the same student record).
+  Widget _buildSuggestions() {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      constraints: const BoxConstraints(maxHeight: 190),
+      decoration: BoxDecoration(
+        color: Colors.black.withValues(alpha: 0.72),
+        borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.14)),
+      ),
+      child: ListView.separated(
+        shrinkWrap: true,
+        padding: const EdgeInsets.symmetric(vertical: 4),
+        itemCount: _suggestions.length,
+        separatorBuilder: (_, __) => Divider(
+          height: 1,
+          color: Colors.white.withValues(alpha: 0.08),
+        ),
+        itemBuilder: (context, i) {
+          final s = _suggestions[i];
+          return InkWell(
+            onTap: () => _pickSuggestion(s),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      s.fullName,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 13.5,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Text(
+                    '${s.studentNumber != null ? '#${s.studentNumber} · ' : ''}${s.scanCount} scans',
+                    style: TextStyle(
+                      color: Colors.white.withValues(alpha: 0.55),
+                      fontSize: 11.5,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
       ),
     );
   }
@@ -723,7 +853,7 @@ class _ScanReviewScreenState extends State<ScanReviewScreen> {
     }
   }
 
-  Future<void> _submit() async {
+  Future<void> _submit({bool replaceExisting = false}) async {
     setState(() => _submitting = true);
 
     final scannedAnswers = <ScannedAnswer>[
@@ -746,10 +876,22 @@ class _ScanReviewScreenState extends State<ScanReviewScreen> {
         studentNumber:
             widget.studentNumber.isEmpty ? null : widget.studentNumber,
         clientScanId: _clientScanId,
+        replaceExisting: replaceExisting,
         answers: scannedAnswers,
       );
 
       if (!mounted) return;
+
+      // We reached the server — opportunistically drain the offline
+      // outbox so sheets queued earlier sync during this session, not
+      // only the next time the dashboard loads. Fire-and-forget: its own
+      // mutex and per-entry error handling keep it off the submit path.
+      ScanOutbox.forOwner(widget.ownerId).then(
+        (outbox) => outbox.flush(
+          baseUrl: widget.baseUrl,
+          token: widget.token,
+        ),
+      );
 
       // Back to the live camera for the next sheet — the outcome becomes
       // the receipt banner there. Exiting the camera ends the burst.
@@ -794,12 +936,47 @@ class _ScanReviewScreenState extends State<ScanReviewScreen> {
         } catch (_) {
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('No connection and the offline save failed — keep this screen open and retry.'),
+              SnackBar(
+                content: const Text('No connection and the offline save failed — keep this screen open and retry.'),
                 backgroundColor: AppTheme.error,
               ),
             );
           }
+        }
+      } else if (e.isDuplicateScan && !replaceExisting && mounted) {
+        // Same student, same exam — the server refuses to double-count.
+        // Offer an explicit replace rather than silently discarding.
+        final replace = await showDialog<bool>(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            backgroundColor: AppTheme.card,
+            title: Text('Sheet already scanned',
+                style: TextStyle(
+                    color: AppTheme.textDark, fontWeight: FontWeight.w700)),
+            content: Text(
+              '${e.message}\n\nReplace the earlier result with this sheet?',
+              style: TextStyle(color: AppTheme.textMuted, fontSize: 13.5),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(ctx).pop(false),
+                child: Text('Keep existing',
+                    style: TextStyle(color: AppTheme.textMuted)),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.of(ctx).pop(true),
+                style: FilledButton.styleFrom(
+                    backgroundColor: AppTheme.primary),
+                child: const Text('Replace'),
+              ),
+            ],
+          ),
+        );
+        if (replace == true && mounted) {
+          // Same clientScanId — the resubmit stays idempotent, and the
+          // server deletes the old row inside its transaction.
+          await _submit(replaceExisting: true);
+          return;
         }
       } else if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -915,19 +1092,19 @@ class _ScanReviewScreenState extends State<ScanReviewScreen> {
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Icon(Icons.flag_rounded,
+                    Icon(Icons.flag_rounded,
                         size: 13, color: AppTheme.warning),
                     const SizedBox(width: 4),
                     Text(
                       '$_ambiguousCount',
-                      style: const TextStyle(
+                      style: TextStyle(
                         color: AppTheme.warning,
                         fontSize: 12,
                         fontWeight: FontWeight.w800,
                       ),
                     ),
                     const SizedBox(width: 3),
-                    const Icon(Icons.keyboard_arrow_down_rounded,
+                    Icon(Icons.keyboard_arrow_down_rounded,
                         size: 13, color: AppTheme.warning),
                   ],
                 ),
@@ -984,7 +1161,7 @@ class _ScanReviewScreenState extends State<ScanReviewScreen> {
               Expanded(
                 child: Text(
                   _typeLabel(detection.type),
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 12,
                     color: AppTheme.textMuted,
                     fontWeight: FontWeight.w500,
@@ -992,14 +1169,14 @@ class _ScanReviewScreenState extends State<ScanReviewScreen> {
                 ),
               ),
               if (isAmbiguous)
-                const Icon(Icons.warning_amber_rounded,
+                Icon(Icons.warning_amber_rounded,
                     color: AppTheme.warning, size: 18)
               else if (_answers[index].isEmpty)
-                const Text('blank',
+                Text('blank',
                     style: TextStyle(
                         fontSize: 11.5, color: AppTheme.textMuted))
               else
-                const Icon(Icons.check_circle_rounded,
+                Icon(Icons.check_circle_rounded,
                     color: AppTheme.success, size: 17),
             ],
           ),
@@ -1038,7 +1215,7 @@ class _ScanReviewScreenState extends State<ScanReviewScreen> {
                       width: 18,
                       child: Text(
                         '${String.fromCharCode(97 + s)})',
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 12,
                           fontWeight: FontWeight.w700,
                           color: AppTheme.textMuted,
@@ -1189,7 +1366,7 @@ class _ScanReviewScreenState extends State<ScanReviewScreen> {
   Widget _buildSubmitBar() {
     return Container(
       padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         color: Colors.white,
         border: Border(top: BorderSide(color: AppTheme.cardBorder)),
       ),

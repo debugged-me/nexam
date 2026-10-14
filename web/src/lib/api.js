@@ -235,6 +235,7 @@ export const api = {
   get: (path, options) => get(path, options),
   post: (path, body) => write('POST', path, body),
   put: (path, body) => write('PUT', path, body),
+  patch: (path, body) => write('PATCH', path, body),
   del: (path) => write('DELETE', path),
   uploadFile,
   getBlob,

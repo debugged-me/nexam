@@ -157,10 +157,14 @@ class ScanOutbox {
   /// - A server rejection marks the entry with its error and moves on —
   ///   the instructor sees it in the Scans list and decides to rescan or
   ///   discard it.
+  /// [replaceIds] — clientScanIds the instructor explicitly chose to
+  /// overwrite for. A queued sheet that hit DUPLICATE_SCAN parks until a
+  /// human decides; replaying it with replaceExisting resolves it.
   Future<FlushOutcome> flush({
     required String baseUrl,
     required String token,
     ScanApi? api,
+    Set<String> replaceIds = const {},
   }) async {
     if (_flushing) return const FlushOutcome();
     _flushing = true;
@@ -184,6 +188,7 @@ class ScanOutbox {
             studentName: entry.studentName,
             studentNumber: entry.studentNumber,
             clientScanId: entry.clientScanId,
+            replaceExisting: replaceIds.contains(entry.clientScanId),
             answers: entry.answers,
           );
           doneIds.add(entry.clientScanId);

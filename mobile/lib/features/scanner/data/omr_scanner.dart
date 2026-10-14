@@ -83,7 +83,17 @@ class OmrScanner {
     // Camera JPEGs carry rotation in EXIF, not in the pixels — without
     // baking it the sheet decodes sideways and every coordinate is wrong.
     final image = img.bakeOrientation(decoded);
-    final gray = img.grayscale(image);
+
+    // Downscale the working copy — a 12 MP capture only multiplies the
+    // pixels sampled per bubble, not the information. At ~1440 px a bubble
+    // still spans ~12–20 px of diameter, comfortably above noise floor.
+    // Every coordinate below lives in gray-image space, so anchors,
+    // homography, and sampling all stay consistent.
+    const maxWorkW = 1440;
+    final working = image.width > maxWorkW
+        ? img.copyResize(image, width: maxWorkW)
+        : image;
+    final gray = img.grayscale(working);
 
     // ── Anchor detection → homography ─────────────────
     final anchors = _findAnchorCenters(gray);
@@ -139,11 +149,28 @@ class OmrScanner {
     }
 
     // ── Reduce rows to per-item canonical answers ─────
-    final detections = <OmrDetection>[];
+    var detections = <OmrDetection>[];
     for (var i = 0; i < payload.count; i++) {
       final item = i < payload.items.length ? payload.items[i] : null;
       final read = itemAnswers[i + 1];
       detections.add(_finalize(item, i + 1, read));
+    }
+
+    // Whole-frame fallback means every answer is provisional — mark the
+    // sheet ambiguous so the server flags it needs_review and the results
+    // can never silently pass for a confident read.
+    if (!aligned) {
+      detections = [
+        for (final d in detections)
+          OmrDetection(
+            itemNumber: d.itemNumber,
+            type: d.type,
+            choices: d.choices,
+            detectedAnswer: d.detectedAnswer,
+            subAnswers: d.subAnswers,
+            ambiguous: true,
+          ),
+      ];
     }
 
     return OmrScanOutput(detections: detections, aligned: aligned);

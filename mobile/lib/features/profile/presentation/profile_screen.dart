@@ -61,9 +61,9 @@ class ProfileScreen extends StatelessWidget {
           const SizedBox(height: 24),
           OutlinedButton.icon(
             onPressed: onLogout,
-            icon: const Icon(Icons.logout_rounded,
+            icon: Icon(Icons.logout_rounded,
                 size: 18, color: AppTheme.error),
-            label: const Text('Sign out',
+            label: Text('Sign out',
                 style: TextStyle(color: AppTheme.error)),
             style: OutlinedButton.styleFrom(
               side: BorderSide(
@@ -79,7 +79,7 @@ class ProfileScreen extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppTheme.card,
         borderRadius: BorderRadius.circular(AppTheme.radiusLg),
         border: Border.all(color: AppTheme.cardBorder),
         boxShadow: AppTheme.cardShadow,
@@ -96,7 +96,7 @@ class ProfileScreen extends StatelessWidget {
                   session.fullName.isEmpty
                       ? 'Instructor'
                       : session.fullName,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.w800,
                     letterSpacing: -0.3,
@@ -107,7 +107,7 @@ class ProfileScreen extends StatelessWidget {
                 Text(
                   session.email,
                   softWrap: true,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 13,
                     color: AppTheme.textMuted,
                   ),
@@ -122,7 +122,7 @@ class ProfileScreen extends StatelessWidget {
                   ),
                   child: Text(
                     session.role.toUpperCase(),
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 10.5,
                       fontWeight: FontWeight.w800,
                       letterSpacing: 0.8,
@@ -141,7 +141,7 @@ class ProfileScreen extends StatelessWidget {
   Widget _infoCard() {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppTheme.card,
         borderRadius: BorderRadius.circular(AppTheme.radiusMd),
         border: Border.all(color: AppTheme.cardBorder),
       ),
@@ -186,7 +186,7 @@ class ProfileScreen extends StatelessWidget {
       decoration: BoxDecoration(
         border: last
             ? null
-            : const Border(
+            : Border(
                 bottom: BorderSide(color: AppTheme.cardBorder),
               ),
       ),
@@ -196,7 +196,7 @@ class ProfileScreen extends StatelessWidget {
           const SizedBox(width: 12),
           Text(
             label,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 13.5,
               color: AppTheme.textMuted,
             ),
@@ -208,7 +208,7 @@ class ProfileScreen extends StatelessWidget {
               value,
               softWrap: true,
               textAlign: TextAlign.end,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 13.5,
                 fontWeight: FontWeight.w600,
                 color: AppTheme.textDark,

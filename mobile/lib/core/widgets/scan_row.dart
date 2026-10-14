@@ -94,7 +94,7 @@ class ScanRow extends StatelessWidget {
           ),
           if (onTap != null) ...[
             const SizedBox(width: 2),
-            const Icon(Icons.chevron_right_rounded,
+            Icon(Icons.chevron_right_rounded,
                 size: 18, color: AppTheme.textFaint),
           ],
         ],

@@ -38,7 +38,7 @@ class NexamAppBar extends StatelessWidget implements PreferredSizeWidget {
       child: Container(
         height: preferredSize.height,
         padding: const EdgeInsets.symmetric(horizontal: 8),
-        decoration: const BoxDecoration(
+        decoration: BoxDecoration(
           color: AppTheme.surface,
           border: Border(
             bottom: BorderSide(color: AppTheme.cardBorder),
@@ -49,7 +49,7 @@ class NexamAppBar extends StatelessWidget implements PreferredSizeWidget {
             if (canPop)
               IconButton(
                 onPressed: onBack ?? () => Navigator.of(context).maybePop(),
-                icon: const Icon(Icons.arrow_back_ios_new_rounded,
+                icon: Icon(Icons.arrow_back_ios_new_rounded,
                     size: 19, color: AppTheme.textDark),
                 tooltip: 'Back',
               )
@@ -69,7 +69,7 @@ class NexamAppBar extends StatelessWidget implements PreferredSizeWidget {
                     title,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 17,
                       fontWeight: FontWeight.w700,
                       letterSpacing: -0.3,
@@ -81,7 +81,7 @@ class NexamAppBar extends StatelessWidget implements PreferredSizeWidget {
                       subtitle!,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 11.5,
                         color: AppTheme.textMuted,
                       ),

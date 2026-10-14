@@ -205,7 +205,12 @@ async function loadStoredScanResult(conn, scanId) {
  * POST /api/scans — submit a scanned OMR result.
  *
  * Body: { examId, examSetId?, set?, studentName?, studentNumber?,
- *         clientScanId?, answers: [{ itemNumber, markedAnswer, ambiguous }] }
+ *         clientScanId?, replaceExisting?, answers: [...] }
+ *
+ * A student already having a scan for the exam is a conflict — silently
+ * inserting a second row would double-count them in the class average.
+ * Without `replaceExisting` the submit returns 409 DUPLICATE_SCAN; with it,
+ * the prior scans for that student+exam are deleted and the new one lands.
  *
  * clientScanId is the mobile client's idempotency key: it is minted before
  * the first submit attempt and reused on every retry/outbox replay, so a
@@ -278,6 +283,38 @@ router.post('/', rateLimit({ name: 'scan-submit', max: 90, windowSec: 300 }), as
       conn, req.user.id, exam.subject_id, studentName, studentNumber
     );
 
+    // One student, one sheet per exam. Only identifiable students can be
+    // deduped — anonymous sheets carry no stable identity to match on.
+    const replacedScanIds = [];
+    if (studentId) {
+      const [prior] = await conn.query(
+        `SELECT id, score, scanned_at FROM scan_results
+         WHERE exam_id = :examId AND student_id = :studentId`,
+        { examId, studentId }
+      );
+      if (prior.length && req.body?.replaceExisting !== true) {
+        await conn.rollback();
+        const displayName = (studentName || '').trim() || 'This student';
+        return res.status(409).json({
+          error: `${displayName} already has a scanned sheet for this exam. Scan again only to replace it.`,
+          code: 'DUPLICATE_SCAN',
+          existing: {
+            scanIds: prior.map((p) => p.id),
+            count: prior.length,
+            score: prior[0].score == null ? null : parseFloat(prior[0].score),
+            scannedAt: prior[0].scanned_at,
+          },
+        });
+      }
+      if (prior.length) {
+        replacedScanIds.push(...prior.map((p) => p.id));
+        await conn.query(
+          `DELETE FROM scan_results WHERE exam_id = :examId AND student_id = :studentId`,
+          { examId, studentId }
+        );
+      }
+    }
+
     // Score each submitted item against the canonical key.
     let correctCount = 0;
     let ambiguousCount = 0;
@@ -348,6 +385,15 @@ router.post('/', rateLimit({ name: 'scan-submit', max: 90, windowSec: 300 }), as
 
     await conn.commit();
 
+    if (replacedScanIds.length) {
+      logAudit({
+        actorId: req.user.id, actorEmail: req.user.email,
+        action: 'scan.replace', targetType: 'scan_result', targetId: scanId,
+        detail: { examId, studentId, replaced: replacedScanIds },
+        ip: req.ip,
+      });
+    }
+
     res.status(201).json({
       id: scanId,
       examId,
@@ -390,17 +436,25 @@ router.post('/', rateLimit({ name: 'scan-submit', max: 90, windowSec: 300 }), as
   }
 });
 
-/** GET /api/scans — list scan results for the authenticated instructor. */
+/**
+ * GET /api/scans — list scan results for the authenticated instructor.
+ *
+ * Query: exam_id, needs_review=true, student_id, q (decrypted substring
+ * search over student name + number), limit (default 100, cap 1000).
+ */
 router.get('/', async (req, res, next) => {
   try {
-    const { exam_id, needs_review } = req.query;
+    const { exam_id, needs_review, student_id } = req.query;
+    const q = String(req.query.q || '').trim().toLowerCase();
+    const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 100, 1), 1000);
 
     let query = `
-      SELECT sr.*, e.title AS exam_title, es.set_label
+      SELECT sr.*, e.title AS exam_title, es.set_label, st.student_number
       FROM scan_results sr
       JOIN exams e ON e.id = sr.exam_id
       JOIN subjects s ON s.id = e.subject_id
       LEFT JOIN exam_sets es ON es.id = sr.exam_set_id
+      LEFT JOIN students st ON st.id = sr.student_id
       WHERE s.instructor_id = :userId
     `;
     const params = { userId: req.user.id };
@@ -412,10 +466,26 @@ router.get('/', async (req, res, next) => {
     if (needs_review === 'true') {
       query += ' AND sr.needs_review = 1';
     }
-    query += ' ORDER BY sr.scanned_at DESC LIMIT 100';
+    if (student_id && UUID_RE.test(String(student_id))) {
+      query += ' AND sr.student_id = :studentId';
+      params.studentId = student_id;
+    }
+    query += ' ORDER BY sr.scanned_at DESC LIMIT :limit';
+    params.limit = limit;
 
     const [rows] = await pool.query(query, params);
-    res.json({ scans: rows.map(revealScanIdentity) });
+    let scans = rows.map((row) => ({
+      ...revealScanIdentity(row),
+      student_number: unprotectText(row.student_number) || null,
+    }));
+    // Encrypted columns cannot be LIKE-matched — filter post-decrypt.
+    if (q) {
+      scans = scans.filter((s) =>
+        (s.student_name || '').toLowerCase().includes(q)
+        || (s.student_number || '').toLowerCase().includes(q)
+        || (s.exam_title || '').toLowerCase().includes(q));
+    }
+    res.json({ scans });
   } catch (err) {
     next(err);
   }
@@ -469,7 +539,7 @@ router.get('/:id', async (req, res, next) => {
     // exam) item ordering — item_number == sort_order.
     const [answers] = scan.exam_set_id
       ? await pool.query(
-          `SELECT sa.*, q.type AS question_type, q.stem
+          `SELECT sa.*, q.type AS question_type, q.stem, q.options
            FROM scan_answers sa
            LEFT JOIN exam_set_questions esq
              ON esq.exam_set_id = :setId AND esq.sort_order = sa.item_number
@@ -479,7 +549,7 @@ router.get('/:id', async (req, res, next) => {
           { scanId, setId: scan.exam_set_id }
         )
       : await pool.query(
-          `SELECT sa.*, q.type AS question_type, q.stem
+          `SELECT sa.*, q.type AS question_type, q.stem, q.options
            FROM scan_answers sa
            LEFT JOIN exam_questions eq
              ON eq.exam_id = :examId AND eq.sort_order = sa.item_number

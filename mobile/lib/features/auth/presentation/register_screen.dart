@@ -113,7 +113,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           weight: FontWeight.w800),
                     ),
                     const SizedBox(height: 6),
-                    const Text(
+                    Text(
                       'Register as an instructor to scan and grade.',
                       style: TextStyle(
                           fontSize: 13.5, color: AppTheme.textMuted),
@@ -312,7 +312,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        const Text(
+                        Text(
                           'Already have an account? ',
                           style: TextStyle(
                               fontSize: 13.5,
@@ -320,7 +320,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         ),
                         GestureDetector(
                           onTap: () => Navigator.of(context).pop(),
-                          child: const Text(
+                          child: Text(
                             'Log in',
                             style: TextStyle(
                               fontSize: 13.5,

@@ -95,7 +95,7 @@ class _LoginScreenState extends State<LoginScreen> {
     final result = await showModalBottomSheet<String>(
       context: context,
       isScrollControlled: true,
-      backgroundColor: Colors.white,
+      backgroundColor: AppTheme.card,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
@@ -121,7 +121,7 @@ class _LoginScreenState extends State<LoginScreen> {
               ),
             ),
             const SizedBox(height: 20),
-            const Text(
+            Text(
               'Server address',
               style: TextStyle(
                 fontSize: 17,
@@ -130,7 +130,7 @@ class _LoginScreenState extends State<LoginScreen> {
               ),
             ),
             const SizedBox(height: 4),
-            const Text(
+            Text(
               'Where the Nexam API is running — your computer’s IP on the same Wi-Fi, e.g. http://192.168.1.5:3000',
               style: TextStyle(fontSize: 13, color: AppTheme.textMuted),
             ),
@@ -222,7 +222,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         height: 56,
                         padding: const EdgeInsets.all(10),
                         decoration: BoxDecoration(
-                          color: Colors.white,
+                          color: AppTheme.card,
                           borderRadius:
                               BorderRadius.circular(17),
                           border:
@@ -241,7 +241,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           weight: FontWeight.w800),
                     ),
                     const SizedBox(height: 5),
-                    const Text(
+                    Text(
                       'Best way to manage your scans.',
                       textAlign: TextAlign.center,
                       style: TextStyle(
@@ -319,7 +319,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                     MaterialTapTargetSize
                                         .shrinkWrap,
                               ),
-                              child: const Text(
+                              child: Text(
                                 'Forgot password?',
                                 style: TextStyle(
                                   fontSize: 12.5,
@@ -370,7 +370,7 @@ class _LoginScreenState extends State<LoginScreen> {
               right: 4,
               child: IconButton(
                 onPressed: _editServer,
-                icon: const Icon(Icons.dns_rounded,
+                icon: Icon(Icons.dns_rounded,
                     size: 20, color: AppTheme.textMuted),
                 tooltip: 'Server: $_serverHost',
               ),
@@ -387,7 +387,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      const Text(
+                      Text(
                         "Don't have an account? ",
                         style: TextStyle(
                           fontSize: 12.5,
@@ -401,7 +401,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                 RegisterScreen(baseUrl: _baseUrl),
                           ),
                         ),
-                        child: const Text(
+                        child: Text(
                           'Sign up',
                           style: TextStyle(
                             fontSize: 12.5,

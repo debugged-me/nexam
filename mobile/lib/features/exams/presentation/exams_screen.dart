@@ -75,7 +75,7 @@ class _ExamsScreenState extends State<ExamsScreen> {
         actions: [
           IconButton(
             onPressed: _load,
-            icon: const Icon(Icons.refresh_rounded,
+            icon: Icon(Icons.refresh_rounded,
                 size: 20, color: AppTheme.textMuted),
             tooltip: 'Refresh',
           ),
@@ -125,7 +125,7 @@ class _ExamsScreenState extends State<ExamsScreen> {
 
   Widget _examCard(ExamSummary exam) {
     return Material(
-      color: Colors.white,
+      color: AppTheme.card,
       borderRadius: BorderRadius.circular(AppTheme.radiusMd),
       child: Container(
         decoration: BoxDecoration(

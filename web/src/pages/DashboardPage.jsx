@@ -29,6 +29,7 @@ import KpiCard from '../components/KpiCard.jsx';
 import { CardsSkeleton } from '../components/Loaders.jsx';
 import { StatusPill } from '../components/Board.jsx';
 import { OmrSheet } from '../components/omr.jsx';
+import { ShareDoughnut, CountsBarChart } from '../components/AnalyticsCharts.jsx';
 import api, { ApiError } from '../lib/api.js';
 import { vtNavigate } from '../lib/viewTransitions.js';
 import { timeAgo } from '../lib/time.js';
@@ -724,16 +725,45 @@ export default function DashboardPage() {
                     {total.toLocaleString()} · {readyPct}% approved
                   </span>
                 </span>
-                <span
-                  className="dash-bank-bar"
-                  role="img"
-                  aria-label={`${approved} active, ${drafts} draft, ${rejected} rejected questions`}
-                >
-                  <i className="is-active" style={{ flexGrow: approved }} />
-                  <i className="is-draft" style={{ flexGrow: drafts }} />
-                  <i className="is-rejected" style={{ flexGrow: rejected }} />
-                  <i className="is-other" style={{ flexGrow: other }} />
-                </span>
+                {total > 0 ? (
+                  <div className="dash-bank-viz">
+                    <ShareDoughnut
+                      label="Bank composition by status"
+                      height={196}
+                      centerText={total.toLocaleString()}
+                      centerSub={`${readyPct}% approved`}
+                      slices={[
+                        { label: 'Approved', value: approved, var: '--st-green' },
+                        { label: 'Drafts', value: drafts, var: '--st-orange' },
+                        { label: 'Rejected', value: rejected, var: '--st-red' },
+                        ...(other ? [{ label: 'Other', value: other, var: '--line-strong' }] : []),
+                      ]}
+                    />
+                    <div className="dash-bank-bloom">
+                      <span className="dash-bank-bloom-head">
+                        Bloom distribution · {bloomCovered}/6 levels
+                      </span>
+                      <CountsBarChart
+                        height={164}
+                        rows={BLOOM_LEVELS.map(([key, label]) => ({
+                          name: label,
+                          n: count(bloomMap[key]),
+                        }))}
+                      />
+                    </div>
+                  </div>
+                ) : (
+                  <span
+                    className="dash-bank-bar"
+                    role="img"
+                    aria-label={`${approved} active, ${drafts} draft, ${rejected} rejected questions`}
+                  >
+                    <i className="is-active" style={{ flexGrow: approved }} />
+                    <i className="is-draft" style={{ flexGrow: drafts }} />
+                    <i className="is-rejected" style={{ flexGrow: rejected }} />
+                    <i className="is-other" style={{ flexGrow: other }} />
+                  </span>
+                )}
               </div>
               <div className="dash-row is-block is-static">
                 <span className="dash-row-label">
@@ -754,29 +784,6 @@ export default function DashboardPage() {
                     <i className="is-rejected" />
                     {rejected} rejected
                   </Link>
-                </span>
-              </div>
-              <div className="dash-row is-static">
-                <span className="dash-row-label">
-                  <span>
-                    <strong>Bloom coverage</strong>
-                  </span>
-                </span>
-                <span className="dash-row-value">
-                  <span
-                    className="dash-bloom-dots"
-                    role="img"
-                    aria-label={`${bloomCovered} of 6 Bloom levels covered`}
-                  >
-                    {BLOOM_LEVELS.map(([key, label]) => (
-                      <i
-                        key={key}
-                        className={count(bloomMap[key]) ? 'is-on' : ''}
-                        title={`${label}: ${count(bloomMap[key])}`}
-                      />
-                    ))}
-                  </span>
-                  {bloomCovered}/6
                 </span>
               </div>
             </section>

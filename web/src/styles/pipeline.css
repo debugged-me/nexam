@@ -125,8 +125,88 @@
   border-radius: 2px; transition: width .5s ease;
 }
 
-/* ── Flow graph ────────────────────────────────────────────── */
+/* ── Panel grid ────────────────────────────────────────────── */
+.pc-main {
+  display: grid;
+  grid-template-columns: minmax(0, 2.2fr) minmax(240px, 1fr);
+  gap: 12px;
+}
+.pc-row {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+.pc-panel {
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  padding: 12px 14px;
+  min-width: 0;
+}
+.pc-panel-head { margin-bottom: 8px; }
+.pc-panel-head h3 {
+  margin: 0;
+  font: 700 .62rem/1.2 var(--font-body);
+  letter-spacing: .14em; text-transform: uppercase;
+  color: var(--ink-3);
+}
+.pc-panel-head p { margin: 2px 0 0; font-size: .72rem; color: var(--ink-faint); }
+
+/* stage column labels over the graph, aligned to the node columns */
+.pc-cols {
+  display: grid;
+  grid-template-columns: 17% 61% 22%;
+  font: 700 .58rem/1 var(--font-body);
+  letter-spacing: .16em; text-transform: uppercase;
+  color: var(--ink-faint);
+  padding-bottom: 4px;
+}
+.pc-cols span:nth-child(2) { text-align: center; }
+.pc-cols span:nth-child(3) { text-align: right; }
+
 .pc-graph { width: 100%; height: auto; display: block; }
+
+/* ── Outcome donut ─────────────────────────────────────────── */
+.pc-mix { display: flex; flex-direction: column; align-items: center; gap: 12px; }
+.pc-donut { position: relative; width: 150px; height: 150px; }
+.pc-donut-center {
+  position: absolute; inset: 0;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+}
+.pc-donut-center b { font: 700 1.5rem/1 var(--font-mono); color: var(--ink); font-variant-numeric: tabular-nums; }
+.pc-donut-center span { font: 600 .56rem/1 var(--font-body); letter-spacing: .14em; text-transform: uppercase; color: var(--ink-faint); }
+.pc-legend { list-style: none; margin: 0; padding: 0; width: 100%; display: flex; flex-direction: column; gap: 6px; }
+.pc-legend li {
+  display: flex; align-items: center; gap: 8px;
+  font-size: .74rem; color: var(--ink-2);
+}
+.pc-legend i { width: 8px; height: 8px; border-radius: 2px; flex-shrink: 0; }
+.pc-legend b { margin-left: auto; font-variant-numeric: tabular-nums; color: var(--ink); }
+.pc-legend em { font-style: normal; color: var(--ink-faint); font-size: .68rem; min-width: 2ch; text-align: right; }
+
+/* ── Bottom charts + latest list ───────────────────────────── */
+.pc-chart { height: 130px; }
+.pc-latest {
+  list-style: none; margin: 0; padding: 0;
+  display: flex; flex-direction: column; gap: 2px;
+  max-height: 130px; overflow-y: auto;
+}
+.pc-latest li {
+  display: flex; align-items: baseline; justify-content: space-between; gap: 10px;
+  font-size: .74rem; color: var(--ink-2);
+  padding: 4px 0;
+  border-bottom: 1px dashed var(--line);
+}
+.pc-latest li:last-child { border-bottom: 0; }
+.pc-latest-stem { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.pc-latest-meta {
+  flex-shrink: 0; display: inline-flex; align-items: center; gap: 6px;
+  font: 600 .66rem/1 var(--font-body); color: var(--ink-faint);
+}
+.pc-dot { width: 7px; height: 7px; border-radius: 50%; }
+.pc-dot[data-kind="grounded"] { background: var(--green-600); }
+.pc-dot[data-kind="knowledge"] { background: var(--amber-600); }
+.pc-latest-empty { color: var(--ink-faint); font-size: .76rem; }
 
 /* Sankey-style streams: a wide translucent band (the conduit) with a thin
  * animated core running through it — the "flowing" look of agent consoles. */
@@ -243,6 +323,9 @@
 @media (max-width: 860px) {
   .pc-kpis { grid-template-columns: repeat(3, 1fr); }
   .pc-top { flex-wrap: wrap; }
+  .pc-main { grid-template-columns: 1fr; }
+  .pc-row { grid-template-columns: 1fr; }
+  .pc-cols { display: none; }
 }
 @media (max-width: 480px) {
   .pc-kpis { grid-template-columns: repeat(2, 1fr); }

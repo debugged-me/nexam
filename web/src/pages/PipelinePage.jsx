@@ -12,12 +12,25 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowRight, History, Square } from 'lucide-react';
+import {
+  Chart as ChartJS,
+  CategoryScale, LinearScale,
+  BarElement, LineElement, PointElement, ArcElement,
+  Filler, Tooltip,
+} from 'chart.js';
+import { Bar, Line, Doughnut } from 'react-chartjs-2';
 import AppShell from '../components/AppShell.jsx';
 import Select from '../components/Select.jsx';
 import useJobs, { cancelJob, isActiveJob, jobPayload } from '../lib/useJobs.js';
 import useJobStream from '../lib/useJobStream.js';
-import { BLOOM_LABELS } from '../lib/insights.js';
+import { BLOOM_LABELS, BLOOM_ORDER } from '../lib/insights.js';
 import '../styles/pipeline.css';
+
+ChartJS.register(CategoryScale, LinearScale, BarElement, LineElement, PointElement, ArcElement, Filler, Tooltip);
+
+/** Resolve a design token so charts follow the active theme + accent. */
+const cssVar = (name, fallback) =>
+  (typeof window !== 'undefined' && getComputedStyle(document.documentElement).getPropertyValue(name).trim()) || fallback;
 
 const JOB_LABELS = {
   generate: 'generate', syllabus_tos: 'blueprint', embed: 'index',
@@ -125,6 +138,7 @@ export default function PipelinePage() {
 
   /* ── Particle bursts + edge pulses as outcomes land ── */
   const [bursts, setBursts] = useState([]);
+  const [draftTimes, setDraftTimes] = useState([]); // seconds-since-start per draft
   const [pulses, setPulses] = useState({}); // edgeKey -> tone
   const prev = useRef({ adopted: 0, skipped: 0, drafted: 0, refused: 0, jobId: null });
   const burstSeq = useRef(0);
@@ -148,6 +162,7 @@ export default function PipelinePage() {
     prev.current = { adopted: 0, skipped: 0, drafted: 0, refused: 0, jobId: selectedId };
     setBursts([]);
     setPulses({});
+    setDraftTimes([]);
   }, [selectedId]);
 
   useEffect(() => {
@@ -168,7 +183,10 @@ export default function PipelinePage() {
   useEffect(() => {
     const p = prev.current;
     if (drafts.length > p.drafted) {
-      drafts.slice(p.drafted).forEach((d, i) => {
+      const fresh = drafts.slice(p.drafted);
+      const startMs = startedAt ? new Date(startedAt).getTime() : Date.now();
+      setDraftTimes((t) => [...t, ...fresh.map(() => Math.max(0, (Date.now() - startMs) / 1000))]);
+      fresh.forEach((d, i) => {
         const knowledge = d.grounding === 'knowledge';
         setTimeout(() => spawn(JOURNEYS.draft, knowledge ? 'var(--amber-600)' : 'var(--accent)', 1, knowledge ? 'amber' : 'blue'), i * 120);
       });
@@ -179,6 +197,50 @@ export default function PipelinePage() {
   const stateLabel = running ? (status === 'queued' ? 'QUEUED' : 'LIVE') : (status || 'IDLE').toUpperCase();
   const nowSlot = status === 'running' ? progress?.lastSlot : null;
   const latestDraft = drafts.length ? drafts[drafts.length - 1] : null;
+
+  /* ── Theme-aware chart palette ── */
+  const pal = {
+    accent: cssVar('--accent', '#2383E2'), green: cssVar('--green-600', '#23A265'),
+    amber: cssVar('--amber-600', '#B07D1E'), red: cssVar('--red-600', '#DC4445'),
+    faint: cssVar('--ink-faint', '#959BA3'), grid: cssVar('--line', '#E8EBEF'),
+    s3: cssVar('--surface-3', '#EDF0F4'), ink2: cssVar('--ink-2', '#4E545B'),
+  };
+  const chartTip = {
+    backgroundColor: pal.ink2, titleFont: { weight: '700' }, bodyFont: { weight: '500' },
+    padding: 10, cornerRadius: 8, displayColors: false,
+  };
+
+  /* ── Outcome mix (donut) ── */
+  const outcomeData = {
+    labels: ['Queued', 'Reused', 'Covered', 'Held'],
+    datasets: [{
+      data: [drafted, adopted, skipped, failedSlots.length],
+      backgroundColor: [pal.accent, pal.green, pal.faint, pal.red],
+      borderWidth: 2, borderColor: cssVar('--surface', '#fff'),
+    }],
+  };
+  const outcomeTotal = drafted + adopted + skipped + failedSlots.length;
+
+  /* ── Drafts by Bloom level (bars) ── */
+  const bloomData = {
+    labels: BLOOM_ORDER.map((k) => BLOOM_LABELS[k]),
+    datasets: [{
+      data: BLOOM_ORDER.map((k) => drafts.filter((d) => d.bloom === k).length),
+      backgroundColor: pal.accent, borderRadius: 4, barPercentage: 0.7,
+    }],
+  };
+
+  /* ── Writing pace (cumulative drafts over elapsed time) ── */
+  const paceMinutes = Math.max(1, Math.ceil((startedAt ? Math.max(1, ((finishedAt ? new Date(finishedAt) : new Date(now)) - new Date(startedAt)) / 1000) : 1) / 60));
+  const paceLabels = Array.from({ length: paceMinutes + 1 }, (_, i) => `${i}m`);
+  const pacePoints = paceLabels.map((_, i) => draftTimes.filter((t) => t <= i * 60).length);
+  const paceData = {
+    labels: paceLabels,
+    datasets: [{
+      data: pacePoints, borderColor: pal.accent, fill: true, tension: 0.35,
+      backgroundColor: 'rgba(35,131,226,.10)', pointRadius: 3, pointBackgroundColor: pal.accent,
+    }],
+  };
 
   return (
     <AppShell pageClass="pipeline" activeNav="pipeline" pageTitle="How AI works" wide>
@@ -233,8 +295,17 @@ export default function PipelinePage() {
           {rate && <div className="pc-kpi"><b>{rate}</b><span>per minute</span></div>}
         </div>
 
-        {/* ── Flow graph ── */}
-        <svg className="pc-graph" viewBox="0 0 960 320" role="img" data-tour="pipe-graph"
+        {/* ── Flow graph + outcome mix ── */}
+        <div className="pc-main">
+          <div className="pc-panel pc-panel--flow">
+            <header className="pc-panel-head">
+              <h3>Generation pipeline</h3>
+              <p>Every question follows the same path — watch it move.</p>
+            </header>
+            <div className="pc-cols" aria-hidden="true">
+              <span>Inputs</span><span>Writing &amp; checks</span><span>Outcomes</span>
+            </div>
+            <svg className="pc-graph" viewBox="0 0 960 320" role="img" data-tour="pipe-graph"
           aria-label="Question generation pipeline: blueprint and bank feed retrieve, draft, review, decide, then queue, adopt, skip, or refuse">
           <defs>
             <filter id="pc-glow" x="-60%" y="-60%" width="220%" height="220%">
@@ -285,7 +356,99 @@ export default function PipelinePage() {
               </g>
             );
           })}
-        </svg>
+            </svg>
+          </div>
+
+          {/* ── Outcome mix ── */}
+          <div className="pc-panel pc-panel--mix">
+            <header className="pc-panel-head">
+              <h3>Outcome mix</h3>
+              <p>Where blueprint cells ended up.</p>
+            </header>
+            <div className="pc-mix">
+              <div className="pc-donut">
+                <Doughnut
+                  data={outcomeData}
+                  options={{
+                    cutout: '68%', maintainAspectRatio: false,
+                    plugins: { legend: { display: false }, tooltip: chartTip },
+                  }}
+                />
+                <div className="pc-donut-center">
+                  <b>{outcomeTotal}</b><span>cells</span>
+                </div>
+              </div>
+              <ul className="pc-legend">
+                {[['Queued', drafted, pal.accent], ['Reused', adopted, pal.green],
+                  ['Covered', skipped, pal.faint], ['Held', failedSlots.length, pal.red]].map(([label, n, c]) => (
+                  <li key={label}>
+                    <i style={{ background: c }} />
+                    <span>{label}</span>
+                    <b>{outcomeTotal ? Math.round((n / outcomeTotal) * 100) : 0}%</b>
+                    <em>{n}</em>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        </div>
+
+        {/* ── Breakdown panels ── */}
+        <div className="pc-row">
+          <div className="pc-panel">
+            <header className="pc-panel-head">
+              <h3>Drafts by cognitive level</h3>
+              <p>Bloom spread of questions written so far.</p>
+            </header>
+            <div className="pc-chart">
+              <Bar
+                data={bloomData}
+                options={{
+                  maintainAspectRatio: false,
+                  plugins: { legend: { display: false }, tooltip: chartTip },
+                  scales: {
+                    x: { grid: { display: false }, border: { display: false }, ticks: { color: pal.faint, font: { size: 9 } } },
+                    y: { grid: { color: pal.grid }, border: { display: false }, ticks: { color: pal.faint, font: { size: 9 }, precision: 0 } },
+                  },
+                }}
+              />
+            </div>
+          </div>
+          <div className="pc-panel">
+            <header className="pc-panel-head">
+              <h3>Writing pace</h3>
+              <p>Drafts landing over the run.</p>
+            </header>
+            <div className="pc-chart">
+              <Line
+                data={paceData}
+                options={{
+                  maintainAspectRatio: false,
+                  plugins: { legend: { display: false }, tooltip: chartTip },
+                  scales: { x: { grid: { display: false }, border: { display: false }, ticks: { color: pal.faint, font: { size: 9 } } }, y: { grid: { color: pal.grid }, border: { display: false }, ticks: { color: pal.faint, font: { size: 9 }, precision: 0 } } },
+                }}
+              />
+            </div>
+          </div>
+          <div className="pc-panel">
+            <header className="pc-panel-head">
+              <h3>Latest questions</h3>
+              <p>Newest drafts — all awaiting your review.</p>
+            </header>
+            <ul className="pc-latest">
+              {drafts.length === 0 && <li className="pc-latest-empty">Questions land here as they're written.</li>}
+              {[...drafts].reverse().slice(0, 5).map((d) => (
+                <li key={d.id}>
+                  <span className="pc-latest-stem">{clip(d.stem, 52)}</span>
+                  <span className="pc-latest-meta">
+                    {d.bloom ? BLOOM_LABELS[d.bloom] || d.bloom : '—'}
+                    <i className="pc-dot" data-kind={d.grounding === 'knowledge' ? 'knowledge' : 'grounded'} />
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
 
         {/* ── What it's doing right now ── */}
         <div className="pc-now" aria-live="polite" data-tour="pipe-now">

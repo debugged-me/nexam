@@ -22,6 +22,10 @@ a { text-decoration: none; color: inherit; }
 button { font-family: inherit; }
 ::selection { background: var(--action-100); color: var(--ink); }
 
+/* Programmatic scrolls (anchor jumps, scrollIntoView) glide; the reduce-motion
+   block still forces scroll-behavior: auto. Wheel input stays native. */
+html { scroll-behavior: smooth; }
+
 /* Consistent keyboard focus rings — only on keyboard navigation. */
 :focus-visible { outline: 2px solid var(--action-600); outline-offset: 2px; }
 button:focus:not(:focus-visible) { outline: none; }

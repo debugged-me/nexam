@@ -112,19 +112,6 @@ function VerifiedMark({ yes }) {
   return <span className={`adm-verify${yes ? ' is-yes' : ''}`}>{yes ? 'Verified' : 'Unverified'}</span>;
 }
 
-/**
- * Shared per-view action row — the topbar already carries the view title,
- * so the console only renders controls, not a repeated heading.
- */
-function AdminHeader({ children }) {
-  if (!children) return null;
-  return (
-    <div className="page-header print-skip">
-      <div className="header-actions">{children}</div>
-    </div>
-  );
-}
-
 /** Toolbar refresh button in the shared ds-btn style. */
 function RefreshButton({ onClick }) {
   return (
@@ -402,12 +389,6 @@ function DashboardTab({ toast }) {
 
   return (
     <>
-      <AdminHeader>
-        <button type="button" className="btn btn-outline btn-sm" onClick={load}>
-          <RefreshCw size={14} /> Refresh
-        </button>
-      </AdminHeader>
-
       {!data ? (
         <TableSkeleton rows={5} />
       ) : (
@@ -660,12 +641,6 @@ function UsersTab({ toast, role }) {
 
   return (
     <>
-      <AdminHeader>
-        <button type="button" className="btn btn-primary btn-sm" onClick={() => setAdding(true)} data-tour="admin-add">
-          <UserPlus size={14} /> Add user
-        </button>
-      </AdminHeader>
-
       <section className="dataset">
         <div className="dataset-bar" data-tour="admin-toolbar">
           <div className="dataset-bar-lead">
@@ -697,6 +672,9 @@ function UsersTab({ toast, role }) {
             </div>
           </div>
           <div className="dataset-bar-trail">
+            <button type="button" className="btn btn-primary btn-sm" onClick={() => setAdding(true)} data-tour="admin-add">
+              <UserPlus size={14} /> Add user
+            </button>
             <RefreshButton onClick={load} />
           </div>
         </div>
@@ -869,13 +847,6 @@ function AnnouncementsTab({ toast }) {
 
   return (
     <>
-      <AdminHeader>
-        <button type="button" className="btn btn-primary btn-sm" onClick={() => setEditing({})}>
-          <Plus size={14} /> New announcement
-        </button>
-        <RefreshButton onClick={load} />
-      </AdminHeader>
-
       <section className="dataset">
         <div className="dataset-bar">
           <div className="dataset-bar-lead">
@@ -892,6 +863,12 @@ function AnnouncementsTab({ toast }) {
               />
             </label>
             <span className="adm-hint">Live notices show on every instructor dashboard.</span>
+          </div>
+          <div className="dataset-bar-trail">
+            <button type="button" className="btn btn-primary btn-sm" onClick={() => setEditing({})}>
+              <Plus size={14} /> New announcement
+            </button>
+            <RefreshButton onClick={load} />
           </div>
         </div>
 
@@ -1121,10 +1098,6 @@ function BankTab({ toast }) {
 
   return (
     <>
-      <AdminHeader>
-        <RefreshButton onClick={load} />
-      </AdminHeader>
-
       <section className="dataset">
         <div className="dataset-bar">
           <div className="dataset-bar-lead">
@@ -1155,6 +1128,7 @@ function BankTab({ toast }) {
           </div>
           <div className="dataset-bar-trail">
             <span className="adm-hint">Approved questions only — read-only.</span>
+            <RefreshButton onClick={load} />
           </div>
         </div>
 
@@ -2117,21 +2091,6 @@ function ReportsTab({ toast, scoped }) {
 
   return (
     <>
-      <AdminHeader>
-        <button type="button" className="btn btn-outline btn-sm" onClick={() => window.print()} disabled={!data} title="Print the report as a document">
-          <Printer size={14} /> Print
-        </button>
-        <button type="button" className="btn btn-outline btn-sm" onClick={exportCsv} disabled={!data} title="Download all sections as CSV">
-          <FileDown size={14} /> CSV
-        </button>
-        <button type="button" className="btn btn-outline btn-sm" onClick={exportXlsx} disabled={!data} title="Download a multi-sheet Excel workbook">
-          <FileSpreadsheet size={14} /> Excel
-        </button>
-        <button type="button" className="btn btn-ghost btn-sm" onClick={load} title="Refresh">
-          <RefreshCw size={14} />
-        </button>
-      </AdminHeader>
-
       {!data ? (
         <TableSkeleton rows={5} />
       ) : (
@@ -2204,7 +2163,23 @@ function ReportsTab({ toast, scoped }) {
 
           {/* ── Interactive UI (hidden on paper) ── */}
           <div className="adm-dash print-skip">
-            <p className="adm-hint adm-report-meta">{printMeta}</p>
+            <div className="adm-report-bar">
+              <p className="adm-hint adm-report-meta">{printMeta}</p>
+              <div className="adm-report-actions">
+                <button type="button" className="btn btn-outline btn-sm" onClick={() => window.print()} title="Print the report as a document">
+                  <Printer size={14} /> Print
+                </button>
+                <button type="button" className="btn btn-outline btn-sm" onClick={exportCsv} title="Download all sections as CSV">
+                  <FileDown size={14} /> CSV
+                </button>
+                <button type="button" className="btn btn-outline btn-sm" onClick={exportXlsx} title="Download a multi-sheet Excel workbook">
+                  <FileSpreadsheet size={14} /> Excel
+                </button>
+                <button type="button" className="btn btn-ghost btn-sm" onClick={load} title="Refresh">
+                  <RefreshCw size={14} />
+                </button>
+              </div>
+            </div>
 
             <div className="stats-grid">
               <div className="stat-card"><div className="stat-icon blue"><Users size={18} /></div>

@@ -16,8 +16,10 @@ const USERS = {
 };
 
 const SHOTS = [
-  ['v4-i-analytics', '/analytics', 'instructor'],
-  ['v4-i-review', '/questions/review', 'instructor'],
+  ['v6-sa-users', '/admin/users', 'superadmin'],
+  ['v6-sa-announce', '/admin/announcements', 'superadmin'],
+  ['v6-sa-reports', '/admin/reports', 'superadmin'],
+  ['v6-sa-bank', '/admin/bank', 'superadmin'],
 ];
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));

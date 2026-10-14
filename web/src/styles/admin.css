@@ -21,7 +21,16 @@
     align-items: start;
   }
 
-  .adm-report-meta { margin: -6px 0 2px; }
+  .adm-report-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin: -6px 0 2px;
+  }
+  .adm-report-meta { margin: 0; }
+  .adm-report-actions { display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap; }
 
   /* ---- Cards — the dash-card anatomy ------------------------------------ */
   .adm-card {

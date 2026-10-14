@@ -862,8 +862,9 @@ export default function QuestionsPage() {
               <RichText text={stem} />
             </button>
             <span className="g-meta q-meta">
+              <span className="q-num" title={`Row ${index + 1}`}>№{index + 1}</span>
               <span><TypeGlyph type={q.type} />{TYPE_LABELS[q.type] || q.type}</span>
-              {q.topic && <span title={q.topic}>{q.topic}</span>}
+              {q.topic && <span className="q-meta-topic" title={q.topic}>{q.topic}</span>}
               {q.similarity_flag === 'flagged' && (
                 <Link to={`/questions/${q.id}/similarity`} className="sim-flag" title="Possible duplicate — click to review">
                   <FileText size={12} /> Similar

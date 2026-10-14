@@ -11,7 +11,7 @@
  */
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowRight, History, Square } from 'lucide-react';
+import { ArrowRight, Check, History, Maximize2, Square, Workflow } from 'lucide-react';
 import {
   Chart as ChartJS,
   CategoryScale, LinearScale,
@@ -20,9 +20,11 @@ import {
 } from 'chart.js';
 import { Bar, Line, Doughnut } from 'react-chartjs-2';
 import AppShell from '../components/AppShell.jsx';
+import Modal from '../components/Modal.jsx';
 import Select from '../components/Select.jsx';
 import useJobs, { cancelJob, isActiveJob, jobPayload } from '../lib/useJobs.js';
 import useJobStream from '../lib/useJobStream.js';
+import api from '../lib/api.js';
 import { BLOOM_LABELS, BLOOM_ORDER } from '../lib/insights.js';
 import '../styles/pipeline.css';
 
@@ -91,6 +93,16 @@ function fmtClock(ms) {
   return `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
 }
 const clip = (s, n = 64) => (String(s || '').length > n ? `${String(s).slice(0, n)}…` : String(s || ''));
+
+/** Friendly run label — "PE 3 · Physical Activities Toward Health and
+ *  Fitness 3" — falling back to the short run id when names are missing. */
+const runLabel = (j) => {
+  const name = [j.subject_code || j.subject_name, j.tos_title].filter(Boolean).join(' · ');
+  return name || `run #${String(j.id).slice(0, 6)}`;
+};
+const runWhen = (j) => (j.created_at
+  ? new Date(j.created_at).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
+  : '');
 
 export default function PipelinePage() {
   const { jobs, loaded } = useJobs({ activeInterval: 3000, idleInterval: 15000 });
@@ -198,6 +210,27 @@ export default function PipelinePage() {
   const nowSlot = status === 'running' ? progress?.lastSlot : null;
   const latestDraft = drafts.length ? drafts[drafts.length - 1] : null;
 
+  /* ── Expanded pipeline graph (modal) ── */
+  const [graphOpen, setGraphOpen] = useState(false);
+
+  /* ── Which of this run's drafts are still in the review queue?
+   * The stream replays stored drafts, so the list keeps its content after
+   * review — a light poll of the draft list marks the decided ones. */
+  const tosId = jobPayload(job)?.tosId;
+  const [pendingIds, setPendingIds] = useState(null);
+  useEffect(() => {
+    if (!drafts.length) return undefined;
+    let alive = true;
+    const load = () => api
+      .get(`/questions?status=draft${tosId ? `&tos_id=${encodeURIComponent(tosId)}` : ''}`)
+      .then((r) => { if (alive) setPendingIds(new Set((r.questions || []).map((q) => q.id))); })
+      .catch(() => {});
+    load();
+    const t = setInterval(load, 15000);
+    return () => { alive = false; clearInterval(t); };
+  }, [drafts.length, tosId]);
+  const pendingCount = pendingIds ? drafts.filter((d) => pendingIds.has(d.id)).length : null;
+
   /* ── Theme-aware chart palette ── */
   const pal = {
     accent: cssVar('--accent', '#2383E2'), green: cssVar('--green-600', '#23A265'),
@@ -242,6 +275,63 @@ export default function PipelinePage() {
     }],
   };
 
+  /* ── The flow graph — rendered in the deck panel and, expanded, inside
+   * the modal so it can be studied near-fullscreen. Same SVG both places. */
+  const flowGraph = (
+    <svg className="pc-graph" viewBox="0 0 960 320" role="img" data-tour="pipe-graph"
+      aria-label="Question generation pipeline: blueprint and bank feed retrieve, draft, review, decide, then queue, adopt, skip, or refuse">
+      <defs>
+        <filter id="pc-glow" x="-60%" y="-60%" width="220%" height="220%">
+          <feGaussianBlur stdDeviation="3" result="b" />
+          <feMerge><feMergeNode in="b" /><feMergeNode in="SourceGraphic" /></feMerge>
+        </filter>
+      </defs>
+      {EDGES.map(([a, b]) => {
+        const key = `${a}|${b}`;
+        const live = running && LIVE_EDGES.has(key);
+        const pulse = pulses[key];
+        const d = `M ${rightX(a)} ${NODES[a].y} ${seg(a, b)}`;
+        return (
+          <g key={key}>
+            {/* wide soft band — the conduit */}
+            <path className="pc-band" data-live={live || undefined} data-pulse={pulse || undefined} d={d} />
+            {/* thin animated core — the flow */}
+            <path className="pc-edge" data-live={live || undefined} data-pulse={pulse || undefined} d={d} />
+          </g>
+        );
+      })}
+      {/* Steady stream of dots along the working channel while live. */}
+      {running && [...LIVE_EDGES].map((key) => {
+        const [a, b] = key.split('|');
+        const d = `M ${rightX(a)} ${NODES[a].y} ${seg(a, b)}`;
+        return [0, 1, 2].map((i) => (
+          <circle key={`${key}-${i}`} r="2.2" className="pc-stream">
+            <animateMotion dur="1.5s" begin={`${i * 0.5}s`} repeatCount="indefinite" path={d} />
+          </circle>
+        ));
+      })}
+      {bursts.map((p) => (
+        <circle key={p.id} r="3.6" style={{ fill: p.color }} filter="url(#pc-glow)">
+          <animateMotion dur="1.7s" begin={`${p.delay}s`} path={p.path} fill="freeze" />
+        </circle>
+      ))}
+      {Object.entries(NODES).map(([key, n]) => {
+        const w = OUTCOMES.has(key) ? OUTCOME_W : NW;
+        const counts = { queued: drafted, adopted, skipped, refused: failedSlots.length };
+        const hot = running && (key === 'retrieve' || key === 'draft' || key === 'review' || key === 'decide');
+        return (
+          <g key={key} className="pc-node" data-hot={hot ? 'true' : undefined} data-count={(counts[key] ?? 0) > 0 ? 'true' : undefined}>
+            <rect x={n.x - w / 2} y={n.y - 21} width={w} height="42" rx="10" />
+            <text className="pc-node-label" x={n.x} y={n.y - 3} textAnchor="middle">{n.label}</text>
+            <text className="pc-node-sub" x={n.x} y={n.y + 11} textAnchor="middle">
+              {counts[key] !== undefined ? `${counts[key]} · ${n.sub}` : n.sub}
+            </text>
+          </g>
+        );
+      })}
+    </svg>
+  );
+
   return (
     <AppShell pageClass="pipeline" activeNav="pipeline" pageTitle="How AI works" wide>
       <section className="pc-deck" data-live={running ? 'true' : undefined} aria-label="Live generation console">
@@ -251,10 +341,7 @@ export default function PipelinePage() {
           </span>
           <div className="pc-heading">
             <strong>{job ? 'Writing questions' : 'Waiting for a run'}</strong>
-            <span>
-              run #{job ? String(job.id).slice(0, 6) : '—'}
-              {jobPayload(job)?.tosId ? ` · blueprint ${String(jobPayload(job).tosId).slice(0, 8)}` : ''}
-            </span>
+            <span>{job ? `${runLabel(job)} · ${runWhen(job)}` : '—'}</span>
           </div>
           {others.map((o) => (
             <span key={o.label} className="pc-ambient">{o.label}{o.n > 1 ? ` ×${o.n}` : ''}</span>
@@ -269,7 +356,7 @@ export default function PipelinePage() {
                 icon={History}
                 options={genJobs.slice(0, 12).map((j) => ({
                   value: j.id,
-                  label: `run #${String(j.id).slice(0, 6)} · ${j.status}${isActiveJob(j) ? ' · live' : ''}`,
+                  label: `${runLabel(j)} · ${runWhen(j)} · ${j.status}${isActiveJob(j) ? ' · live' : ''}`,
                 }))}
               />
             )}
@@ -298,65 +385,23 @@ export default function PipelinePage() {
         {/* ── Flow graph + outcome mix ── */}
         <div className="pc-main">
           <div className="pc-panel pc-panel--flow">
-            <header className="pc-panel-head">
-              <h3>Generation pipeline</h3>
-              <p>Every question follows the same path — watch it move.</p>
+            <header className="pc-panel-head pc-panel-head--row">
+              <div>
+                <h3>Generation pipeline</h3>
+                <p>Every question follows the same path — watch it move.</p>
+              </div>
+              <button
+                type="button" className="pc-fs" onClick={() => setGraphOpen(true)}
+                title="Expand"
+                aria-label="View pipeline larger"
+              >
+                <Maximize2 size={13} />
+              </button>
             </header>
             <div className="pc-cols" aria-hidden="true">
               <span>Inputs</span><span>Writing &amp; checks</span><span>Outcomes</span>
             </div>
-            <svg className="pc-graph" viewBox="0 0 960 320" role="img" data-tour="pipe-graph"
-          aria-label="Question generation pipeline: blueprint and bank feed retrieve, draft, review, decide, then queue, adopt, skip, or refuse">
-          <defs>
-            <filter id="pc-glow" x="-60%" y="-60%" width="220%" height="220%">
-              <feGaussianBlur stdDeviation="3" result="b" />
-              <feMerge><feMergeNode in="b" /><feMergeNode in="SourceGraphic" /></feMerge>
-            </filter>
-          </defs>
-          {EDGES.map(([a, b]) => {
-            const key = `${a}|${b}`;
-            const live = running && LIVE_EDGES.has(key);
-            const pulse = pulses[key];
-            const d = `M ${rightX(a)} ${NODES[a].y} ${seg(a, b)}`;
-            return (
-              <g key={key}>
-                {/* wide soft band — the conduit */}
-                <path className="pc-band" data-live={live || undefined} data-pulse={pulse || undefined} d={d} />
-                {/* thin animated core — the flow */}
-                <path className="pc-edge" data-live={live || undefined} data-pulse={pulse || undefined} d={d} />
-              </g>
-            );
-          })}
-          {/* Steady stream of dots along the working channel while live. */}
-          {running && [...LIVE_EDGES].map((key) => {
-            const [a, b] = key.split('|');
-            const d = `M ${rightX(a)} ${NODES[a].y} ${seg(a, b)}`;
-            return [0, 1, 2].map((i) => (
-              <circle key={`${key}-${i}`} r="2.2" className="pc-stream">
-                <animateMotion dur="1.5s" begin={`${i * 0.5}s`} repeatCount="indefinite" path={d} />
-              </circle>
-            ));
-          })}
-          {bursts.map((p) => (
-            <circle key={p.id} r="3.6" style={{ fill: p.color }} filter="url(#pc-glow)">
-              <animateMotion dur="1.7s" begin={`${p.delay}s`} path={p.path} fill="freeze" />
-            </circle>
-          ))}
-          {Object.entries(NODES).map(([key, n]) => {
-            const w = OUTCOMES.has(key) ? OUTCOME_W : NW;
-            const counts = { queued: drafted, adopted, skipped, refused: failedSlots.length };
-            const hot = running && (key === 'retrieve' || key === 'draft' || key === 'review' || key === 'decide');
-            return (
-              <g key={key} className="pc-node" data-hot={hot ? 'true' : undefined} data-count={(counts[key] ?? 0) > 0 ? 'true' : undefined}>
-                <rect x={n.x - w / 2} y={n.y - 21} width={w} height="42" rx="10" />
-                <text className="pc-node-label" x={n.x} y={n.y - 3} textAnchor="middle">{n.label}</text>
-                <text className="pc-node-sub" x={n.x} y={n.y + 11} textAnchor="middle">
-                  {counts[key] !== undefined ? `${counts[key]} · ${n.sub}` : n.sub}
-                </text>
-              </g>
-            );
-          })}
-            </svg>
+            {flowGraph}
           </div>
 
           {/* ── Outcome mix ── */}
@@ -433,19 +478,29 @@ export default function PipelinePage() {
           <div className="pc-panel">
             <header className="pc-panel-head">
               <h3>Latest questions</h3>
-              <p>Newest drafts — all awaiting your review.</p>
+              <p>
+                {running
+                  ? 'Newest drafts — all awaiting your review.'
+                  : pendingCount === null ? 'Newest drafts from this run.'
+                  : pendingCount === 0 ? 'Newest drafts — all reviewed.'
+                  : `Newest drafts — ${pendingCount} still awaiting review.`}
+              </p>
             </header>
             <ul className="pc-latest">
               {drafts.length === 0 && <li className="pc-latest-empty">Questions land here as they're written.</li>}
-              {[...drafts].reverse().slice(0, 5).map((d) => (
-                <li key={d.id}>
-                  <span className="pc-latest-stem">{clip(d.stem, 52)}</span>
-                  <span className="pc-latest-meta">
-                    {d.bloom ? BLOOM_LABELS[d.bloom] || d.bloom : '—'}
-                    <i className="pc-dot" data-kind={d.grounding === 'knowledge' ? 'knowledge' : 'grounded'} />
-                  </span>
-                </li>
-              ))}
+              {[...drafts].reverse().slice(0, 5).map((d) => {
+                const decided = pendingIds !== null && !pendingIds.has(d.id);
+                return (
+                  <li key={d.id} data-decided={decided || undefined}>
+                    <span className="pc-latest-stem">{clip(d.stem, 52)}</span>
+                    <span className="pc-latest-meta">
+                      {d.bloom ? BLOOM_LABELS[d.bloom] || d.bloom : '—'}
+                      {decided && <em className="pc-latest-reviewed"><Check size={9} /> reviewed</em>}
+                      <i className="pc-dot" data-kind={d.grounding === 'knowledge' ? 'knowledge' : 'grounded'} />
+                    </span>
+                  </li>
+                );
+              })}
             </ul>
           </div>
         </div>
@@ -477,11 +532,33 @@ export default function PipelinePage() {
 
         {!running && drafts.length > 0 && (
           <footer className="pc-done">
-            <span>Done — {drafted} new question{drafted === 1 ? ' is' : 's are'} waiting for your review.</span>
-            <Link to="/questions/review" className="btn btn-primary btn-sm">Review them <ArrowRight size={14} /></Link>
+            <span>
+              {pendingCount === 0
+                ? `Done — all ${drafted} draft${drafted === 1 ? '' : 's'} reviewed.`
+                : `Done — ${pendingCount ?? drafted} new question${(pendingCount ?? drafted) === 1 ? ' is' : 's are'} waiting for your review.`}
+            </span>
+            {pendingCount === 0 ? (
+              <Link to="/questions" className="btn btn-primary btn-sm">Open question bank <ArrowRight size={14} /></Link>
+            ) : (
+              <Link to="/questions/review" className="btn btn-primary btn-sm">Review them <ArrowRight size={14} /></Link>
+            )}
           </footer>
         )}
       </section>
+
+      <Modal
+        open={graphOpen}
+        onClose={() => setGraphOpen(false)}
+        title="Generation pipeline"
+        subtitle="Every question follows the same path — watch it move."
+        size="xl"
+        icon={Workflow}
+      >
+        <div className="pc-cols" aria-hidden="true">
+          <span>Inputs</span><span>Writing &amp; checks</span><span>Outcomes</span>
+        </div>
+        {flowGraph}
+      </Modal>
 
       {loaded && genJobs.length === 0 && (
         <p className="pc-empty">

@@ -144,6 +144,34 @@
   min-width: 0;
 }
 .pc-panel-head { margin-bottom: 8px; }
+.pc-panel-head--row {
+  display: flex; align-items: flex-start; justify-content: space-between; gap: 10px;
+}
+.pc-fs {
+  flex-shrink: 0;
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 26px; height: 26px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--surface);
+  color: var(--ink-3);
+  cursor: pointer;
+  transition: color .15s, border-color .15s, background .15s;
+}
+.pc-fs:hover { color: var(--accent); border-color: var(--accent-line); background: var(--accent-wash); }
+.pc-fs:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* Expanded graph — the Modal card widens to near-fullscreen while keeping
+ * the shared dialog chrome (blur overlay, Esc/backdrop close). NB: inside
+ * @scope only descendants of the scope root match — the overlay element
+ * itself is the root, so these selectors must not start at .modal-overlay. */
+.modal-card:has(.pc-graph) {
+  max-width: min(1520px, 96vw);
+}
+.modal-card:has(.pc-graph) .modal-body { padding: 8px 20px 20px; }
+.modal-card .pc-cols { padding-top: 4px; }
+.modal-card .pc-graph { width: 100%; max-height: 74vh; }
+
 .pc-panel-head h3 {
   margin: 0;
   font: 700 .62rem/1.2 var(--font-body);
@@ -207,6 +235,15 @@
 .pc-dot[data-kind="grounded"] { background: var(--green-600); }
 .pc-dot[data-kind="knowledge"] { background: var(--amber-600); }
 .pc-latest-empty { color: var(--ink-faint); font-size: .76rem; }
+/* Drafts stay listed after review — decided ones dim and carry a marker
+ * instead of vanishing, so the panel always tells the run's story. */
+.pc-latest li[data-decided] .pc-latest-stem { color: var(--ink-3); }
+.pc-latest-reviewed {
+  display: inline-flex; align-items: center; gap: 3px;
+  font-style: normal; font-weight: 700; font-size: .6rem;
+  letter-spacing: .06em; text-transform: uppercase;
+  color: var(--green-600);
+}
 
 /* Sankey-style streams: a wide translucent band (the conduit) with a thin
  * animated core running through it — the "flowing" look of agent consoles. */

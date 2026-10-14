@@ -330,6 +330,26 @@
 .q-dataset .q-meta > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .q-dataset .q-meta > span + span::before { content: "·"; margin: 0 6px; color: var(--line-strong); }
 .q-dataset .q-meta > span:first-child { flex: none; }
+/* Row number — the exam-paper cue: "№12" in quiet numerals. */
+.q-dataset .q-meta .q-num {
+    flex: none;
+    color: var(--ink-faint);
+    font-variant-numeric: tabular-nums;
+    letter-spacing: .01em;
+}
+/* Topic as a soft chip — the scan target on a bank row, lifted out of the
+   dot-separated meta soup. */
+.q-dataset .q-meta .q-meta-topic {
+    flex: 0 1 auto;
+    max-width: 200px;
+    padding: 0 8px;
+    border: 1px solid var(--line);
+    border-radius: 99px;
+    background: var(--surface-2);
+    color: var(--ink-2);
+    font-weight: 550;
+    line-height: 1.55;
+}
 
 /* ---- Preview sheet (portaled; Modal carries this page scope) ------------ */
 .q-preview { display: flex; flex-direction: column; gap: 16px; }

@@ -25,6 +25,10 @@
    lives here: Bloom mix, the Banked bar, and the mid-width column widths.
    ========================================================================== */
 
+/* Rows carry a two-line title + a meta line — taller than the shared 46px
+   row, so they get real vertical padding instead of squeezing the stack. */
+table.grid.bp-table tbody td { height: auto; padding-top: 10px; padding-bottom: 10px; }
+
 /* Subject name in the title meta — only once the Subject column drops. */
 .bp-meta-subject {
     display: none;

@@ -14,7 +14,7 @@ system. Check items off as they ship. Effort = rough relative size
 
 ## User-facing features
 
-- [ ] **Google Sign-In (OAuth 2.0)** — effort: S — **implemented, needs GCP credentials**
+- [x] **Google Sign-In (OAuth 2.0)** — effort: S — **live** (consent screen published, code-exchange flow, tested end-to-end)
   - API: `POST /api/auth/google` verifies the ID token
     (`google-auth-library`, all configured client IDs as audiences), applies
     the standard status checks, and auto-provisions instructors —
@@ -38,7 +38,7 @@ system. Check items off as they ship. Effort = rough relative size
     4. Add the GCP project number as `GOOGLE_CLIENT_ID`-linked web config
        for web builds of Flutter if you ever ship Flutter web.
 
-- [ ] **Google Drive import for materials** — effort: M — **implemented, needs GCP credentials**
+- [x] **Google Drive import for materials** — effort: M — **live** (picker + per-user connected account, `drive.file` — tested end-to-end)
   - Web: `components/DriveImportButton.jsx` on the Materials upload dialog —
     token client (`drive.file`, non-sensitive — picker grants per-file
     access, no verification needed) → Google Picker (multi-select, filtered
@@ -46,7 +46,10 @@ system. Check items off as they ship. Effort = rough relative size
     (`files.get?alt=media`; Google-native via `files.export` → PDF) → hands
     `File[]` to the existing upload queue. No new upload code.
   - API: `GET /api/materials/drive-config` (authed) →
-    `{ enabled, clientId, apiKey, appId }`.
+    `{ enabled, clientId, apiKey, appId, boundEmail }` — `boundEmail` is the
+    user's connected Drive account (`users.google_drive_email`, bound via
+    Account → Google Drive card; import enforces it: wrong-account tokens
+    are revoked).
   - Settings: `google_picker_api_key`, `google_app_id` (project number),
     both editable in the superadmin Google card. Env fallbacks:
     `GOOGLE_PICKER_API_KEY`, `GOOGLE_APP_ID`.

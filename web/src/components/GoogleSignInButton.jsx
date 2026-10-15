@@ -14,6 +14,7 @@
  *   <GoogleSignInButton clientId={id} onCode={handleCode} disabled={busy} />
  */
 import { useEffect, useRef, useState } from 'react';
+import { googleIdentityCodeConfig } from '../lib/googleIdentity.js';
 
 let loader = null;
 
@@ -57,16 +58,13 @@ export default function GoogleSignInButton({ clientId, onCode, disabled = false 
     loadGsi()
       .then(() => {
         if (cancelled) return;
-        clientRef.current = window.google.accounts.oauth2.initCodeClient({
-          client_id: clientId,
-          scope: 'openid email profile',
-          ux_mode: 'popup',
-          callback: (res) => {
+        clientRef.current = window.google.accounts.oauth2.initCodeClient(
+          googleIdentityCodeConfig(clientId, (res) => {
             if (res?.code) onCodeRef.current(res.code);
             // res.error covers popup_closed / access_denied — stay silent,
             // the user can just click again.
-          },
-        });
+          })
+        );
         setReady(true);
       })
       .catch(() => { if (!cancelled) setReady(false); });

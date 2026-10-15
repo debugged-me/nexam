@@ -53,7 +53,7 @@ function DraftPeek({ draft }) {
       )}
       <p className="gs-peek-note">
         {draft.grounding === 'knowledge'
-          ? 'Draft from AI knowledge, not your materials — confirm the answer when you approve it in the Review Queue.'
+          ? 'Legacy AI-knowledge draft — it cannot be approved. Upload lesson evidence and regenerate it.'
           : 'Draft — approve or edit it in the Review Queue.'}
       </p>
     </div>
@@ -83,7 +83,7 @@ export default function GenerationStream({ jobId, reviewHref, onSettled, onDismi
   const knowledgeDrafts = Number(result?.knowledgeDrafted) || drafts.filter((d) => d.grounding === 'knowledge').length;
   const counts = [
     drafts.length && `${drafts.length} drafted`,
-    knowledgeDrafts > 0 && `${knowledgeDrafts} from AI knowledge — confirm their answers`,
+    knowledgeDrafts > 0 && `${knowledgeDrafts} legacy AI-knowledge drafts blocked`,
     Number(progress?.adopted ?? result?.adopted) > 0 && `${progress?.adopted ?? result?.adopted} reused from the bank`,
     Number(progress?.skipped ?? result?.skippedCells) > 0 && `${progress?.skipped ?? result?.skippedCells} cells already covered`,
   ].filter(Boolean);

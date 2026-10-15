@@ -24,12 +24,11 @@ import { DndContext, PointerSensor, KeyboardSensor, closestCenter, useSensor, us
 import { SortableContext, arrayMove, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { useToast } from '../components/Toast.jsx';
-import { useConfirm } from '../components/ConfirmDialog.jsx';
 import EmptyStateArt from '../components/EmptyStateArt.jsx';
 import Modal from '../components/Modal.jsx';
 import api, { ApiError } from '../lib/api.js';
 import { subjectLabel } from '../lib/subjectProgress.js';
-import { isKnowledgeQuestion, needsKnowledgeConfirm, confirmKnowledge } from '../lib/knowledge.js';
+import { isKnowledgeQuestion } from '../lib/knowledge.js';
 import useJobs, { isActiveJob } from '../lib/useJobs.js';
 import AppShell from '../components/AppShell.jsx';
 import { CardsSkeleton } from '../components/Loaders.jsx';
@@ -101,7 +100,6 @@ function findNext(list, decided, from) {
 
 export default function ReviewQueuePage() {
   const toast = useToast();
-  const confirm = useConfirm();
   // The toast context object is rebuilt on every provider render, so holding it
   // in an effect dependency would refetch the queue — and wipe the running
   // tally — every time a toast appears or expires. Read it through a ref.
@@ -270,6 +268,7 @@ export default function ReviewQueuePage() {
 
   const approvableIds = useMemo(
     () => (queue || []).filter((q) => !decisions[q.id]
+      && !isKnowledgeQuestion(q)
       && q.similarity_checked_at && !q.similarity_error && q.similarity_flag === 'none').map((q) => q.id),
     [queue, decisions]
   );
@@ -283,7 +282,8 @@ export default function ReviewQueuePage() {
   // Drafts whose duplicate check failed — approvable only through the explicit
   // outage bypass, since a failure carries no information about duplication.
   const failedCheckIds = useMemo(
-    () => (queue || []).filter((q) => !decisions[q.id] && q.similarity_error).map((q) => q.id),
+    () => (queue || []).filter((q) => !decisions[q.id]
+      && !isKnowledgeQuestion(q) && q.similarity_error).map((q) => q.id),
     [queue, decisions]
   );
 
@@ -322,6 +322,7 @@ export default function ReviewQueuePage() {
   // A draft already approved/rejected this session (opened from Finished or
   // via Previous) is read-only here — Undo is the way to change it.
   const currentDecision = current ? decisions[current.id] || null : null;
+  const knowledgeBlocked = !!current && isKnowledgeQuestion(current);
   const canEditInline = !!current && PUT_SAFE_TYPES.has(current.type) && !currentDecision;
   const canUndo = !!lastAction && PUT_SAFE_TYPES.has(lastAction.snapshot.type);
   const similarityReady = !!current?.similarity_checked_at
@@ -332,6 +333,10 @@ export default function ReviewQueuePage() {
   const decide = useCallback(async (action, opts = {}) => {
     if (!current || busy) return;
     if (decisions[current.id]) return; // already decided — Undo changes it
+    if (action === 'approved' && isKnowledgeQuestion(current)) {
+      toastRef.current.warning('This legacy AI draft is not grounded in uploaded lesson material and cannot be approved.');
+      return;
+    }
     if (action === 'approved' && !similarityReady && !opts.allowSimilarityFailure) {
       toastRef.current.warning('Wait for duplicate checking, or resolve the similarity warning, before approval.');
       return;
@@ -342,16 +347,9 @@ export default function ReviewQueuePage() {
     setPendingAction(action);
     try {
       const body = action === 'approved'
-        ? { ...(opts.allowSimilarityFailure ? { allowSimilarityFailure: true } : {}), ...(opts.confirmKnowledge ? { confirmKnowledge: true } : {}) }
+        ? { ...(opts.allowSimilarityFailure ? { allowSimilarityFailure: true } : {}) }
         : {};
-      try {
-        await api.post(`/questions/${item.id}/${action === 'approved' ? 'approve' : 'reject'}`, Object.keys(body).length ? body : undefined);
-      } catch (err) {
-        // AI-knowledge answers need the instructor's explicit confirmation.
-        if (action !== 'approved' || opts.confirmKnowledge || !needsKnowledgeConfirm(err)) throw err;
-        if (!await confirmKnowledge(confirm)) return;
-        await api.post(`/questions/${item.id}/approve`, { ...body, confirmKnowledge: true });
-      }
+      await api.post(`/questions/${item.id}/${action === 'approved' ? 'approve' : 'reject'}`, Object.keys(body).length ? body : undefined);
       const bypassed = action === 'approved' && opts.allowSimilarityFailure === true;
       const next = { ...decisions, [item.id]: action };
       setDecisions(next);
@@ -376,7 +374,7 @@ export default function ReviewQueuePage() {
       setPendingAction(null);
       setBusy(false);
     }
-  }, [current, cursor, busy, decisions, queue, similarityReady, confirm]);
+  }, [current, cursor, busy, decisions, queue, similarityReady]);
 
   const retrySimilarity = useCallback(async () => {
     if (!current || busy) return;
@@ -528,12 +526,7 @@ export default function ReviewQueuePage() {
     if (ids.length === 0) return;
     setBusy(true);
     try {
-      let res = await api.post('/questions/bulk-approve', { ids, allowSimilarityFailure: includeFailed });
-      // AI-knowledge drafts wait for the instructor's answer confirmation.
-      if (res?.knowledgeIds?.length && await confirmKnowledge(confirm, res.knowledgeIds.length)) {
-        const more = await api.post('/questions/bulk-approve', { ids: res.knowledgeIds, allowSimilarityFailure: includeFailed, confirmKnowledge: true });
-        res = { ...res, approved: (res.approved || 0) + (more?.approved || 0), approvedIds: [...(res.approvedIds || []), ...(more?.approvedIds || [])], knowledgeIds: more?.knowledgeIds };
-      }
+      const res = await api.post('/questions/bulk-approve', { ids, allowSimilarityFailure: includeFailed });
       const count = typeof res?.approved === 'number' ? res.approved : ids.length;
       // Only mark ids the server actually approved — when it returns none
       // (all were already active), blindly marking the whole set is what made
@@ -548,9 +541,7 @@ export default function ReviewQueuePage() {
       // rather than left pointing at a decision that is no longer the last one.
       setLastAction(null);
       setEditing(null);
-      if (count === 0 && res?.knowledgeIds?.length && !approvedIds.length) {
-        toastRef.current.info(`${res.knowledgeIds.length} AI-knowledge question${res.knowledgeIds.length === 1 ? '' : 's'} still need${res.knowledgeIds.length === 1 ? 's' : ''} your answer confirmation.`);
-      } else if (count === 0) {
+      if (count === 0) {
         // The ids went out already-approved (e.g. a second click after the
         // queue cleared) — say so, then resync the queue to server truth.
         toastRef.current.info('Already approved — nothing left to do.');
@@ -881,7 +872,7 @@ export default function ReviewQueuePage() {
                     </span>
                   )}
                   <span className="rv-chip rv-chip-source">
-                    {isKnowledgeQuestion(current) ? 'AI knowledge — verify the answer' : current.source === 'ai' ? 'AI-generated' : current.source === 'import' ? 'Imported' : 'Manual'}
+                    {isKnowledgeQuestion(current) ? 'Legacy AI knowledge — approval blocked' : current.source === 'ai' ? 'AI-generated' : current.source === 'import' ? 'Imported' : 'Manual'}
                   </span>
                 </div>
 
@@ -913,7 +904,7 @@ export default function ReviewQueuePage() {
                   </div>
                 )}
 
-                {current.similarity_error && (
+                {current.similarity_error && !knowledgeBlocked && (
                   <div className="rv-alert" role="alert">
                     <AlertTriangle size={18} />
                     <div className="rv-alert-body">
@@ -937,6 +928,7 @@ export default function ReviewQueuePage() {
                     onCancel={() => setEditing(null)}
                     onSaveDraft={() => saveEdit(false)}
                     onSaveApprove={() => saveEdit(true)}
+                    allowApprove={!knowledgeBlocked}
                   />
                 ) : (
                   <>
@@ -974,7 +966,7 @@ export default function ReviewQueuePage() {
                     </p>
                   )}
                   <div className="rv-actions-main">
-                    <button type="button" className="rv-act is-approve" onClick={() => decide('approved')} disabled={busy || !similarityReady || !!currentDecision}>
+                    <button type="button" className="rv-act is-approve" onClick={() => decide('approved')} disabled={busy || knowledgeBlocked || !similarityReady || !!currentDecision}>
                       {pendingAction === 'approved' ? <span className="btn-spinner" /> : <Check size={18} />} Approve <kbd className="rv-kbd">A</kbd>
                     </button>
                     <button type="button" className="rv-act is-reject" onClick={() => decide('rejected')} disabled={busy || !!currentDecision}>
@@ -1293,7 +1285,7 @@ function SortableOptionRow({ id, index, opt, editing, setOption, removeOption, o
  * approving is one motion instead of a context switch. The payload it builds is
  * the same full-body PUT QuestionsPage sends.
  */
-function EditPanel({ editing, setEditing, busy, onCancel, onSaveDraft, onSaveApprove }) {
+function EditPanel({ editing, setEditing, busy, onCancel, onSaveDraft, onSaveApprove, allowApprove = true }) {
   const isMcq = editing.type === 'mcq';
 
   const sensors = useSensors(
@@ -1452,10 +1444,12 @@ function EditPanel({ editing, setEditing, busy, onCancel, onSaveDraft, onSaveApp
         <button type="button" className="btn btn-outline" onClick={onSaveDraft} disabled={busy}>
           <Save size={16} /> Save as draft
         </button>
-        <button type="button" className="btn btn-primary" onClick={onSaveApprove} disabled={busy}>
-          {busy && <span className="btn-spinner" />}
-          <Check size={16} /> Save &amp; approve
-        </button>
+        {allowApprove && (
+          <button type="button" className="btn btn-primary" onClick={onSaveApprove} disabled={busy}>
+            {busy && <span className="btn-spinner" />}
+            <Check size={16} /> Save &amp; approve
+          </button>
+        )}
       </div>
     </div>
   );

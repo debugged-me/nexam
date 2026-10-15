@@ -29,8 +29,7 @@ import { indexQuestionIfActive, indexQuestionsIfActive, removeQuestionFromIndex 
 import { answerOptionIndex } from '../services/scoring.js';
 import { rateLimit } from '../middleware/rateLimit.js';
 import { logAudit } from '../services/audit.js';
-import { groundingBlockReason, recheckQuestion } from '../services/questionGrounding.js';
-import { isKnowledgeQuestion } from '../services/questionQuality.js';
+import { groundingBlockReason, recheckQuestion, usableQuestions } from '../services/questionGrounding.js';
 import { similarityGate } from '../services/questionApproval.js';
 
 const router = Router();
@@ -68,19 +67,6 @@ async function approvalBlockReason(question, { ignoreSimilarityFailure = false }
   if (grounding) return grounding;
   return similarityGate(question, { ignoreSimilarityFailure });
 }
-
-// Knowledge-mode AI drafts were written from the model's general knowledge,
-// not uploaded material. A second provider fact-checked them, but only the
-// instructor can vouch for the answer, so every approval path requires an
-// explicit `confirmKnowledge: true` and records who confirmed it.
-const KNOWLEDGE_CONFIRMATION = {
-  error: 'This question was written from AI knowledge, not your uploaded materials. Confirm you checked its answer before approving.',
-  code: 'knowledge_confirmation_required',
-};
-const confirmedMeta = (question, userId) => JSON.stringify({
-  ...(readJson(question.generation_meta, {}) || {}),
-  instructorConfirmation: { by: userId, at: new Date().toISOString() },
-});
 
 /** Options persist as plain strings; tolerate {text|label|value} entry objects. */
 const normalizeOptionList = (list) => (Array.isArray(list) ? list
@@ -219,7 +205,8 @@ router.get('/institution', async (req, res, next) => {
 
     const [questions] = await pool.query(
       `SELECT q.id, q.topic, q.bloom, q.type, q.stem, q.options, q.answer,
-              q.explanation, q.approved_at,
+              q.explanation, q.approved_at, q.source, q.generation_meta,
+              q.created_by, q.subject_id,
               s.name AS subject_name, s.code AS subject_code,
               CASE WHEN q.created_by = :viewerId THEN 1 ELSE 0 END AS owned_by_viewer
        FROM questions q
@@ -229,11 +216,16 @@ router.get('/institution', async (req, res, next) => {
        LIMIT 200`,
       { ...params, viewerId: req.user.id }
     );
-    for (const question of questions) {
+    const shareable = await usableQuestions(questions);
+    for (const question of shareable) {
       try { question.options = question.options ? JSON.parse(question.options) : []; }
       catch { question.options = []; }
+      delete question.generation_meta;
+      delete question.created_by;
+      delete question.subject_id;
+      delete question.source;
     }
-    res.json({ questions });
+    res.json({ questions: shareable });
   } catch (err) { next(err); }
 });
 
@@ -444,7 +436,6 @@ router.put('/:id', async (req, res, next) => {
     if (approving) {
       const blocked = await approvalBlockReason(q, { ignoreSimilarityFailure: req.body?.allowSimilarityFailure === true });
       if (blocked) return res.status(409).json({ error: blocked });
-      if (isKnowledgeQuestion(q) && req.body?.confirmKnowledge !== true) return res.status(409).json(KNOWLEDGE_CONFIRMATION);
     }
 
     await pool.query(
@@ -479,10 +470,6 @@ router.put('/:id', async (req, res, next) => {
         approvedAt: contentChanged ? null : (approving ? new Date() : q.approved_at),
       }
     );
-
-    if (approving && isKnowledgeQuestion(q)) {
-      await pool.query(`UPDATE questions SET generation_meta = :meta WHERE id = :id`, { meta: confirmedMeta(q, req.user.id), id: q.id });
-    }
 
     const [rows] = await pool.query(`SELECT * FROM questions WHERE id = :id`, { id: q.id });
     const updated = rows[0];
@@ -546,14 +533,10 @@ router.post('/:id/approve', async (req, res, next) => {
     const blocked = await approvalBlockReason(q, { ignoreSimilarityFailure: bypassed });
     if (blocked) return res.status(409).json({ error: blocked });
     if (q.status === 'active') return res.json({ message: 'Already approved.' });
-    const knowledge = isKnowledgeQuestion(q);
-    if (knowledge && req.body?.confirmKnowledge !== true) return res.status(409).json(KNOWLEDGE_CONFIRMATION);
-
     await pool.query(
       `UPDATE questions SET status = 'active', approved_by = :uid, approved_at = NOW(), updated_at = NOW()
-         ${knowledge ? ', generation_meta = :meta' : ''}
        WHERE id = :id`,
-      { id: q.id, uid: req.user.id, meta: knowledge ? confirmedMeta(q, req.user.id) : null }
+      { id: q.id, uid: req.user.id }
     );
 
     // Approved questions enter the similarity index.
@@ -562,8 +545,8 @@ router.post('/:id/approve', async (req, res, next) => {
     logAudit({
       actorId: req.user.id, actorEmail: req.user.email,
       action: 'question.approve', targetType: 'question', targetId: q.id, ip: req.ip,
-      detail: (bypassed && q.similarity_error) || knowledge
-        ? { similarityBypassed: (bypassed && q.similarity_error) ? true : undefined, knowledgeConfirmed: knowledge || undefined }
+      detail: bypassed && q.similarity_error
+        ? { similarityBypassed: true }
         : undefined,
     });
     res.json({ message: 'Question approved.', status: 'active' });
@@ -630,25 +613,17 @@ router.post('/bulk-approve', async (req, res, next) => {
     }
 
     const eligibleIds = [];
-    const knowledgeIds = [];
-    const confirmKnowledge = req.body?.confirmKnowledge === true;
-    const confirmed = [];
     for (const question of candidates) {
       const block = await approvalBlockReason(question, { ignoreSimilarityFailure: bypassed });
       if (block) {
         bump('other');
         if (!reasons.firstMessage) reasons.firstMessage = block;
-      } else if (isKnowledgeQuestion(question) && !confirmKnowledge) {
-        // Answers from AI knowledge need the instructor's explicit sign-off.
-        bump('knowledge_unconfirmed');
-        knowledgeIds.push(question.id);
       } else {
         eligibleIds.push(question.id);
-        if (isKnowledgeQuestion(question)) confirmed.push(question);
       }
     }
     if (!eligibleIds.length) {
-      return res.json({ approved: 0, blocked: validIds.length, reasons, knowledgeIds: knowledgeIds.length ? knowledgeIds : undefined });
+      return res.json({ approved: 0, blocked: validIds.length, reasons });
     }
 
     const [result] = await pool.query(
@@ -656,11 +631,6 @@ router.post('/bulk-approve', async (req, res, next) => {
        WHERE id IN (:ids) AND created_by = :uid AND status = 'draft'`,
       { ids: eligibleIds, uid: req.user.id }
     );
-
-    for (const question of confirmed) {
-      await pool.query(`UPDATE questions SET generation_meta = :meta WHERE id = :id AND status = 'active'`,
-        { meta: confirmedMeta(question, req.user.id), id: question.id });
-    }
 
     // Index the newly-active questions (best-effort, non-blocking order).
     if (result.affectedRows > 0) {
@@ -675,7 +645,7 @@ router.post('/bulk-approve', async (req, res, next) => {
       logAudit({
         actorId: req.user.id, actorEmail: req.user.email,
         action: 'question.bulk_approve', targetType: 'question',
-        detail: { approved: result.affectedRows, requested: validIds.length, similarityBypassed: bypassed || undefined, knowledgeConfirmed: confirmed.length || undefined }, ip: req.ip,
+        detail: { approved: result.affectedRows, requested: validIds.length, similarityBypassed: bypassed || undefined }, ip: req.ip,
       });
     }
     res.json({
@@ -683,7 +653,6 @@ router.post('/bulk-approve', async (req, res, next) => {
       approvedIds: eligibleIds,
       blocked: validIds.length - result.affectedRows,
       reasons: Object.keys(reasons).length ? reasons : undefined,
-      knowledgeIds: knowledgeIds.length ? knowledgeIds : undefined,
     });
   } catch (err) { next(err); }
 });

@@ -35,6 +35,18 @@ export const groundingMode = (question) => (readJson(question?.generation_meta, 
 export const isKnowledgeQuestion = (question) => question?.source === 'ai' && groundingMode(question) === 'knowledge';
 
 /**
+ * Thesis contract: AI exam questions must be supported by uploaded lesson
+ * material. Keep this check separate from proof parsing so historical
+ * knowledge-mode rows remain readable but can never be approved, reused,
+ * counted toward coverage, assembled, or exported.
+ */
+export function strictMaterialGroundingBlockReason(question) {
+  return isKnowledgeQuestion(question)
+    ? 'This AI question is based on general model knowledge, not uploaded lesson material. Upload supporting lesson content and regenerate it.'
+    : null;
+}
+
+/**
  * The exact field values the questions table will hold. The proof is hashed
  * over these, so the hash recomputed from the stored row always matches —
  * e.g. a JSON boolean `false` answer would otherwise be stored as NULL.

@@ -140,29 +140,28 @@ and a parked DUPLICATE_SCAN outbox entry offers a Replace replay.
   hash, and hours summing to the stated total.
 - The syllabus plans coverage; it is never answer evidence. Generation
   retrieves lesson chunks only (`retrieve(..., { lessonsOnly: true })`).
-  Cells no lesson supports are drafted from the model's general knowledge
-  (`grounding: 'knowledge'`, guided by topic + syllabus outcomes), unless the
-  `knowledge_fallback_enabled` setting is 0. `create` cells are refused.
+  Cells no lesson supports stay unfilled and are reported in the generation
+  result so the instructor can upload the missing lesson content. General
+  model knowledge is never used as exam-question evidence. `create` cells are
+  refused.
 - Every draft passes `isValidGeneratedQuestion`, `canonicalDraft` (stored
   form == hashed form), `instructionalBlockReason` (no course-admin/outline
   questions, no bare topic-heading evidence) and an independent review that
   never runs on the writer's model (`excludeModels`, `avoidProvider`):
-  `reviewQuestion` (source support) or `reviewKnowledgeQuestion` (factual
-  correctness). Its verdict must match the requested Bloom exactly.
+  `reviewQuestion` verifies source support. Its verdict must match the
+  requested Bloom exactly.
 - Then `independentChecks()` solves the draft **blind** (no key, no
-  explanation) on other models; `solvedMatchesKey()` must agree. Knowledge
-  drafts need two distinct solvers, grounded drafts one (given the cited
-  source); at least one solver must be on another provider than the writer.
+  explanation) on other models; `solvedMatchesKey()` must agree. The solver
+  receives the cited source and must be on another model than the writer.
   No independent model available → the draft is held, never accepted. Proof
   `version: 2` records `writer` and `checks`; `checksSatisfied()` re-verifies.
 - Groq has a model pool like Gemini (`groq_fallback_models`): extra free
   capacity and a different model family for blind solves.
 - The proof lives in `generation_meta.quality`; `qualityBlockReason()`
   re-verifies it with no AI calls. Any edit or source change invalidates it —
-  `POST /questions/:id/recheck` re-runs the check. Knowledge drafts are
-  labelled in the UI and every approval path (single, bulk, PUT) requires
-  `{ confirmKnowledge: true }` (409 `knowledge_confirmation_required`);
-  the confirmation is stored as `generation_meta.instructorConfirmation`.
+  `POST /questions/:id/recheck` re-runs the check. Historical knowledge-mode
+  rows remain readable but are blocked from approval, reuse, coverage,
+  assembly, and export until regenerated from uploaded lesson evidence.
 - Metrics say "review acceptance" and "processing success" — instructor
   decisions and completion rates, not accuracy.
 

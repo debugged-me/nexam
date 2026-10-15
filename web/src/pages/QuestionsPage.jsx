@@ -24,7 +24,7 @@ import QuestionPreview from '../components/QuestionPreview.jsx';
 import EvidenceViewer from '../components/EvidenceViewer.jsx';
 import RichText from '../components/RichText.jsx';
 import api, { ApiError } from '../lib/api.js';
-import { isKnowledgeQuestion, needsKnowledgeConfirm, confirmKnowledge } from '../lib/knowledge.js';
+import { isKnowledgeQuestion } from '../lib/knowledge.js';
 import useJobs, { isActiveJob } from '../lib/useJobs.js';
 import AppShell from '../components/AppShell.jsx';
 import { TableSkeleton } from '../components/Loaders.jsx';
@@ -506,7 +506,7 @@ export default function QuestionsPage() {
   // cannot see can never be swept into a bulk action by a filter or a search.
   const selectedRows = useMemo(() => rows.filter((q) => selected.has(q.id)), [rows, selected]);
   const selectionCount = selectedRows.length;
-  const approvableCount = selectedRows.filter((q) => q.status === 'draft').length;
+  const approvableCount = selectedRows.filter((q) => q.status === 'draft' && !isKnowledgeQuestion(q)).length;
   const rejectableCount = selectedRows.filter((q) => q.status !== 'rejected').length;
   const allChecked = rows.length > 0 && selectionCount === rows.length;
   const someChecked = selectionCount > 0 && !allChecked;
@@ -580,18 +580,17 @@ export default function QuestionsPage() {
     }
   }
 
-  async function handleApprove(q, bypass = false, knowledge = false) {
+  async function handleApprove(q, bypass = false) {
+    if (isKnowledgeQuestion(q)) {
+      toast.warning('This legacy AI draft is not grounded in uploaded lesson material and cannot be approved.');
+      return;
+    }
     try {
-      const body = { ...(bypass ? { allowSimilarityFailure: true } : {}), ...(knowledge ? { confirmKnowledge: true } : {}) };
-      await api.post(`/questions/${q.id}/approve`, Object.keys(body).length ? body : undefined);
+      const body = bypass ? { allowSimilarityFailure: true } : undefined;
+      await api.post(`/questions/${q.id}/approve`, body);
       toast.success(bypass ? 'Question approved without duplicate check.' : 'Question approved.');
       load();
     } catch (err) {
-      // AI-knowledge answers need the instructor's explicit confirmation.
-      if (!knowledge && needsKnowledgeConfirm(err)) {
-        if (await confirmKnowledge(confirm)) return handleApprove(q, bypass, true);
-        return;
-      }
       // A failed duplicate check is the only overridable block — offer the
       // explicit bypass instead of leaving the draft stuck during an outage.
       if (!bypass && q.similarity_error && /similarity check failed/i.test(err?.message || '')) {
@@ -631,7 +630,6 @@ export default function QuestionsPage() {
     if (reasons.not_draft) parts.push(`${reasons.not_draft} were not drafts`);
     if (reasons.unsupported_type) parts.push(`${reasons.unsupported_type} have an unsupported type`);
     if (reasons.other) parts.push(`${reasons.other} blocked by grounding review`);
-    if (reasons.knowledge_unconfirmed) parts.push(`${reasons.knowledge_unconfirmed} written from AI knowledge still need your answer confirmation`);
     return parts.join(', ') || 'they could not be approved';
   }
 
@@ -648,25 +646,11 @@ export default function QuestionsPage() {
   }
 
   async function handleBulkApprove() {
-    const ids = selectedRows.map((q) => q.id);
+    const ids = selectedRows.filter((q) => q.status === 'draft' && !isKnowledgeQuestion(q)).map((q) => q.id);
     if (!ids.length) return;
     setBulkBusy('approve');
     try {
       let data = await api.post('/questions/bulk-approve', { ids });
-      // AI-knowledge drafts are held back until the instructor confirms their
-      // answers — ask once for the whole set.
-      if (data?.knowledgeIds?.length && await confirmKnowledge(confirm, data.knowledgeIds.length)) {
-        const retry = await api.post('/questions/bulk-approve', { ids: data.knowledgeIds, confirmKnowledge: true });
-        const { knowledge_unconfirmed: _held, ...held } = data.reasons || {};
-        const reasons = { ...held };
-        for (const [k, v] of Object.entries(retry?.reasons || {})) reasons[k] = typeof v === 'number' ? (reasons[k] || 0) + v : reasons[k] || v;
-        data = {
-          ...data,
-          approved: (data.approved || 0) + (retry?.approved || 0),
-          approvedIds: [...(data.approvedIds || []), ...(retry?.approvedIds || [])],
-          reasons: Object.keys(reasons).length ? reasons : undefined,
-        };
-      }
       // Every remaining blocker is a failed duplicate check (provider outage)
       // — offer the explicit bypass for just those ids rather than leaving
       // the selection stuck.
@@ -820,8 +804,8 @@ export default function QuestionsPage() {
     openMenu(e, [
       { label: 'View details', icon: Eye, onClick: () => setViewing(q) },
       { label: 'Edit', icon: Pencil, onClick: () => openEdit(q) },
-      ...(isDraft ? [{ label: 'Approve', icon: Check, onClick: () => handleApprove(q) }] : []),
-      ...(isRejected ? [{ label: 'Restore', icon: RotateCcw, onClick: () => handleApprove(q) }] : []),
+      ...(isDraft && !isKnowledgeQuestion(q) ? [{ label: 'Approve', icon: Check, onClick: () => handleApprove(q) }] : []),
+      ...(isRejected && !isKnowledgeQuestion(q) ? [{ label: 'Restore', icon: RotateCcw, onClick: () => handleApprove(q) }] : []),
       ...(!isRejected ? [{ label: 'Reject', icon: X, onClick: () => handleReject(q) }] : []),
       'sep',
       { label: 'Copy question text', icon: Copy, onClick: () => copyText(stem, 'Question text') },
@@ -1595,12 +1579,12 @@ export default function QuestionsPage() {
                 <X size={15} /> Reject
               </button>
             )}
-            {viewing.status === 'draft' && (
+            {viewing.status === 'draft' && !isKnowledgeQuestion(viewing) && (
               <button type="button" className="btn btn-primary" onClick={() => { const q = viewing; setViewing(null); handleApprove(q); }}>
                 <Check size={15} /> Approve
               </button>
             )}
-            {viewing.status === 'rejected' && (
+            {viewing.status === 'rejected' && !isKnowledgeQuestion(viewing) && (
               <button type="button" className="btn btn-primary" onClick={() => { const q = viewing; setViewing(null); handleApprove(q); }}>
                 <RotateCcw size={15} /> Restore
               </button>
@@ -1630,7 +1614,7 @@ export default function QuestionsPage() {
             <QuestionPreview question={viewing} />
             {viewing.source === 'ai' && <EvidenceViewer key={viewing.id} question={viewing} onChecked={load} />}
             <dl className="q-preview-facts">
-              <div><dt>Source</dt><dd>{isKnowledgeQuestion(viewing) ? 'AI knowledge — not from your materials' : SOURCE_LABELS[viewing.source] || viewing.source || '—'}</dd></div>
+              <div><dt>Source</dt><dd>{isKnowledgeQuestion(viewing) ? 'Legacy AI knowledge — approval blocked' : SOURCE_LABELS[viewing.source] || viewing.source || '—'}</dd></div>
               <div><dt>Updated</dt><dd>{fmtDateQ(viewing.updated_at || viewing.created_at) || '—'}</dd></div>
               {viewing.approved_at && <div><dt>Approved</dt><dd>{fmtDateQ(viewing.approved_at)}</dd></div>}
             </dl>

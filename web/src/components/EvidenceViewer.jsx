@@ -10,10 +10,9 @@
  * a status badge up front; "Show in source" reveals the passage with the
  * span highlighted, windowed around the match until expanded.
  *
- * AI-knowledge drafts have no source passage: they were written from the
- * model's general knowledge because no uploaded lesson covered their cell,
- * and a second provider fact-checked them. A blocked draft (edited, source
- * changed, or older than the check) can re-run the AI check in place.
+ * Historical AI-knowledge drafts have no source passage and are blocked from
+ * approval. A grounded draft whose source changed or whose proof is stale can
+ * re-run the AI check in place.
  */
 import { useEffect, useRef, useState } from 'react';
 import { AlertTriangle, BookCheck, ChevronDown, FileText, Quote, RefreshCw, ShieldCheck, ShieldX } from 'lucide-react';
@@ -27,7 +26,7 @@ const STATUS = {
   not_found: { tone: 'bad', icon: ShieldX, label: 'Not found in source — approval is blocked' },
   stale: { tone: 'warn', icon: AlertTriangle, label: 'Source passages changed — regenerate this draft' },
   no_evidence: { tone: 'bad', icon: ShieldX, label: 'No verifiable evidence — approval is blocked' },
-  knowledge: { tone: 'warn', icon: BookCheck, label: 'AI knowledge · fact-checked · confirm the answer' },
+  knowledge: { tone: 'bad', icon: BookCheck, label: 'No uploaded evidence · approval blocked' },
 };
 
 
@@ -141,9 +140,7 @@ export default function EvidenceViewer({ question, onChecked }) {
 
       {knowledge && (
         <p className="ev-note">
-          Written from AI knowledge because no uploaded lesson covers this blueprint cell — it is not quoted from your materials.
-          {state.reviewedBy?.provider ? ' A second AI fact-checked it, and other models solved it without seeing the answer.' : ''}
-          {' '}Check the answer against your lesson or textbook; approval asks you to confirm it.
+          This historical draft was written from general AI knowledge, not uploaded lesson material. It cannot be approved, reused, assembled, or exported. Upload supporting lesson content and generate this TOS cell again.
         </p>
       )}
       {state?.reviewBlock && <p className="ev-note">{state.reviewBlock}</p>}
@@ -160,7 +157,7 @@ export default function EvidenceViewer({ question, onChecked }) {
           </p>
         );
       })()}
-      {state?.reviewBlock && question.status !== 'rejected' && (
+      {state?.reviewBlock && !knowledge && question.status !== 'rejected' && (
         <button type="button" className="ev-linkbtn" onClick={rerunCheck} disabled={rechecking}>
           <RefreshCw size={12} aria-hidden="true" /> {rechecking ? 'Re-running the AI check…' : 'Re-run AI check'}
         </button>

@@ -9,7 +9,7 @@ import { isValidGeneratedQuestion } from '../src/services/generationValidation.j
 import {
   acceptedReview, makeQualityProof, qualityBlockReason, reviewQuestion, instructionalBlockReason,
   canonicalDraft, parseReview, reviewKnowledgeQuestion, isKnowledgeQuestion,
-  solvedMatchesKey, checksSatisfied, independentChecks, solveBlind,
+  solvedMatchesKey, checksSatisfied, independentChecks, solveBlind, strictMaterialGroundingBlockReason,
 } from '../src/services/questionQuality.js';
 
 // A writer plus agreeing blind solvers on other models, as generation records them.
@@ -215,6 +215,14 @@ test('knowledge-mode drafts are labelled, need no source, and are bound to their
   // The fact-check must confirm the answer; source-support flags do not count.
   assert.equal(acceptedReview({ ...knowledgeReview, answerCorrect: false }, 'remember', 'knowledge'), false);
   assert.equal(acceptedReview({ ...review }, 'remember', 'knowledge'), false);
+});
+
+test('strict thesis grounding blocks historical general-knowledge AI drafts', () => {
+  const knowledge = stored(knowledgeDraft, { grounding: 'knowledge', chunkIds: [] });
+  const grounded = stored(knowledgeDraft, { grounding: 'grounded', chunkIds: ['chunk-1'] });
+  assert.match(strictMaterialGroundingBlockReason(knowledge), /not uploaded lesson material/i);
+  assert.equal(strictMaterialGroundingBlockReason(grounded), null);
+  assert.equal(strictMaterialGroundingBlockReason({ ...knowledge, source: 'manual' }), null);
 });
 
 test('reviewer output is parsed strictly but tolerates fences, prose and label case', async () => {

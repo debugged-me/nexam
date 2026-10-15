@@ -18,7 +18,7 @@ Nexam implements most of the functional workflow described in the attached speci
 7. Produce Set A and Set B papers, answer keys, TOS reports, OMR sheets, and LMS exports.
 8. Scan OMR sheets through the mobile application and synchronize scores and analytics.
 
-The implementation is substantial and its current automated test suites pass. However, the system should not yet be declared complete because two correctness gaps remain and the full workflow has not been acceptance-tested with representative live data and physical OMR sheets.
+The implementation is substantial and its current automated test suites pass. The strict uploaded-material grounding gap identified in the first assessment has now been fixed. However, the system should not yet be declared complete because the printed-exam snapshot risk remains and the full workflow has not been acceptance-tested with representative live data and physical OMR sheets.
 
 ## Requirements Comparison
 
@@ -40,30 +40,33 @@ The implementation is substantial and its current automated test suites pass. Ho
 | Individual scores, class summaries, and item analytics | Implemented | Scan result, exam analytics, item analysis, and attention views exist | Verify with a populated end-to-end dataset |
 | GIFT export for Moodle | Implemented and unit-tested | GIFT generation and parsing tests pass | Import a generated file into the target Moodle installation |
 | XML export for Canvas | Implemented and unit-tested | Canvas/QTI XML generation and parsing tests pass | Import a generated file into the target Canvas installation |
-| Questions strictly grounded in uploaded materials | **Not compliant** | Grounded generation exists, but general-knowledge generation is enabled by default when lesson evidence is insufficient | Disable or remove the knowledge fallback for thesis-compliant operation |
+| Questions strictly grounded in uploaded materials | **Resolved October 15, 2026** | Generation now uses uploaded lesson chunks only; unsupported cells remain unfilled, and historical general-knowledge AI drafts are blocked from approval, reuse, coverage, assembly, export, and the shared bank | Run a representative live-provider acceptance generation after uploading final course materials |
 | All stored data encrypted and restricted appropriately | Partially implemented | Uploaded files and student PII have application-level encryption; production startup requires security declarations | Verify encrypted database/storage volumes, HTTPS, DB TLS, backups, retention, and deployment access |
 | Stable performance as data grows | Not verified | Modular API, worker, database, and vector-index architecture exists | Execute concurrency, queue, database, and large-dataset load tests |
 | Philippine Data Privacy Act compliance | Not fully verifiable from source code | PII protection and access controls exist | Complete deployment, policy, retention, consent, incident-response, and DPO review |
 
-## Completion Blockers
+## Correctness Status
 
-### 1. General-knowledge questions can bypass the strict RAG requirement
+### Resolved: General-knowledge questions could bypass the strict RAG requirement
 
-The specification states that questions must be based only on instructor-uploaded course materials. The current generation flow first attempts material-grounded generation, but when lesson evidence cannot fill a TOS cell, it can generate questions from the model's general knowledge.
+The specification states that questions must be based only on instructor-uploaded course materials. The previous generation flow first attempted material-grounded generation, but could fill an unsupported TOS cell from the model's general knowledge.
 
-Current behavior:
+Correction implemented on October 15, 2026:
 
-- `api/src/worker/handlers/generate.js` calls lesson-only retrieval first.
-- If the requested count is not reached, `knowledge_fallback_enabled` defaults to enabled.
-- These questions are labelled as knowledge-based and require instructor confirmation, but they are still not grounded in uploaded material.
+- Removed general-model-knowledge fallback generation from `api/src/worker/handlers/generate.js`.
+- Unsupported TOS cells now stay unfilled and are reported through `failedSlots` with the missing material coverage.
+- Added a central strict-grounding gate so historical knowledge-based AI drafts cannot be approved, reused, counted toward coverage, assembled into an exam, exported, or exposed in the shared institution bank.
+- Removed the former instructor-confirmation approval path from the API and web review interfaces.
+- Added a regression test proving that historical general-knowledge AI drafts are blocked.
 
-Required correction:
+Verification:
 
-- Disable the knowledge fallback by default for thesis-compliant operation.
-- Preferably remove it from the exam-generation path entirely, or place it behind an explicitly non-compliant experimental mode.
-- Leave unsupported TOS cells unfilled and show the exact missing material coverage to the instructor.
+- API tests: **125 passed, 0 failed**.
+- Web tests: **35 passed, 0 failed**.
+- Web production build: **passed**.
+- Web lint: **passed with pre-existing warnings only**.
 
-### 2. Printed examination content is not fully snapshotted
+### Remaining blocker: Printed examination content is not fully snapshotted
 
 Generated exam sets preserve their question IDs and ordering, including archived prior set versions. However, scanning still loads the current answer, options, and type from the live `questions` table.
 
@@ -91,8 +94,8 @@ The following checks were executed against the local project on October 15, 2026
 
 | Check | Result |
 |---|---|
-| API automated tests | **124 passed, 0 failed** |
-| Web automated tests | **34 passed, 0 failed** |
+| API automated tests | **125 passed, 0 failed** |
+| Web automated tests | **35 passed, 0 failed** |
 | Flutter/mobile automated tests | **11 passed, 0 failed** |
 | Flutter static analysis | **Passed, no issues found** |
 | Web production build | **Passed** |
@@ -143,18 +146,17 @@ Because no completed assessment lifecycle currently exists in the local database
 
 ## Recommended Completion Order
 
-1. Enforce uploaded-material-only generation and disable the general-knowledge fallback.
-2. Snapshot question content and correct answers for every generated exam-set version.
-3. Create a representative acceptance dataset and execute the entire workflow.
-4. Visually verify all generated PDF outputs.
-5. Import generated GIFT and Canvas XML files into the actual target LMS platforms.
-6. Print and scan representative OMR sheets on multiple physical devices.
-7. Run performance and concurrency tests with realistic volumes.
-8. Verify the production security and privacy deployment checklist.
-9. Complete separate all-period blueprint results if that remains an accepted product requirement.
+1. Snapshot question content and correct answers for every generated exam-set version.
+2. Create a representative acceptance dataset and execute the entire workflow.
+3. Visually verify all generated PDF outputs.
+4. Import generated GIFT and Canvas XML files into the actual target LMS platforms.
+5. Print and scan representative OMR sheets on multiple physical devices.
+6. Run performance and concurrency tests with realistic volumes.
+7. Verify the production security and privacy deployment checklist.
+8. Complete separate all-period blueprint results if that remains an accepted product requirement.
 
 ## Final Assessment
 
-Nexam is beyond a prototype: its principal modules are implemented, connected, and covered by passing automated tests. Nevertheless, **it is not yet ready to be declared fully complete or thesis-specification compliant**.
+Nexam is beyond a prototype: its principal modules are implemented, connected, and covered by passing automated tests. The strict uploaded-material grounding mismatch is now resolved. Nevertheless, **it is not yet ready to be declared fully complete**.
 
-Completion should be declared only after the strict grounding mismatch and printed-answer snapshot risk are corrected and the remaining end-to-end, physical-device, LMS, performance, and production-security acceptance checks pass.
+Completion should be declared only after the printed-answer snapshot risk is corrected and the remaining end-to-end, physical-device, LMS, performance, and production-security acceptance checks pass.

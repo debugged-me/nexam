@@ -10,10 +10,9 @@
  *   4. Enqueues a similarity check for each new question.
  *
  * Lesson materials ground answers; the syllabus only plans coverage. When no
- * uploaded lesson supports a cell, the slot is drafted from the model's
- * general knowledge instead — never disguised as grounded: it is labelled
- * `grounding: 'knowledge'`, fact-checked by a different provider, and needs
- * the instructor's explicit confirmation before approval.
+ * uploaded lesson supports a cell, that cell stays unfilled and the job result
+ * explains which material coverage is missing. General model knowledge is
+ * never used as exam-question evidence.
  */
 import { v4 as uuid } from 'uuid';
 import pool from '../../config/db.js';
@@ -28,7 +27,7 @@ import { questionScopeSql } from '../../services/assessmentScope.js';
 import { loadScopeChunks } from '../../services/assessmentScopeStore.js';
 
 import {
-  hash, canonicalDraft, reviewQuestion, reviewKnowledgeQuestion, makeQualityProof, instructionalBlockReason,
+  hash, canonicalDraft, reviewQuestion, makeQualityProof, instructionalBlockReason,
   independentChecks,
 } from '../../services/questionQuality.js';
 import { usableQuestions } from '../../services/questionGrounding.js';
@@ -84,7 +83,6 @@ export default async function generateHandler(job) {
   const failedSlots = [];
   let skippedCells = 0;
   let adoptedCount = 0;
-  let knowledgeCount = 0;
   let droppedInvalid = 0;
   let slotIndex = 0;
   let cancelled = false;
@@ -220,7 +218,6 @@ export default async function generateHandler(job) {
       });
     }
     generatedCount += result.questions.length;
-    knowledgeCount += result.questions.filter((q) => q.meta.grounding === 'knowledge').length;
     // Live streams show the slot's drafts the moment they are stored. They
     // are review-only there — approval still runs every server-side gate.
     if (stored.length) publishJobEvent(job.id, { kind: 'drafts', items: stored });
@@ -239,7 +236,6 @@ export default async function generateHandler(job) {
   const summary = {
     tosId,
     generated: generatedCount,
-    knowledgeDrafted: knowledgeCount,
     adopted: adoptedCount,
     droppedInvalid,
     skippedCells,
@@ -250,7 +246,6 @@ export default async function generateHandler(job) {
   if (cancelled) await markStopped(job.id, summary);
   return summary;
 }
-
 // What each level asks of the learner, for the one guided retry after a
 // reviewer classified a draft at a different level.
 const BLOOM_TASKS = {
@@ -292,12 +287,10 @@ function parseDrafts(text) {
 /**
  * Generate questions for a single (topic, bloom, count) slot.
  *
- * Grounded first: lesson materials retrieved for the cell — never the
+ * Lesson materials are the only permitted source for a cell — never the
  * syllabus, which plans coverage but does not contain answers. Any shortfall
- * is drafted from the model's general knowledge, guided by the syllabus topic
- * and outcomes, fact-checked by a different provider, labelled as such, and
- * approvable only after the instructor confirms the answer
- * (knowledge_fallback_enabled = 0 turns this off).
+ * remains visible in failedSlots so the instructor can upload the missing
+ * lesson material instead of receiving an unsupported question.
  */
 async function generateForSlot(tos, topic, bloom, count, scopedChunks) {
   if (bloom === 'create') return { questions: [], failed: true, noRetry: true, reason: CREATE_REFUSAL };
@@ -331,12 +324,6 @@ async function generateForSlot(tos, topic, bloom, count, scopedChunks) {
     reasons.push(retrieved.length
       ? `No uploaded lesson material is relevant enough to "${label}" (best match ${retrieved[0].score.toFixed(2)} < ${minScore}).`
       : `No uploaded lesson material covers "${label}"; a syllabus plans coverage but does not contain answers.`);
-  }
-
-  if (questions.length < count && (await getNumber('knowledge_fallback_enabled', 1)) !== 0) {
-    const knowledge = await knowledgeDrafts(tos, topic, bloom, count - questions.length, outcomes);
-    take(knowledge);
-    last = { attempt: knowledge, rerun: (feedback) => knowledgeDrafts(tos, topic, bloom, count - questions.length, outcomes, feedback) };
   }
 
   // One guided retry when drafts only missed the cognitive level: tell the
@@ -436,79 +423,5 @@ ${context}
     } catch (err) { dropped++; reasons.push(err.message); }
   }
   if (!drafts.length) reasons.push(`The uploaded lessons do not contain enough substantive evidence for "${topic ? topic.title : 'this topic'}" at the ${bloom} level.`);
-  return { questions, dropped, reasons, bloomMisses, transient: false };
-}
-
-/** Drafts written from general knowledge when no uploaded lesson covers the cell. */
-async function knowledgeDrafts(tos, topic, bloom, count, outcomes, feedback = '') {
-  const course = tos.subject_name || tos.title;
-  const systemPrompt = `You are an expert educational assessment designer writing objective exam questions for a college course. No lesson material was uploaded for this topic, so write from well-established knowledge that standard introductory textbooks in the field agree on. Avoid contested claims, recent statistics, exact figures or dates you are not certain of, and terms specific to one textbook or institution. Never ask about the syllabus, schedule, course policies, outcome labels, teaching activities or assessment tasks. If you are not certain an answer is correct, write fewer questions.`;
-
-  const userPrompt = `Course: ${course}
-Topic: "${topic ? topic.title : 'General'}"
-Learning outcomes for this topic (from the syllabus): ${outcomes.length ? outcomes.join('; ') : 'none stated'}
-
-Write ${count} ${bloom} level (Bloom's Taxonomy: ${BLOOM_DESCRIPTIONS[bloom]}) question(s) that assess the subject matter of this topic.
-
-${TYPE_RULES}
-Identification answers are a short term of a few words, never a sentence or justification. True/false statements must be clearly true or clearly false.
-${feedback}
-
-Return ONLY a JSON array of question objects:
-[
-  {
-    "type": "mcq|true_false|matching|identification",
-    "stem": "The question text",
-    "options": ["A) ...", "B) ...", "C) ...", "D) ..."],
-    "answer": "The correct answer (must match one of the options for mcq, or 'True'/'False' for true_false)",
-    "explanation": "One or two factual sentences explaining why the answer is correct"
-  }
-]`;
-
-  const result = await generate(systemPrompt, userPrompt, { temperature: 0.4, maxTokens: 4096, timeoutMs: 120000 });
-  const drafts = parseDrafts(result.text);
-  if (!drafts) return { questions: [], dropped: 0, transient: true, bloomMisses: [], reasons: ['The AI returned invalid JSON for the knowledge-based draft.'] };
-
-  const meta = {
-    provider: result.keyIndex ? `${result.provider}#${result.keyIndex}` : result.provider,
-    model: result.model,
-    grounding: 'knowledge',
-    chunkIds: [],
-    bloom,
-    topic: topic ? topic.title : null,
-    outcomes,
-    promptHash: hash(systemPrompt + userPrompt),
-    usage: result.usage,
-    scopeKey: tos.scope_key || null,
-  };
-
-  const questions = [];
-  const reasons = [];
-  const bloomMisses = [];
-  let dropped = 0;
-  for (const draft of drafts.slice(0, count)) {
-    delete draft.evidence; // Nothing uploaded was quoted; never present model text as a source.
-    draft.bloom = bloom;
-    draft.topic = topic ? topic.title : null;
-    if (!isValidGeneratedQuestion(draft, null, { requireEvidence: false })) {
-      dropped++; reasons.push('The knowledge-based draft had an invalid format, answer mapping or explanation.'); continue;
-    }
-    const q = canonicalDraft(draft);
-    const contentBlock = instructionalBlockReason(q, []);
-    if (contentBlock) { dropped++; reasons.push(contentBlock); continue; }
-    try {
-      const writer = { provider: result.provider, model: result.model };
-      const reviewed = await reviewKnowledgeQuestion(q, { course, topic: q.topic, outcomes }, generate, { avoidProvider: writer.provider, excludeModels: [`${writer.provider}:${writer.model}`] });
-      if (reviewed.review.actualBloom !== bloom) {
-        bloomMisses.push(reviewed.review.actualBloom || 'unknown');
-        throw new Error(`Bloom mismatch: requested ${bloom}, reviewer classified ${reviewed.review.actualBloom || 'unknown'}. ${reviewed.review.reason || ''}`);
-      }
-      if (reviewed.review.answerCorrect !== true) throw new Error(`The fact-check could not confirm the answer. ${reviewed.review.reason || ''}`);
-      // Two models other than the writer must reach the key without seeing it.
-      const checks = await independentChecks(q, { mode: 'knowledge', writer }, generate);
-      const quality = makeQualityProof(q, [], reviewed.review, reviewed.provider, { mode: 'knowledge', writer, checks });
-      questions.push({ ...q, meta: { ...meta, quality, reviewPromptHash: reviewed.promptHash } });
-    } catch (err) { dropped++; reasons.push(err.message); }
-  }
   return { questions, dropped, reasons, bloomMisses, transient: false };
 }

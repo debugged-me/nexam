@@ -5,7 +5,7 @@ import { isValidGeneratedQuestion } from './generationValidation.js';
 import { parseOptions } from './scoring.js';
 import {
   qualityBlockReason, instructionalBlockReason, makeQualityProof, reviewQuestion, reviewKnowledgeQuestion, groundingMode,
-  independentChecks, writerOf,
+  independentChecks, writerOf, strictMaterialGroundingBlockReason,
 } from './questionQuality.js';
 
 const chunkIdsOf = (question) => {
@@ -48,13 +48,15 @@ async function citedChunks(questions, { withSyllabusFlag = false } = {}) {
 
 /** Shared fail-closed gate for approval, reuse, assembly and export. */
 export async function groundingBlockReason(question) {
+  const strictBlock = strictMaterialGroundingBlockReason(question);
+  if (strictBlock) return strictBlock;
   const lookup = await citedChunks([question]);
   return qualityBlockReason(question, lookup(question));
 }
 
 export async function usableQuestions(questions) {
   const lookup = await citedChunks(questions);
-  return questions.filter((q) => !qualityBlockReason(q, lookup(q)));
+  return questions.filter((q) => !strictMaterialGroundingBlockReason(q) && !qualityBlockReason(q, lookup(q)));
 }
 
 /**
@@ -64,6 +66,8 @@ export async function usableQuestions(questions) {
  * Returns { passed, reason?, review? }.
  */
 export async function recheckQuestion(question) {
+  const strictBlock = strictMaterialGroundingBlockReason(question);
+  if (strictBlock) return { passed: false, reason: strictBlock };
   const meta = readJson(question.generation_meta, {}) || {};
   const mode = groundingMode(question);
   const draft = { ...question, options: parseOptions(question.options) };

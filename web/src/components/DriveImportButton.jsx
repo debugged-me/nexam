@@ -120,23 +120,42 @@ export default function DriveImportButton({ onFiles, disabled = false }) {
         .enableFeature(window.google.picker.Feature.MULTISELECT_ENABLED)
         .setTitle('Import course materials')
         .setCallback(async (data) => {
-          if (data.action !== window.google.picker.Action.PICKED) return;
+          document.body.classList.remove('mat-drive-picking');
+          if (data.action !== window.google.picker.Action.PICKED) { setBusy(false); return; }
+          const docs = data.docs || [];
+          const liveId = 'drive-import';
+          if (docs.length) toast.live(liveId, `Importing ${docs.length} file${docs.length > 1 ? 's' : ''} from Drive…`);
           try {
-            const files = await Promise.all((data.docs || []).map((d) => fetchDriveFile(d, token)));
+            const files = await Promise.all(docs.map((d) => fetchDriveFile(d, token)));
             if (files.length) onFiles(files);
+            toast.settle(liveId, `Imported ${files.length} file${files.length > 1 ? 's' : ''} from Drive.`);
           } catch (err) {
+            toast.dismiss(liveId);
             toast.error(err?.message || 'Could not download from Drive.');
+          } finally {
+            setBusy(false);
           }
         })
         .build();
       // Google's default dialog is small; give it most of the viewport.
+      // Centering is done in CSS (materials.css .picker) — the picker's own
+      // placement hugs the page top and relocate() is unreliable.
       picker.setSize?.(Math.min(1080, Math.round(window.innerWidth * 0.9)),
                        Math.min(680, Math.round(window.innerHeight * 0.85)));
+      // Hide our upload modal while the picker is up — two stacked dialogs
+      // read badly. It stays mounted, so queued files survive the trip.
+      document.body.classList.add('mat-drive-picking');
       picker.setVisible(true);
-    } catch {
-      // Popup closed or consent denied — no toast, the user can retry.
-    } finally {
+    } catch (err) {
+      // popup_closed = deliberate cancel, stay silent; anything else surfaces.
+      document.body.classList.remove('mat-drive-picking');
       setBusy(false);
+      if (err?.type !== 'popup_closed' && err?.error !== 'popup_closed') {
+        console.error('[drive-import]', err);
+        toast.error(err?.type === 'popup_failed_to_open'
+          ? 'Popup blocked — allow popups for this site and retry.'
+          : (err?.message || 'Could not open Google Drive.'));
+      }
     }
   }
 
@@ -156,7 +175,7 @@ export default function DriveImportButton({ onFiles, disabled = false }) {
             <path fill="#ffba00" d="m73.4 26.5-12.7-22c-.8-1.4-1.95-2.5-3.3-3.3l-13.75 23.8 15.65 27.15h27.55c0-1.55-.4-3.1-1.2-4.5z" />
           </svg>
         )}
-        {busy ? 'Opening Drive…' : 'Import from Google Drive'}
+        {busy ? 'Importing…' : 'Import from Google Drive'}
       </button>
     </div>
   );

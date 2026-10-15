@@ -468,3 +468,13 @@
 .picker {
   z-index: 200000 !important;
 }
+
+/* NOTE: the picker container is a full-viewport element — do NOT try to
+   center it with transforms; that pushed the whole dialog off-screen.
+   Google's top-anchored placement is the picker's designed position. */
+
+/* While the picker is up, hide our own modal overlay — stacked dialogs
+   with the upload footer peeking out read as a broken layout. */
+body.mat-drive-picking .modal-overlay {
+  visibility: hidden;
+}

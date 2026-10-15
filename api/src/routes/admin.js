@@ -415,6 +415,7 @@ const EDITABLE_KEYS = [
   'google_client_secret',
   'google_picker_api_key',
   'google_app_id',
+  'youtube_api_key',
   'gemini_api_key',
   'gemini_model',
   'gemini_fallback_models',
@@ -448,6 +449,7 @@ router.get('/settings', requireSuperadmin, async (req, res, next) => {
     const googleClientSecret = await getSetting('google_client_secret', env.google.clientSecret);
     const googlePickerKey = await getSetting('google_picker_api_key', env.google.pickerApiKey);
     const googleAppId = await getSetting('google_app_id', env.google.appId);
+    const youtubeKey = await getSetting('youtube_api_key', env.youtube.apiKey);
     const cfg = await getAiConfig();
     // Which pool keys the page can edit: settings-held keys, or ones always
     // appended from api/.env (removable only there).
@@ -467,6 +469,9 @@ router.get('/settings', requireSuperadmin, async (req, res, next) => {
         // Drive picker config — both public-by-design values.
         pickerApiKey: googlePickerKey || '',
         appId: googleAppId || '',
+        // Server-side YouTube Data API key — secret, never echoed back.
+        youtubeApiKeySet: Boolean(youtubeKey),
+        youtubeApiKeyMasked: mask(youtubeKey),
       },
       recaptcha: {
         siteKey,

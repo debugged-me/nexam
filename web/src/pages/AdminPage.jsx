@@ -1716,6 +1716,7 @@ function SettingsTab({ toast }) {
           google_client_secret: '',
           google_picker_api_key: d.google?.pickerApiKey || '',
           google_app_id: d.google?.appId || '',
+          youtube_api_key: '',
           gemini_model: d.ai?.geminiModel || '',
           gemini_fallback_models: d.ai?.geminiFallbackModels || '',
           gemini_embedding_model: d.ai?.geminiEmbeddingModel || '',
@@ -1910,6 +1911,11 @@ function SettingsTab({ toast }) {
               {field('google_app_id', 'GCP project number', {
                 placeholder: '831761906512',
                 hint: 'The numeric project number (Project settings in Google Cloud Console) — the Drive picker needs it as the app ID.',
+              })}
+              {field('youtube_api_key', 'YouTube Data API key', {
+                type: 'password',
+                placeholder: data.google?.youtubeApiKeyMasked || 'Not configured',
+                hint: 'Server-side key for YouTube video titles/descriptions on material ingest — Cloud Console → Credentials → API key restricted to YouTube Data API v3, no referrer restriction. Leave blank to keep.',
               })}
           </SettingsCard>
 

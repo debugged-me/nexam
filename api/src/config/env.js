@@ -130,6 +130,14 @@ export const env = {
     appId: process.env.GOOGLE_APP_ID || '',
   },
 
+  // YouTube Data API v3 — server-side key for video metadata (title,
+  // description, caption availability). Unlike the picker key this is a
+  // secret: no referrer restrictions, never sent to the browser. The DB
+  // setting `youtube_api_key` overrides it at runtime.
+  youtube: {
+    apiKey: process.env.YOUTUBE_API_KEY || '',
+  },
+
   // SMTP used by the email service for verification and password-reset codes.
   smtp: {
     host: process.env.NEXAM_SMTP_HOST || 'mail.mati.gov.ph',

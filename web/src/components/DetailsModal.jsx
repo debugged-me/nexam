@@ -7,13 +7,16 @@
  *   'meta'  — pill row under the header (status, subject, format…)
  *   'stat'  — numeric tiles in a KPI strip
  *   'bloom' — weights object rendered as a segmented bar + legend
+ *   'video' — 16:9 video area. f.value = embed URL → inline iframe; with
+ *     f.onPlay it renders a thumbnail (f.value = poster URL) that hands off
+ *     to a caller-owned player, so playback can outlive the sheet.
  *   'block' — long text rendered as a scrollable preformatted panel
  * Anything without `kind` stays a label/value row.
  * Sections stagger in behind the sheet slide so the panel lands composed
  * rather than popping fully-formed.
  */
 import { motion, useReducedMotion } from 'motion/react';
-import { ScrollText } from 'lucide-react';
+import { ExternalLink, Play, ScrollText } from 'lucide-react';
 import Modal from './Modal.jsx';
 import { EASE_ENTER } from '../lib/motion.js';
 import { BLOOM_LABELS, BLOOM_ORDER } from '../lib/insights.js';
@@ -38,6 +41,7 @@ export default function DetailsModal({ open, title, subtitle, icon, accent, fiel
   const chips = rows.filter((f) => f.kind === 'meta');
   const stats = rows.filter((f) => f.kind === 'stat');
   const blooms = rows.filter((f) => f.kind === 'bloom');
+  const videos = rows.filter((f) => f.kind === 'video');
   const blocks = rows.filter((f) => f.kind === 'block');
   const rest = rows.filter((f) => !f.kind);
 
@@ -97,6 +101,37 @@ export default function DetailsModal({ open, title, subtitle, icon, accent, fiel
       </dl>
     );
   }
+  videos.forEach((f) => {
+    sections.push(
+      <div className="detail-video" key={f.label}>
+        <div className="detail-block-label">
+          {f.label}
+          {f.playing && <span className="detail-block-badge">Playing</span>}
+        </div>
+        {f.onPlay ? (
+          <button type="button" className="detail-video-poster" onClick={f.onPlay}
+            aria-label={f.playing ? `${f.label} — playing in mini player` : `Play ${f.label}`}>
+            <img src={f.value} alt="" loading="lazy" />
+            <span className="detail-video-play" aria-hidden="true"><Play size={22} fill="currentColor" /></span>
+          </button>
+        ) : (
+          <div className="detail-video-frame">
+            <iframe
+              src={f.value}
+              title={f.label}
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+              allowFullScreen
+            />
+          </div>
+        )}
+        {f.href && (
+          <a className="detail-video-link" href={f.href} target="_blank" rel="noreferrer">
+            <ExternalLink size={12} /> Open on YouTube
+          </a>
+        )}
+      </div>
+    );
+  });
   blocks.forEach((f) => {
     sections.push(
       <div className="detail-block" key={f.label} style={f.accent ? { '--ba': f.accent } : undefined}>

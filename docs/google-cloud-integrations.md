@@ -71,12 +71,23 @@ system. Check items off as they ship. Effort = rough relative size
   - Console: Classroom API + OAuth scopes + Google app verification.
   - Highest institutional-adoption value; most compliance overhead.
 
-- [ ] **YouTube Data API v3** — effort: S
-  - Replace/augment `youtube-transcript` with the official API: reliable
-    captions, video title/description (auto-name materials), and chapters
-    (map to TOS topics).
-  - Console: enable YouTube Data API v3 + one API key. Keep
-    `youtube-transcript` as fallback for caption-less videos.
+- [x] **YouTube Data API v3** — effort: S — **live**
+  - `services/youtube.js`: `videos.list` (snippet + contentDetails) gives
+    title/channel/description/duration/caption-availability. Extraction
+    (`extractYouTube`) now writes "Title / Channel / Description /
+    Transcript" into material content; real "deleted or private" errors
+    replace the scraper's generic failure; caption-less videos with a
+    real description (≥200 chars) still ingest.
+  - API: `GET /api/materials/youtube-info?url=` (authed) powers the
+    upload-dialog preview + title prefill; untitled YouTube uploads are
+    auto-named server-side.
+  - Settings: `youtube_api_key` (secret, superadmin Google card).
+    Env fallback: `YOUTUBE_API_KEY`. **Key must have NO HTTP-referrer
+    restriction** — server-side calls send no referer (separate key from
+    the picker key for that reason).
+  - `youtube-transcript` still fetches the captions themselves — the
+    official API cannot download captions of videos the caller does not
+    own.
 
 - [ ] **Google Sheets export** — effort: M
   - Export exam results, item analysis, and scan archives to a shared Sheet

@@ -348,6 +348,92 @@
 .mat-queue-clear:disabled { opacity: .5; cursor: not-allowed; }
 
 .mat-queue-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+
+/* YouTube metadata preview in the URL form */
+.mat-yt-preview {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 12px;
+  margin: -4px 0 12px;
+  border: 1px solid var(--red-100, var(--line));
+  border-radius: var(--radius-lg);
+  background: var(--red-50, var(--surface-2));
+}
+.mat-yt-preview.is-loading { border-color: var(--line); background: var(--surface-2); }
+.mat-yt-preview.is-error { border-color: var(--amber-100, var(--line)); background: var(--amber-50, var(--surface-2)); }
+.mat-yt-icon { flex: none; margin-top: 2px; color: #f03; }
+.mat-yt-preview.is-loading .mat-yt-icon,
+.mat-yt-preview.is-error .mat-yt-icon { color: var(--ink-3); }
+.mat-yt-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.mat-yt-body strong {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--ink);
+  line-height: 1.35;
+}
+.mat-yt-body small { font-size: var(--text-xs); color: var(--ink-3); }
+
+/* Floating YouTube mini player — survives the details sheet closing because
+   it lives at page level, never inside the modal tree. */
+.yt-mini {
+  position: fixed;
+  right: 20px;
+  bottom: 20px;
+  width: min(380px, calc(100vw - 32px));
+  z-index: 30000; /* above modals (~10k) — a player that hides defeats the point */
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  box-shadow: var(--shadow-md);
+  overflow: hidden;
+}
+.yt-mini-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 8px 7px 12px;
+}
+.yt-mini-icon { flex: none; color: #f03; }
+.yt-mini-title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--text-xs);
+  font-weight: 600;
+  color: var(--ink);
+}
+.yt-mini-ext,
+.yt-mini-close {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: 0;
+  border-radius: var(--radius-xs);
+  background: none;
+  color: var(--ink-3);
+  cursor: pointer;
+}
+.yt-mini-ext:hover,
+.yt-mini-close:hover { background: var(--surface-2); color: var(--ink); }
+.yt-mini-body {
+  position: relative;
+  aspect-ratio: 16 / 9;
+  background: #000;
+}
+.yt-mini-body iframe {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border: 0;
+}
+
 .mat-queue-item {
   display: flex;
   align-items: center;

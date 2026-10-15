@@ -24,6 +24,7 @@ import { assertSafePublicUrl } from '../services/safeUrl.js';
 import { encryptFileAtRest, readProtectedFile } from '../services/storageCrypto.js';
 import { logAudit } from '../services/audit.js';
 import { getSetting } from '../services/settings.js';
+import { fetchVideoInfo, youtubeVideoId } from '../services/youtube.js';
 import env from '../config/env.js';
 
 const router = Router();
@@ -96,6 +97,38 @@ router.get('/drive-config', requireAuth, async (req, res, next) => {
   }
 });
 
+/**
+ * GET /api/materials/youtube-info?url=…
+ * Video metadata for the upload dialog: prefills the title and previews what
+ * will be ingested. `{ enabled: false }` when no Data API key is configured —
+ * the UI just skips the lookup and the video still works via the scraper.
+ */
+router.get('/youtube-info', requireAuth, async (req, res, next) => {
+  try {
+    const videoId = youtubeVideoId(req.query.url);
+    if (!videoId) return res.status(400).json({ error: 'Not a YouTube URL.' });
+    try {
+      const info = await fetchVideoInfo(videoId);
+      if (!info) return res.json({ enabled: false });
+      res.json({
+        enabled: true,
+        videoId: info.id,
+        title: info.title,
+        channelTitle: info.channelTitle,
+        durationSec: info.durationSec,
+        hasCaptions: info.hasCaptions,
+      });
+    } catch (err) {
+      if (err.message === 'youtube_not_found') {
+        return res.status(404).json({ enabled: true, error: 'Video unavailable — deleted, private, or wrong link.' });
+      }
+      return res.json({ enabled: true, error: 'Could not reach YouTube — metadata skipped.' });
+    }
+  } catch (err) {
+    next(err);
+  }
+});
+
 /** POST /api/materials — upload a file or submit a URL/YouTube/text. */
 router.post('/', requireAuth, rateLimit({ name: 'material-upload', max: 15, windowSec: 300 }), upload.single('file'), async (req, res, next) => {
   try {
@@ -131,6 +164,14 @@ router.post('/', requireAuth, rateLimit({ name: 'material-upload', max: 15, wind
       await assertSafePublicUrl(url);
       if (url.match(/(?:youtube\.com|youtu\.be)/)) {
         sourceType = 'youtube';
+        // Auto-title from the Data API when configured — the uploader's
+        // "Untitled material" default becomes the real video name.
+        if (!title) {
+          try {
+            const info = await fetchVideoInfo(youtubeVideoId(url));
+            if (info?.title) materialTitle = info.title;
+          } catch { /* metadata is best-effort; extraction reports real errors */ }
+        }
       } else {
         sourceType = 'url';
       }
@@ -189,7 +230,7 @@ router.get('/', requireAuth, async (req, res, next) => {
   try {
     const { subject_id } = req.query;
     const [rows] = await pool.query(
-      `SELECT id, subject_id, title, source_type, status, error, chunk_count,
+      `SELECT id, subject_id, title, source_type, url, status, error, chunk_count,
               is_syllabus, created_at, processed_at
        FROM materials
        WHERE created_by = :userId

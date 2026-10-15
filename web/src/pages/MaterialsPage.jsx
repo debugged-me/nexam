@@ -20,7 +20,7 @@ import { useSearchParams } from 'react-router-dom';
 import {
   Upload, Link2, Video, FileText, Trash2, RotateCw, FileStack, Sparkles,
   BookOpen, Loader2, CheckCircle2, AlertCircle, RefreshCw, X, Copy, Ellipsis, Info,
-  Download, Search, ListFilter, Layers,
+  Download, Search, ListFilter, Layers, ExternalLink,
 } from 'lucide-react';
 import { useToast } from '../components/Toast.jsx';
 import { useContextMenu, useCopyText } from '../components/ContextMenu.jsx';
@@ -81,6 +81,21 @@ function formatSize(bytes) {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
+/** 11-char video ID out of any common YouTube URL shape (embeds, details view). */
+function youtubeIdOf(url) {
+  const m = String(url || '').match(/(?:youtube\.com\/(?:watch\?v=|embed\/|v\/|shorts\/)|youtu\.be\/)([\w-]{11})/);
+  return m ? m[1] : null;
+}
+
+/** Seconds → "12:34" or "1:02:03". */
+function formatDuration(sec) {
+  const h = Math.floor(sec / 3600);
+  const m = Math.floor((sec % 3600) / 60);
+  const s = sec % 60;
+  const mm = h ? String(m).padStart(2, '0') : String(m);
+  return `${h ? `${h}:` : ''}${mm}:${String(s).padStart(2, '0')}`;
+}
+
 /** sessionStorage can throw (private mode, blocked storage) — never let it break the page. */
 function recallSubject() {
   try { return sessionStorage.getItem(SUBJECT_MEMORY_KEY) || ''; } catch { return ''; }
@@ -108,6 +123,7 @@ export default function MaterialsPage() {
   const [uploadMode, setUploadMode] = useState('file'); // file | url | text
   const [uploading, setUploading] = useState(false);
   const [form, setForm] = useState({ subject_id: '', title: '', url: '', content: '', is_syllabus: false });
+  const [ytInfo, setYtInfo] = useState(null);        // null | 'loading' | {…} | {error}
   const [dragOver, setDragOver] = useState(false);   // inside the modal drop zone
   const [pageDrag, setPageDrag] = useState(false);   // anywhere on the page
   const [queue, setQueue] = useState([]);
@@ -116,11 +132,43 @@ export default function MaterialsPage() {
   const [viewing, setViewing] = useState(null);
   const [viewContent, setViewContent] = useState(null);
   const [reader, setReader] = useState(null);
+  // Page-level mini player — the iframe must never live inside the details
+  // sheet or closing it would kill playback (iframe remount = restart).
+  const [player, setPlayer] = useState(null); // { videoId, title, url }
   const [query, setQuery] = useState('');
   const [subjectFilter, setSubjectFilter] = useState(ALL);
   const [statusFilter, setStatusFilter] = useState(ALL);
   const fileInput = useRef(null);
   const dragDepth = useRef(0);
+  const autoTitleRef = useRef('');                   // last auto-filled title — only replace if untouched
+
+  // Debounced YouTube metadata lookup — prefills the title field and shows
+  // what will be ingested. No Data API key server-side → enabled:false and
+  // nothing renders (the scraper still handles ingest).
+  useEffect(() => {
+    const url = form.url.trim();
+    const isYt = /(?:youtube\.com|youtu\.be)\//.test(url);
+    const t = setTimeout(() => {
+      if (!isYt) {
+        setYtInfo(null);
+        setForm((f) => (f.title === autoTitleRef.current ? { ...f, title: '' } : f));
+        autoTitleRef.current = '';
+        return;
+      }
+      setYtInfo('loading');
+      api.get(`/materials/youtube-info?url=${encodeURIComponent(url)}`)
+        .then((d) => {
+          if (!d.enabled) { setYtInfo(null); return; }
+          setYtInfo(d.error ? { error: d.error } : d);
+          if (d.title) {
+            setForm((f) => (f.title && f.title !== autoTitleRef.current) ? f : { ...f, title: d.title });
+            autoTitleRef.current = d.title;
+          }
+        })
+        .catch((e) => setYtInfo({ error: e instanceof ApiError ? e.message : 'Could not fetch video info.' }));
+    }, 450);
+    return () => clearTimeout(t);
+  }, [form.url]);
 
   const load = useCallback(() => {
     api.get('/materials')
@@ -840,6 +888,35 @@ export default function MaterialsPage() {
                 value={form.url} required
                 onChange={(e) => setForm({ ...form, url: e.target.value })} />
             </div>
+            {ytInfo && ytInfo !== 'loading' && (
+              <div className={`mat-yt-preview${ytInfo.error ? ' is-error' : ''}`}>
+                <Video size={15} className="mat-yt-icon" />
+                <span className="mat-yt-body">
+                  {ytInfo.error ? ytInfo.error : (
+                    <>
+                      <strong>{ytInfo.title}</strong>
+                      <small>
+                        {ytInfo.channelTitle}
+                        {ytInfo.durationSec != null && ` · ${formatDuration(ytInfo.durationSec)}`}
+                        {ytInfo.hasCaptions === false && ' · no captions — description will be ingested'}
+                      </small>
+                    </>
+                  )}
+                </span>
+              </div>
+            )}
+            {ytInfo === 'loading' && (
+              <div className="mat-yt-preview is-loading">
+                <Loader2 size={15} className="mat-spin mat-yt-icon" />
+                <span className="mat-yt-body"><small>Fetching video info…</small></span>
+              </div>
+            )}
+            <div className="form-group">
+              <label className="form-label">Title (optional)</label>
+              <input className="form-control" placeholder="Defaults to the video or page title"
+                value={form.title}
+                onChange={(e) => setForm({ ...form, title: e.target.value })} />
+            </div>
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 16 }}>
               <button type="button" className="btn" onClick={() => setUploadOpen(false)}>Cancel</button>
               <button type="submit" className="btn btn-primary" disabled={uploading}>
@@ -883,6 +960,18 @@ export default function MaterialsPage() {
           { label: 'Syllabus', value: Number(viewing.is_syllabus) ? 'Yes' : 'No' },
           { label: 'Added', value: fmtDate(viewing.created_at) },
           { label: 'Processed', value: fmtDate(viewing.processed_at) },
+          viewing.source_type === 'youtube' && youtubeIdOf(viewing.url) ? {
+            label: 'Video',
+            kind: 'video',
+            value: `https://i.ytimg.com/vi/${youtubeIdOf(viewing.url)}/hqdefault.jpg`,
+            href: viewing.url,
+            playing: player?.videoId === youtubeIdOf(viewing.url),
+            onPlay: () => setPlayer({
+              videoId: youtubeIdOf(viewing.url),
+              title: viewing.title,
+              url: viewing.url,
+            }),
+          } : null,
           viewing.status === 'processed' ? {
             label: 'Extracted text',
             kind: 'block',
@@ -924,6 +1013,31 @@ export default function MaterialsPage() {
         )}
       </Modal>
       {menuEl}
+
+      {player && (
+        <div className="yt-mini" role="dialog" aria-label={`Playing ${player.title || 'video'}`}>
+          <div className="yt-mini-head">
+            <Video size={13} className="yt-mini-icon" />
+            <span className="yt-mini-title" title={player.title}>{player.title || 'YouTube video'}</span>
+            <a className="yt-mini-ext" href={player.url} target="_blank" rel="noreferrer"
+              title="Open on YouTube" aria-label="Open on YouTube">
+              <ExternalLink size={13} />
+            </a>
+            <button type="button" className="yt-mini-close" onClick={() => setPlayer(null)}
+              aria-label="Close video">
+              <X size={14} />
+            </button>
+          </div>
+          <div className="yt-mini-body">
+            <iframe
+              src={`https://www.youtube-nocookie.com/embed/${player.videoId}?autoplay=1&rel=0`}
+              title={player.title || 'YouTube video'}
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+              allowFullScreen
+            />
+          </div>
+        </div>
+      )}
     </AppShell>
   );
 }

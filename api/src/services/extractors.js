@@ -18,6 +18,7 @@ import { createRequire } from 'module';
 import mammoth from 'mammoth';
 import * as cheerio from 'cheerio';
 import { YoutubeTranscript } from 'youtube-transcript';
+import { fetchVideoInfo, youtubeVideoId } from './youtube.js';
 import { safePublicFetch } from './safeUrl.js';
 import { readProtectedFile } from './storageCrypto.js';
 
@@ -246,25 +247,45 @@ async function extractUrl(url) {
   return text;
 }
 
-/** Extract transcript from a YouTube video. */
+/** Extract transcript from a YouTube video, enriched with Data API metadata. */
 async function extractYouTube(url) {
-  // Parse video ID from various URL formats
-  const match = url.match(/(?:youtube\.com\/(?:watch\?v=|embed\/|v\/)|youtu\.be\/)([\w-]{11})/);
-  if (!match) throw new Error('Invalid YouTube URL. Could not extract video ID.');
-  const videoId = match[1];
+  const videoId = youtubeVideoId(url);
+  if (!videoId) throw new Error('Invalid YouTube URL. Could not extract video ID.');
 
+  // Official metadata when a Data API key is configured — gives real
+  // not-found/private errors instead of the scraper's generic failure.
+  let info = null;
+  try {
+    info = await fetchVideoInfo(videoId);
+  } catch (err) {
+    if (err.message === 'youtube_not_found') {
+      throw new Error('This YouTube video is unavailable — it may be deleted, private, or the link is wrong.');
+    }
+    // Key/API trouble should not block the transcript scrape.
+  }
+
+  let text = '';
   try {
     const transcript = await YoutubeTranscript.fetchTranscript(videoId);
-    if (!transcript || !transcript.length) {
-      throw new Error('No captions or transcript available for this video (see scope limitations).');
+    if (transcript?.length) {
+      text = transcript.map((t) => t.text).join(' ').replace(/\s+/g, ' ').trim();
     }
-    const text = transcript.map((t) => t.text).join(' ').replace(/\s+/g, ' ').trim();
-    if (!text) throw new Error('Transcript was empty.');
-    return text;
-  } catch (err) {
-    if (err.message.includes('scope limitations')) throw err;
+  } catch { /* handled below — caption-less videos still get metadata */ }
+
+  const description = (info?.description || '').trim().slice(0, 2000);
+  if (!text && description.length < 200) {
     throw new Error('No captions or transcript available for this video (see scope limitations).');
   }
+
+  // Ground the material on everything the API knows: title/channel give the
+  // chunks context, the description often holds the lecture outline. Videos
+  // without captions but with a real description still become usable.
+  const parts = [];
+  if (info?.title) parts.push(`Title: ${info.title}`);
+  if (info?.channelTitle) parts.push(`Channel: ${info.channelTitle}`);
+  if (description) parts.push(`Description:\n${description}`);
+  if (text) parts.push(`Transcript:\n${text}`);
+  return parts.join('\n\n');
 }
 
 /** Passthrough for raw text typed by the instructor. */

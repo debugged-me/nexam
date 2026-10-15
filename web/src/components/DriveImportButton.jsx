@@ -2,8 +2,10 @@
  * DriveImportButton — "Import from Google Drive" for the materials uploader.
  *
  * Flow (all client-side; the server only hands out public config):
- *   1. GET /api/materials/drive-config → { enabled, clientId, apiKey, appId }
- *   2. GIS token client (scope drive.file) → short-lived access token
+ *   1. GET /api/materials/drive-config → { enabled, clientId, apiKey, appId, boundEmail }
+ *   2. GIS token client (scope drive.file) → short-lived access token;
+ *      boundEmail is enforced — a token for another account is revoked
+ *      and the user is sent to Account settings to rebind.
  *   3. Google Picker filtered to the types the material pipeline accepts
  *      (pdf/docx/pptx/txt/md + Google Docs/Sheets/Slides)
  *   4. Picked docs are fetched with the access token — regular files via
@@ -13,12 +15,11 @@
  * drive.file is non-sensitive: per-file access granted by the picker itself —
  * no verification, no unverified-app screen, no user cap.
  */
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Loader2 } from 'lucide-react';
 import api from '../lib/api.js';
+import { loadGsi, requestDriveToken, fetchDriveUser, revokeToken } from '../lib/googleDrive.js';
 import { useToast } from './Toast.jsx';
-
-const DRIVE_SCOPE = 'https://www.googleapis.com/auth/drive.file';
 const MAX_BYTES = 50 * 1024 * 1024; // matches the server upload cap
 
 // MIME types the material pipeline can extract + Google-native types we
@@ -37,23 +38,6 @@ const ACCEPTED_MIMES = [
 // Google-native docs aren't downloadable — they must be exported to a real
 // MIME. PDF keeps the layout and extracts well.
 const EXPORT_MIME = 'application/pdf';
-
-let gsiLoader = null;
-function loadGsi() {
-  if (!gsiLoader) {
-    gsiLoader = new Promise((resolve, reject) => {
-      if (window.google?.accounts?.oauth2) return resolve();
-      const s = document.createElement('script');
-      s.src = 'https://accounts.google.com/gsi/client';
-      s.async = true;
-      s.defer = true;
-      s.onload = () => (window.google?.accounts?.oauth2 ? resolve() : reject(new Error('GIS failed to load')));
-      s.onerror = () => reject(new Error('Google sign-in failed to load'));
-      document.head.appendChild(s);
-    });
-  }
-  return gsiLoader;
-}
 
 let gapiLoader = null;
 function loadPicker() {
@@ -93,7 +77,6 @@ async function fetchDriveFile(doc, token) {
 
 export default function DriveImportButton({ onFiles, disabled = false }) {
   const toast = useToast();
-  const tokenClient = useRef(null);
   const [config, setConfig] = useState(null); // null = still loading / disabled
   const [busy, setBusy] = useState(false);
 
@@ -110,25 +93,18 @@ export default function DriveImportButton({ onFiles, disabled = false }) {
     try {
       await Promise.all([loadGsi(), loadPicker()]);
 
-      const token = await new Promise((resolve, reject) => {
-        let retried = false;
-        tokenClient.current = window.google.accounts.oauth2.initTokenClient({
-          client_id: config.clientId,
-          scope: DRIVE_SCOPE,
-          callback: (res) => (res?.access_token ? resolve(res.access_token) : reject(new Error(res?.error || 'No token'))),
-          error_callback: (err) => {
-            // prompt:'' fails silently before the first consent for this
-            // scope — retry once with the real consent prompt, then give up.
-            if (!retried && err?.type !== 'popup_closed') {
-              retried = true;
-              tokenClient.current.requestAccessToken({ prompt: 'consent' });
-              return;
-            }
-            reject(err);
-          },
-        });
-        tokenClient.current.requestAccessToken({ prompt: '' });
-      });
+      const token = await requestDriveToken(config.clientId, { hint: config.boundEmail });
+
+      // Enforce the connected account: if the token belongs to a different
+      // Google account, revoke it and point the user at Account settings.
+      if (config.boundEmail) {
+        const driveUser = await fetchDriveUser(token);
+        if (driveUser.emailAddress?.toLowerCase() !== config.boundEmail.toLowerCase()) {
+          revokeToken(token);
+          toast.error(`Drive import is connected to ${config.boundEmail} — update it in Account settings to use another account.`);
+          return;
+        }
+      }
 
       const view = new window.google.picker.DocsView(window.google.picker.ViewId.DOCS)
         .setMimeTypes(ACCEPTED_MIMES)

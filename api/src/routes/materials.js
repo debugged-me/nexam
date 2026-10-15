@@ -82,7 +82,15 @@ router.get('/drive-config', requireAuth, async (req, res, next) => {
     const clientId = String(await getSetting('google_client_id', env.google.clientId) || '').trim();
     const apiKey = String(await getSetting('google_picker_api_key', env.google.pickerApiKey) || '').trim();
     const appId = String(await getSetting('google_app_id', env.google.appId) || '').trim();
-    res.json({ enabled: Boolean(clientId && apiKey && appId), clientId, apiKey, appId });
+    const [rows] = await pool.query(
+      `SELECT google_drive_email FROM users WHERE id = :id LIMIT 1`,
+      { id: req.user.id }
+    );
+    res.json({
+      enabled: Boolean(clientId && apiKey && appId),
+      clientId, apiKey, appId,
+      boundEmail: rows[0]?.google_drive_email || null,
+    });
   } catch (err) {
     next(err);
   }

@@ -13,7 +13,9 @@ import { useAuth } from '../features/auth/AuthContext.jsx';
 import UserAvatar from '../components/UserAvatar.jsx';
 import AvatarPickerModal from '../components/AvatarPickerModal.jsx';
 import { useLetterheadSrc, useLetterheadFootSrc } from '../lib/useLetterheadSrc.js';
-import { Lock, Mail, Check, Save, Eye, EyeOff, Camera, Trash2, Palette, ShieldCheck, ScrollText, ArrowUpRight } from 'lucide-react';
+import { Mail, Check, Save, Eye, EyeOff, Camera, Trash2, Palette, ShieldCheck, ScrollText, ArrowUpRight, Loader2, Unlink, Pencil, KeyRound, ChevronDown } from 'lucide-react';
+import { loadGsi, requestDriveToken, fetchDriveUser } from '../lib/googleDrive.js';
+import Modal from '../components/Modal.jsx';
 
 function nameFormFrom(user) {
   return {
@@ -28,7 +30,8 @@ export default function AccountPage() {
   const { refreshUser } = useAuth();
   const toast = useToast();
   const [profile, setProfile] = useState(() => api.peek('/auth/me')?.user ?? null);
-  const [editingName, setEditingName] = useState(false);
+  const [profileOpen, setProfileOpen] = useState(false);
+  const [pwOpen, setPwOpen] = useState(false);
   const [nameForm, setNameForm] = useState(() => nameFormFrom(api.peek('/auth/me')?.user));
   const [savingName, setSavingName] = useState(false);
   const [pwForm, setPwForm] = useState({ current_password: '', new_password: '', confirm: '' });
@@ -37,6 +40,9 @@ export default function AccountPage() {
   const [photoBusy, setPhotoBusy] = useState(false);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [lhBusy, setLhBusy] = useState(false);
+  const [lhOpen, setLhOpen] = useState(false); // always starts collapsed
+  const [driveCfg, setDriveCfg] = useState(null); // null until loaded / feature off
+  const [driveBusy, setDriveBusy] = useState(false);
   const lhSrc = useLetterheadSrc(profile);
   const lhFootSrc = useLetterheadFootSrc(profile);
 
@@ -128,7 +134,40 @@ export default function AccountPage() {
         setNameForm(nameFormFrom(data.user));
       })
       .catch((err) => toast.error(err.message || 'Could not load profile.'));
+    api.get('/materials/drive-config')
+      .then((d) => { if (d?.enabled) setDriveCfg(d); })
+      .catch(() => {});
   }, [toast]);
+
+  async function handleDriveConnect() {
+    setDriveBusy(true);
+    try {
+      await loadGsi();
+      const token = await requestDriveToken(driveCfg.clientId, { prompt: 'consent' });
+      const gUser = await fetchDriveUser(token);
+      if (!gUser.emailAddress) throw new Error('Could not read the Google account.');
+      await api.put('/auth/me/drive-account', { email: gUser.emailAddress });
+      setProfile((p) => (p ? { ...p, google_drive_email: gUser.emailAddress } : p));
+      toast.success(`Connected ${gUser.emailAddress} — imports will use this account.`);
+    } catch (err) {
+      if (err?.type !== 'popup_closed') toast.error(err?.message || 'Could not connect Google Drive.');
+    } finally {
+      setDriveBusy(false);
+    }
+  }
+
+  async function handleDriveDisconnect() {
+    setDriveBusy(true);
+    try {
+      await api.put('/auth/me/drive-account', { email: null });
+      setProfile((p) => (p ? { ...p, google_drive_email: null } : p));
+      toast.success('Google Drive disconnected.');
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : 'Could not disconnect.');
+    } finally {
+      setDriveBusy(false);
+    }
+  }
 
   async function handleSaveName(e) {
     e.preventDefault();
@@ -136,7 +175,7 @@ export default function AccountPage() {
     try {
       const result = await api.put('/auth/me', nameForm);
       setProfile(result.user);
-      setEditingName(false);
+      setProfileOpen(false);
       refreshUser?.();
       toast.success('Profile updated.');
     } catch (err) {
@@ -160,6 +199,7 @@ export default function AccountPage() {
       });
       toast.success('Password changed.');
       setPwForm({ current_password: '', new_password: '', confirm: '' });
+      setPwOpen(false);
     } catch (err) {
       toast.error(err instanceof ApiError ? err.message : 'Password change failed.');
     } finally {
@@ -176,7 +216,21 @@ export default function AccountPage() {
 
       {/* Identity hero */}
       <div className="card account-hero" data-tour="account-stats">
-        <UserAvatar user={profile} className="avatar account-hero-avatar" />
+        <div className="account-hero-avwrap">
+          <UserAvatar user={profile} className="avatar account-hero-avatar" />
+          {!!profile.has_avatar && (
+            <button
+              type="button"
+              className="account-hero-avrm"
+              disabled={photoBusy}
+              onClick={handlePhotoRemove}
+              aria-label="Remove profile photo"
+              title="Remove photo"
+            >
+              <Trash2 size={11} />
+            </button>
+          )}
+        </div>
         <div className="account-hero-meta">
           <h2 className="account-hero-name">{profile.full_name}</h2>
           <div className="account-hero-line">
@@ -191,24 +245,31 @@ export default function AccountPage() {
           </div>
         </div>
         <div className="account-hero-actions">
+          <span className="account-hero-cluster">
+            <button
+              type="button"
+              className="btn btn-outline btn-sm"
+              disabled={photoBusy}
+              onClick={() => setPickerOpen(true)}
+            >
+              <Camera size={15} /> {profile.has_avatar ? 'Change photo' : 'Upload photo'}
+            </button>
+          </span>
+          <span className="account-hero-divider" aria-hidden="true" />
           <button
             type="button"
             className="btn btn-outline btn-sm"
-            disabled={photoBusy}
-            onClick={() => setPickerOpen(true)}
+            onClick={() => { setNameForm(nameFormFrom(profile)); setProfileOpen(true); }}
           >
-            <Camera size={15} /> {profile.has_avatar ? 'Change photo' : 'Upload photo'}
+            <Pencil size={15} /> Edit profile
           </button>
-          {!!profile.has_avatar && (
-            <button
-              type="button"
-              className="btn btn-ghost btn-sm"
-              disabled={photoBusy}
-              onClick={handlePhotoRemove}
-            >
-              <Trash2 size={14} /> Remove
-            </button>
-          )}
+          <button
+            type="button"
+            className="btn btn-outline btn-sm"
+            onClick={() => setPwOpen(true)}
+          >
+            <KeyRound size={15} /> Change password
+          </button>
           <Link to="/appearance" className="btn btn-outline btn-sm">
             <Palette size={15} /> Appearance
           </Link>
@@ -223,123 +284,19 @@ export default function AccountPage() {
 
       <div className="detail-grid-2">
 
-        {/* Profile card */}
-        <div className="card" data-tour="account-profile">
-          <div className="card-header">
-            <span className="card-title">Profile</span>
-            <div className="card-header-actions">
-              {!editingName && (
-                <button type="button" className="btn btn-outline btn-sm" onClick={() => setEditingName(true)}>
-                  <Lock size={16} /> Edit
-                </button>
-              )}
-            </div>
-          </div>
-          <div className="card-body">
-            {editingName ? (
-              <form onSubmit={handleSaveName} noValidate>
-                <div className="form-row">
-                  <div className="form-group">
-                    <label className="form-label">First Name <span className="req">*</span></label>
-                    <input className="form-control" value={nameForm.first_name || ''} required
-                      onChange={(e) => setNameForm({ ...nameForm, first_name: e.target.value })} />
-                  </div>
-                  <div className="form-group">
-                    <label className="form-label">Middle Name</label>
-                    <input className="form-control" value={nameForm.middle_name || ''}
-                      onChange={(e) => setNameForm({ ...nameForm, middle_name: e.target.value })} />
-                  </div>
-                </div>
-                <div className="form-row">
-                  <div className="form-group">
-                    <label className="form-label">Last Name <span className="req">*</span></label>
-                    <input className="form-control" value={nameForm.last_name || ''} required
-                      onChange={(e) => setNameForm({ ...nameForm, last_name: e.target.value })} />
-                  </div>
-                  <div className="form-group">
-                    <label className="form-label">Name Extension</label>
-                    <input className="form-control" value={nameForm.name_ext || ''} placeholder="Jr., Sr., III"
-                      onChange={(e) => setNameForm({ ...nameForm, name_ext: e.target.value })} />
-                  </div>
-                </div>
-                <div className="form-group">
-                  <label className="form-label">Email</label>
-                  <input className="form-control" value={profile.email} disabled />
-                </div>
-                <div className="form-actions form-actions--sticky">
-                  <button type="submit" className="btn btn-primary" disabled={savingName}>
-                    <Save size={16} /> {savingName ? 'Saving…' : 'Save Changes'}
-                  </button>
-                  <button type="button" className="btn btn-outline" onClick={() => setEditingName(false)}>Cancel</button>
-                </div>
-              </form>
-            ) : (
-              <div className="table-wrap table-bare">
-                <table className="data-table">
-                  <tbody>
-                    <tr><td className="text-muted">First Name</td><td>{profile.first_name || '—'}</td></tr>
-                    <tr><td className="text-muted">Middle Name</td><td>{profile.middle_name || '—'}</td></tr>
-                    <tr><td className="text-muted">Last Name</td><td>{profile.last_name || '—'}</td></tr>
-                    <tr><td className="text-muted">Extension</td><td>{profile.name_ext || '—'}</td></tr>
-                    <tr><td className="text-muted">Email</td><td>{profile.email}</td></tr>
-                    <tr><td className="text-muted">Verified</td><td>{profile.email_verified ? <span className="badge badge-green">Yes</span> : <span className="badge badge-amber">No</span>}</td></tr>
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Password card */}
-        <div className="card" data-tour="account-password">
-          <div className="card-header">
-            <span className="card-title">Change Password</span>
-          </div>
-          <div className="card-body">
-            <form onSubmit={handleChangePw} noValidate>
-              {[
-                { key: 'current_password', label: 'Current Password', auto: 'current-password' },
-                { key: 'new_password', label: 'New Password', auto: 'new-password', hint: 'At least 8 characters' },
-                { key: 'confirm', label: 'Confirm New Password', auto: 'new-password' },
-              ].map((f) => (
-                <div className="form-group" key={f.key}>
-                  <label className="form-label">{f.label} <span className="req">*</span></label>
-                  <div className="password-wrap">
-                    <input
-                      type={pwShow[f.key] ? 'text' : 'password'}
-                      className="form-control"
-                      value={pwForm[f.key]}
-                      required
-                      minLength={f.key === 'current_password' ? undefined : 8}
-                      placeholder={f.hint}
-                      autoComplete={f.auto}
-                      onChange={(e) => setPwForm({ ...pwForm, [f.key]: e.target.value })}
-                    />
-                    <button
-                      type="button"
-                      className="password-toggle"
-                      onClick={() => setPwShow({ ...pwShow, [f.key]: !pwShow[f.key] })}
-                      aria-label={pwShow[f.key] ? `Hide ${f.label}` : `Show ${f.label}`}
-                    >
-                      {pwShow[f.key] ? <EyeOff size={16} /> : <Eye size={16} />}
-                    </button>
-                  </div>
-                </div>
-              ))}
-              <div className="form-actions form-actions--sticky">
-                <button type="submit" className="btn btn-primary" disabled={savingPw}>
-                  <Check size={16} /> {savingPw ? 'Changing…' : 'Change Password'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-
-        {/* Print letterhead — mini paper preview, Appearance-style */}
-        <div className="card account-letterhead-card" data-tour="account-letterhead">
-          <div className="card-header">
+        {/* Print letterhead — collapsible, default closed (same details/
+            summary pattern as the admin settings cards). */}
+        <details
+          className="card account-letterhead-card acc-collapse"
+          open={lhOpen}
+          onToggle={(e) => setLhOpen(e.currentTarget.open)}
+          data-tour="account-letterhead"
+        >
+          <summary className="card-header acc-collapse-head">
             <span className="card-title">Print letterhead</span>
-          </div>
+            <span className="acc-collapse-btn" aria-hidden="true">{lhOpen ? 'Hide details' : 'View details'}</span>
+            <ChevronDown size={15} className="acc-collapse-caret" aria-hidden="true" />
+          </summary>
           <div className="card-body">
             <div className="lh-layout">
               <div className="lh-doc" aria-hidden="true">
@@ -408,7 +365,64 @@ export default function AccountPage() {
               </div>
             </div>
           </div>
-        </div>
+        </details>
+
+        {/* Google Drive — the connected account Drive import draws from.
+            Only rendered when the feature is configured. */}
+        {driveCfg && (
+          <div className="card acc-drive-card" data-tour="account-drive">
+            <div className="card-header">
+              <span className="card-title acc-drive-title">
+                <svg width="15" height="15" viewBox="0 0 87.3 78" aria-hidden="true" focusable="false">
+                  <path fill="#0066da" d="m6.6 66.85 3.85 6.65c.8 1.4 1.95 2.5 3.3 3.3l13.75-23.8h-27.5c0 1.55.4 3.1 1.2 4.5z" />
+                  <path fill="#00ac47" d="m43.65 25-13.75-23.8c-1.35.8-2.5 1.9-3.3 3.3l-25.4 44a9.06 9.06 0 0 0-1.2 4.5h27.5z" />
+                  <path fill="#ea4335" d="m73.55 76.8c1.35-.8 2.5-1.9 3.3-3.3l1.6-2.75 7.65-13.25c.8-1.4 1.2-2.95 1.2-4.5h-27.5l5.85 11.5z" />
+                  <path fill="#00832d" d="m43.65 25 13.75-23.8c-1.35-.8-2.9-1.25-4.4-1.25h-18.95c-1.5 0-3.05.45-4.4 1.25z" />
+                  <path fill="#2684fc" d="m59.8 53h-32.3l-13.75 23.8c1.35.8 2.9 1.25 4.4 1.25h50.9z" />
+                  <path fill="#ffba00" d="m73.4 26.5-12.7-22c-.8-1.4-1.95-2.5-3.3-3.3l-13.75 23.8 15.65 27.15h27.55c0-1.55-.4-3.1-1.2-4.5z" />
+                </svg>
+                Google Drive
+              </span>
+              {profile.google_drive_email && <span className="badge badge-green">Connected</span>}
+            </div>
+            <div className="card-body">
+              <p className="acc-drive-copy">
+                {profile.google_drive_email
+                  ? 'Materials imported from Drive come from this connected account — the picker skips the account chooser.'
+                  : 'Connect a Google account to import course files straight from Drive — the picker will always use this account.'}
+              </p>
+              <div className="acc-drive-row">
+                {profile.google_drive_email && (
+                  <span className="acc-drive-account">
+                    <svg width="15" height="15" viewBox="0 0 87.3 78" aria-hidden="true" focusable="false">
+                      <path fill="#0066da" d="m6.6 66.85 3.85 6.65c.8 1.4 1.95 2.5 3.3 3.3l13.75-23.8h-27.5c0 1.55.4 3.1 1.2 4.5z" />
+                      <path fill="#00ac47" d="m43.65 25-13.75-23.8c-1.35.8-2.5 1.9-3.3 3.3l-25.4 44a9.06 9.06 0 0 0-1.2 4.5h27.5z" />
+                      <path fill="#ea4335" d="m73.55 76.8c1.35-.8 2.5-1.9 3.3-3.3l1.6-2.75 7.65-13.25c.8-1.4 1.2-2.95 1.2-4.5h-27.5l5.85 11.5z" />
+                      <path fill="#00832d" d="m43.65 25 13.75-23.8c-1.35-.8-2.9-1.25-4.4-1.25h-18.95c-1.5 0-3.05.45-4.4 1.25z" />
+                      <path fill="#2684fc" d="m59.8 53h-32.3l-13.75 23.8c1.35.8 2.9 1.25 4.4 1.25h50.9z" />
+                      <path fill="#ffba00" d="m73.4 26.5-12.7-22c-.8-1.4-1.95-2.5-3.3-3.3l-13.75 23.8 15.65 27.15h27.55c0-1.55-.4-3.1-1.2-4.5z" />
+                    </svg>
+                    {profile.google_drive_email}
+                  </span>
+                )}
+                <span className="acc-drive-actions">
+                  <button type="button" className="btn btn-outline btn-sm" onClick={handleDriveConnect} disabled={driveBusy}>
+                    {driveBusy ? <Loader2 size={15} className="mat-spin" /> : null}
+                    {profile.google_drive_email ? 'Change account' : 'Connect Google Drive'}
+                  </button>
+                  {profile.google_drive_email && (
+                    <button type="button" className="btn btn-ghost btn-sm acc-btn-danger" onClick={handleDriveDisconnect} disabled={driveBusy}>
+                      <Unlink size={14} /> Disconnect
+                    </button>
+                  )}
+                </span>
+              </div>
+              <small className="acc-drive-note">
+                Access is per-file — Nexam only reads files you pick during import, straight into your private workspace. Nothing else in your Drive is touched.
+              </small>
+            </div>
+          </div>
+        )}
 
         {/* Privacy & terms — always reachable so the AI/data story stays
             reviewable, not buried in a signup checkbox. */}
@@ -444,6 +458,100 @@ export default function AccountPage() {
         </div>
 
       </div>
+
+      {/* Edit profile — right sheet, same pattern as the export dialog */}
+      <Modal
+        open={profileOpen}
+        side
+        title="Edit profile"
+        subtitle="Your name as it appears on exams and reports."
+        icon={Pencil}
+        onClose={() => setProfileOpen(false)}
+      >
+        <form onSubmit={handleSaveName} noValidate>
+          <div className="form-row">
+            <div className="form-group">
+              <label className="form-label">First Name <span className="req">*</span></label>
+              <input className="form-control" value={nameForm.first_name || ''} required
+                onChange={(e) => setNameForm({ ...nameForm, first_name: e.target.value })} />
+            </div>
+            <div className="form-group">
+              <label className="form-label">Middle Name</label>
+              <input className="form-control" value={nameForm.middle_name || ''}
+                onChange={(e) => setNameForm({ ...nameForm, middle_name: e.target.value })} />
+            </div>
+          </div>
+          <div className="form-row">
+            <div className="form-group">
+              <label className="form-label">Last Name <span className="req">*</span></label>
+              <input className="form-control" value={nameForm.last_name || ''} required
+                onChange={(e) => setNameForm({ ...nameForm, last_name: e.target.value })} />
+            </div>
+            <div className="form-group">
+              <label className="form-label">Name Extension</label>
+              <input className="form-control" value={nameForm.name_ext || ''} placeholder="Jr., Sr., III"
+                onChange={(e) => setNameForm({ ...nameForm, name_ext: e.target.value })} />
+            </div>
+          </div>
+          <div className="form-group">
+            <label className="form-label">Email</label>
+            <input className="form-control" value={profile.email} disabled />
+          </div>
+          <div className="form-actions">
+            <button type="submit" className="btn btn-primary" disabled={savingName}>
+              <Save size={16} /> {savingName ? 'Saving…' : 'Save Changes'}
+            </button>
+            <button type="button" className="btn btn-outline" onClick={() => setProfileOpen(false)}>Cancel</button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* Change password — right sheet */}
+      <Modal
+        open={pwOpen}
+        side
+        title="Change password"
+        subtitle="You'll stay signed in on this device."
+        icon={KeyRound}
+        onClose={() => setPwOpen(false)}
+      >
+        <form onSubmit={handleChangePw} noValidate>
+          {[
+            { key: 'current_password', label: 'Current Password', auto: 'current-password' },
+            { key: 'new_password', label: 'New Password', auto: 'new-password', hint: 'At least 8 characters' },
+            { key: 'confirm', label: 'Confirm New Password', auto: 'new-password' },
+          ].map((f) => (
+            <div className="form-group" key={f.key}>
+              <label className="form-label">{f.label} <span className="req">*</span></label>
+              <div className="password-wrap">
+                <input
+                  type={pwShow[f.key] ? 'text' : 'password'}
+                  className="form-control"
+                  value={pwForm[f.key]}
+                  required
+                  minLength={f.key === 'current_password' ? undefined : 8}
+                  placeholder={f.hint}
+                  autoComplete={f.auto}
+                  onChange={(e) => setPwForm({ ...pwForm, [f.key]: e.target.value })}
+                />
+                <button
+                  type="button"
+                  className="password-toggle"
+                  onClick={() => setPwShow({ ...pwShow, [f.key]: !pwShow[f.key] })}
+                  aria-label={pwShow[f.key] ? `Hide ${f.label}` : `Show ${f.label}`}
+                >
+                  {pwShow[f.key] ? <EyeOff size={16} /> : <Eye size={16} />}
+                </button>
+              </div>
+            </div>
+          ))}
+          <div className="form-actions">
+            <button type="submit" className="btn btn-primary" disabled={savingPw}>
+              <Check size={16} /> {savingPw ? 'Changing…' : 'Change Password'}
+            </button>
+          </div>
+        </form>
+      </Modal>
 
     </AppShell>
   );

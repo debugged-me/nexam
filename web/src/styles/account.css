@@ -75,6 +75,18 @@
   padding: 20px 22px;
   margin-bottom: 16px;
 }
+.account-hero-avwrap { position: relative; flex-shrink: 0; }
+.account-hero-avrm {
+  position: absolute; right: -4px; bottom: -4px;
+  width: 22px; height: 22px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--surface); border: 1px solid var(--line);
+  color: var(--ink-3); cursor: pointer;
+  box-shadow: var(--shadow-sm);
+  transition: color .15s ease, border-color .15s ease, background-color .15s ease;
+}
+.account-hero-avrm:hover { color: var(--red-600); border-color: var(--red-200, #fecaca); background: var(--red-50); }
+.account-hero-avrm:disabled { opacity: .5; cursor: not-allowed; }
 .account-hero-avatar {
   width: 72px;
   height: 72px;
@@ -104,7 +116,10 @@
 .account-hero-line svg { color: var(--ink-faint); flex-shrink: 0; }
 .account-hero-line > span:first-of-type { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .account-hero-line--sub { color: var(--ink-3); font-size: var(--text-xs); margin-top: 3px; }
-.account-hero-actions { display: flex; gap: 8px; flex-shrink: 0; flex-wrap: wrap; justify-content: flex-end; }
+.account-hero-actions { display: flex; gap: 8px; flex-shrink: 0; flex-wrap: wrap; justify-content: flex-end; align-items: center; }
+.account-hero-cluster { display: inline-flex; gap: 4px; align-items: center; }
+.account-hero-cluster .btn-ghost { padding-left: 8px; padding-right: 8px; }
+.account-hero-divider { width: 1px; height: 20px; background: var(--line); flex-shrink: 0; }
 @media (max-width: 768px) {
   .account-hero { flex-wrap: wrap; }
   .account-hero-actions { width: 100%; justify-content: flex-start; }
@@ -271,5 +286,72 @@
 .account-legal-copy strong { font-size: var(--text-sm); font-weight: 650; color: var(--ink); }
 .account-legal-copy small { font-size: var(--text-xs); color: var(--ink-3); line-height: 1.4; }
 .account-legal-link > svg:last-child { color: var(--ink-faint); }
+
+/* Collapsible card — <details>/<summary> on the letterhead card */
+.acc-collapse-head {
+  cursor: pointer;
+  list-style: none;
+  user-select: none;
+  border-radius: var(--radius-xl);
+  display: flex; align-items: center;
+}
+.acc-collapse-head::-webkit-details-marker { display: none; }
+.acc-collapse-head:hover { background: var(--surface-2); }
+.acc-collapse-caret { margin-left: auto; color: var(--ink-faint); transition: transform .18s ease; }
+.acc-collapse-btn {
+  margin-left: auto; margin-right: 6px;
+  font-size: var(--text-xs); font-weight: 550;
+  color: var(--ink-2);
+  padding: 5px 11px;
+  border: 1px solid var(--line); border-radius: var(--radius-md);
+  background: var(--surface);
+  transition: color .15s ease, border-color .15s ease, background-color .15s ease;
+}
+.acc-collapse-head:hover .acc-collapse-btn {
+  color: var(--action-600); border-color: var(--action-600);
+}
+.acc-collapse-btn + .acc-collapse-caret { margin-left: 0; }
+.acc-collapse[open] > .acc-collapse-head {
+  border-bottom: 1px solid var(--line);
+  border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+}
+.acc-collapse[open] > .acc-collapse-head .acc-collapse-caret { transform: rotate(180deg); }
+
+/* Google Drive connection card — Google-color accent strip + brand title */
+.acc-drive-card { position: relative; overflow: hidden; }
+.acc-drive-card::before {
+  content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px;
+  background: linear-gradient(90deg, #00832d, #00ac47 22%, #2684fc 45%, #0066da 60%, #ffba00 80%, #ea4335);
+}
+.acc-drive-title { display: inline-flex; align-items: center; gap: 8px; }
+.acc-drive-title svg { flex-shrink: 0; }
+.acc-drive-copy {
+  margin: 0 0 14px;
+  font-size: var(--text-sm);
+  line-height: 1.55;
+  color: var(--ink-2);
+}
+.acc-drive-row {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 10px; flex-wrap: wrap;
+}
+.acc-drive-account {
+  display: inline-flex; align-items: center; gap: 8px;
+  font-size: var(--text-sm); font-weight: 550; color: var(--ink);
+  padding: 6px 11px; border: 1px solid var(--line); border-radius: var(--radius-md);
+  background: var(--surface-2);
+  min-width: 0;
+}
+.acc-drive-account svg { flex-shrink: 0; }
+.acc-drive-actions { display: inline-flex; gap: 8px; flex-wrap: wrap; }
+
+/* Soft-danger ghost button — photo remove, Drive disconnect */
+.acc-btn-danger { color: var(--red-600); }
+.acc-btn-danger:hover { background: var(--red-50); color: var(--red-700); }
+.acc-btn-danger svg { color: inherit; }
+.acc-drive-note {
+  display: block; margin-top: 10px;
+  font-size: var(--text-xs); color: var(--ink-3); line-height: 1.5;
+}
 
 }

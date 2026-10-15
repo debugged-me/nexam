@@ -997,7 +997,7 @@ router.post('/reset-link', async (req, res, next) => {
 router.get('/me', requireAnyAuth, async (req, res, next) => {
   try {
     const [rows] = await pool.query(
-      `SELECT id, first_name, middle_name, last_name, name_ext, full_name, email, role, email_verified, status, avatar_path, avatar_v, letterhead_v, letterhead_foot_v, theme, font, text_size, accent, radius, created_at,
+      `SELECT id, first_name, middle_name, last_name, name_ext, full_name, email, role, email_verified, status, avatar_path, avatar_v, letterhead_v, letterhead_foot_v, theme, font, text_size, accent, radius, google_drive_email, created_at,
         (avatar_path IS NOT NULL) AS has_avatar, (letterhead_path IS NOT NULL) AS has_letterhead,
         (letterhead_foot_path IS NOT NULL) AS has_letterhead_foot FROM users WHERE id = :id LIMIT 1`,
       { id: req.user.id }
@@ -1032,6 +1032,26 @@ router.put('/me', requireAnyAuth, async (req, res, next) => {
       { id: req.user.id }
     );
     res.json({ user: rows[0] });
+  } catch (err) {
+    next(err);
+  }
+});
+
+/**
+ * PUT /api/auth/me/drive-account — bind (or clear, email=null) the Google
+ * account Drive import uses. Stores only the email — never a token; the
+ * grant itself lives at myaccount.google.com/permissions.
+ */
+const DRIVE_EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+router.put('/me/drive-account', requireAnyAuth, async (req, res, next) => {
+  try {
+    const raw = req.body?.email;
+    const email = raw == null || raw === '' ? null : String(raw).trim().toLowerCase();
+    if (email !== null && (email.length > 255 || !DRIVE_EMAIL_RE.test(email))) {
+      return res.status(422).json({ error: 'A valid email address is required.' });
+    }
+    await pool.query(`UPDATE users SET google_drive_email = :email WHERE id = :id`, { email, id: req.user.id });
+    res.json({ google_drive_email: email });
   } catch (err) {
     next(err);
   }

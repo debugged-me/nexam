@@ -1,0 +1,775 @@
+{
+  "doc": {
+    "height": 11777,
+    "vh": 900,
+    "acts": [
+      "pin",
+      "pan",
+      "pin",
+      "flow"
+    ],
+    "world": null
+  },
+  "report": [
+    {
+      "i": 0,
+      "y": 1272,
+      "pct": 12,
+      "settled": true,
+      "contrast": [
+        {
+          "t": "The blueprint It assembles itself.",
+          "dir": "dark-on-light",
+          "worst": 14.18,
+          "mean": 14.18
+        }
+      ],
+      "cues": [
+        {
+          "t": "The blueprint It assembles itself.",
+          "o": 1
+        }
+      ],
+      "clips": [],
+      "rails": [
+        0
+      ],
+      "wipes": [
+        "none"
+      ],
+      "act": "pin",
+      "stages": [
+        0,
+        3017,
+        7157
+      ],
+      "segs": [],
+      "custom": [],
+      "customHold": false,
+      "seg": null,
+      "segp": null,
+      "bg": "rgb(226,233,244)"
+    },
+    {
+      "i": 1,
+      "y": 1687,
+      "pct": 16,
+      "settled": true,
+      "contrast": [
+        {
+          "t": "The blueprint It assembles itself.",
+          "dir": "dark-on-light",
+          "worst": 14.05,
+          "mean": 14.17
+        }
+      ],
+      "cues": [
+        {
+          "t": "The blueprint It assembles itself.",
+          "o": 1
+        },
+        {
+          "t": "Hours become items. Bloom weights become a mat",
+          "o": 0.3
+        }
+      ],
+      "clips": [],
+      "rails": [
+        0
+      ],
+      "wipes": [
+        "none"
+      ],
+      "act": "pin",
+      "stages": [
+        0,
+        2602,
+        6742
+      ],
+      "segs": [],
+      "custom": [],
+      "customHold": false,
+      "seg": null,
+      "segp": null,
+      "bg": "rgb(226,233,244)"
+    },
+    {
+      "i": 2,
+      "y": 2102,
+      "pct": 19,
+      "settled": true,
+      "contrast": [
+        {
+          "t": "Hours become items. Bloom weights become",
+          "dir": "dark-on-light",
+          "worst": 4.82,
+          "mean": 4.87
+        }
+      ],
+      "cues": [
+        {
+          "t": "The blueprint It assembles itself.",
+          "o": 0.83
+        },
+        {
+          "t": "Hours become items. Bloom weights become a mat",
+          "o": 1
+        }
+      ],
+      "clips": [],
+      "rails": [
+        0
+      ],
+      "wipes": [
+        "none"
+      ],
+      "act": "pin",
+      "stages": [
+        0,
+        2187,
+        6327
+      ],
+      "segs": [],
+      "custom": [],
+      "customHold": false,
+      "seg": null,
+      "segp": null,
+      "bg": "rgb(226,233,244)"
+    },
+    {
+      "i": 3,
+      "y": 2516,
+      "pct": 23,
+      "settled": true,
+      "contrast": [
+        {
+          "t": "Hours become items. Bloom weights become",
+          "dir": "dark-on-light",
+          "worst": 4.82,
+          "mean": 4.87
+        }
+      ],
+      "cues": [
+        {
+          "t": "Hours become items. Bloom weights become a mat",
+          "o": 1
+        },
+        {
+          "t": "Every occupied cell is an item the exam must p",
+          "o": 0.27
+        }
+      ],
+      "clips": [],
+      "rails": [
+        0
+      ],
+      "wipes": [
+        "none"
+      ],
+      "act": "pin",
+      "stages": [
+        0,
+        1773,
+        5913
+      ],
+      "segs": [],
+      "custom": [],
+      "customHold": false,
+      "seg": null,
+      "segp": null,
+      "bg": "rgb(226,233,244)"
+    },
+    {
+      "i": 4,
+      "y": 2931,
+      "pct": 27,
+      "settled": true,
+      "contrast": [
+        {
+          "t": "Every occupied cell is an item the exam ",
+          "dir": "dark-on-light",
+          "worst": 4.87,
+          "mean": 4.87
+        }
+      ],
+      "cues": [
+        {
+          "t": "Every occupied cell is an item the exam must p",
+          "o": 1
+        }
+      ],
+      "clips": [],
+      "rails": [
+        0
+      ],
+      "wipes": [
+        "none"
+      ],
+      "act": "pin",
+      "stages": [
+        0,
+        1358,
+        5498
+      ],
+      "segs": [],
+      "custom": [],
+      "customHold": false,
+      "seg": null,
+      "segp": null,
+      "bg": "rgb(226,233,244)"
+    },
+    {
+      "i": 5,
+      "y": 3346,
+      "pct": 31,
+      "settled": true,
+      "contrast": [],
+      "cues": [
+        {
+          "t": "Every occupied cell is an item the exam must p",
+          "o": 0.06
+        }
+      ],
+      "clips": [],
+      "rails": [
+        0
+      ],
+      "wipes": [
+        "none"
+      ],
+      "act": "pin",
+      "stages": [
+        0,
+        943,
+        5083
+      ],
+      "segs": [],
+      "custom": [],
+      "customHold": false,
+      "seg": null,
+      "segp": null,
+      "bg": "rgb(226,233,244)"
+    },
+    {
+      "i": 6,
+      "y": 4354,
+      "pct": 40,
+      "settled": true,
+      "contrast": [],
+      "cues": [],
+      "clips": [],
+      "rails": [
+        -25
+      ],
+      "wipes": [
+        "none"
+      ],
+      "act": "pan",
+      "stages": [
+        -965,
+        0,
+        4075
+      ],
+      "segs": [],
+      "custom": [],
+      "customHold": false,
+      "seg": null,
+      "segp": null,
+      "bg": "rgb(226,233,244)"
+    },
+    {
+      "i": 7,
+      "y": 4976,
+      "pct": 46,
+      "settled": true,
+      "contrast": [],
+      "cues": [],
+      "clips": [],
+      "rails": [
+        -261
+      ],
+      "wipes": [
+        "none"
+      ],
+      "act": "pan",
+      "stages": [
+        -1587,
+        0,
+        3453
+      ],
+      "segs": [],
+      "custom": [],
+      "customHold": false,
+      "seg": null,
+      "segp": null,
+      "bg": "rgb(235,240,247)"
+    },
+    {
+      "i": 8,
+      "y": 5598,
+      "pct": 51,
+      "settled": true,
+      "contrast": [],
+      "cues": [],
+      "clips": [],
+      "rails": [
+        -498
+      ],
+      "wipes": [
+        "none"
+      ],
+      "act": "pan",
+      "stages": [
+        -2209,
+        0,
+        2831
+      ],
+      "segs": [],
+      "custom": [],
+      "customHold": false,
+      "seg": null,
+      "segp": null,
+      "bg": "rgb(240,243,249)"
+    },
+    {
+      "i": 9,
+      "y": 6220,
+      "pct": 57,
+      "settled": true,
+      "contrast": [],
+      "cues": [],
+      "clips": [],
+      "rails": [
+        -734
+      ],
+      "wipes": [
+        "none"
+      ],
+      "act": "pan",
+      "stages": [
+        -2831,
+        0,
+        2209
+      ],
+      "segs": [],
+      "custom": [],
+      "customHold": false,
+      "seg": null,
+      "segp": null,
+      "bg": "rgb(240,243,249)"
+    },
+    {
+      "i": 10,
+      "y": 6842,
+      "pct": 63,
+      "settled": true,
+      "contrast": [],
+      "cues": [],
+      "clips": [],
+      "rails": [
+        -971
+      ],
+      "wipes": [
+        "none"
+      ],
+      "act": "pan",
+      "stages": [
+        -3453,
+        0,
+        1587
+      ],
+      "segs": [],
+      "custom": [],
+      "customHold": false,
+      "seg": null,
+      "segp": null,
+      "bg": "rgb(240,243,249)"
+    },
+    {
+      "i": 11,
+      "y": 7464,
+      "pct": 69,
+      "settled": true,
+      "contrast": [],
+      "cues": [],
+      "clips": [],
+      "rails": [
+        -1207
+      ],
+      "wipes": [
+        "inset(0px 0px 100%)"
+      ],
+      "act": "pan",
+      "stages": [
+        -4075,
+        0,
+        965
+      ],
+      "segs": [],
+      "custom": [],
+      "customHold": false,
+      "seg": null,
+      "segp": null,
+      "bg": "rgb(240,243,249)"
+    },
+    {
+      "i": 12,
+      "y": 8461,
+      "pct": 78,
+      "settled": true,
+      "contrast": [
+        {
+          "t": "The readout The numbers come back.",
+          "dir": "light-on-dark",
+          "worst": 1.05,
+          "mean": 1.05
+        }
+      ],
+      "cues": [
+        {
+          "t": "The readout The numbers come back.",
+          "o": 1
+        }
+      ],
+      "clips": [],
+      "rails": [
+        -1232
+      ],
+      "wipes": [
+        "inset(0px 0px 100%)"
+      ],
+      "act": "pin",
+      "stages": [
+        -5072,
+        -932,
+        0
+      ],
+      "segs": [],
+      "custom": [],
+      "customHold": false,
+      "seg": null,
+      "segp": null,
+      "bg": "rgb(240,243,249)"
+    },
+    {
+      "i": 13,
+      "y": 8772,
+      "pct": 81,
+      "settled": true,
+      "contrast": [
+        {
+          "t": "The readout The numbers come back.",
+          "dir": "light-on-dark",
+          "worst": 1.05,
+          "mean": 1.05
+        }
+      ],
+      "cues": [
+        {
+          "t": "The readout The numbers come back.",
+          "o": 1
+        },
+        {
+          "t": "1sheets scanned 0.0%class average 0flagged for",
+          "o": 0.38
+        }
+      ],
+      "clips": [],
+      "rails": [
+        -1232
+      ],
+      "wipes": [
+        "inset(0px 0px 58.09%)"
+      ],
+      "act": "pin",
+      "stages": [
+        -5383,
+        -1243,
+        0
+      ],
+      "segs": [],
+      "custom": [],
+      "customHold": false,
+      "seg": null,
+      "segp": null,
+      "bg": "rgb(240,243,249)"
+    },
+    {
+      "i": 14,
+      "y": 9084,
+      "pct": 84,
+      "settled": true,
+      "contrast": [
+        {
+          "t": "The readout The numbers come back.",
+          "dir": "light-on-dark",
+          "worst": 1.05,
+          "mean": 1.05
+        },
+        {
+          "t": "17sheets scanned 17.2%class average 0fla",
+          "dir": "light-on-dark",
+          "worst": 1.05,
+          "mean": 1.05
+        }
+      ],
+      "cues": [
+        {
+          "t": "The readout The numbers come back.",
+          "o": 0.96
+        },
+        {
+          "t": "17sheets scanned 17.2%class average 0flagged f",
+          "o": 1
+        }
+      ],
+      "clips": [],
+      "rails": [
+        -1232
+      ],
+      "wipes": [
+        "inset(0px 0px 3.15%)"
+      ],
+      "act": "pin",
+      "stages": [
+        -5695,
+        -1555,
+        0
+      ],
+      "segs": [],
+      "custom": [],
+      "customHold": false,
+      "seg": null,
+      "segp": null,
+      "bg": "rgb(240,243,249)"
+    },
+    {
+      "i": 15,
+      "y": 9395,
+      "pct": 86,
+      "settled": true,
+      "contrast": [
+        {
+          "t": "26sheets scanned 52.6%class average 1fla",
+          "dir": "light-on-dark",
+          "worst": 1.05,
+          "mean": 1.05
+        }
+      ],
+      "cues": [
+        {
+          "t": "26sheets scanned 52.6%class average 1flagged f",
+          "o": 1
+        },
+        {
+          "t": "Scans arrive from the phone app. Flagged sheet",
+          "o": 0.54
+        }
+      ],
+      "clips": [],
+      "rails": [
+        -1232
+      ],
+      "wipes": [
+        "inset(0px 0px 0%)"
+      ],
+      "act": "pin",
+      "stages": [
+        -6006,
+        -1866,
+        0
+      ],
+      "segs": [],
+      "custom": [],
+      "customHold": false,
+      "seg": null,
+      "segp": null,
+      "bg": "rgb(240,243,249)"
+    },
+    {
+      "i": 16,
+      "y": 9706,
+      "pct": 89,
+      "settled": true,
+      "contrast": [
+        {
+          "t": "Scans arrive from the phone app. Flagged",
+          "dir": "light-on-dark",
+          "worst": 7.26,
+          "mean": 7.26
+        }
+      ],
+      "cues": [
+        {
+          "t": "26sheets scanned 55.5%class average 2flagged f",
+          "o": 0.19
+        },
+        {
+          "t": "Scans arrive from the phone app. Flagged sheet",
+          "o": 1
+        }
+      ],
+      "clips": [],
+      "rails": [
+        -1232
+      ],
+      "wipes": [
+        "inset(0px 0px 0%)"
+      ],
+      "act": "pin",
+      "stages": [
+        -6317,
+        -2177,
+        0
+      ],
+      "segs": [],
+      "custom": [],
+      "customHold": false,
+      "seg": null,
+      "segp": null,
+      "bg": "rgb(240,243,249)"
+    },
+    {
+      "i": 17,
+      "y": 10017,
+      "pct": 92,
+      "settled": true,
+      "contrast": [],
+      "cues": [
+        {
+          "t": "Scans arrive from the phone app. Flagged sheet",
+          "o": 0.05
+        }
+      ],
+      "clips": [],
+      "rails": [
+        -1232
+      ],
+      "wipes": [
+        "inset(0px 0px 0%)"
+      ],
+      "act": "pin",
+      "stages": [
+        -6628,
+        -2488,
+        0
+      ],
+      "segs": [],
+      "custom": [],
+      "customHold": false,
+      "seg": null,
+      "segp": null,
+      "bg": "rgb(240,243,249)"
+    },
+    {
+      "i": 18,
+      "y": 10084,
+      "pct": 93,
+      "settled": true,
+      "contrast": [],
+      "cues": [],
+      "clips": [],
+      "rails": [
+        -1232
+      ],
+      "wipes": [
+        "inset(0px 0px 0%)"
+      ],
+      "act": "pin",
+      "stages": [
+        -6695,
+        -2555,
+        -35
+      ],
+      "segs": [],
+      "custom": [],
+      "customHold": false,
+      "seg": null,
+      "segp": null,
+      "bg": "rgb(240,243,249)"
+    },
+    {
+      "i": 19,
+      "y": 10415,
+      "pct": 96,
+      "settled": true,
+      "contrast": [],
+      "cues": [],
+      "clips": [],
+      "rails": [
+        -1232
+      ],
+      "wipes": [
+        "inset(0px 0px 0%)"
+      ],
+      "act": "pin",
+      "stages": [
+        -7026,
+        -2886,
+        -366
+      ],
+      "segs": [],
+      "custom": [],
+      "customHold": false,
+      "seg": null,
+      "segp": null,
+      "bg": "rgb(237,240,246)"
+    },
+    {
+      "i": 20,
+      "y": 10747,
+      "pct": 99,
+      "settled": true,
+      "contrast": [],
+      "cues": [],
+      "clips": [],
+      "rails": [
+        -1232
+      ],
+      "wipes": [
+        "inset(0px 0px 0%)"
+      ],
+      "act": "flow",
+      "stages": [
+        -7358,
+        -3218,
+        -698
+      ],
+      "segs": [],
+      "custom": [],
+      "customHold": false,
+      "seg": null,
+      "segp": null,
+      "bg": "rgb(236,239,245)"
+    },
+    {
+      "i": 21,
+      "y": 10877,
+      "pct": 100,
+      "settled": true,
+      "contrast": [],
+      "cues": [],
+      "clips": [],
+      "rails": [
+        -1232
+      ],
+      "wipes": [
+        "inset(0px 0px 0%)"
+      ],
+      "act": "flow",
+      "stages": [
+        -7488,
+        -3348,
+        -828
+      ],
+      "segs": [],
+      "custom": [],
+      "customHold": false,
+      "seg": null,
+      "segp": null,
+      "bg": "rgb(236,239,245)"
+    }
+  ],
+  "consoleErrors": [],
+  "failed": []
+}

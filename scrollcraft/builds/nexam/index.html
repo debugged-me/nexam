@@ -194,21 +194,23 @@
     padding: clamp(7rem, 16vh, 11rem) var(--sc-gutter) 0;
     gap: clamp(2.5rem, 6vh, 4.5rem);
   }
-  .hero__copy { display: flex; flex-direction: column; align-items: center; gap: var(--sc-4); max-width: 54rem; }
+  .hero__copy { display: flex; flex-direction: column; align-items: center; gap: var(--sc-4); max-width: 62rem; }
   .hero__copy h1 {
-    font-size: clamp(2.6rem, 5.6vw, 4.8rem);
-    letter-spacing: -0.025em;
-    line-height: 1.04;
+    font-size: clamp(2.8rem, 6vw, 5.4rem);
+    font-weight: 700;
+    letter-spacing: -0.03em;
+    line-height: 1.02;
     text-wrap: balance;
     margin: 0;
   }
   .hero__copy .lede { font-size: clamp(1.05rem, 1.6vw, 1.35rem); color: var(--sc-ink-soft); }
   .hero__shot {
-    width: min(72rem, 100%);
+    width: min(74rem, 100%);
     aspect-ratio: 16 / 9.6;
     margin: 0;
     border-radius: var(--sc-r-lg) var(--sc-r-lg) 0 0;
     border-bottom: 0;
+    transform-origin: 50% 55%;
   }
 
   /* ---------------- pinned act stages ---------------------------- */
@@ -354,14 +356,15 @@
   .examcard {
     flex: 0 0 auto;
     align-self: center;
-    width: clamp(19rem, 27vw, 25rem);
+    width: clamp(22rem, 30vw, 30rem);
     display: flex;
     flex-direction: column;
     justify-content: center;
     gap: var(--sc-3);
   }
-  .examcard--text { width: clamp(19rem, 26vw, 24rem); }
-  .examcard--text h2 { font-size: clamp(1.9rem, 3vw, 2.8rem); margin: 0; text-wrap: balance; }
+  .examcard .shot { box-shadow: var(--sc-e2), var(--sc-edge); }
+  .examcard--text { width: clamp(20rem, 27vw, 26rem); }
+  .examcard--text h2 { font-size: clamp(2rem, 3.2vw, 3rem); margin: 0; text-wrap: balance; }
   .examcard .shot { aspect-ratio: 855 / 485; }
   .examcard .shot--tall { aspect-ratio: 595 / 535; width: min(100%, 20rem); }
   .examcard figcaption {
@@ -371,10 +374,31 @@
   }
   .examcard figcaption b { color: var(--sc-ink); font-weight: 600; }
 
-  /* ---------------- §4 readout — numbers land -------------------- */
+  /* ---------------- §4 readout — the dark chapter ------------------ */
+  #readout { background: #10151e; }
   .ro-stage { grid-template-columns: minmax(19rem, 25rem) minmax(0, 1fr); }
-  .ro-copy { display: flex; flex-direction: column; gap: var(--sc-4); }
-  .ro-copy h2 { font-size: clamp(2rem, 3.4vw, 3.2rem); margin: 0; text-wrap: balance; }
+  .ro-copy { display: flex; flex-direction: column; gap: var(--sc-4); color: #f4f7fc; }
+  .ro-copy h2 { font-size: clamp(2.2rem, 3.6vw, 3.5rem); margin: 0; text-wrap: balance; }
+  #readout .kicker { color: #7cc0f5; }
+  #readout h2 { color: #f4f7fc; }
+  #readout .sub { color: #9aa4b5; }
+  .ro-stats b { color: #f4f7fc; }
+  .ro-stats span { color: #93a0b4; }
+  .ro-shot {
+    border-color: rgba(255,255,255,0.14);
+    box-shadow: 0 32px 90px rgba(8, 20, 38, 0.55),
+                0 0 0 1px rgba(255,255,255,0.06),
+                0 0 70px rgba(45, 147, 232, 0.16);
+  }
+  .ro-shot img { object-fit: cover; object-position: top left; }
+
+  /* bar + rail flip ink while the dark chapter owns the viewport */
+  body[data-dark] .bar__mark { color: #eef2f8; }
+  body[data-dark] .rail__leg { color: #9aa4b5; }
+  body[data-dark] .rail__dot { background: rgba(255,255,255,0.32); }
+  body[data-dark] .rail__leg[aria-current="true"] { color: #eef2f8; }
+  body[data-dark] .rail__leg[aria-current="true"] .rail__dot,
+  body[data-dark] .rail__leg:hover .rail__dot { background: var(--sc-accent); }
   .ro-stats {
     display: flex;
     gap: clamp(1.5rem, 3vw, 2.75rem);
@@ -388,13 +412,11 @@
     font-weight: 700;
     font-size: clamp(1.7rem, 2.6vw, 2.5rem);
     letter-spacing: -0.02em;
-    color: var(--sc-ink);
     font-variant-numeric: tabular-nums;
     white-space: nowrap;
   }
-  .ro-stats span { font-size: var(--sc-t-xs); color: var(--sc-ink-soft); }
+  .ro-stats span { font-size: var(--sc-t-xs); }
   .ro-shot { margin: 0; max-height: calc(100svh - 10rem); }
-  .ro-shot img { object-fit: cover; object-position: top left; }
 
   /* ---------------- §5 join — the close -------------------------- */
   .close {
@@ -406,7 +428,18 @@
     gap: clamp(3rem, 9vh, 6rem);
     padding: clamp(6rem, 12vh, 9rem) var(--sc-gutter) var(--sc-8);
     text-align: center;
+    position: relative;
   }
+  .close::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(58% 46% at 50% 42%,
+      color-mix(in oklab, var(--sc-accent) 12%, transparent) 0%,
+      transparent 72%);
+    pointer-events: none;
+  }
+  .close > * { position: relative; }
   .close__card { display: flex; flex-direction: column; align-items: center; gap: var(--sc-5); max-width: 46rem; }
   .close__card h2 { font-size: clamp(2.4rem, 4.6vw, 4rem); margin: 0; text-wrap: balance; }
   .close__card .small { font-size: var(--sc-t-sm); color: var(--sc-ink-soft); margin: 0; }
@@ -500,7 +533,7 @@
       <p class="lede">Syllabus to blueprint. Blueprint to paired exam. Answer sheets to results.</p>
       <p><a class="cta cta--ghost" href="/register">Create account →</a></p>
     </div>
-    <figure class="shot hero__shot" data-sc-in>
+    <figure class="shot hero__shot" data-sc-in data-sc-tilt="5">
       <video src="assets/nexam-hero.mp4" poster="assets/nexam-hero-poster.jpg" autoplay muted loop playsinline aria-label="The Nexam workspace cycling through dashboard, blueprint, exam and analytics screens"></video>
     </figure>
   </section>
@@ -576,7 +609,7 @@
   </section>
 
   <!-- §4 — the readout. Pin: numbers land over the analytics shot. -->
-  <section id="readout" class="sec" data-sec="3" data-sc-act="pin" data-sc-span="2.8" data-sc-drift="#e2e9f4">
+  <section id="readout" class="sec" data-sec="3" data-sc-act="pin" data-sc-span="2.8">
     <div data-sc-stage class="stage-grid ro-stage">
       <div class="ro-copy">
         <div data-sc-cue="0 0.55 0">
@@ -590,14 +623,14 @@
         </ul>
         <p class="sub" data-sc-cue="0.52 1">Scans arrive from the phone app. Flagged sheets surface first; mastery lands per topic and per Bloom level.</p>
       </div>
-      <figure class="shot ro-shot">
+      <figure class="shot ro-shot" data-sc-reveal="up" data-sc-reveal-at="0.02 0.45">
         <img src="assets/screens/exam-analytics.png" alt="Nexam analytics: 26 students, 55.5% class average, mastery by topic and a Bloom-level radar" loading="lazy">
       </figure>
     </div>
   </section>
 
   <!-- §5 — join. The close. -->
-  <section id="join" class="close" data-sec="4">
+  <section id="join" class="close" data-sec="4" data-sc-act="flow" data-sc-drift="#eceff5">
     <div class="close__card" data-sc-in data-sc-stagger="90">
       <h2 class="sc-display">The whole workflow. One place.</h2>
       <a class="cta cta--lg" href="/register">Create account</a>
@@ -673,10 +706,15 @@
      section). Rows land top to bottom; inside a row cells stamp left to
      right. Reversible by construction. */
   var bpAct = document.getElementById('blueprint');
+  var bpCard = document.querySelector('#blueprint .bp');
   var bpActive = -1;
   function bpFrame() {
     var p = parseFloat(bpAct.style.getPropertyValue('--sc-p') || '0');
     var fill = Math.min(1, Math.max(0, (p - 0.06) / 0.55));
+    /* the card arrives with a breath: 97% → 100% through the first fifth */
+    var settle = Math.min(1, p / 0.2);
+    var eased = 1 - Math.pow(1 - settle, 3);
+    if (!REDUCED) bpCard.style.transform = 'scale(' + (0.965 + 0.035 * eased).toFixed(4) + ')';
     if (fill === bpActive) { requestAnimationFrame(bpFrame); return; }
     bpActive = fill;
     var placed = 0;
@@ -746,6 +784,10 @@
         btn.setAttribute('aria-current', String(+btn.getAttribute('data-sec') === cur));
       });
     }
+    /* flip chrome ink while the dark chapter owns the viewport */
+    var ro = document.getElementById('readout');
+    var rr = ro.getBoundingClientRect();
+    document.body.toggleAttribute('data-dark', rr.top < innerHeight * 0.7 && rr.bottom > innerHeight * 0.3);
     requestAnimationFrame(railFrame2);
   }
   requestAnimationFrame(railFrame2);

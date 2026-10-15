@@ -38,6 +38,9 @@ export async function requestGoogleToken(clientId, { scope, hint, prompt = '' } 
     const client = window.google.accounts.oauth2.initTokenClient({
       client_id: clientId,
       scope,
+      // Keep each token limited to the scope requested now. Google defaults
+      // this to true, which can pull an older broad grant into a Drive token.
+      include_granted_scopes: false,
       hint: hint || undefined,
       callback: (res) => (res?.access_token ? resolve(res.access_token) : reject(new Error(res?.error || 'No token'))),
       error_callback: (err) => {

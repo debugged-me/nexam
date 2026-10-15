@@ -1,7 +1,8 @@
 /**
  * googleForms — export an assembled exam to a self-grading Google Forms
- * quiz. Entirely browser-side: a forms.body-scoped GIS token calls the
- * Forms API directly; the API then stores the resulting links on the exam.
+ * quiz. Entirely browser-side: the same narrow drive.file token used by the
+ * Materials picker calls the Forms API directly; the API then stores the
+ * resulting links on the exam.
  *
  * Type mapping:
  *   mcq            → graded RADIO (option text as the answer value)
@@ -11,14 +12,15 @@
  *     model keeps only premises + letter answers, so there is no right-column
  *     text to build a grid from; the instructor grades these by hand.
  */
-import { requestGoogleToken } from './googleDrive.js';
-
-export const FORMS_SCOPE = 'https://www.googleapis.com/auth/forms.body';
+import { requestDriveToken } from './googleDrive.js';
 const API = 'https://forms.googleapis.com/v1/forms';
 
-/** forms.body-scoped token — consent prompt on first use, silent after. */
+/**
+ * The Forms create and batchUpdate methods accept drive.file. Keeping this
+ * on the picker scope avoids requesting broad access to every Google Form.
+ */
 export function requestFormsToken(clientId, hint) {
-  return requestGoogleToken(clientId, { scope: FORMS_SCOPE, hint });
+  return requestDriveToken(clientId, { hint });
 }
 
 async function formsPost(token, path, body) {

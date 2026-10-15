@@ -14,12 +14,8 @@ import UserAvatar from '../components/UserAvatar.jsx';
 import AvatarPickerModal from '../components/AvatarPickerModal.jsx';
 import { useLetterheadSrc, useLetterheadFootSrc } from '../lib/useLetterheadSrc.js';
 import { Mail, Check, Save, Eye, EyeOff, Camera, Trash2, Palette, ShieldCheck, ScrollText, ArrowUpRight, Loader2, Unlink, Pencil, KeyRound, ChevronDown } from 'lucide-react';
-import { requestGoogleToken, DRIVE_SCOPE, fetchDriveUser } from '../lib/googleDrive.js';
-import { FORMS_SCOPE } from '../lib/googleForms.js';
+import { requestDriveToken, fetchDriveUser } from '../lib/googleDrive.js';
 import Modal from '../components/Modal.jsx';
-
-/** One consent at bind time covers Drive import and Google Forms quiz export. */
-const BIND_SCOPES = `${DRIVE_SCOPE} ${FORMS_SCOPE}`;
 
 function nameFormFrom(user) {
   return {
@@ -146,7 +142,9 @@ export default function AccountPage() {
   async function handleDriveConnect() {
     setDriveBusy(true);
     try {
-      const token = await requestGoogleToken(driveCfg.clientId, { scope: BIND_SCOPES, prompt: 'consent' });
+      // Match Materials exactly: drive.file is the narrow, per-file scope
+      // supported by both Google Picker and Forms created by this app.
+      const token = await requestDriveToken(driveCfg.clientId, { prompt: 'consent' });
       const gUser = await fetchDriveUser(token);
       if (!gUser.emailAddress) throw new Error('Could not read the Google account.');
       await api.put('/auth/me/drive-account', { email: gUser.emailAddress });
@@ -391,8 +389,8 @@ export default function AccountPage() {
             <div className="card-body">
               <p className="acc-drive-copy">
                 {profile.google_drive_email
-                  ? 'Drive imports and Google Forms quiz exports run through this account — pickers and consent skip the account chooser.'
-                  : 'Connect a Google account to import course files from Drive and export exams as Google Forms quizzes — one consent covers both.'}
+                  ? 'Drive imports and Google Forms quiz exports use this account with the same per-file permission as the Materials picker.'
+                  : 'Connect a Google account with the same per-file permission used by the Materials picker. Nexam can then import files you choose and create Google Forms quizzes.'}
               </p>
               <div className="acc-drive-row">
                 {profile.google_drive_email && (
@@ -421,7 +419,7 @@ export default function AccountPage() {
                 </span>
               </div>
               <small className="acc-drive-note">
-                Access is per-file — Nexam only reads files you pick during import, straight into your private workspace. The consent screen also offers Google Forms access for quiz export; uncheck it there if you don't want it.
+                Nexam can read only the Drive files you select and the Google Forms it creates. It cannot browse the rest of your Drive.
               </small>
             </div>
           </div>

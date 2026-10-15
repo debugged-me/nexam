@@ -302,7 +302,7 @@ export default function ExamDetailPage() {
   }
 
   // Google Forms quiz export — browser-side Forms API with the instructor's
-  // token (forms.body scope); the API only stores the resulting links.
+  // narrow drive.file token; the API only stores the resulting links.
   const [gfBusy, setGfBusy] = useState(false);
   async function exportGoogleForm() {
     if (gfBusy || !data) return;

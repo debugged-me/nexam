@@ -16,7 +16,7 @@ import '../styles/materials.css';
  * flag is what unlocks TOS generation.
  */
 import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import {
   Upload, Link2, Video, FileText, Trash2, RotateCw, FileStack, Sparkles,
   BookOpen, Loader2, CheckCircle2, AlertCircle, RefreshCw, X, Copy, Ellipsis, Info,
@@ -112,6 +112,7 @@ function dragHasFiles(e) {
 }
 
 export default function MaterialsPage() {
+  const navigate = useNavigate();
   const toast = useToast();
   const confirm = useConfirm();
   const { menuEl, openMenu } = useContextMenu();
@@ -337,11 +338,12 @@ export default function MaterialsPage() {
 
     setUploading(true);
     let succeeded = 0;
+    let reused = 0;
     const failed = [];
     for (const item of batch) {
       setQueue((q) => q.map((it) => (it.id === item.id ? { ...it, state: 'uploading', error: null } : it)));
       try {
-        await uploadFile(item.file, {
+        const uploaded = await uploadFile(item.file, {
           subjectId: form.subject_id,
           // A custom title only makes sense for a single file; a batch takes
           // its titles from the filenames on the server side.
@@ -349,6 +351,7 @@ export default function MaterialsPage() {
           isSyllabus: item.is_syllabus,
         });
         succeeded += 1;
+        if (uploaded.reused) reused += 1;
         setQueue((q) => q.map((it) => (it.id === item.id ? { ...it, state: 'done' } : it)));
       } catch (err) {
         const message = err instanceof ApiError ? err.message : (err?.message || 'Upload failed.');
@@ -362,12 +365,13 @@ export default function MaterialsPage() {
 
     // Report honestly: a partial batch is not a success.
     if (succeeded && !failed.length) {
-      toast.success(`${succeeded} file${succeeded === 1 ? '' : 's'} uploaded. Processing started.`);
+      const fresh = succeeded - reused;
+      toast.success([fresh ? `${fresh} file${fresh === 1 ? '' : 's'} uploaded. Processing started.` : '', reused ? `${reused} identical file${reused === 1 ? ' was' : 's were'} already uploaded; existing material kept.` : ''].filter(Boolean).join(' '));
       setQueue([]);
       setForm((f) => ({ ...f, title: '' }));
       setUploadOpen(false);
     } else if (succeeded && failed.length) {
-      toast.warning(`${succeeded} uploaded, ${failed.length} failed — retry the ones marked below.`);
+      toast.warning(`${succeeded - reused} uploaded, ${reused} already present, ${failed.length} failed — retry the ones marked below.`);
     } else {
       toast.error(`Upload failed for ${failed.length} file${failed.length === 1 ? '' : 's'}.`);
     }
@@ -445,25 +449,15 @@ export default function MaterialsPage() {
   }
 
   async function handleGenerateTos(mat) {
-    // Warn — don't block — if the subject already has blueprints. Generating
-    // again is legitimate (new term, new syllabus), so this is a heads-up,
-    // not a wall.
     try {
-      const data = await api.get(`/tos?subject_id=${encodeURIComponent(mat.subject_id)}`);
-      const existing = data?.tos || [];
-      if (existing.length) {
-        const subjectLabel = matSubjectOf(mat)?.name || 'this subject';
-        const proceed = await confirm(
-          `${subjectLabel} already has ${existing.length} blueprint${existing.length === 1 ? '' : 's'} (${existing[0].title}). Generate another one anyway?`,
-          { title: 'Blueprint already exists', confirmText: 'Generate anyway', danger: false }
-        );
-        if (!proceed) return;
+      const scan = await api.post('/ai/syllabus-tos', { materialId: mat.id });
+      if (scan.tosId) {
+        toast.info('This syllabus already has a blueprint. Opening it for review.');
+        navigate(`/tos/${scan.tosId}`);
+      } else {
+        toast.success(scan.reused ? 'This syllabus scan is already in progress.' : 'Blueprint scan queued.');
+        navigate(`/pipeline?job=${encodeURIComponent(scan.jobId)}`);
       }
-    } catch { /* if the check fails, still let the user generate */ }
-
-    try {
-      await api.post('/ai/syllabus-tos', { materialId: mat.id });
-      toast.success('Blueprint scan queued. Review its topics and detected time frames on the Blueprints page when it finishes.');
     } catch (err) {
       toast.error(err instanceof ApiError ? err.message : 'TOS generation failed.');
     }

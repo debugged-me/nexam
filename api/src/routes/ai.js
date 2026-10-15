@@ -17,6 +17,7 @@ import { loadScopeChunks } from '../services/assessmentScopeStore.js';
 import aiProvider from '../services/aiProvider.js';
 import jobs from '../services/jobs.js';
 import { pipelineStage } from '../services/pipelineStage.js';
+import { queueSyllabusScan } from '../services/syllabusScan.js';
 import pool from '../config/db.js';
 import { requireAuth } from '../middleware/auth.js';
 import { rateLimit } from '../middleware/rateLimit.js';
@@ -86,6 +87,7 @@ function streamDraft(row) {
     answer: row.answer,
     topic: row.topic,
     bloom: row.bloom,
+    createdAt: row.created_at,
     grounding: meta?.grounding === 'knowledge' ? 'knowledge' : 'grounded',
     evidence: typeof meta?.evidence === 'string' ? meta.evidence : null,
   };
@@ -162,12 +164,15 @@ router.get('/jobs/:id/stream', requireAuth, async (req, res, next) => {
   const loadDrafts = async (row) => {
     if (row.type !== 'generate' || !payload.tosId || !row.started_at) return;
     const [rows] = await pool.query(
-      `SELECT id, type, stem, options, answer, topic, bloom, generation_meta
+      `SELECT id, type, stem, options, answer, topic, bloom, generation_meta, created_at
        FROM questions
-       WHERE tos_id = :tosId AND created_by = :uid AND source = 'ai' AND created_at >= :since
+       WHERE tos_id = :tosId AND created_by = :uid AND source = 'ai'
+         AND (JSON_UNQUOTE(JSON_EXTRACT(generation_meta, '$.jobId')) = :jobId
+           OR (JSON_EXTRACT(generation_meta, '$.jobId') IS NULL AND created_at >= :since
+             AND (:until IS NULL OR created_at <= :until)))
        ORDER BY created_at ASC
        LIMIT 500`,
-      { tosId: payload.tosId, uid: userId, since: row.started_at }
+      { tosId: payload.tosId, uid: userId, jobId: row.id, since: row.started_at, until: row.finished_at || null }
     );
     pushDrafts(rows.map(streamDraft));
   };
@@ -299,14 +304,8 @@ router.post('/syllabus-tos', requireAuth, rateLimit({ name: 'ai-syllabus', max: 
       return res.status(422).json({ error: 'The syllabus belongs to a different subject than this blueprint.' });
     }
 
-    const jobId = await jobs.enqueue({
-      type: 'syllabus_tos',
-      payload: { materialId, userId: req.user.id, tosId: tos?.id || null, assessmentScope },
-      userId: req.user.id,
-      subjectId: m.subject_id,
-    });
-
-    res.status(202).json({ jobId, status: 'queued' });
+    const scan = await queueSyllabusScan({ materialId, userId: req.user.id, tosId: tos?.id || null, assessmentScope });
+    res.status(scan.status === 'done' ? 200 : 202).json(scan);
   } catch (err) {
     next(err);
   }

@@ -20,9 +20,9 @@ import { publishJobEvent } from './jobEvents.js';
  * @param {number} [params.priority] — lower runs first (default 0)
  * @returns {Promise<string>} job id
  */
-export async function enqueue({ type, payload, userId = null, subjectId = null, priority = 0 }) {
+export async function enqueue({ type, payload, userId = null, subjectId = null, priority = 0 }, db = pool) {
   const id = uuid();
-  await pool.query(
+  await db.query(
     `INSERT INTO ai_jobs (id, type, status, priority, payload, user_id, subject_id)
      VALUES (:id, :type, 'queued', :priority, :payload, :userId, :subjectId)`,
     {

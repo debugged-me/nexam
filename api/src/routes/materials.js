@@ -15,6 +15,7 @@ import { Router } from 'express';
 import multer from 'multer';
 import fs from 'fs/promises';
 import path from 'path';
+import { createHash } from 'node:crypto';
 import { v4 as uuid } from 'uuid';
 import pool from '../config/db.js';
 import { requireAuth } from '../middleware/auth.js';
@@ -131,6 +132,8 @@ router.get('/youtube-info', requireAuth, async (req, res, next) => {
 
 /** POST /api/materials — upload a file or submit a URL/YouTube/text. */
 router.post('/', requireAuth, rateLimit({ name: 'material-upload', max: 15, windowSec: 300 }), upload.single('file'), async (req, res, next) => {
+  let conn;
+  let persisted = false;
   try {
     const { subject_id, title, source_type: explicitType, url, content, is_syllabus } = req.body;
 
@@ -183,14 +186,46 @@ router.post('/', requireAuth, rateLimit({ name: 'material-upload', max: 15, wind
       return res.status(400).json({ error: 'Provide a file, URL, or text content.' });
     }
 
+    // Serialize uploads within this instructor-owned subject. Identical file
+    // bytes are reused even when the filename changes; other subjects remain
+    // independent. Legacy uploads acquire hashes without changing their data.
+    conn = await pool.getConnection();
+    await conn.beginTransaction();
+    const [lockedSubjects] = await conn.query(`SELECT id FROM subjects WHERE id = :sid AND instructor_id = :uid FOR UPDATE`, { sid: subject_id, uid: req.user.id });
+    if (!lockedSubjects.length) {
+      await conn.rollback();
+      return res.status(403).json({ error: 'Subject not found or not owned by you.' });
+    }
+    let uploadHash = null;
+    const syllabus = is_syllabus === 'true' || is_syllabus === true ? 1 : 0;
+    if (filePath) {
+      const digest = (bytes) => createHash('sha256').update(bytes).digest('hex');
+      uploadHash = digest(await readProtectedFile(filePath));
+      const [candidates] = await conn.query(
+        `SELECT id, title, status, file_path, upload_hash FROM materials
+         WHERE subject_id = :sid AND created_by = :uid AND file_size = :size AND is_syllabus = :syllabus`,
+        { sid: subject_id, uid: req.user.id, size: fileSize, syllabus });
+      for (const candidate of candidates) {
+        let hash = candidate.upload_hash;
+        if (!hash && candidate.file_path) {
+          try { hash = digest(await readProtectedFile(candidate.file_path)); }
+          catch { continue; }
+          await conn.query(`UPDATE materials SET upload_hash = :hash WHERE id = :id`, { hash, id: candidate.id });
+        }
+        if (hash === uploadHash) {
+          await conn.commit();
+          return res.json({ id: candidate.id, title: candidate.title, status: candidate.status, sourceType, reused: true });
+        }
+      }
+    }
     const id = uuid();
-    await pool.query(
+    await conn.query(
       `INSERT INTO materials
          (id, subject_id, created_by, title, type, source_type, content, url,
-          file_path, file_size, mime_type, status, is_syllabus)
+          file_path, file_size, mime_type, status, is_syllabus, upload_hash)
        VALUES
          (:id, :subjectId, :userId, :title, 'reference', :sourceType, :content, :url,
-          :filePath, :fileSize, :mimeType, 'pending', :isSyllabus)`,
+          :filePath, :fileSize, :mimeType, 'pending', :isSyllabus, :uploadHash)`,
       {
         id,
         subjectId: subject_id,
@@ -202,7 +237,8 @@ router.post('/', requireAuth, rateLimit({ name: 'material-upload', max: 15, wind
         filePath,
         fileSize,
         mimeType,
-        isSyllabus: is_syllabus === 'true' || is_syllabus === true ? 1 : 0,
+        isSyllabus: syllabus,
+        uploadHash,
       }
     );
 
@@ -212,7 +248,9 @@ router.post('/', requireAuth, rateLimit({ name: 'material-upload', max: 15, wind
       payload: { materialId: id },
       userId: req.user.id,
       subjectId: subject_id,
-    });
+    }, conn);
+    await conn.commit();
+    persisted = true;
 
     logAudit({
       actorId: req.user.id, actorEmail: req.user.email,
@@ -221,7 +259,12 @@ router.post('/', requireAuth, rateLimit({ name: 'material-upload', max: 15, wind
     });
     res.status(201).json({ id, jobId, status: 'pending', sourceType, title: materialTitle });
   } catch (err) {
+    if (conn) await conn.rollback();
     next(err);
+  } finally {
+    conn?.release();
+    // Only discard this request's unused temporary upload, never a saved file.
+    if (req.file && !persisted) await fs.unlink(req.file.path).catch(() => {});
   }
 });
 

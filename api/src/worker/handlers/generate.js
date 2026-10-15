@@ -192,7 +192,7 @@ export default async function generateHandler(job) {
           options: q.options ? JSON.stringify(q.options) : null,
           answer: q.answer || null,
           explanation: q.explanation || null,
-          meta: JSON.stringify(q.meta),
+          meta: JSON.stringify({ ...q.meta, jobId: job.id }),
           createdBy: userId,
           scopeKey: tos.scope_key || null,
         }
@@ -235,6 +235,8 @@ export default async function generateHandler(job) {
 
   const summary = {
     tosId,
+    slotsTotal: slots.length,
+    slotsDone: slotIndex,
     generated: generatedCount,
     adopted: adoptedCount,
     droppedInvalid,

@@ -38,11 +38,10 @@ Other contracts:
 - Exam assembly must exactly satisfy the finalized topic-by-Bloom matrix.
 - Generated output is exactly Set A and Set B, with answer keys, TOS reports,
   QR-linked OMR sheets, GIFT, and Canvas/QTI XML.
-- Every AI draft is either **grounded** (cites an exact evidence span from
-  its retrieved lesson chunks) or **knowledge** (no uploaded lesson covers
-  the cell; see *Syllabus blueprints & AI question quality*). Both carry a
-  review proof; a missing or stale proof fails closed and blocks approval,
-  bank reuse, coverage counts, exam assembly and download/export.
+- Every usable AI draft is **grounded** in exact evidence from uploaded
+  lesson chunks and carries a current review proof. Historical **knowledge**
+  drafts are readable but blocked from approval, bank reuse, coverage counts,
+  exam assembly and download/export. Unsupported cells stay unfilled.
 - The institution similarity index contains approved questions only. Material
   retrieval indices remain private and subject-scoped.
 
@@ -122,10 +121,20 @@ and a parked DUPLICATE_SCAN outbox entry offers a Replace replay.
 ## Syllabus blueprints & AI question quality
 
 - A syllabus alone drafts the blueprint. `extract.js` enqueues `syllabus_tos`
-  (deduped by material + content hash) beside `embed`; drafting reads
+  through `queueSyllabusScan()` (shared with manual scans; locks the material
+  and reuses active jobs or existing results for the same content/target/scope)
+  beside `embed`; drafting reads
   `materials.content` and never waits on indexing. Only question generation
   needs the index — wizard stages come from `pipelineStage()`
   (`services/pipelineStage.js`).
+- File uploads lock the owned subject and compare SHA-256 of decrypted bytes.
+  Identical files in the same subject/classification reuse the existing
+  material even if renamed. This is not semantic PDF-versus-DOCX deduplication.
+- `/pipeline` shows recorded extraction/indexing/scan/generation jobs, all
+  detected syllabus period groups, and persisted generation results. Keep
+  questions and topic-by-Bloom cells in separate counters; never present an
+  animation or processing-completion rate as accuracy. New AI drafts carry
+  `generation_meta.jobId` so historical streams do not include later runs.
 - `prepareSyllabusBlueprint()` (`services/syllabusBlueprint.js`) keeps only
   topics verifiable in the syllabus text (case/dash/quote tolerant);
   unverifiable AI topics are left out and listed in

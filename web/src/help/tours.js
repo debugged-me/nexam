@@ -88,7 +88,7 @@ export const TOURS = [
       {
         sel: '[data-tour="nav-pipeline"]', minWidth: 992, side: 'right',
         title: 'Watch the AI work',
-        description: 'How AI works is a live window into question generation — your blueprint feeds the pipeline, each stage lights as it runs, and you can see exactly where every question ends up.',
+        description: 'How AI works shows recorded extraction, indexing, blueprint, and question-generation tasks. Select a task to inspect its status, result, or missing lesson evidence.',
       },
       {
         sel: '[data-tour="shell-build"]', minWidth: 992, side: 'right',
@@ -597,33 +597,28 @@ export const TOURS = [
     id: 'pipeline', name: 'How AI works', patterns: ['/pipeline'], roles: INSTRUCTOR,
     steps: [
       {
-        title: 'Watch the AI think',
-        description: 'This page shows a question-generation run as it happens — every stage of the pipeline lights up while the AI works through your blueprint. Nothing here approves anything: drafts still wait in your review queue.',
+        title: 'Follow the recorded work',
+        description: 'This page shows real processing tasks and their saved results. Finished means the task ended, not that its output has been verified or approved by an instructor.',
       },
       {
-        sel: '[data-tour="pipe-graph"]', side: 'top',
-        title: 'The flow, left to right',
-        description: 'Your blueprint and question bank feed the chain: retrieve lesson evidence → draft → check the evidence → second opinion. Blue streams are the working channel; a colored flash shows where each question ended up — queued for you, reused from the bank, already covered, or held back for lack of proof.',
+        sel: '[data-tour="pipe-history"]', side: 'right',
+        title: 'Select a task',
+        description: 'Recent work includes reading files, drafting blueprints, indexing passages, and generating questions. Select an older task to inspect its saved outcome. These are processing steps, not copies of your uploaded files.',
       },
       {
         sel: '[data-tour="pipe-kpis"]', side: 'bottom',
         title: 'The counters',
-        description: 'Drafted, reused, covered, and held back tally live, alongside blueprint progress and pace — a full run’s scoreboard at a glance.',
+        description: 'Question counts and topic-by-Bloom cell counts are separate. One cell can need several questions. Completed runs retain their counters after refresh, and shortfalls explain what is still missing.',
       },
       {
-        sel: '[data-tour="pipe-now"]', side: 'top',
-        title: 'What it’s doing right now',
-        description: 'The current blueprint cell — topic and Bloom level — while writing, then the newest question once a run settles.',
+        sel: '[data-tour="pipe-result"]', side: 'top',
+        title: 'Read the result',
+        description: 'A syllabus scan shows its topics grouped by the detected periods and weeks. A question run shows saved drafts and unfilled cells. Stop is available while a task is queued or running; already saved work is kept.',
       },
       {
-        sel: '[data-tour="pipe-controls"]', side: 'bottom', align: 'end',
-        title: 'Runs and the brake',
-        description: 'Switch between recent runs with the picker — finished runs replay their questions. Stop ends a live run cleanly; drafts already written stay in your queue.',
-      },
-      {
-        sel: '[data-tour="pipe-stats"]', side: 'top',
-        title: 'Reading a run afterwards',
-        description: 'Below the graph, the donut shows where cells ended up, the bars spread drafts across Bloom levels, the pace line tracks writing speed, and the latest list previews each question — all replayable for finished runs.',
+        sel: '[data-tour="pipe-explanation"]', side: 'top',
+        title: 'A syllabus is a plan, not an answer source',
+        description: 'Review and finalize the draft blueprint, then upload substantive lessons for factual questions. A syllabus-only run should leave unsupported cells empty instead of inventing answers.',
       },
     ],
   },

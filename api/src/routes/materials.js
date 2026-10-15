@@ -6,6 +6,7 @@
  * GET    /api/materials/:id           — single material detail
  * DELETE /api/materials/:id          — delete a material (ownership-checked)
  * POST   /api/materials/:id/reprocess — re-queue a failed material for extraction
+ * GET    /api/materials/drive-config  — Google Drive picker config (authed)
  *
  * All routes require auth (JWT). Materials are scoped to the user via
  * created_by for ownership and IDOR protection.
@@ -22,6 +23,8 @@ import jobsService, { enqueue } from '../services/jobs.js';
 import { assertSafePublicUrl } from '../services/safeUrl.js';
 import { encryptFileAtRest, readProtectedFile } from '../services/storageCrypto.js';
 import { logAudit } from '../services/audit.js';
+import { getSetting } from '../services/settings.js';
+import env from '../config/env.js';
 
 const router = Router();
 
@@ -65,6 +68,25 @@ function mimeToSourceType(mimetype, filename) {
   if (mimetype === 'text/plain' || mimetype === 'text/markdown' || ext === '.txt' || ext === '.md') return 'text';
   return 'text';
 }
+
+/**
+ * GET /api/materials/drive-config
+ * Config the Drive picker needs in the browser: the OAuth web client ID, the
+ * restricted API key the Picker API requires, and the GCP project number.
+ * All three are public-by-design values (API key should be referrer-restricted
+ * in the console) but the endpoint is authed so Drive import stays a
+ * signed-in feature. `enabled: false` hides the button.
+ */
+router.get('/drive-config', requireAuth, async (req, res, next) => {
+  try {
+    const clientId = String(await getSetting('google_client_id', env.google.clientId) || '').trim();
+    const apiKey = String(await getSetting('google_picker_api_key', env.google.pickerApiKey) || '').trim();
+    const appId = String(await getSetting('google_app_id', env.google.appId) || '').trim();
+    res.json({ enabled: Boolean(clientId && apiKey && appId), clientId, apiKey, appId });
+  } catch (err) {
+    next(err);
+  }
+});
 
 /** POST /api/materials — upload a file or submit a URL/YouTube/text. */
 router.post('/', requireAuth, rateLimit({ name: 'material-upload', max: 15, windowSec: 300 }), upload.single('file'), async (req, res, next) => {

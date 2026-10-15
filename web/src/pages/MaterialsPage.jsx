@@ -36,6 +36,7 @@ import EmptyStateArt from '../components/EmptyStateArt.jsx';
 import { StatusPill, StatCard, groupColor } from '../components/Board.jsx';
 import Select from '../components/Select.jsx';
 import Tooltip from '../components/Tooltip.jsx';
+import DriveImportButton from '../components/DriveImportButton.jsx';
 
 const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:3000/api';
 
@@ -777,6 +778,10 @@ export default function MaterialsPage() {
                 accept=".pdf,.docx,.pptx,.txt,application/pdf,text/plain"
                 onChange={(e) => { enqueueFiles(e.target.files); e.target.value = ''; }} />
             </div>
+
+            {/* Google Drive import — renders nothing until the server reports
+                picker config; picked files join the same staging queue. */}
+            <DriveImportButton onFiles={enqueueFiles} disabled={uploading} />
 
             {queue.length > 0 && (
               <div className="mat-queue">

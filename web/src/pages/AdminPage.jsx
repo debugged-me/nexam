@@ -1659,6 +1659,39 @@ function PoolKeyRows({ provider, rows, masked, sources, savedCount, removed, mod
 }
 
 // ── Settings tab ───────────────────────────────────────
+
+const SETTINGS_OPEN_KEY = 'nexam.admin.settings.open';
+
+/** Collapsible settings card — remembers its open state per card id. */
+function SettingsCard({ id, icon, title, tag, bodyClass = '', children }) {
+  const [open, setOpen] = useState(() => {
+    try {
+      const saved = JSON.parse(localStorage.getItem(SETTINGS_OPEN_KEY) || '{}');
+      return saved[id] !== false;
+    } catch { return true; }
+  });
+  const onToggle = (e) => {
+    const next = e.currentTarget.open;
+    setOpen(next);
+    try {
+      const saved = JSON.parse(localStorage.getItem(SETTINGS_OPEN_KEY) || '{}');
+      saved[id] = next;
+      localStorage.setItem(SETTINGS_OPEN_KEY, JSON.stringify(saved));
+    } catch {}
+  };
+  return (
+    <details className="adm-card adm-collapse" open={open} onToggle={onToggle}>
+      <summary className="adm-card-head adm-collapse-head">
+        {icon}
+        <h3>{title}</h3>
+        {tag}
+        <ChevronDown size={15} className="adm-provider-caret adm-collapse-caret" aria-hidden="true" />
+      </summary>
+      <div className={`adm-card-body ${bodyClass}`}>{children}</div>
+    </details>
+  );
+}
+
 function SettingsTab({ toast }) {
   const [data, setData] = useState(null);
   const [form, setForm] = useState({});
@@ -1681,6 +1714,8 @@ function SettingsTab({ toast }) {
           google_client_id: d.google?.clientId || '',
           google_client_ids: d.google?.clientIds || '',
           google_client_secret: '',
+          google_picker_api_key: d.google?.pickerApiKey || '',
+          google_app_id: d.google?.appId || '',
           gemini_model: d.ai?.geminiModel || '',
           gemini_fallback_models: d.ai?.geminiFallbackModels || '',
           gemini_embedding_model: d.ai?.geminiEmbeddingModel || '',
@@ -1834,44 +1869,27 @@ function SettingsTab({ toast }) {
         <TableSkeleton rows={4} />
       ) : (
         <form className="adm-settings" onSubmit={save}>
-          <section className="adm-card">
-            <header className="adm-card-head">
-              <ShieldCheck size={15} />
-              <h3>reCAPTCHA v2</h3>
-              {data.recaptcha?.secretSet && <span className="adm-tag adm-tag-ok">configured</span>}
-            </header>
-            <div className="adm-card-body">
-              <div className="form-row">
-                {field('recaptcha_site_key', 'Site key', { placeholder: 'Site key shown to visitors' })}
-                {field('recaptcha_secret_key', 'Secret key', {
-                  type: 'password',
-                  placeholder: data.recaptcha?.secretMasked || 'Not configured',
-                  hint: 'Leave blank to keep the current secret.',
-                })}
-              </div>
-            </div>
-          </section>
-
-          <section className="adm-card">
-            <header className="adm-card-head">
-              <MailCheck size={15} />
-              <h3>Self-registration</h3>
-            </header>
-            <div className="adm-card-body">
-              {field('auto_approve_domains', 'Auto-approve email domains', {
-                placeholder: 'dorsu.edu.ph, deped.gov.ph',
-                hint: 'Verified emails on these domains (and their subdomains) activate instantly — all others wait for admin approval. Clear the field to require approval for everyone.',
+          <SettingsCard id="recaptcha" icon={<ShieldCheck size={15} />} title="reCAPTCHA v2"
+            tag={data.recaptcha?.secretSet && <span className="adm-tag adm-tag-ok">configured</span>}>
+            <div className="form-row">
+              {field('recaptcha_site_key', 'Site key', { placeholder: 'Site key shown to visitors' })}
+              {field('recaptcha_secret_key', 'Secret key', {
+                type: 'password',
+                placeholder: data.recaptcha?.secretMasked || 'Not configured',
+                hint: 'Leave blank to keep the current secret.',
               })}
             </div>
-          </section>
+          </SettingsCard>
 
-          <section className="adm-card">
-            <header className="adm-card-head">
-              <LogIn size={15} />
-              <h3>Google sign-in</h3>
-              {data.google?.clientId && <span className="adm-tag adm-tag-ok">enabled</span>}
-            </header>
-            <div className="adm-card-body">
+          <SettingsCard id="selfreg" icon={<MailCheck size={15} />} title="Self-registration">
+            {field('auto_approve_domains', 'Auto-approve email domains', {
+              placeholder: 'dorsu.edu.ph, deped.gov.ph',
+              hint: 'Verified emails on these domains (and their subdomains) activate instantly — all others wait for admin approval. Clear the field to require approval for everyone.',
+            })}
+          </SettingsCard>
+
+          <SettingsCard id="google" icon={<LogIn size={15} />} title="Google sign-in"
+            tag={data.google?.clientId && <span className="adm-tag adm-tag-ok">enabled</span>}>
               {field('google_client_id', 'Web client ID', {
                 placeholder: '123-abc.apps.googleusercontent.com',
                 hint: 'OAuth client ID from Google Cloud Console → Credentials. Shown to visitors, so it is not secret. Clear the field to turn Google sign-in off.',
@@ -1885,15 +1903,17 @@ function SettingsTab({ toast }) {
                 placeholder: 'Android/iOS client IDs, comma-separated',
                 hint: 'ID tokens issued to these platform client IDs are also accepted. Leave empty if the app uses the web client ID as its server client ID.',
               })}
-            </div>
-          </section>
+              {field('google_picker_api_key', 'Picker API key', {
+                placeholder: 'AIza…',
+                hint: 'Restricted API key for Drive import — Google Cloud Console → Credentials → API key (restrict to Picker + Drive APIs).',
+              })}
+              {field('google_app_id', 'GCP project number', {
+                placeholder: '831761906512',
+                hint: 'The numeric project number (Project settings in Google Cloud Console) — the Drive picker needs it as the app ID.',
+              })}
+          </SettingsCard>
 
-          <section className="adm-card">
-            <header className="adm-card-head">
-              <Settings2 size={15} />
-              <h3>AI providers</h3>
-            </header>
-            <div className="adm-card-body adm-providers">
+          <SettingsCard id="ai" icon={<Settings2 size={15} />} title="AI providers" bodyClass="adm-providers">
               <details className="adm-provider" open={!data.ai?.geminiApiKeySet}>
                 <summary className="adm-provider-head">
                   <strong>Gemini</strong>
@@ -2004,8 +2024,7 @@ function SettingsTab({ toast }) {
                   />
                 </div>
               </details>
-            </div>
-          </section>
+          </SettingsCard>
 
           <div className="form-actions">
             <button type="submit" className="btn btn-primary" disabled={saving || testing !== null}>

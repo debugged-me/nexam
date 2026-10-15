@@ -18,6 +18,7 @@ test('Ollama settings enforce roles, mask secrets, preserve blank keys, and test
     getConnection: async () => ({ release() {} }),
     query: async (sql, params) => {
       if (/SELECT id, email, role, status FROM users/.test(sql)) return [[users.get(params.id)].filter(Boolean)];
+      if (/SELECT setting_key, setting_value FROM settings/.test(sql)) return [[...settings].map(([k, v]) => ({ setting_key: k, setting_value: v }))];
       if (/SELECT setting_value FROM settings/.test(sql)) return [settings.has(params.key) ? [{ setting_value: settings.get(params.key) }] : []];
       if (/INSERT INTO settings/.test(sql)) { settings.set(params.k, params.v); return [{}]; }
       if (/INSERT INTO audit_logs/.test(sql)) { audits.push(params); return [{}]; }

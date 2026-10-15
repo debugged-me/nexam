@@ -38,13 +38,28 @@ system. Check items off as they ship. Effort = rough relative size
     4. Add the GCP project number as `GOOGLE_CLIENT_ID`-linked web config
        for web builds of Flutter if you ever ship Flutter web.
 
-- [ ] **Google Drive import for materials** — effort: M
-  - `api/src/routes/materials.js` already ingests file/URL/YouTube/text —
-    add Drive as a source. Drive Picker on the web, Drive API download
-    server-side, then the normal extract→embed pipeline.
-  - Console: Drive API + `drive.readonly` scope (sensitive → Google
-    verification for production).
-  - Reuse the Google Sign-In token, or a per-user stored refresh token.
+- [ ] **Google Drive import for materials** — effort: M — **implemented, needs GCP credentials**
+  - Web: `components/DriveImportButton.jsx` on the Materials upload dialog —
+    token client (`drive.file`, non-sensitive — picker grants per-file
+    access, no verification needed) → Google Picker (multi-select, filtered
+    to pdf/docx/pptx/txt/md + Google Docs/Sheets/Slides) → downloads blobs
+    (`files.get?alt=media`; Google-native via `files.export` → PDF) → hands
+    `File[]` to the existing upload queue. No new upload code.
+  - API: `GET /api/materials/drive-config` (authed) →
+    `{ enabled, clientId, apiKey, appId }`.
+  - Settings: `google_picker_api_key`, `google_app_id` (project number),
+    both editable in the superadmin Google card. Env fallbacks:
+    `GOOGLE_PICKER_API_KEY`, `GOOGLE_APP_ID`.
+  - **Still to do (console, needs you):**
+    1. APIs & Services → enable **Google Picker API** + **Google Drive API**.
+    2. Credentials → **API key**, restrict it to Picker + Drive APIs
+       (and localhost/prod referrers) → paste into settings.
+    3. Project number (Dashboard → Project info) → "GCP project number"
+       field.
+    4. Google Auth Platform → Data Access → add scope
+       `.../auth/drive.file` (**non-sensitive** — no unverified-app screen,
+       no user cap, no verification required. Deliberately chosen over
+       `drive.readonly`, which is sensitive and would need it).
 
 - [ ] **Google Classroom integration** — effort: L
   - Sync course rosters → `students` table (`findOrCreateStudent` already

@@ -124,6 +124,10 @@ export const env = {
     clientIds: (process.env.GOOGLE_CLIENT_IDS || '').split(',').map((s) => s.trim()).filter(Boolean),
     // Only needed for the web popup (authorization-code) sign-in flow.
     clientSecret: process.env.GOOGLE_CLIENT_SECRET || '',
+    // Drive import: restricted API key for the Picker API + GCP project
+    // number (appId). DB settings override at runtime.
+    pickerApiKey: process.env.GOOGLE_PICKER_API_KEY || '',
+    appId: process.env.GOOGLE_APP_ID || '',
   },
 
   // SMTP used by the email service for verification and password-reset codes.

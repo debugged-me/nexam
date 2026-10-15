@@ -413,6 +413,8 @@ const EDITABLE_KEYS = [
   'recaptcha_site_key',
   'recaptcha_secret_key',
   'google_client_secret',
+  'google_picker_api_key',
+  'google_app_id',
   'gemini_api_key',
   'gemini_model',
   'gemini_fallback_models',
@@ -444,6 +446,8 @@ router.get('/settings', requireSuperadmin, async (req, res, next) => {
     const googleClientId = await getSetting('google_client_id', env.google.clientId);
     const googleClientIds = await getSetting('google_client_ids', env.google.clientIds.join(','));
     const googleClientSecret = await getSetting('google_client_secret', env.google.clientSecret);
+    const googlePickerKey = await getSetting('google_picker_api_key', env.google.pickerApiKey);
+    const googleAppId = await getSetting('google_app_id', env.google.appId);
     const cfg = await getAiConfig();
     // Which pool keys the page can edit: settings-held keys, or ones always
     // appended from api/.env (removable only there).
@@ -460,6 +464,9 @@ router.get('/settings', requireSuperadmin, async (req, res, next) => {
         clientIds: googleClientIds || '',
         secretSet: Boolean(googleClientSecret),
         secretMasked: mask(googleClientSecret),
+        // Drive picker config — both public-by-design values.
+        pickerApiKey: googlePickerKey || '',
+        appId: googleAppId || '',
       },
       recaptcha: {
         siteKey,
@@ -554,6 +561,22 @@ router.put('/settings', requireSuperadmin, async (req, res, next) => {
     }
 
     const changed = [];
+    // Only write + audit a key when the value genuinely changed — the page
+    // always posts every loaded field, so without this check a two-field
+    // edit rewrites (and audit-logs) the whole settings table.
+    const [settingRows] = await pool.query(`SELECT setting_key, setting_value FROM settings`);
+    const current = new Map(settingRows.map((r) => [r.setting_key, r.setting_value]));
+    const writeSetting = async (k, v) => {
+      if (current.get(k) === v) return false;
+      await pool.query(
+        `INSERT INTO settings (setting_key, setting_value)
+         VALUES (:k, :v)
+         ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value)`,
+        { k, v }
+      );
+      current.set(k, v);
+      return true;
+    };
     // Trusted domains are handled outside the whitelist loop because an
     // empty value is meaningful: it disables auto-approval entirely.
     if (typeof body.auto_approve_domains === 'string') {
@@ -565,13 +588,9 @@ router.put('/settings', requireSuperadmin, async (req, res, next) => {
       if (parts.length > 50 || parts.some((d) => !domainRe.test(d))) {
         return res.status(400).json({ error: 'Enter domains as a comma-separated list, such as dorsu.edu.ph, deped.gov.ph.' });
       }
-      await pool.query(
-        `INSERT INTO settings (setting_key, setting_value)
-         VALUES (:k, :v)
-         ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value)`,
-        { k: 'auto_approve_domains', v: [...new Set(parts)].join(',') }
-      );
-      changed.push('auto_approve_domains');
+      if (await writeSetting('auto_approve_domains', [...new Set(parts)].join(','))) {
+        changed.push('auto_approve_domains');
+      }
     }
     // Google client IDs are also always written — an empty web client ID is
     // meaningful: it turns Google sign-in off.
@@ -581,37 +600,21 @@ router.put('/settings', requireSuperadmin, async (req, res, next) => {
       if (v && !clientIdRe.test(v)) {
         return res.status(400).json({ error: 'Enter the Google OAuth client ID, such as 123-abc.apps.googleusercontent.com.' });
       }
-      await pool.query(
-        `INSERT INTO settings (setting_key, setting_value)
-         VALUES (:k, :v)
-         ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value)`,
-        { k: 'google_client_id', v }
-      );
-      changed.push('google_client_id');
+      if (await writeSetting('google_client_id', v)) changed.push('google_client_id');
     }
     if (typeof body.google_client_ids === 'string') {
       const parts = body.google_client_ids.split(/[\s,]+/).map((s) => s.trim()).filter(Boolean);
       if (parts.length > 10 || parts.some((p) => !clientIdRe.test(p))) {
         return res.status(400).json({ error: 'Enter extra client IDs comma-separated, such as 123-abc.apps.googleusercontent.com.' });
       }
-      await pool.query(
-        `INSERT INTO settings (setting_key, setting_value)
-         VALUES (:k, :v)
-         ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value)`,
-        { k: 'google_client_ids', v: [...new Set(parts)].join(',') }
-      );
-      changed.push('google_client_ids');
+      if (await writeSetting('google_client_ids', [...new Set(parts)].join(','))) {
+        changed.push('google_client_ids');
+      }
     }
     for (const key of EDITABLE_KEYS) {
       const v = body[key];
       if (typeof v !== 'string' || v.trim() === '') continue;
-      await pool.query(
-        `INSERT INTO settings (setting_key, setting_value)
-         VALUES (:k, :v)
-         ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value)`,
-        { k: key, v: v.trim() }
-      );
-      changed.push(key);
+      if (await writeSetting(key, v.trim())) changed.push(key);
     }
     // Key pools: one key per line, up to 10 — first line is the primary.
     // Writing a list also syncs the legacy single key to the pool head so
@@ -628,33 +631,19 @@ router.put('/settings', requireSuperadmin, async (req, res, next) => {
         return res.status(400).json({ error: 'API keys must be one per line with no spaces.' });
       }
       const deduped = [...new Set(keys)];
-      await pool.query(
-        `INSERT INTO settings (setting_key, setting_value)
-         VALUES (:k, :v)
-         ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value)`,
-        { k: listKey, v: deduped.join('\n') }
-      );
-      await pool.query(
-        `INSERT INTO settings (setting_key, setting_value)
-         VALUES (:k, :v)
-         ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value)`,
-        { k: singleKey, v: deduped[0] }
-      );
-      changed.push(listKey);
+      const listChanged = await writeSetting(listKey, deduped.join('\n'));
+      const singleChanged = await writeSetting(singleKey, deduped[0]);
+      if (listChanged || singleChanged) changed.push(listKey);
     }
     for (const [provider, keys] of Object.entries(slotPools)) {
+      let touched = false;
       for (const [k, v] of [[`${provider}_api_keys`, keys.join('\n')], [`${provider}_api_key`, keys[0] || '']]) {
-        await pool.query(
-          `INSERT INTO settings (setting_key, setting_value)
-           VALUES (:k, :v)
-           ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value)`,
-          { k, v }
-        );
+        if (await writeSetting(k, v)) touched = true;
       }
-      changed.push(`${provider}_api_keys`);
+      if (touched) changed.push(`${provider}_api_keys`);
     }
     if (!changed.length) {
-      return res.status(400).json({ error: 'No settings to update.' });
+      return res.json({ message: 'No changes to save.', changed: [] });
     }
     invalidateAiConfigCache();
     logAudit({

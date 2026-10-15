@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="Nexam Data Privacy Notice — what information the service handles, why, and the choices you have." />
+  <meta name="robots" content="noindex, nofollow, noarchive" />
+  <title>Data Privacy Notice — Nexam</title>
+  <link rel="icon" type="image/png" href="favicon.png" />
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: #f6f7f9; color: #1a1d24; padding: 28px 18px 64px;
+    }
+    .top { max-width: 720px; margin: 0 auto 26px; display: flex; align-items: center; justify-content: space-between; }
+    .brand { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 1.1rem; letter-spacing: -.02em; text-decoration: none; color: inherit; }
+    .brand img { width: 28px; height: 28px; border-radius: 8px; }
+    .back { font-size: .85rem; color: #6b7280; text-decoration: none; }
+    .back:hover { color: #2e7cd6; }
+    .doc { max-width: 720px; margin: 0 auto; background: #fff; border: 1px solid #e4e6eb; border-radius: 16px; padding: 44px 48px; box-shadow: 0 8px 30px rgba(20, 30, 50, .07); }
+    h1 { font-size: 1.7rem; letter-spacing: -.03em; margin: 0 0 6px; }
+    .updated { font-size: .8rem; color: #9ca3af; margin: 0 0 12px; }
+    .intro { color: #4b5563; line-height: 1.65; margin: 0 0 30px; }
+    h2 { font-size: 1.02rem; margin: 30px 0 8px; }
+    p { font-size: .9rem; color: #4b5563; line-height: 1.65; margin: 0; }
+    ul { margin: 0; padding-left: 18px; }
+    li { font-size: .9rem; color: #4b5563; line-height: 1.65; margin: 6px 0; }
+    .foot { display: flex; gap: 14px; justify-content: center; font-size: .8rem; color: #9ca3af; padding-top: 30px; margin-top: 36px; border-top: 1px solid #eef0f3; }
+    .foot a { color: #6b7280; text-decoration: none; }
+    .foot a:hover { color: #2e7cd6; text-decoration: underline; }
+    .foot a.active { color: #1a1d24; font-weight: 600; }
+    @media (max-width: 600px) { .doc { padding: 30px 22px; } }
+  </style>
+</head>
+<body>
+  <header class="top">
+    <a class="brand" href="index.html"><img src="favicon.png" alt="" /><span>nexam</span></a>
+    <a class="back" href="index.html">← Back</a>
+  </header>
+
+  <main class="doc">
+    <h1>Data Privacy Notice</h1>
+    <p class="updated">Last updated: October 2026</p>
+    <p class="intro">Nexam is an exam-building workspace for instructors. This notice explains what information the service handles, why, and the choices you have.</p>
+
+    <h2>What we collect</h2>
+    <ul>
+      <li>Account details — your name, email address, and a hashed password.</li>
+      <li>Content you create — subjects, questions, TOS blueprints, exams, and their results.</li>
+      <li>Materials you upload — PDFs, documents, URLs, or pasted text used to ground question generation.</li>
+      <li>Exam results you record — scores and item analysis, including any student identifiers you choose to enter.</li>
+      <li>Technical data — request and sign-in logs, kept for security and for your administrator’s audit trail.</li>
+    </ul>
+
+    <h2>How AI features use your content</h2>
+    <ul>
+      <li>Uploaded materials are chunked and indexed inside your account so generated questions can cite your own sources.</li>
+      <li>Drafting and verification may send a lesson excerpt, blueprint cell, or draft question to the AI services configured by your institution (for example Google Gemini or Groq), or to models running locally.</li>
+      <li>Independent “blind-solve” checks send the draft question — without its answer key — to a different model to verify it.</li>
+      <li>These requests carry only the text needed for the task. Your name, email, credentials, and student records are never sent to AI providers.</li>
+    </ul>
+
+    <h2>How we use it</h2>
+    <ul>
+      <li>To provide the workspace: store, organize, and render your content back to you.</li>
+      <li>To check originality: approved questions form an institution-wide, read-only similarity bank.</li>
+      <li>To analyze results: item analysis and exam statistics computed from data you entered.</li>
+    </ul>
+
+    <h2>What we never do</h2>
+    <ul>
+      <li>Sell or rent your data to anyone.</li>
+      <li>Show your private drafts, materials, or results to other instructors.</li>
+      <li>Use your content to train models outside this service.</li>
+      <li>Send your account details or student records to AI providers.</li>
+    </ul>
+
+    <h2>Sharing</h2>
+    <ul>
+      <li>Approved questions become part of a shared, institution-wide read-only bank; other instructors may reuse them. Your drafts, rejected items, and uploaded materials are never shared.</li>
+      <li>Administrators can see account status and sign-in logs for security — not your materials, drafts, or results.</li>
+      <li>We disclose data only if required by law or your institution’s policies.</li>
+    </ul>
+
+    <h2>Security</h2>
+    <ul>
+      <li>Passwords are stored hashed; sessions use short-lived signed tokens, and password-reset links are single-use and expire.</li>
+      <li>Uploaded files and student PII are stored encrypted at rest.</li>
+      <li>Access is scoped: every private record belongs to your instructor account and the API enforces that on each request.</li>
+      <li>These practices follow the Data Privacy Act of 2012 (RA 10173) principles of proportionality and transparency.</li>
+    </ul>
+
+    <h2>Your choices</h2>
+    <ul>
+      <li>Edit or delete your content at any time — deleting a material removes its chunks and embeddings.</li>
+      <li>Rejected questions stay in your private queue only; they are never added to the shared bank.</li>
+      <li>Request account deletion or a copy of your data from your administrator.</li>
+    </ul>
+
+    <h2>Contact</h2>
+    <p>Questions about this notice or your data? Contact your institution’s Nexam administrator.</p>
+
+    <div class="foot">
+      <a href="terms.html">Terms of Use</a><span>·</span>
+      <a href="privacy.html" class="active">Data Privacy</a><span>·</span>
+      <a href="index.html">Home</a>
+    </div>
+  </main>
+</body>
+</html>

@@ -299,6 +299,17 @@
 .upload-zone-text { font-size: var(--text-sm); color: var(--ink-2); margin-bottom: 4px; }
 .upload-zone-hint { font-size: var(--text-xs); color: var(--ink-3); }
 
+/* Drive import row under the upload zone — "or" divider + outline button. */
+.mat-drive-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 14px;
+}
+.mat-drive-or { font-size: var(--text-xs); color: var(--ink-faint); }
+.mat-drive-btn { flex: 1; justify-content: center; gap: 8px; }
+.mat-drive-btn svg { flex: 0 0 auto; }
+
 .mat-check {
   display: flex;
   align-items: center;
@@ -447,4 +458,13 @@
 }
 
 
+}
+
+/* Google Picker renders portaled to <body> — OUTSIDE the .page--materials
+   scope — so this rule must stay unscoped. Google sets a low inline z-index;
+   !important lifts its veil + dialog above .modal (10000) and menus. */
+.picker-dialog-bg,
+.picker-dialog,
+.picker {
+  z-index: 200000 !important;
 }

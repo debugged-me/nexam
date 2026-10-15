@@ -55,6 +55,22 @@
   }
   .adm-card-head .adm-tag { margin-left: auto; }
   .adm-card-body { padding: 0 18px 18px; }
+
+  /* Collapsible settings cards — <details>/<summary> reusing the card anatomy. */
+  .adm-collapse-head {
+    cursor: pointer;
+    list-style: none;
+    user-select: none;
+    border-radius: var(--radius-xl);
+  }
+  .adm-collapse-head::-webkit-details-marker { display: none; }
+  .adm-collapse-head:hover { background: var(--surface-2); }
+  .adm-collapse-caret { margin-left: auto; }
+  .adm-collapse-head .adm-tag + .adm-collapse-caret { margin-left: 0; }
+  .adm-collapse[open] > .adm-collapse-head {
+    border-bottom: 1px solid var(--line);
+    border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+  }
   .adm-card-link {
     margin-left: auto;
     display: inline-flex;

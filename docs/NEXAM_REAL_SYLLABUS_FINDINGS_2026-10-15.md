@@ -8,6 +8,24 @@ The supplied school syllabi produce usable **draft blueprints**, but this is not
 
 No existing materials, blueprints, questions, exams, or scans were deleted. No account password was changed during this evaluation. An ephemeral local test session was used for authenticated API/browser checks.
 
+## October 16 follow-up: restore the preferred flow design
+
+The instructor preferred the original connected-node/Sankey-style console. That visual layout has been restored without undoing the upload, scan, grounding, or reporting fixes:
+
+- Wide curved-path flow map, compact counters, question-output ring, Bloom breakdown, writing timeline, latest questions, and an expandable graph view.
+- Task picker at the top; the full recent-work list is now collapsible below the console.
+- Removed the large page title and Refresh button, as requested. Tasks update automatically. Repeated status cards are now one compact strip, and long explanations/period topic lists expand only when needed; every detected period remains visible.
+- Material jobs have their own branching extraction → blueprint/indexing map, with the period-grouped syllabus results retained below it.
+- The material graph includes a **Questions & checks** preview. The question graph names **Constraints** (source, format, Bloom) and **Blind check** explicitly. Compact expandable check summaries sit immediately below the map, including **Similarity check**.
+- Similarity reads the current owned question records, filters them to the selected run's streamed question IDs, and continues polling after generation completes. Clear, flagged, pending, failed, rejected and unavailable are distinct. A material scan has no question-similarity result; a successful generation job never substitutes for a completed similarity check. Required quality rules are not displayed as measured per-stage pass counts.
+- Active-task paths can move, but the caption explicitly distinguishes activity from measured stage-by-stage telemetry. Finished runs do not animate as live work.
+- The output ring contains questions only (new/reused), never a mix of questions and cells. The timeline uses saved server timestamps; unknown timestamps are not invented and refresh/replay does not change the plotted times.
+- Mobile uses a contained, labelled horizontal graph scroller; expand/close, keyboard focus, dark-mode tokens, and reduced-motion behavior were checked.
+
+Verification: **44 web tests passed**; build and lint passed with existing warnings. Browser checks passed at **1440/1024/768/380px**, including the actual retained syllabus/shortfall results and task selection. Display-only fixtures verified question-output charts, timestamp replay, running/reduced-motion behavior, run-specific similarity counts, continued polling after generation ends, and an unavailable state on API failure. These fixtures are not new AI-generated questions or evidence of a successful live AI review. No database records or backend behavior were changed by this visual restoration. Screenshots and the temporary browser check are in `/tmp/nexam-flow-restore.fNTeHq/`.
+
+The final read-only check found no retained similarity task linked to a current question for this instructor, so the new status display was verified with controlled browser responses, not a new live embedding/duplicate-check run.
+
 ## Actual files and results
 
 The folder contains three courses, each supplied as DOCX and PDF: six files, not six different courses. Both formats were inspected through the application's text extractor. The live upload/blueprint acceptance tests used the DOCX versions; the matching PDFs were not also uploaded as duplicate course materials. Full PDF-to-blueprint generation is **not yet verified** by this evaluation.
@@ -89,8 +107,8 @@ The fourth blueprint is the explicitly named validation record above, not an acc
 
 ## How to repeat the manual checks
 
-1. Refresh the local app and open **How AI works**. Select PE 3's **Draft blueprint** task, or use its link above.
-2. Confirm **25 topics**, four groups, and the printed source week ranges. Switch to PE 2 and check **10 topics**; switch to TCW and check **20**.
+1. Refresh the local app and open **How AI works**. Use the top task picker (or expand **Recent work** below the console) to select PE 3's **Draft blueprint** task, or use its link above. **Expand** opens the larger connected flow map.
+2. Confirm **25 topics**, four groups, and the printed source week ranges; expand a period to inspect its topics. Switch to PE 2 and check **10 topics**; switch to TCW and check **20**. Expand **Constraints**, **Independent check**, or **Similarity check** for details. A material scan must say similarity happens after questions are saved, not that it passed.
 3. Open **Materials → Upload material**, choose **PE 2**, and upload `DOIT College PE 2- BCIT Syllabus.docx` again with its syllabus flag on. Expect “already uploaded,” no extra material, and no new processing chain. Keep the subject and syllabus flag the same for this check.
 4. Click **Generate blueprint** for PE 3. Expect its existing blueprint to open. Its title should be “Physical Activities Toward Health and Fitness 3.”
 5. Open the refusal-test result above. Expect **0 questions drafted**, **1 cell with a shortfall**, **1/1 cells processed**, and **3 questions still missing**. Refresh; the counts must remain.

@@ -22,6 +22,8 @@ The implementation is substantial and its current automated test suites pass. Th
 
 **October 15 follow-up:** the three real school DOCX syllabi have now been checked, with live PE 2/PE 3 uploads and existing Contemporary World output verified. Repeated-upload/scan protection and pipeline reporting were corrected. See [Real syllabus findings and manual test steps](NEXAM_REAL_SYLLABUS_FINDINGS_2026-10-15.md). Current suites: **126 API / 39 web tests passed**; local rendered-browser checks passed. This does not remove the project-wide remaining acceptance work below.
 
+**October 16 visual follow-up:** restored the connected-node flowchart console, charts and expand view while retaining all reporting/duplicate/grounding fixes. Removed the large title/Refresh row and condensed repeated text. Constraints, independent verification and run-specific current similarity status are visible; material scans do not claim question checks passed. The web suite now has **44 passing tests**. Local responsive browser, task-switching, modal, timestamp-replay, reduced-motion, post-generation similarity polling and API-failure display checks passed. This UI-only change does not resolve the remaining project-wide blockers.
+
 ## Requirements Comparison
 
 | Requirement from the specification | Status | Current evidence | Remaining work |

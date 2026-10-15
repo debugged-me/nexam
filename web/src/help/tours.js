@@ -601,9 +601,14 @@ export const TOURS = [
         description: 'This page shows real processing tasks and their saved results. Finished means the task ended, not that its output has been verified or approved by an instructor.',
       },
       {
-        sel: '[data-tour="pipe-history"]', side: 'right',
+        sel: '[data-tour="pipe-controls"]', side: 'bottom',
         title: 'Select a task',
-        description: 'Recent work includes reading files, drafting blueprints, indexing passages, and generating questions. Select an older task to inspect its saved outcome. These are processing steps, not copies of your uploaded files.',
+        description: 'Use the task picker to switch between reading files, blueprint scans, passage indexing, and question runs. The expandable Recent work section below the console also keeps the task history.',
+      },
+      {
+        sel: '[data-tour="pipe-graph"]', side: 'bottom',
+        title: 'The connected flow',
+        description: 'Follow the curved paths from inputs to outcomes, or expand the map. Numbers come from recorded results. Motion indicates an active task, not an exact trace of the model’s internal steps.',
       },
       {
         sel: '[data-tour="pipe-kpis"]', side: 'bottom',
@@ -611,9 +616,14 @@ export const TOURS = [
         description: 'Question counts and topic-by-Bloom cell counts are separate. One cell can need several questions. Completed runs retain their counters after refresh, and shortfalls explain what is still missing.',
       },
       {
+        sel: '[data-tour="pipe-checks"]', side: 'bottom',
+        title: 'Constraints and similarity',
+        description: 'Expand a check to see its rules. Similarity shows current results for this run’s saved questions and keeps updating after generation finishes. A material scan has no question-similarity result; its checks come later.',
+      },
+      {
         sel: '[data-tour="pipe-result"]', side: 'top',
         title: 'Read the result',
-        description: 'A syllabus scan shows its topics grouped by the detected periods and weeks. A question run shows saved drafts and unfilled cells. Stop is available while a task is queued or running; already saved work is kept.',
+        description: 'A syllabus scan keeps every detected period and week group; expand a group to read its topics. A question run shows saved drafts and unfilled cells. Stop is available while a task is queued or running; already saved work is kept.',
       },
       {
         sel: '[data-tour="pipe-explanation"]', side: 'top',

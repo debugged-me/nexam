@@ -1,0 +1,4367 @@
+{
+  "doc": {
+    "height": 9959,
+    "vh": 844,
+    "acts": [],
+    "world": {
+      "seam": 0.16,
+      "segs": [
+        {
+          "w": 2.4,
+          "linger": 0,
+          "label": "The desk"
+        },
+        {
+          "w": 3.18,
+          "linger": 0.35,
+          "label": "The blueprint"
+        },
+        {
+          "w": 2.04,
+          "linger": 0.25,
+          "label": "The exam"
+        },
+        {
+          "w": 1.8,
+          "linger": 0.25,
+          "label": "The readout"
+        },
+        {
+          "w": 1.38,
+          "linger": 0,
+          "label": "Home"
+        }
+      ]
+    }
+  },
+  "report": [
+    {
+      "i": 0,
+      "y": 0,
+      "pct": 0,
+      "settled": true,
+      "contrast": [
+        {
+          "t": "Watch a syllabus become an exam. Bluepri",
+          "dir": "dark-on-light",
+          "worst": 10.78,
+          "mean": 14.24
+        }
+      ],
+      "cues": [
+        {
+          "t": "Watch a syllabus become an exam. Blueprints, g",
+          "o": 1
+        }
+      ],
+      "clips": [
+        {
+          "painted": true,
+          "t": 0,
+          "dur": 8,
+          "vis": 1
+        },
+        {
+          "painted": false,
+          "t": 0,
+          "dur": 0,
+          "vis": 1
+        },
+        {
+          "painted": false,
+          "t": 0,
+          "dur": 0,
+          "vis": 1
+        },
+        {
+          "painted": false,
+          "t": 0,
+          "dur": 0,
+          "vis": 1
+        },
+        {
+          "painted": false,
+          "t": 0,
+          "dur": 0,
+          "vis": 1
+        }
+      ],
+      "rails": [],
+      "wipes": [],
+      "act": "-",
+      "stages": [],
+      "segs": [
+        {
+          "i": 0,
+          "label": "The desk",
+          "op": 1,
+          "painted": true,
+          "t": 0
+        },
+        {
+          "i": 1,
+          "label": "The blueprint",
+          "op": 0,
+          "painted": false,
+          "t": 0
+        },
+        {
+          "i": 2,
+          "label": "The exam",
+          "op": 0,
+          "painted": false,
+          "t": 0
+        },
+        {
+          "i": 3,
+          "label": "The readout",
+          "op": 0,
+          "painted": false,
+          "t": 0
+        },
+        {
+          "i": 4,
+          "label": "Home",
+          "op": 0,
+          "painted": false,
+          "t": 0
+        }
+      ],
+      "custom": [],
+      "customHold": false,
+      "seg": 0,
+      "segp": 0,
+      "bg": "#e8ecf3"
+    },
+    {
+      "i": 1,
+      "y": 41,
+      "pct": 0,
+      "settled": true,
+      "contrast": [
+        {
+          "t": "Watch a syllabus become an exam. Bluepri",
+          "dir": "dark-on-light",
+          "worst": 10.82,
+          "mean": 14.25
+        }
+      ],
+      "cues": [
+        {
+          "t": "Watch a syllabus become an exam. Blueprints, g",
+          "o": 1
+        }
+      ],
+      "clips": [
+        {
+          "painted": true,
+          "t": 0.13,
+          "dur": 8,
+          "vis": 1
+        },
+        {
+          "painted": false,
+          "t": 0,
+          "dur": 0,
+          "vis": 1
+        },
+        {
+          "painted": false,
+          "t": 0,
+          "dur": 0,
+          "vis": 1
+        },
+        {
+          "painted": false,
+          "t": 0,
+          "dur": 0,
+          "vis": 1
+        },
+        {
+          "painted": false,
+          "t": 0,
+          "dur": 0,
+          "vis": 1
+        }
+      ],
+      "rails": [],
+      "wipes": [],
+      "act": "-",
+      "stages": [],
+      "segs": [
+        {
+          "i": 0,
+          "label": "The desk",
+          "op": 1,
+          "painted": true,
+          "t": 0.135
+        },
+        {
+          "i": 1,
+          "label": "The blueprint",
+          "op": 0,
+          "painted": false,
+          "t": 0
+        },
+        {
+          "i": 2,
+          "label": "The exam",
+          "op": 0,
+          "painted": false,
+          "t": 0
+        },
+        {
+          "i": 3,
+          "label": "The readout",
+          "op": 0,
+          "painted": false,
+          "t": 0
+        },
+        {
+          "i": 4,
+          "label": "Home",
+          "op": 0,
+          "painted": false,
+          "t": 0
+        }
+      ],
+      "custom": [],
+      "customHold": false,
+      "seg": 0,
+      "segp": 0.0202,
+      "bg": "#e8ecf3"
+    },
+    {
+      "i": 2,
+      "y": 429,
+      "pct": 5,
+      "settled": true,
+      "contrast": [
+        {
+          "t": "Watch a syllabus become an exam. Bluepri",
+          "dir": "dark-on-light",
+          "worst": 11.22,
+          "mean": 14.22
+        }
+      ],
+      "cues": [
+        {
+          "t": "Watch a syllabus become an exam. Blueprints, g",
+          "o": 1
+        }
+      ],
+      "clips": [
+        {
+          "painted": true,
+          "t": 1.67,
+          "dur": 8,
+          "vis": 1
+        },
+        {
+          "painted": false,
+          "t": 0,
+          "dur": 0,
+          "vis": 1
+        },
+        {
+          "painted": false,
+          "t": 0,
+          "dur": 0,
+          "vis": 1
+        },
+        {
+          "painted": false,
+          "t": 0,
+          "dur": 0,
+          "vis": 1
+        },
+        {
+          "painted": false,
+          "t": 0,
+          "dur": 0,
+          "vis": 1
+        }
+      ],
+      "rails": [],
+      "wipes": [],
+      "act": "-",
+      "stages": [],
+      "segs": [
+        {
+          "i": 0,
+          "label": "The desk",
+          "op": 1,
+          "painted": true,
+          "t": 1.675
+        },
+        {
+          "i": 1,
+          "label": "The blueprint",
+          "op": 0,
+          "painted": false,
+          "t": 0
+        },
+        {
+          "i": 2,
+          "label": "The exam",
+          "op": 0,
+          "painted": false,
+          "t": 0
+        },
+        {
+          "i": 3,
+          "label": "The readout",
+          "op": 0,
+          "painted": false,
+          "t": 0
+        },
+        {
+          "i": 4,
+          "label": "Home",
+          "op": 0,
+          "painted": false,
+          "t": 0
+        }
+      ],
+      "custom": [],
+      "customHold": false,
+      "seg": 0,
+      "segp": 0.2118,
+      "bg": "#e8ecf3"
+    },
+    {
+      "i": 3,
+      "y": 818,
+      "pct": 9,
+      "settled": true,
+      "contrast": [],
+      "cues": [
+        {
+          "t": "Watch a syllabus become an exam. Blueprints, g",
+          "o": 0.56
+        }
+      ],
+      "clips": [
+        {
+          "painted": true,
+          "t": 3.21,
+          "dur": 8,
+          "vis": 1
+        },
+        {
+          "painted": true,
+          "t": 0.05,
+          "dur": 10.6,
+          "vis": 1
+        },
+        {
+          "painted": false,
+          "t": 0,
+          "dur": 0,
+          "vis": 1
+        },
+        {
+          "painted": false,
+          "t": 0,
+          "dur": 0,
+          "vis": 1
+        },
+        {
+          "painted": false,
+          "t": 0,
+          "dur": 0,
+          "vis": 1
+        }
+      ],
+      "rails": [],
+      "wipes": [],
+      "act": "-",
+      "stages": [],
+      "segs": [
+        {
+          "i": 0,
+          "label": "The desk",
+          "op": 1,
+          "painted": true,
+          "t": 3.211
+        },
+        {
+          "i": 1,
+          "label": "The blueprint",
+          "op": 0,
+          "painted": true,
+          "t": 0.05
+        },
+        {
+          "i": 2,
+          "label": "The exam",
+          "op": 0,
+          "painted": false,
+          "t": 0
+        },
+        {
+          "i": 3,
+          "label": "The readout",
+          "op": 0,
+          "painted": false,
+          "t": 0
+        },
+        {
+          "i": 4,
+          "label": "Home",
+          "op": 0,
+          "painted": false,
+          "t": 0
+        }
+      ],
+      "custom": [],
+      "customHold": false,
+      "seg": 0,
+      "segp": 0.4038,
+      "bg": "#e8ecf3"
+    },
+    {
+      "i": 4,
+      "y": 1207,
+      "pct": 13,
+      "settled": true,
+      "contrast": [],
+      "cues": [],
+      "clips": [
+        {
+          "painted": true,
+          "t": 4.75,
+          "dur": 8,
+          "vis": 1
+        },
+        {
+          "painted": true,
+          "t": 0.05,
+          "dur": 10.6,
+          "vis": 1
+        },
+        {
+          "painted": false,
+          "t": 0,
+          "dur": 0,
+          "vis": 1
+        },
+        {
+          "painted": false,
+          "t": 0,
+          "dur": 0,
+          "vis": 1
+        },
+        {
+          "painted": false,
+          "t": 0,
+          "dur": 0,
+          "vis": 1
+        }
+      ],
+      "rails": [],
+      "wipes": [],
+      "act": "-",
+      "stages": [],
+      "segs": [
+        {
+          "i": 0,
+          "label": "The desk",
+          "op": 1,
+          "painted": true,
+          "t": 4.747
+        },
+        {
+          "i": 1,
+          "label": "The blueprint",
+          "op": 0,
+          "painted": true,
+          "t": 0.05
+        },
+        {
+          "i": 2,
+          "label": "The exam",
+          "op": 0,
+          "painted": false,
+          "t": 0
+        },
+        {
+          "i": 3,
+          "label": "The readout",
+          "op": 0,
+          "painted": false,
+          "t": 0
+        },
+        {
+          "i": 4,
+          "label": "Home",
+          "op": 0,
+          "painted": false,
+          "t": 0
+        }
+      ],
+      "custom": [],
+      "customHold": false,
+      "seg": 0,
+      "segp": 0.5959,
+      "bg": "#e8ecf3"
+    },
+    {
+      "i": 5,
+      "y": 1596,
+      "pct": 18,
+      "settled": true,
+      "contrast": [],
+      "cues": [],
+      "clips": [
+        {
+          "painted": true,
+          "t": 6.28,
+          "dur": 8,
+          "vis": 1
+        },
+        {
+          "painted": true,
+          "t": 0.05,
+          "dur": 10.6,
+          "vis": 1
+        },
+        {
+          "painted": false,
+          "t": 0,
+          "dur": 0,
+          "vis": 1
+        },
+        {
+          "painted": false,
+          "t": 0,
+          "dur": 0,
+          "vis": 1
+        },
+        {
+          "painted": false,
+          "t": 0,
+          "dur": 0,
+          "vis": 1
+        }
+      ],
+      "rails": [],
+      "wipes": [],
+      "act": "-",
+      "stages": [],
+      "segs": [
+        {
+          "i": 0,
+          "label": "The desk",
+          "op": 1,
+          "painted": true,
+          "t": 6.284
+        },
+        {
+          "i": 1,
+          "label": "The blueprint",
+          "op": 0,
+          "painted": true,
+          "t": 0.05
+        },
+        {
+          "i": 2,
+          "label": "The exam",
+          "op": 0,
+          "painted": false,
+          "t": 0
+        },
+        {
+          "i": 3,
+          "label": "The readout",
+          "op": 0,
+          "painted": false,
+          "t": 0
+        },
+        {
+          "i": 4,
+          "label": "Home",
+          "op": 0,
+          "painted": false,
+          "t": 0
+        }
+      ],
+      "custom": [],
+      "customHold": false,
+      "seg": 0,
+      "segp": 0.7879,
+      "bg": "#e8ecf3"
+    },
+    {
+      "i": 6,
+      "y": 1958,
+      "pct": 21,
+      "settled": true,
+      "contrast": [],
+      "cues": [],
+      "clips": [
+        {
+          "painted": true,
+          "t": 7.71,
+          "dur": 8,
+          "vis": 1
+        },
+        {
+          "painted": true,
+          "t": 0.05,
+          "dur": 10.6,
+          "vis": 1
+        },
+        {
+          "painted": false,
+          "t": 0,
+          "dur": 0,
+          "vis": 1
+        },
+        {
+          "painted": false,
+          "t": 0,
+          "dur": 0,
+          "vis": 1
+        },
+        {
+          "painted": false,
+          "t": 0,
+          "dur": 0,
+          "vis": 1
+        }
+      ],
+      "rails": [],
+      "wipes": [],
+      "act": "-",
+      "stages": [],
+      "segs": [
+        {
+          "i": 0,
+          "label": "The desk",
+          "op": 1,
+          "painted": true,
+          "t": 7.706
+        },
+        {
+          "i": 1,
+          "label": "The blueprint",
+          "op": 0,
+          "painted": true,
+          "t": 0.05
+        },
+        {
+          "i": 2,
+          "label": "The exam",
+          "op": 0,
+          "painted": false,
+          "t": 0
+        },
+        {
+          "i": 3,
+          "label": "The readout",
+          "op": 0,
+          "painted": false,
+          "t": 0
+        },
+        {
+          "i": 4,
+          "label": "Home",
+          "op": 0,
+          "painted": false,
+          "t": 0
+        }
+      ],
+      "custom": [],
+      "customHold": false,
+      "seg": 0,
+      "segp": 0.9666,
+      "bg": "#e8ecf3"
+    },
+    {
+      "i": 7,
+      "y": 1985,
+      "pct": 22,
+      "settled": true,
+      "contrast": [],
+      "cues": [],
+      "clips": [
+        {
+          "painted": true,
+          "t": 7.83,
+          "dur": 8,
+          "vis": 1
+        },
+        {
+          "painted": true,
+          "t": 0,
+          "dur": 10.6,
+          "vis": 1
+        },
+        {
+          "painted": false,
+          "t": 0,
+          "dur": 0,
+          "vis": 1
+        },
+        {
+          "painted": false,
+          "t": 0,
+          "dur": 0,
+          "vis": 1
+        },
+        {
+          "painted": false,
+          "t": 0,
+          "dur": 0,
+          "vis": 1
+        }
+      ],
+      "rails": [],
+      "wipes": [],
+      "act": "-",
+      "stages": [],
+      "segs": [
+        {
+          "i": 0,
+          "label": "The desk",
+          "op": 1,
+          "painted": true,
+          "t": 7.828
+        },
+        {
+          "i": 1,
+          "label": "The blueprint",
+          "op": 0.103,
+          "painted": true,
+          "t": 0
+        },
+        {
+          "i": 2,
+          "label": "The exam",
+          "op": 0,
+          "painted": false,
+          "t": 0
+        },
+        {
+          "i": 3,
+          "label": "The readout",
+          "op": 0,
+          "painted": false,
+          "t": 0
+        },
+        {
+          "i": 4,
+          "label": "Home",
+          "op": 0,
+          "painted": false,
+          "t": 0
+        }
+      ],
+      "custom": [],
+      "customHold": false,
+      "seg": 1,
+      "segp": 0,
+      "bg": "#e8ecf3"
+    },
+    {
+      "i": 8,
+      "y": 1999,
+      "pct": 22,
+      "settled": true,
+      "contrast": [],
+      "cues": [],
+      "clips": [
+        {
+          "painted": true,
+          "t": 7.87,
+          "dur": 8,
+          "vis": 1
+        },
+        {
+          "painted": true,
+          "t": 0,
+          "dur": 10.6,
+          "vis": 1
+        },
+        {
+          "painted": false,
+          "t": 0,
+          "dur": 0,
+          "vis": 1
+        },
+        {
+          "painted": false,
+          "t": 0,
+          "dur": 0,
+          "vis": 1
+        },
+        {
+          "painted": false,
+          "t": 0,
+          "dur": 0,
+          "vis": 1
+        }
+      ],
+      "rails": [],
+      "wipes": [],
+      "act": "-",
+      "stages": [],
+      "segs": [
+        {
+          "i": 0,
+          "label": "The desk",
+          "op": 1,
+          "painted": true,
+          "t": 7.87
+        },
+        {
+          "i": 1,
+          "label": "The blueprint",
+          "op": 0.22,
+          "painted": true,
+          "t": 0
+        },
+        {
+          "i": 2,
+          "label": "The exam",
+          "op": 0,
+          "painted": false,
+          "t": 0
+        },
+        {
+          "i": 3,
+          "label": "The readout",
+          "op": 0,
+          "painted": false,
+          "t": 0
+        },
+        {
+          "i": 4,
+          "label": "Home",
+          "op": 0,
+          "painted": false,
+          "t": 0
+        }
+      ],
+      "custom": [],
+      "customHold": false,
+      "seg": 1,
+      "segp": 0,
+      "bg": "#e8ecf3"
+    },
+    {
+      "i": 9,
+      "y": 2053,
+      "pct": 23,
+      "settled": true,
+      "contrast": [],
+      "cues": [],
+      "clips": [
+        {
+          "painted": true,
+          "t": 7.99,
+          "dur": 8,
+          "vis": 1
+        },
+        {
+          "painted": true,
+          "t": 0.16,
+          "dur": 10.6,
+          "vis": 1
+        },
+        {
+          "painted": false,
+          "t": 0,
+          "dur": 0,
+          "vis": 1
+        },
+        {
+          "painted": false,
+          "t": 0,
+          "dur": 0,
+          "vis": 1
+        },
+        {
+          "painted": false,
+          "t": 0,
+          "dur": 0,
+          "vis": 1
+        }
+      ],
+      "rails": [],
+      "wipes": [],
+      "act": "-",
+      "stages": [],
+      "segs": [
+        {
+          "i": 0,
+          "label": "The desk",
+          "op": 1,
+          "painted": true,
+          "t": 7.988
+        },
+        {
+          "i": 1,
+          "label": "The blueprint",
+          "op": 0.788,
+          "painted": true,
+          "t": 0.157
+        },
+        {
+          "i": 2,
+          "label": "The exam",
+          "op": 0,
+          "painted": false,
+          "t": 0
+        },
+        {
+          "i": 3,
+          "label": "The readout",
+          "op": 0,
+          "painted": false,
+          "t": 0
+        },
+        {
+          "i": 4,
+          "label": "Home",
+          "op": 0,
+          "painted": false,
+          "t": 0
+        }
+      ],
+      "custom": [],
+      "customHold": false,
+      "seg": 1,
+      "segp": 0.0102,
+      "bg": "#e8ecf3"
+    },
+    {
+      "i": 10,
+      "y": 2079,
+      "pct": 23,
+      "settled": true,
+      "contrast": [],
+      "cues": [],
+      "clips": [
+        {
+          "painted": true,
+          "t": 7.99,
+          "dur": 8,
+          "vis": 1
+        },
+        {
+          "painted": true,
+          "t": 0.33,
+          "dur": 10.6,
+          "vis": 1
+        },
+        {
+          "painted": false,
+          "t": 0,
+          "dur": 0,
+          "vis": 1
+        },
+        {
+          "painted": false,
+          "t": 0,
+          "dur": 0,
+          "vis": 1
+        },
+        {
+          "painted": false,
+          "t": 0,
+          "dur": 0,
+          "vis": 1
+        }
+      ],
+      "rails": [],
+      "wipes": [],
+      "act": "-",
+      "stages": [],
+      "segs": [
+        {
+          "i": 0,
+          "label": "The desk",
+          "op": 1,
+          "painted": true,
+          "t": 7.988
+        },
+        {
+          "i": 1,
+          "label": "The blueprint",
+          "op": 0.969,
+          "painted": true,
+          "t": 0.331
+        },
+        {
+          "i": 2,
+          "label": "The exam",
+          "op": 0,
+          "painted": false,
+          "t": 0
+        },
+        {
+          "i": 3,
+          "label": "The readout",
+          "op": 0,
+          "painted": false,
+          "t": 0
+        },
+        {
+          "i": 4,
+          "label": "Home",
+          "op": 0,
+          "painted": false,
+          "t": 0
+        }
+      ],
+      "custom": [],
+      "customHold": false,
+      "seg": 1,
+      "segp": 0.0199,
+      "bg": "#e8ecf3"
+    },
+    {
+      "i": 11,
+      "y": 2093,
+      "pct": 23,
+      "settled": true,
+      "contrast": [],
+      "cues": [],
+      "clips": [
+        {
+          "painted": true,
+          "t": 7.99,
+          "dur": 8,
+          "vis": 1
+        },
+        {
+          "painted": true,
+          "t": 0.41,
+          "dur": 10.6,
+          "vis": 1
+        },
+        {
+          "painted": false,
+          "t": 0,
+          "dur": 0,
+          "vis": 1
+        },
+        {
+          "painted": false,
+          "t": 0,
+          "dur": 0,
+          "vis": 1
+        },
+        {
+          "painted": false,
+          "t": 0,
+          "dur": 0,
+          "vis": 1
+        }
+      ],
+      "rails": [],
+      "wipes": [],
+      "act": "-",
+      "stages": [],
+      "segs": [
+        {
+          "i": 0,
+          "label": "The desk",
+          "op": 1,
+          "painted": true,
+          "t": 7.988
+        },
+        {
+          "i": 1,
+          "label": "The blueprint",
+          "op": 1,
+          "painted": true,
+          "t": 0.412
+        },
+        {
+          "i": 2,
+          "label": "The exam",
+          "op": 0,
+          "painted": false,
+          "t": 0
+        },
+        {
+          "i": 3,
+          "label": "The readout",
+          "op": 0,
+          "painted": false,
+          "t": 0
+        },
+        {
+          "i": 4,
+          "label": "Home",
+          "op": 0,
+          "painted": false,
+          "t": 0
+        }
+      ],
+      "custom": [],
+      "customHold": false,
+      "seg": 1,
+      "segp": 0.0251,
+      "bg": "#e8ecf3"
+    },
+    {
+      "i": 12,
+      "y": 2595,
+      "pct": 28,
+      "settled": true,
+      "contrast": [],
+      "cues": [
+        {
+          "t": "The blueprint It assembles itself. Specificati",
+          "o": 0.29
+        }
+      ],
+      "clips": [
+        {
+          "painted": true,
+          "t": 7.99,
+          "dur": 8,
+          "vis": 1
+        },
+        {
+          "painted": true,
+          "t": 2.94,
+          "dur": 10.6,
+          "vis": 1
+        },
+        {
+          "painted": false,
+          "t": 0,
+          "dur": 0,
+          "vis": 1
+        },
+        {
+          "painted": false,
+          "t": 0,
+          "dur": 0,
+          "vis": 1
+        },
+        {
+          "painted": false,
+          "t": 0,
+          "dur": 0,
+          "vis": 1
+        }
+      ],
+      "rails": [],
+      "wipes": [],
+      "act": "-",
+      "stages": [],
+      "segs": [
+        {
+          "i": 0,
+          "label": "The desk",
+          "op": 0,
+          "painted": true,
+          "t": 7.988
+        },
+        {
+          "i": 1,
+          "label": "The blueprint",
+          "op": 1,
+          "painted": true,
+          "t": 2.937
+        },
+        {
+          "i": 2,
+          "label": "The exam",
+          "op": 0,
+          "painted": false,
+          "t": 0
+        },
+        {
+          "i": 3,
+          "label": "The readout",
+          "op": 0,
+          "painted": false,
+          "t": 0
+        },
+        {
+          "i": 4,
+          "label": "Home",
+          "op": 0,
+          "painted": false,
+          "t": 0
+        }
+      ],
+      "custom": [],
+      "customHold": false,
+      "seg": 1,
+      "segp": 0.2122,
+      "bg": "#e8ecf3"
+    },
+    {
+      "i": 13,
+      "y": 3110,
+      "pct": 34,
+      "settled": true,
+      "contrast": [
+        {
+          "t": "The blueprint It assembles itself. Speci",
+          "dir": "dark-on-light",
+          "worst": 5.05,
+          "mean": 13.56
+        }
+      ],
+      "cues": [
+        {
+          "t": "The blueprint It assembles itself. Specificati",
+          "o": 1
+        }
+      ],
+      "clips": [
+        {
+          "painted": true,
+          "t": 7.99,
+          "dur": 8,
+          "vis": 1
+        },
+        {
+          "painted": true,
+          "t": 4.6,
+          "dur": 10.6,
+          "vis": 1
+        },
+        {
+          "painted": false,
+          "t": 0,
+          "dur": 0,
+          "vis": 1
+        },
+        {
+          "painted": false,
+          "t": 0,
+          "dur": 0,
+          "vis": 1
+        },
+        {
+          "painted": false,
+          "t": 0,
+          "dur": 0,
+          "vis": 1
+        }
+      ],
+      "rails": [],
+      "wipes": [],
+      "act": "-",
+      "stages": [],
+      "segs": [
+        {
+          "i": 0,
+          "label": "The desk",
+          "op": 0,
+          "painted": true,
+          "t": 7.988
+        },
+        {
+          "i": 1,
+          "label": "The blueprint",
+          "op": 1,
+          "painted": true,
+          "t": 4.6
+        },
+        {
+          "i": 2,
+          "label": "The exam",
+          "op": 0,
+          "painted": false,
+          "t": 0
+        },
+        {
+          "i": 3,
+          "label": "The readout",
+          "op": 0,
+          "painted": false,
+          "t": 0
+        },
+        {
+          "i": 4,
+          "label": "Home",
+          "op": 0,
+          "painted": false,
+          "t": 0
+        }
+      ],
+      "custom": [],
+      "customHold": false,
+      "seg": 1,
+      "segp": 0.404,
+      "bg": "#e8ecf3"
+    },
+    {
+      "i": 14,
+      "y": 3625,
+      "pct": 40,
+      "settled": true,
+      "contrast": [
+        {
+          "t": "The blueprint It assembles itself. Speci",
+          "dir": "dark-on-light",
+          "worst": 6.38,
+          "mean": 13.66
+        }
+      ],
+      "cues": [
+        {
+          "t": "The blueprint It assembles itself. Specificati",
+          "o": 1
+        }
+      ],
+      "clips": [
+        {
+          "painted": true,
+          "t": 7.99,
+          "dur": 8,
+          "vis": 1
+        },
+        {
+          "painted": true,
+          "t": 5.95,
+          "dur": 10.6,
+          "vis": 1
+        },
+        {
+          "painted": true,
+          "t": 0.05,
+          "dur": 6.8,
+          "vis": 1
+        },
+        {
+          "painted": false,
+          "t": 0,
+          "dur": 0,
+          "vis": 1
+        },
+        {
+          "painted": false,
+          "t": 0,
+          "dur": 0,
+          "vis": 1
+        }
+      ],
+      "rails": [],
+      "wipes": [],
+      "act": "-",
+      "stages": [],
+      "segs": [
+        {
+          "i": 0,
+          "label": "The desk",
+          "op": 0,
+          "painted": true,
+          "t": 7.988
+        },
+        {
+          "i": 1,
+          "label": "The blueprint",
+          "op": 1,
+          "painted": true,
+          "t": 5.948
+        },
+        {
+          "i": 2,
+          "label": "The exam",
+          "op": 0,
+          "painted": true,
+          "t": 0.05
+        },
+        {
+          "i": 3,
+          "label": "The readout",
+          "op": 0,
+          "painted": false,
+          "t": 0
+        },
+        {
+          "i": 4,
+          "label": "Home",
+          "op": 0,
+          "painted": false,
+          "t": 0
+        }
+      ],
+      "custom": [],
+      "customHold": false,
+      "seg": 1,
+      "segp": 0.5959,
+      "bg": "#e8ecf3"
+    },
+    {
+      "i": 15,
+      "y": 4141,
+      "pct": 45,
+      "settled": true,
+      "contrast": [
+        {
+          "t": "The blueprint It assembles itself. Speci",
+          "dir": "dark-on-light",
+          "worst": 8.15,
+          "mean": 13.93
+        }
+      ],
+      "cues": [
+        {
+          "t": "The blueprint It assembles itself. Specificati",
+          "o": 1
+        }
+      ],
+      "clips": [
+        {
+          "painted": true,
+          "t": 7.99,
+          "dur": 8,
+          "vis": 1
+        },
+        {
+          "painted": true,
+          "t": 7.61,
+          "dur": 10.6,
+          "vis": 1
+        },
+        {
+          "painted": true,
+          "t": 0.05,
+          "dur": 6.8,
+          "vis": 1
+        },
+        {
+          "painted": false,
+          "t": 0,
+          "dur": 0,
+          "vis": 1
+        },
+        {
+          "painted": false,
+          "t": 0,
+          "dur": 0,
+          "vis": 1
+        }
+      ],
+      "rails": [],
+      "wipes": [],
+      "act": "-",
+      "stages": [],
+      "segs": [
+        {
+          "i": 0,
+          "label": "The desk",
+          "op": 0,
+          "painted": true,
+          "t": 7.988
+        },
+        {
+          "i": 1,
+          "label": "The blueprint",
+          "op": 1,
+          "painted": true,
+          "t": 7.615
+        },
+        {
+          "i": 2,
+          "label": "The exam",
+          "op": 0,
+          "painted": true,
+          "t": 0.05
+        },
+        {
+          "i": 3,
+          "label": "The readout",
+          "op": 0,
+          "painted": false,
+          "t": 0
+        },
+        {
+          "i": 4,
+          "label": "Home",
+          "op": 0,
+          "painted": false,
+          "t": 0
+        }
+      ],
+      "custom": [],
+      "customHold": false,
+      "seg": 1,
+      "segp": 0.7882,
+      "bg": "#e8ecf3"
+    },
+    {
+      "i": 16,
+      "y": 4642,
+      "pct": 51,
+      "settled": true,
+      "contrast": [],
+      "cues": [],
+      "clips": [
+        {
+          "painted": true,
+          "t": 7.99,
+          "dur": 8,
+          "vis": 1
+        },
+        {
+          "painted": true,
+          "t": 10.13,
+          "dur": 10.6,
+          "vis": 1
+        },
+        {
+          "painted": true,
+          "t": 0.05,
+          "dur": 6.8,
+          "vis": 1
+        },
+        {
+          "painted": false,
+          "t": 0,
+          "dur": 0,
+          "vis": 1
+        },
+        {
+          "painted": false,
+          "t": 0,
+          "dur": 0,
+          "vis": 1
+        }
+      ],
+      "rails": [],
+      "wipes": [],
+      "act": "-",
+      "stages": [],
+      "segs": [
+        {
+          "i": 0,
+          "label": "The desk",
+          "op": 0,
+          "painted": true,
+          "t": 7.988
+        },
+        {
+          "i": 1,
+          "label": "The blueprint",
+          "op": 1,
+          "painted": true,
+          "t": 10.134
+        },
+        {
+          "i": 2,
+          "label": "The exam",
+          "op": 0,
+          "painted": true,
+          "t": 0.05
+        },
+        {
+          "i": 3,
+          "label": "The readout",
+          "op": 0,
+          "painted": false,
+          "t": 0
+        },
+        {
+          "i": 4,
+          "label": "Home",
+          "op": 0,
+          "painted": false,
+          "t": 0
+        }
+      ],
+      "custom": [],
+      "customHold": false,
+      "seg": 2,
+      "segp": 0,
+      "bg": "#e8ecf3"
+    },
+    {
+      "i": 17,
+      "y": 4656,
+      "pct": 51,
+      "settled": true,
+      "contrast": [],
+      "cues": [],
+      "clips": [
+        {
+          "painted": true,
+          "t": 7.99,
+          "dur": 8,
+          "vis": 1
+        },
+        {
+          "painted": true,
+          "t": 10.22,
+          "dur": 10.6,
+          "vis": 1
+        },
+        {
+          "painted": true,
+          "t": 0,
+          "dur": 6.8,
+          "vis": 1
+        },
+        {
+          "painted": false,
+          "t": 0,
+          "dur": 0,
+          "vis": 1
+        },
+        {
+          "painted": false,
+          "t": 0,
+          "dur": 0,
+          "vis": 1
+        }
+      ],
+      "rails": [],
+      "wipes": [],
+      "act": "-",
+      "stages": [],
+      "segs": [
+        {
+          "i": 0,
+          "label": "The desk",
+          "op": 0,
+          "painted": true,
+          "t": 7.988
+        },
+        {
+          "i": 1,
+          "label": "The blueprint",
+          "op": 1,
+          "painted": true,
+          "t": 10.222
+        },
+        {
+          "i": 2,
+          "label": "The exam",
+          "op": 0.03,
+          "painted": true,
+          "t": 0
+        },
+        {
+          "i": 3,
+          "label": "The readout",
+          "op": 0,
+          "painted": false,
+          "t": 0
+        },
+        {
+          "i": 4,
+          "label": "Home",
+          "op": 0,
+          "painted": false,
+          "t": 0
+        }
+      ],
+      "custom": [],
+      "customHold": false,
+      "seg": 2,
+      "segp": 0,
+      "bg": "#e8ecf3"
+    },
+    {
+      "i": 18,
+      "y": 4683,
+      "pct": 51,
+      "settled": true,
+      "contrast": [],
+      "cues": [],
+      "clips": [
+        {
+          "painted": true,
+          "t": 7.99,
+          "dur": 8,
+          "vis": 1
+        },
+        {
+          "painted": true,
+          "t": 10.4,
+          "dur": 10.6,
+          "vis": 1
+        },
+        {
+          "painted": true,
+          "t": 0,
+          "dur": 6.8,
+          "vis": 1
+        },
+        {
+          "painted": false,
+          "t": 0,
+          "dur": 0,
+          "vis": 1
+        },
+        {
+          "painted": false,
+          "t": 0,
+          "dur": 0,
+          "vis": 1
+        }
+      ],
+      "rails": [],
+      "wipes": [],
+      "act": "-",
+      "stages": [],
+      "segs": [
+        {
+          "i": 0,
+          "label": "The desk",
+          "op": 0,
+          "painted": true,
+          "t": 7.988
+        },
+        {
+          "i": 1,
+          "label": "The blueprint",
+          "op": 1,
+          "painted": true,
+          "t": 10.404
+        },
+        {
+          "i": 2,
+          "label": "The exam",
+          "op": 0.221,
+          "painted": true,
+          "t": 0
+        },
+        {
+          "i": 3,
+          "label": "The readout",
+          "op": 0,
+          "painted": false,
+          "t": 0
+        },
+        {
+          "i": 4,
+          "label": "Home",
+          "op": 0,
+          "painted": false,
+          "t": 0
+        }
+      ],
+      "custom": [],
+      "customHold": false,
+      "seg": 2,
+      "segp": 0,
+      "bg": "#e8ecf3"
+    },
+    {
+      "i": 19,
+      "y": 4737,
+      "pct": 52,
+      "settled": true,
+      "contrast": [],
+      "cues": [],
+      "clips": [
+        {
+          "painted": true,
+          "t": 7.99,
+          "dur": 8,
+          "vis": 1
+        },
+        {
+          "painted": true,
+          "t": 10.58,
+          "dur": 10.6,
+          "vis": 1
+        },
+        {
+          "painted": true,
+          "t": 0.13,
+          "dur": 6.8,
+          "vis": 1
+        },
+        {
+          "painted": false,
+          "t": 0,
+          "dur": 0,
+          "vis": 1
+        },
+        {
+          "painted": false,
+          "t": 0,
+          "dur": 0,
+          "vis": 1
+        }
+      ],
+      "rails": [],
+      "wipes": [],
+      "act": "-",
+      "stages": [],
+      "segs": [
+        {
+          "i": 0,
+          "label": "The desk",
+          "op": 0,
+          "painted": true,
+          "t": 7.988
+        },
+        {
+          "i": 1,
+          "label": "The blueprint",
+          "op": 1,
+          "painted": true,
+          "t": 10.58
+        },
+        {
+          "i": 2,
+          "label": "The exam",
+          "op": 0.788,
+          "painted": true,
+          "t": 0.133
+        },
+        {
+          "i": 3,
+          "label": "The readout",
+          "op": 0,
+          "painted": false,
+          "t": 0
+        },
+        {
+          "i": 4,
+          "label": "Home",
+          "op": 0,
+          "painted": false,
+          "t": 0
+        }
+      ],
+      "custom": [],
+      "customHold": false,
+      "seg": 2,
+      "segp": 0.016,
+      "bg": "#e8ecf3"
+    },
+    {
+      "i": 20,
+      "y": 4744,
+      "pct": 52,
+      "settled": true,
+      "contrast": [],
+      "cues": [],
+      "clips": [
+        {
+          "painted": true,
+          "t": 7.99,
+          "dur": 8,
+          "vis": 1
+        },
+        {
+          "painted": true,
+          "t": 10.58,
+          "dur": 10.6,
+          "vis": 1
+        },
+        {
+          "painted": true,
+          "t": 0.18,
+          "dur": 6.8,
+          "vis": 1
+        },
+        {
+          "painted": false,
+          "t": 0,
+          "dur": 0,
+          "vis": 1
+        },
+        {
+          "painted": false,
+          "t": 0,
+          "dur": 0,
+          "vis": 1
+        }
+      ],
+      "rails": [],
+      "wipes": [],
+      "act": "-",
+      "stages": [],
+      "segs": [
+        {
+          "i": 0,
+          "label": "The desk",
+          "op": 0,
+          "painted": true,
+          "t": 7.988
+        },
+        {
+          "i": 1,
+          "label": "The blueprint",
+          "op": 1,
+          "painted": true,
+          "t": 10.58
+        },
+        {
+          "i": 2,
+          "label": "The exam",
+          "op": 0.85,
+          "painted": true,
+          "t": 0.178
+        },
+        {
+          "i": 3,
+          "label": "The readout",
+          "op": 0,
+          "painted": false,
+          "t": 0
+        },
+        {
+          "i": 4,
+          "label": "Home",
+          "op": 0,
+          "painted": false,
+          "t": 0
+        }
+      ],
+      "custom": [],
+      "customHold": false,
+      "seg": 2,
+      "segp": 0.02,
+      "bg": "#e8ecf3"
+    },
+    {
+      "i": 21,
+      "y": 4777,
+      "pct": 52,
+      "settled": true,
+      "contrast": [],
+      "cues": [],
+      "clips": [
+        {
+          "painted": true,
+          "t": 7.99,
+          "dur": 8,
+          "vis": 1
+        },
+        {
+          "painted": true,
+          "t": 10.58,
+          "dur": 10.6,
+          "vis": 1
+        },
+        {
+          "painted": true,
+          "t": 0.36,
+          "dur": 6.8,
+          "vis": 1
+        },
+        {
+          "painted": false,
+          "t": 0,
+          "dur": 0,
+          "vis": 1
+        },
+        {
+          "painted": false,
+          "t": 0,
+          "dur": 0,
+          "vis": 1
+        }
+      ],
+      "rails": [],
+      "wipes": [],
+      "act": "-",
+      "stages": [],
+      "segs": [
+        {
+          "i": 0,
+          "label": "The desk",
+          "op": 0,
+          "painted": true,
+          "t": 7.988
+        },
+        {
+          "i": 1,
+          "label": "The blueprint",
+          "op": 1,
+          "painted": true,
+          "t": 10.58
+        },
+        {
+          "i": 2,
+          "label": "The exam",
+          "op": 1,
+          "painted": true,
+          "t": 0.359
+        },
+        {
+          "i": 3,
+          "label": "The readout",
+          "op": 0,
+          "painted": false,
+          "t": 0
+        },
+        {
+          "i": 4,
+          "label": "Home",
+          "op": 0,
+          "painted": false,
+          "t": 0
+        }
+      ],
+      "custom": [],
+      "customHold": false,
+      "seg": 2,
+      "segp": 0.0392,
+      "bg": "#e8ecf3"
+    },
+    {
+      "i": 22,
+      "y": 5075,
+      "pct": 56,
+      "settled": true,
+      "contrast": [],
+      "cues": [
+        {
+          "t": "The exam Two forms. One blueprint. Set A and S",
+          "o": 0.17
+        }
+      ],
+      "clips": [
+        {
+          "painted": true,
+          "t": 7.99,
+          "dur": 8,
+          "vis": 1
+        },
+        {
+          "painted": true,
+          "t": 10.58,
+          "dur": 10.6,
+          "vis": 1
+        },
+        {
+          "painted": true,
+          "t": 1.74,
+          "dur": 6.8,
+          "vis": 1
+        },
+        {
+          "painted": false,
+          "t": 0,
+          "dur": 0,
+          "vis": 1
+        },
+        {
+          "painted": false,
+          "t": 0,
+          "dur": 0,
+          "vis": 1
+        }
+      ],
+      "rails": [],
+      "wipes": [],
+      "act": "-",
+      "stages": [],
+      "segs": [
+        {
+          "i": 0,
+          "label": "The desk",
+          "op": 0,
+          "painted": true,
+          "t": 7.988
+        },
+        {
+          "i": 1,
+          "label": "The blueprint",
+          "op": 0,
+          "painted": true,
+          "t": 10.58
+        },
+        {
+          "i": 2,
+          "label": "The exam",
+          "op": 1,
+          "painted": true,
+          "t": 1.744
+        },
+        {
+          "i": 3,
+          "label": "The readout",
+          "op": 0,
+          "painted": false,
+          "t": 0
+        },
+        {
+          "i": 4,
+          "label": "Home",
+          "op": 0,
+          "painted": false,
+          "t": 0
+        }
+      ],
+      "custom": [],
+      "customHold": false,
+      "seg": 2,
+      "segp": 0.2123,
+      "bg": "#e8ecf3"
+    },
+    {
+      "i": 23,
+      "y": 5405,
+      "pct": 59,
+      "settled": true,
+      "contrast": [
+        {
+          "t": "The exam Two forms. One blueprint. Set A",
+          "dir": "dark-on-light",
+          "worst": 9.34,
+          "mean": 14.03
+        }
+      ],
+      "cues": [
+        {
+          "t": "The exam Two forms. One blueprint. Set A and S",
+          "o": 1
+        }
+      ],
+      "clips": [
+        {
+          "painted": true,
+          "t": 7.99,
+          "dur": 8,
+          "vis": 1
+        },
+        {
+          "painted": true,
+          "t": 10.58,
+          "dur": 10.6,
+          "vis": 1
+        },
+        {
+          "painted": true,
+          "t": 2.88,
+          "dur": 6.8,
+          "vis": 1
+        },
+        {
+          "painted": true,
+          "t": 0.05,
+          "dur": 6,
+          "vis": 1
+        },
+        {
+          "painted": false,
+          "t": 0,
+          "dur": 0,
+          "vis": 1
+        }
+      ],
+      "rails": [],
+      "wipes": [],
+      "act": "-",
+      "stages": [],
+      "segs": [
+        {
+          "i": 0,
+          "label": "The desk",
+          "op": 0,
+          "painted": true,
+          "t": 7.988
+        },
+        {
+          "i": 1,
+          "label": "The blueprint",
+          "op": 0,
+          "painted": true,
+          "t": 10.58
+        },
+        {
+          "i": 2,
+          "label": "The exam",
+          "op": 1,
+          "painted": true,
+          "t": 2.878
+        },
+        {
+          "i": 3,
+          "label": "The readout",
+          "op": 0,
+          "painted": true,
+          "t": 0.05
+        },
+        {
+          "i": 4,
+          "label": "Home",
+          "op": 0,
+          "painted": false,
+          "t": 0
+        }
+      ],
+      "custom": [],
+      "customHold": false,
+      "seg": 2,
+      "segp": 0.4039,
+      "bg": "#e8ecf3"
+    },
+    {
+      "i": 24,
+      "y": 5736,
+      "pct": 63,
+      "settled": true,
+      "contrast": [
+        {
+          "t": "The exam Two forms. One blueprint. Set A",
+          "dir": "dark-on-light",
+          "worst": 9.29,
+          "mean": 13.97
+        }
+      ],
+      "cues": [
+        {
+          "t": "The exam Two forms. One blueprint. Set A and S",
+          "o": 1
+        }
+      ],
+      "clips": [
+        {
+          "painted": true,
+          "t": 7.99,
+          "dur": 8,
+          "vis": 1
+        },
+        {
+          "painted": true,
+          "t": 10.58,
+          "dur": 10.6,
+          "vis": 1
+        },
+        {
+          "painted": true,
+          "t": 3.88,
+          "dur": 6.8,
+          "vis": 1
+        },
+        {
+          "painted": true,
+          "t": 0.05,
+          "dur": 6,
+          "vis": 1
+        },
+        {
+          "painted": false,
+          "t": 0,
+          "dur": 0,
+          "vis": 1
+        }
+      ],
+      "rails": [],
+      "wipes": [],
+      "act": "-",
+      "stages": [],
+      "segs": [
+        {
+          "i": 0,
+          "label": "The desk",
+          "op": 0,
+          "painted": true,
+          "t": 7.988
+        },
+        {
+          "i": 1,
+          "label": "The blueprint",
+          "op": 0,
+          "painted": true,
+          "t": 10.58
+        },
+        {
+          "i": 2,
+          "label": "The exam",
+          "op": 1,
+          "painted": true,
+          "t": 3.878
+        },
+        {
+          "i": 3,
+          "label": "The readout",
+          "op": 0,
+          "painted": true,
+          "t": 0.05
+        },
+        {
+          "i": 4,
+          "label": "Home",
+          "op": 0,
+          "painted": false,
+          "t": 0
+        }
+      ],
+      "custom": [],
+      "customHold": false,
+      "seg": 2,
+      "segp": 0.5962,
+      "bg": "#e8ecf3"
+    },
+    {
+      "i": 25,
+      "y": 6066,
+      "pct": 67,
+      "settled": true,
+      "contrast": [
+        {
+          "t": "The exam Two forms. One blueprint. Set A",
+          "dir": "dark-on-light",
+          "worst": 9.21,
+          "mean": 13.91
+        }
+      ],
+      "cues": [
+        {
+          "t": "The exam Two forms. One blueprint. Set A and S",
+          "o": 1
+        }
+      ],
+      "clips": [
+        {
+          "painted": true,
+          "t": 7.99,
+          "dur": 8,
+          "vis": 1
+        },
+        {
+          "painted": true,
+          "t": 10.58,
+          "dur": 10.6,
+          "vis": 1
+        },
+        {
+          "painted": true,
+          "t": 5,
+          "dur": 6.8,
+          "vis": 1
+        },
+        {
+          "painted": true,
+          "t": 0.05,
+          "dur": 6,
+          "vis": 1
+        },
+        {
+          "painted": false,
+          "t": 0,
+          "dur": 0,
+          "vis": 1
+        }
+      ],
+      "rails": [],
+      "wipes": [],
+      "act": "-",
+      "stages": [],
+      "segs": [
+        {
+          "i": 0,
+          "label": "The desk",
+          "op": 0,
+          "painted": true,
+          "t": 7.988
+        },
+        {
+          "i": 1,
+          "label": "The blueprint",
+          "op": 0,
+          "painted": true,
+          "t": 10.58
+        },
+        {
+          "i": 2,
+          "label": "The exam",
+          "op": 1,
+          "painted": true,
+          "t": 5.004
+        },
+        {
+          "i": 3,
+          "label": "The readout",
+          "op": 0,
+          "painted": true,
+          "t": 0.05
+        },
+        {
+          "i": 4,
+          "label": "Home",
+          "op": 0,
+          "painted": false,
+          "t": 0
+        }
+      ],
+      "custom": [],
+      "customHold": false,
+      "seg": 2,
+      "segp": 0.7878,
+      "bg": "#e8ecf3"
+    },
+    {
+      "i": 26,
+      "y": 6364,
+      "pct": 70,
+      "settled": true,
+      "contrast": [],
+      "cues": [],
+      "clips": [
+        {
+          "painted": true,
+          "t": 7.99,
+          "dur": 8,
+          "vis": 1
+        },
+        {
+          "painted": true,
+          "t": 10.58,
+          "dur": 10.6,
+          "vis": 1
+        },
+        {
+          "painted": true,
+          "t": 6.39,
+          "dur": 6.8,
+          "vis": 1
+        },
+        {
+          "painted": true,
+          "t": 0.05,
+          "dur": 6,
+          "vis": 1
+        },
+        {
+          "painted": false,
+          "t": 0,
+          "dur": 0,
+          "vis": 1
+        }
+      ],
+      "rails": [],
+      "wipes": [],
+      "act": "-",
+      "stages": [],
+      "segs": [
+        {
+          "i": 0,
+          "label": "The desk",
+          "op": 0,
+          "painted": true,
+          "t": 7.988
+        },
+        {
+          "i": 1,
+          "label": "The blueprint",
+          "op": 0,
+          "painted": true,
+          "t": 10.58
+        },
+        {
+          "i": 2,
+          "label": "The exam",
+          "op": 1,
+          "painted": true,
+          "t": 6.39
+        },
+        {
+          "i": 3,
+          "label": "The readout",
+          "op": 0,
+          "painted": true,
+          "t": 0.05
+        },
+        {
+          "i": 4,
+          "label": "Home",
+          "op": 0,
+          "painted": false,
+          "t": 0
+        }
+      ],
+      "custom": [],
+      "customHold": false,
+      "seg": 3,
+      "segp": 0,
+      "bg": "#e8ecf3"
+    },
+    {
+      "i": 27,
+      "y": 6397,
+      "pct": 70,
+      "settled": true,
+      "contrast": [],
+      "cues": [],
+      "clips": [
+        {
+          "painted": true,
+          "t": 7.99,
+          "dur": 8,
+          "vis": 1
+        },
+        {
+          "painted": true,
+          "t": 10.58,
+          "dur": 10.6,
+          "vis": 1
+        },
+        {
+          "painted": true,
+          "t": 6.58,
+          "dur": 6.8,
+          "vis": 1
+        },
+        {
+          "painted": true,
+          "t": 0,
+          "dur": 6,
+          "vis": 1
+        },
+        {
+          "painted": false,
+          "t": 0,
+          "dur": 0,
+          "vis": 1
+        }
+      ],
+      "rails": [],
+      "wipes": [],
+      "act": "-",
+      "stages": [],
+      "segs": [
+        {
+          "i": 0,
+          "label": "The desk",
+          "op": 0,
+          "painted": true,
+          "t": 7.988
+        },
+        {
+          "i": 1,
+          "label": "The blueprint",
+          "op": 0,
+          "painted": true,
+          "t": 10.58
+        },
+        {
+          "i": 2,
+          "label": "The exam",
+          "op": 1,
+          "painted": true,
+          "t": 6.576
+        },
+        {
+          "i": 3,
+          "label": "The readout",
+          "op": 0.152,
+          "painted": true,
+          "t": 0
+        },
+        {
+          "i": 4,
+          "label": "Home",
+          "op": 0,
+          "painted": false,
+          "t": 0
+        }
+      ],
+      "custom": [],
+      "customHold": false,
+      "seg": 3,
+      "segp": 0,
+      "bg": "#e8ecf3"
+    },
+    {
+      "i": 28,
+      "y": 6404,
+      "pct": 70,
+      "settled": true,
+      "contrast": [],
+      "cues": [],
+      "clips": [
+        {
+          "painted": true,
+          "t": 7.99,
+          "dur": 8,
+          "vis": 1
+        },
+        {
+          "painted": true,
+          "t": 10.58,
+          "dur": 10.6,
+          "vis": 1
+        },
+        {
+          "painted": true,
+          "t": 6.62,
+          "dur": 6.8,
+          "vis": 1
+        },
+        {
+          "painted": true,
+          "t": 0,
+          "dur": 6,
+          "vis": 1
+        },
+        {
+          "painted": false,
+          "t": 0,
+          "dur": 0,
+          "vis": 1
+        }
+      ],
+      "rails": [],
+      "wipes": [],
+      "act": "-",
+      "stages": [],
+      "segs": [
+        {
+          "i": 0,
+          "label": "The desk",
+          "op": 0,
+          "painted": true,
+          "t": 7.988
+        },
+        {
+          "i": 1,
+          "label": "The blueprint",
+          "op": 0,
+          "painted": true,
+          "t": 10.58
+        },
+        {
+          "i": 2,
+          "label": "The exam",
+          "op": 1,
+          "painted": true,
+          "t": 6.619
+        },
+        {
+          "i": 3,
+          "label": "The readout",
+          "op": 0.213,
+          "painted": true,
+          "t": 0
+        },
+        {
+          "i": 4,
+          "label": "Home",
+          "op": 0,
+          "painted": false,
+          "t": 0
+        }
+      ],
+      "custom": [],
+      "customHold": false,
+      "seg": 3,
+      "segp": 0,
+      "bg": "#e8ecf3"
+    },
+    {
+      "i": 29,
+      "y": 6458,
+      "pct": 71,
+      "settled": true,
+      "contrast": [],
+      "cues": [],
+      "clips": [
+        {
+          "painted": true,
+          "t": 7.99,
+          "dur": 8,
+          "vis": 1
+        },
+        {
+          "painted": true,
+          "t": 10.58,
+          "dur": 10.6,
+          "vis": 1
+        },
+        {
+          "painted": true,
+          "t": 6.77,
+          "dur": 6.8,
+          "vis": 1
+        },
+        {
+          "painted": true,
+          "t": 0.13,
+          "dur": 6,
+          "vis": 1
+        },
+        {
+          "painted": false,
+          "t": 0,
+          "dur": 0,
+          "vis": 1
+        }
+      ],
+      "rails": [],
+      "wipes": [],
+      "act": "-",
+      "stages": [],
+      "segs": [
+        {
+          "i": 0,
+          "label": "The desk",
+          "op": 0,
+          "painted": true,
+          "t": 7.988
+        },
+        {
+          "i": 1,
+          "label": "The blueprint",
+          "op": 0,
+          "painted": true,
+          "t": 10.58
+        },
+        {
+          "i": 2,
+          "label": "The exam",
+          "op": 1,
+          "painted": true,
+          "t": 6.773
+        },
+        {
+          "i": 3,
+          "label": "The readout",
+          "op": 0.781,
+          "painted": true,
+          "t": 0.129
+        },
+        {
+          "i": 4,
+          "label": "Home",
+          "op": 0,
+          "painted": false,
+          "t": 0
+        }
+      ],
+      "custom": [],
+      "customHold": false,
+      "seg": 3,
+      "segp": 0.0176,
+      "bg": "#e8ecf3"
+    },
+    {
+      "i": 30,
+      "y": 6462,
+      "pct": 71,
+      "settled": true,
+      "contrast": [],
+      "cues": [],
+      "clips": [
+        {
+          "painted": true,
+          "t": 7.99,
+          "dur": 8,
+          "vis": 1
+        },
+        {
+          "painted": true,
+          "t": 10.58,
+          "dur": 10.6,
+          "vis": 1
+        },
+        {
+          "painted": true,
+          "t": 6.77,
+          "dur": 6.8,
+          "vis": 1
+        },
+        {
+          "painted": true,
+          "t": 0.17,
+          "dur": 6,
+          "vis": 1
+        },
+        {
+          "painted": false,
+          "t": 0,
+          "dur": 0,
+          "vis": 1
+        }
+      ],
+      "rails": [],
+      "wipes": [],
+      "act": "-",
+      "stages": [],
+      "segs": [
+        {
+          "i": 0,
+          "label": "The desk",
+          "op": 0,
+          "painted": true,
+          "t": 7.988
+        },
+        {
+          "i": 1,
+          "label": "The blueprint",
+          "op": 0,
+          "painted": true,
+          "t": 10.58
+        },
+        {
+          "i": 2,
+          "label": "The exam",
+          "op": 1,
+          "painted": true,
+          "t": 6.773
+        },
+        {
+          "i": 3,
+          "label": "The readout",
+          "op": 0.818,
+          "painted": true,
+          "t": 0.171
+        },
+        {
+          "i": 4,
+          "label": "Home",
+          "op": 0,
+          "painted": false,
+          "t": 0
+        }
+      ],
+      "custom": [],
+      "customHold": false,
+      "seg": 3,
+      "segp": 0.0202,
+      "bg": "#e8ecf3"
+    },
+    {
+      "i": 31,
+      "y": 6499,
+      "pct": 71,
+      "settled": true,
+      "contrast": [],
+      "cues": [],
+      "clips": [
+        {
+          "painted": true,
+          "t": 7.99,
+          "dur": 8,
+          "vis": 1
+        },
+        {
+          "painted": true,
+          "t": 10.58,
+          "dur": 10.6,
+          "vis": 1
+        },
+        {
+          "painted": true,
+          "t": 6.77,
+          "dur": 6.8,
+          "vis": 1
+        },
+        {
+          "painted": true,
+          "t": 0.36,
+          "dur": 6,
+          "vis": 1
+        },
+        {
+          "painted": false,
+          "t": 0,
+          "dur": 0,
+          "vis": 1
+        }
+      ],
+      "rails": [],
+      "wipes": [],
+      "act": "-",
+      "stages": [],
+      "segs": [
+        {
+          "i": 0,
+          "label": "The desk",
+          "op": 0,
+          "painted": true,
+          "t": 7.988
+        },
+        {
+          "i": 1,
+          "label": "The blueprint",
+          "op": 0,
+          "painted": true,
+          "t": 10.58
+        },
+        {
+          "i": 2,
+          "label": "The exam",
+          "op": 0,
+          "painted": true,
+          "t": 6.773
+        },
+        {
+          "i": 3,
+          "label": "The readout",
+          "op": 1,
+          "painted": true,
+          "t": 0.365
+        },
+        {
+          "i": 4,
+          "label": "Home",
+          "op": 0,
+          "painted": false,
+          "t": 0
+        }
+      ],
+      "custom": [],
+      "customHold": false,
+      "seg": 3,
+      "segp": 0.0446,
+      "bg": "#e8ecf3"
+    },
+    {
+      "i": 32,
+      "y": 6753,
+      "pct": 74,
+      "settled": true,
+      "contrast": [],
+      "cues": [
+        {
+          "t": "The readout The numbers come back. Answer shee",
+          "o": 0.82
+        }
+      ],
+      "clips": [
+        {
+          "painted": true,
+          "t": 7.99,
+          "dur": 8,
+          "vis": 1
+        },
+        {
+          "painted": true,
+          "t": 10.58,
+          "dur": 10.6,
+          "vis": 1
+        },
+        {
+          "painted": true,
+          "t": 6.77,
+          "dur": 6.8,
+          "vis": 1
+        },
+        {
+          "painted": true,
+          "t": 1.53,
+          "dur": 6,
+          "vis": 1
+        },
+        {
+          "painted": true,
+          "t": 0.05,
+          "dur": 1.6,
+          "vis": 1
+        }
+      ],
+      "rails": [],
+      "wipes": [],
+      "act": "-",
+      "stages": [],
+      "segs": [
+        {
+          "i": 0,
+          "label": "The desk",
+          "op": 0,
+          "painted": true,
+          "t": 7.988
+        },
+        {
+          "i": 1,
+          "label": "The blueprint",
+          "op": 0,
+          "painted": true,
+          "t": 10.58
+        },
+        {
+          "i": 2,
+          "label": "The exam",
+          "op": 0,
+          "painted": true,
+          "t": 6.773
+        },
+        {
+          "i": 3,
+          "label": "The readout",
+          "op": 1,
+          "painted": true,
+          "t": 1.532
+        },
+        {
+          "i": 4,
+          "label": "Home",
+          "op": 0,
+          "painted": true,
+          "t": 0.05
+        }
+      ],
+      "custom": [],
+      "customHold": false,
+      "seg": 3,
+      "segp": 0.2118,
+      "bg": "#e8ecf3"
+    },
+    {
+      "i": 33,
+      "y": 7045,
+      "pct": 77,
+      "settled": true,
+      "contrast": [
+        {
+          "t": "The readout The numbers come back. Answe",
+          "dir": "dark-on-light",
+          "worst": 10.94,
+          "mean": 14.32
+        }
+      ],
+      "cues": [
+        {
+          "t": "The readout The numbers come back. Answer shee",
+          "o": 1
+        }
+      ],
+      "clips": [
+        {
+          "painted": true,
+          "t": 7.99,
+          "dur": 8,
+          "vis": 1
+        },
+        {
+          "painted": true,
+          "t": 10.58,
+          "dur": 10.6,
+          "vis": 1
+        },
+        {
+          "painted": true,
+          "t": 6.77,
+          "dur": 6.8,
+          "vis": 1
+        },
+        {
+          "painted": true,
+          "t": 2.54,
+          "dur": 6,
+          "vis": 1
+        },
+        {
+          "painted": true,
+          "t": 0.05,
+          "dur": 1.6,
+          "vis": 1
+        }
+      ],
+      "rails": [],
+      "wipes": [],
+      "act": "-",
+      "stages": [],
+      "segs": [
+        {
+          "i": 0,
+          "label": "The desk",
+          "op": 0,
+          "painted": true,
+          "t": 7.988
+        },
+        {
+          "i": 1,
+          "label": "The blueprint",
+          "op": 0,
+          "painted": true,
+          "t": 10.58
+        },
+        {
+          "i": 2,
+          "label": "The exam",
+          "op": 0,
+          "painted": true,
+          "t": 6.773
+        },
+        {
+          "i": 3,
+          "label": "The readout",
+          "op": 1,
+          "painted": true,
+          "t": 2.544
+        },
+        {
+          "i": 4,
+          "label": "Home",
+          "op": 0,
+          "painted": true,
+          "t": 0.05
+        }
+      ],
+      "custom": [],
+      "customHold": false,
+      "seg": 3,
+      "segp": 0.404,
+      "bg": "#e8ecf3"
+    },
+    {
+      "i": 34,
+      "y": 7337,
+      "pct": 80,
+      "settled": true,
+      "contrast": [
+        {
+          "t": "The readout The numbers come back. Answe",
+          "dir": "dark-on-light",
+          "worst": 10.79,
+          "mean": 14.3
+        }
+      ],
+      "cues": [
+        {
+          "t": "The readout The numbers come back. Answer shee",
+          "o": 1
+        }
+      ],
+      "clips": [
+        {
+          "painted": true,
+          "t": 7.99,
+          "dur": 8,
+          "vis": 1
+        },
+        {
+          "painted": true,
+          "t": 10.58,
+          "dur": 10.6,
+          "vis": 1
+        },
+        {
+          "painted": true,
+          "t": 6.77,
+          "dur": 6.8,
+          "vis": 1
+        },
+        {
+          "painted": true,
+          "t": 3.41,
+          "dur": 6,
+          "vis": 1
+        },
+        {
+          "painted": true,
+          "t": 0.05,
+          "dur": 1.6,
+          "vis": 1
+        }
+      ],
+      "rails": [],
+      "wipes": [],
+      "act": "-",
+      "stages": [],
+      "segs": [
+        {
+          "i": 0,
+          "label": "The desk",
+          "op": 0,
+          "painted": true,
+          "t": 7.988
+        },
+        {
+          "i": 1,
+          "label": "The blueprint",
+          "op": 0,
+          "painted": true,
+          "t": 10.58
+        },
+        {
+          "i": 2,
+          "label": "The exam",
+          "op": 0,
+          "painted": true,
+          "t": 6.773
+        },
+        {
+          "i": 3,
+          "label": "The readout",
+          "op": 1,
+          "painted": true,
+          "t": 3.414
+        },
+        {
+          "i": 4,
+          "label": "Home",
+          "op": 0,
+          "painted": true,
+          "t": 0.05
+        }
+      ],
+      "custom": [],
+      "customHold": false,
+      "seg": 3,
+      "segp": 0.5962,
+      "bg": "#e8ecf3"
+    },
+    {
+      "i": 35,
+      "y": 7628,
+      "pct": 84,
+      "settled": true,
+      "contrast": [],
+      "cues": [
+        {
+          "t": "The readout The numbers come back. Answer shee",
+          "o": 0.76
+        }
+      ],
+      "clips": [
+        {
+          "painted": true,
+          "t": 7.99,
+          "dur": 8,
+          "vis": 1
+        },
+        {
+          "painted": true,
+          "t": 10.58,
+          "dur": 10.6,
+          "vis": 1
+        },
+        {
+          "painted": true,
+          "t": 6.77,
+          "dur": 6.8,
+          "vis": 1
+        },
+        {
+          "painted": true,
+          "t": 4.42,
+          "dur": 6,
+          "vis": 1
+        },
+        {
+          "painted": true,
+          "t": 0.05,
+          "dur": 1.6,
+          "vis": 1
+        }
+      ],
+      "rails": [],
+      "wipes": [],
+      "act": "-",
+      "stages": [],
+      "segs": [
+        {
+          "i": 0,
+          "label": "The desk",
+          "op": 0,
+          "painted": true,
+          "t": 7.988
+        },
+        {
+          "i": 1,
+          "label": "The blueprint",
+          "op": 0,
+          "painted": true,
+          "t": 10.58
+        },
+        {
+          "i": 2,
+          "label": "The exam",
+          "op": 0,
+          "painted": true,
+          "t": 6.773
+        },
+        {
+          "i": 3,
+          "label": "The readout",
+          "op": 1,
+          "painted": true,
+          "t": 4.419
+        },
+        {
+          "i": 4,
+          "label": "Home",
+          "op": 0,
+          "painted": true,
+          "t": 0.05
+        }
+      ],
+      "custom": [],
+      "customHold": false,
+      "seg": 3,
+      "segp": 0.7877,
+      "bg": "#e8ecf3"
+    },
+    {
+      "i": 36,
+      "y": 7883,
+      "pct": 86,
+      "settled": true,
+      "contrast": [],
+      "cues": [],
+      "clips": [
+        {
+          "painted": true,
+          "t": 7.99,
+          "dur": 8,
+          "vis": 1
+        },
+        {
+          "painted": true,
+          "t": 10.58,
+          "dur": 10.6,
+          "vis": 1
+        },
+        {
+          "painted": true,
+          "t": 6.77,
+          "dur": 6.8,
+          "vis": 1
+        },
+        {
+          "painted": true,
+          "t": 5.61,
+          "dur": 6,
+          "vis": 1
+        },
+        {
+          "painted": true,
+          "t": 0.05,
+          "dur": 1.6,
+          "vis": 1
+        }
+      ],
+      "rails": [],
+      "wipes": [],
+      "act": "-",
+      "stages": [],
+      "segs": [
+        {
+          "i": 0,
+          "label": "The desk",
+          "op": 0,
+          "painted": true,
+          "t": 7.988
+        },
+        {
+          "i": 1,
+          "label": "The blueprint",
+          "op": 0,
+          "painted": true,
+          "t": 10.58
+        },
+        {
+          "i": 2,
+          "label": "The exam",
+          "op": 0,
+          "painted": true,
+          "t": 6.773
+        },
+        {
+          "i": 3,
+          "label": "The readout",
+          "op": 1,
+          "painted": true,
+          "t": 5.611
+        },
+        {
+          "i": 4,
+          "label": "Home",
+          "op": 0,
+          "painted": true,
+          "t": 0.05
+        }
+      ],
+      "custom": [],
+      "customHold": false,
+      "seg": 4,
+      "segp": 0,
+      "bg": "#e8ecf3"
+    },
+    {
+      "i": 37,
+      "y": 7920,
+      "pct": 87,
+      "settled": true,
+      "contrast": [],
+      "cues": [],
+      "clips": [
+        {
+          "painted": true,
+          "t": 7.99,
+          "dur": 8,
+          "vis": 1
+        },
+        {
+          "painted": true,
+          "t": 10.58,
+          "dur": 10.6,
+          "vis": 1
+        },
+        {
+          "painted": true,
+          "t": 6.77,
+          "dur": 6.8,
+          "vis": 1
+        },
+        {
+          "painted": true,
+          "t": 5.8,
+          "dur": 6,
+          "vis": 1
+        },
+        {
+          "painted": true,
+          "t": 0,
+          "dur": 1.6,
+          "vis": 1
+        }
+      ],
+      "rails": [],
+      "wipes": [],
+      "act": "-",
+      "stages": [],
+      "segs": [
+        {
+          "i": 0,
+          "label": "The desk",
+          "op": 0,
+          "painted": true,
+          "t": 7.988
+        },
+        {
+          "i": 1,
+          "label": "The blueprint",
+          "op": 0,
+          "painted": true,
+          "t": 10.58
+        },
+        {
+          "i": 2,
+          "label": "The exam",
+          "op": 0,
+          "painted": true,
+          "t": 6.773
+        },
+        {
+          "i": 3,
+          "label": "The readout",
+          "op": 1,
+          "painted": true,
+          "t": 5.804
+        },
+        {
+          "i": 4,
+          "label": "Home",
+          "op": 0.184,
+          "painted": true,
+          "t": 0
+        }
+      ],
+      "custom": [],
+      "customHold": false,
+      "seg": 4,
+      "segp": 0,
+      "bg": "#e8ecf3"
+    },
+    {
+      "i": 38,
+      "y": 7923,
+      "pct": 87,
+      "settled": true,
+      "contrast": [],
+      "cues": [],
+      "clips": [
+        {
+          "painted": true,
+          "t": 7.99,
+          "dur": 8,
+          "vis": 1
+        },
+        {
+          "painted": true,
+          "t": 10.58,
+          "dur": 10.6,
+          "vis": 1
+        },
+        {
+          "painted": true,
+          "t": 6.77,
+          "dur": 6.8,
+          "vis": 1
+        },
+        {
+          "painted": true,
+          "t": 5.83,
+          "dur": 6,
+          "vis": 1
+        },
+        {
+          "painted": true,
+          "t": 0,
+          "dur": 1.6,
+          "vis": 1
+        }
+      ],
+      "rails": [],
+      "wipes": [],
+      "act": "-",
+      "stages": [],
+      "segs": [
+        {
+          "i": 0,
+          "label": "The desk",
+          "op": 0,
+          "painted": true,
+          "t": 7.988
+        },
+        {
+          "i": 1,
+          "label": "The blueprint",
+          "op": 0,
+          "painted": true,
+          "t": 10.58
+        },
+        {
+          "i": 2,
+          "label": "The exam",
+          "op": 0,
+          "painted": true,
+          "t": 6.773
+        },
+        {
+          "i": 3,
+          "label": "The readout",
+          "op": 1,
+          "painted": true,
+          "t": 5.826
+        },
+        {
+          "i": 4,
+          "label": "Home",
+          "op": 0.212,
+          "painted": true,
+          "t": 0
+        }
+      ],
+      "custom": [],
+      "customHold": false,
+      "seg": 4,
+      "segp": 0,
+      "bg": "#e8ecf3"
+    },
+    {
+      "i": 39,
+      "y": 7974,
+      "pct": 87,
+      "settled": true,
+      "contrast": [],
+      "cues": [],
+      "clips": [
+        {
+          "painted": true,
+          "t": 7.99,
+          "dur": 8,
+          "vis": 1
+        },
+        {
+          "painted": true,
+          "t": 10.58,
+          "dur": 10.6,
+          "vis": 1
+        },
+        {
+          "painted": true,
+          "t": 6.77,
+          "dur": 6.8,
+          "vis": 1
+        },
+        {
+          "painted": true,
+          "t": 5.97,
+          "dur": 6,
+          "vis": 1
+        },
+        {
+          "painted": true,
+          "t": 0.02,
+          "dur": 1.6,
+          "vis": 1
+        }
+      ],
+      "rails": [],
+      "wipes": [],
+      "act": "-",
+      "stages": [],
+      "segs": [
+        {
+          "i": 0,
+          "label": "The desk",
+          "op": 0,
+          "painted": true,
+          "t": 7.988
+        },
+        {
+          "i": 1,
+          "label": "The blueprint",
+          "op": 0,
+          "painted": true,
+          "t": 10.58
+        },
+        {
+          "i": 2,
+          "label": "The exam",
+          "op": 0,
+          "painted": true,
+          "t": 6.773
+        },
+        {
+          "i": 3,
+          "label": "The readout",
+          "op": 1,
+          "painted": true,
+          "t": 5.973
+        },
+        {
+          "i": 4,
+          "label": "Home",
+          "op": 0.751,
+          "painted": true,
+          "t": 0.02
+        }
+      ],
+      "custom": [],
+      "customHold": false,
+      "seg": 4,
+      "segp": 0.0202,
+      "bg": "#e8ecf3"
+    },
+    {
+      "i": 40,
+      "y": 7977,
+      "pct": 88,
+      "settled": true,
+      "contrast": [],
+      "cues": [],
+      "clips": [
+        {
+          "painted": true,
+          "t": 7.99,
+          "dur": 8,
+          "vis": 1
+        },
+        {
+          "painted": true,
+          "t": 10.58,
+          "dur": 10.6,
+          "vis": 1
+        },
+        {
+          "painted": true,
+          "t": 6.77,
+          "dur": 6.8,
+          "vis": 1
+        },
+        {
+          "painted": true,
+          "t": 5.99,
+          "dur": 6,
+          "vis": 1
+        },
+        {
+          "painted": true,
+          "t": 0.02,
+          "dur": 1.6,
+          "vis": 1
+        }
+      ],
+      "rails": [],
+      "wipes": [],
+      "act": "-",
+      "stages": [],
+      "segs": [
+        {
+          "i": 0,
+          "label": "The desk",
+          "op": 0,
+          "painted": true,
+          "t": 7.988
+        },
+        {
+          "i": 1,
+          "label": "The blueprint",
+          "op": 0,
+          "painted": true,
+          "t": 10.58
+        },
+        {
+          "i": 2,
+          "label": "The exam",
+          "op": 0,
+          "painted": true,
+          "t": 6.773
+        },
+        {
+          "i": 3,
+          "label": "The readout",
+          "op": 1,
+          "painted": true,
+          "t": 5.993
+        },
+        {
+          "i": 4,
+          "label": "Home",
+          "op": 0.779,
+          "painted": true,
+          "t": 0.02
+        }
+      ],
+      "custom": [],
+      "customHold": false,
+      "seg": 4,
+      "segp": 0.0228,
+      "bg": "#e8ecf3"
+    },
+    {
+      "i": 41,
+      "y": 8018,
+      "pct": 88,
+      "settled": true,
+      "contrast": [],
+      "cues": [],
+      "clips": [
+        {
+          "painted": true,
+          "t": 7.99,
+          "dur": 8,
+          "vis": 1
+        },
+        {
+          "painted": true,
+          "t": 10.58,
+          "dur": 10.6,
+          "vis": 1
+        },
+        {
+          "painted": true,
+          "t": 6.77,
+          "dur": 6.8,
+          "vis": 1
+        },
+        {
+          "painted": true,
+          "t": 5.99,
+          "dur": 6,
+          "vis": 1
+        },
+        {
+          "painted": true,
+          "t": 0.09,
+          "dur": 1.6,
+          "vis": 1
+        }
+      ],
+      "rails": [],
+      "wipes": [],
+      "act": "-",
+      "stages": [],
+      "segs": [
+        {
+          "i": 0,
+          "label": "The desk",
+          "op": 0,
+          "painted": true,
+          "t": 7.988
+        },
+        {
+          "i": 1,
+          "label": "The blueprint",
+          "op": 0,
+          "painted": true,
+          "t": 10.58
+        },
+        {
+          "i": 2,
+          "label": "The exam",
+          "op": 0,
+          "painted": true,
+          "t": 6.773
+        },
+        {
+          "i": 3,
+          "label": "The readout",
+          "op": 0,
+          "painted": true,
+          "t": 5.993
+        },
+        {
+          "i": 4,
+          "label": "Home",
+          "op": 1,
+          "painted": true,
+          "t": 0.088
+        }
+      ],
+      "custom": [],
+      "customHold": false,
+      "seg": 4,
+      "segp": 0.058,
+      "bg": "#e8ecf3"
+    },
+    {
+      "i": 42,
+      "y": 8197,
+      "pct": 90,
+      "settled": true,
+      "contrast": [],
+      "cues": [],
+      "clips": [
+        {
+          "painted": true,
+          "t": 7.99,
+          "dur": 8,
+          "vis": 1
+        },
+        {
+          "painted": true,
+          "t": 10.58,
+          "dur": 10.6,
+          "vis": 1
+        },
+        {
+          "painted": true,
+          "t": 6.77,
+          "dur": 6.8,
+          "vis": 1
+        },
+        {
+          "painted": true,
+          "t": 5.99,
+          "dur": 6,
+          "vis": 1
+        },
+        {
+          "painted": true,
+          "t": 0.32,
+          "dur": 1.6,
+          "vis": 1
+        }
+      ],
+      "rails": [],
+      "wipes": [],
+      "act": "-",
+      "stages": [],
+      "segs": [
+        {
+          "i": 0,
+          "label": "The desk",
+          "op": 0,
+          "painted": true,
+          "t": 7.988
+        },
+        {
+          "i": 1,
+          "label": "The blueprint",
+          "op": 0,
+          "painted": true,
+          "t": 10.58
+        },
+        {
+          "i": 2,
+          "label": "The exam",
+          "op": 0,
+          "painted": true,
+          "t": 6.773
+        },
+        {
+          "i": 3,
+          "label": "The readout",
+          "op": 0,
+          "painted": true,
+          "t": 5.993
+        },
+        {
+          "i": 4,
+          "label": "Home",
+          "op": 1,
+          "painted": true,
+          "t": 0.32
+        }
+      ],
+      "custom": [],
+      "customHold": false,
+      "seg": 4,
+      "segp": 0.2117,
+      "bg": "#e8ecf3"
+    },
+    {
+      "i": 43,
+      "y": 8421,
+      "pct": 92,
+      "settled": true,
+      "contrast": [],
+      "cues": [],
+      "clips": [
+        {
+          "painted": true,
+          "t": 7.99,
+          "dur": 8,
+          "vis": 1
+        },
+        {
+          "painted": true,
+          "t": 10.58,
+          "dur": 10.6,
+          "vis": 1
+        },
+        {
+          "painted": true,
+          "t": 6.77,
+          "dur": 6.8,
+          "vis": 1
+        },
+        {
+          "painted": true,
+          "t": 5.99,
+          "dur": 6,
+          "vis": 1
+        },
+        {
+          "painted": true,
+          "t": 0.63,
+          "dur": 1.6,
+          "vis": 1
+        }
+      ],
+      "rails": [],
+      "wipes": [],
+      "act": "-",
+      "stages": [],
+      "segs": [
+        {
+          "i": 0,
+          "label": "The desk",
+          "op": 0,
+          "painted": true,
+          "t": 7.988
+        },
+        {
+          "i": 1,
+          "label": "The blueprint",
+          "op": 0,
+          "painted": true,
+          "t": 10.58
+        },
+        {
+          "i": 2,
+          "label": "The exam",
+          "op": 0,
+          "painted": true,
+          "t": 6.773
+        },
+        {
+          "i": 3,
+          "label": "The readout",
+          "op": 0,
+          "painted": true,
+          "t": 5.993
+        },
+        {
+          "i": 4,
+          "label": "Home",
+          "op": 1,
+          "painted": true,
+          "t": 0.627
+        }
+      ],
+      "custom": [],
+      "customHold": false,
+      "seg": 4,
+      "segp": 0.404,
+      "bg": "#e8ecf3"
+    },
+    {
+      "i": 44,
+      "y": 8645,
+      "pct": 95,
+      "settled": true,
+      "contrast": [],
+      "cues": [
+        {
+          "t": "The whole workflow. One place. Create account ",
+          "o": 0.64
+        }
+      ],
+      "clips": [
+        {
+          "painted": true,
+          "t": 7.99,
+          "dur": 8,
+          "vis": 1
+        },
+        {
+          "painted": true,
+          "t": 10.58,
+          "dur": 10.6,
+          "vis": 1
+        },
+        {
+          "painted": true,
+          "t": 6.77,
+          "dur": 6.8,
+          "vis": 1
+        },
+        {
+          "painted": true,
+          "t": 5.99,
+          "dur": 6,
+          "vis": 1
+        },
+        {
+          "painted": true,
+          "t": 0.93,
+          "dur": 1.6,
+          "vis": 1
+        }
+      ],
+      "rails": [],
+      "wipes": [],
+      "act": "-",
+      "stages": [],
+      "segs": [
+        {
+          "i": 0,
+          "label": "The desk",
+          "op": 0,
+          "painted": true,
+          "t": 7.988
+        },
+        {
+          "i": 1,
+          "label": "The blueprint",
+          "op": 0,
+          "painted": true,
+          "t": 10.58
+        },
+        {
+          "i": 2,
+          "label": "The exam",
+          "op": 0,
+          "painted": true,
+          "t": 6.773
+        },
+        {
+          "i": 3,
+          "label": "The readout",
+          "op": 0,
+          "painted": true,
+          "t": 5.993
+        },
+        {
+          "i": 4,
+          "label": "Home",
+          "op": 1,
+          "painted": true,
+          "t": 0.935
+        }
+      ],
+      "custom": [],
+      "customHold": false,
+      "seg": 4,
+      "segp": 0.5963,
+      "bg": "#e8ecf3"
+    },
+    {
+      "i": 45,
+      "y": 8868,
+      "pct": 97,
+      "settled": true,
+      "contrast": [
+        {
+          "t": "The whole workflow. One place. Create ac",
+          "dir": "dark-on-light",
+          "worst": 11.34,
+          "mean": 14.58
+        }
+      ],
+      "cues": [
+        {
+          "t": "The whole workflow. One place. Create account ",
+          "o": 1
+        }
+      ],
+      "clips": [
+        {
+          "painted": true,
+          "t": 7.99,
+          "dur": 8,
+          "vis": 1
+        },
+        {
+          "painted": true,
+          "t": 10.58,
+          "dur": 10.6,
+          "vis": 1
+        },
+        {
+          "painted": true,
+          "t": 6.77,
+          "dur": 6.8,
+          "vis": 1
+        },
+        {
+          "painted": true,
+          "t": 5.99,
+          "dur": 6,
+          "vis": 1
+        },
+        {
+          "painted": true,
+          "t": 1.24,
+          "dur": 1.6,
+          "vis": 1
+        }
+      ],
+      "rails": [],
+      "wipes": [],
+      "act": "-",
+      "stages": [],
+      "segs": [
+        {
+          "i": 0,
+          "label": "The desk",
+          "op": 0,
+          "painted": true,
+          "t": 7.988
+        },
+        {
+          "i": 1,
+          "label": "The blueprint",
+          "op": 0,
+          "painted": true,
+          "t": 10.58
+        },
+        {
+          "i": 2,
+          "label": "The exam",
+          "op": 0,
+          "painted": true,
+          "t": 6.773
+        },
+        {
+          "i": 3,
+          "label": "The readout",
+          "op": 0,
+          "painted": true,
+          "t": 5.993
+        },
+        {
+          "i": 4,
+          "label": "Home",
+          "op": 1,
+          "painted": true,
+          "t": 1.241
+        }
+      ],
+      "custom": [],
+      "customHold": false,
+      "seg": 4,
+      "segp": 0.7878,
+      "bg": "#e8ecf3"
+    },
+    {
+      "i": 46,
+      "y": 9092,
+      "pct": 100,
+      "settled": true,
+      "contrast": [
+        {
+          "t": "The whole workflow. One place. Create ac",
+          "dir": "dark-on-light",
+          "worst": 11.39,
+          "mean": 14.54
+        }
+      ],
+      "cues": [
+        {
+          "t": "The whole workflow. One place. Create account ",
+          "o": 1
+        }
+      ],
+      "clips": [
+        {
+          "painted": true,
+          "t": 7.99,
+          "dur": 8,
+          "vis": 1
+        },
+        {
+          "painted": true,
+          "t": 10.58,
+          "dur": 10.6,
+          "vis": 1
+        },
+        {
+          "painted": true,
+          "t": 6.77,
+          "dur": 6.8,
+          "vis": 1
+        },
+        {
+          "painted": true,
+          "t": 5.99,
+          "dur": 6,
+          "vis": 1
+        },
+        {
+          "painted": true,
+          "t": 1.55,
+          "dur": 1.6,
+          "vis": 1
+        }
+      ],
+      "rails": [],
+      "wipes": [],
+      "act": "-",
+      "stages": [],
+      "segs": [
+        {
+          "i": 0,
+          "label": "The desk",
+          "op": 0,
+          "painted": true,
+          "t": 7.988
+        },
+        {
+          "i": 1,
+          "label": "The blueprint",
+          "op": 0,
+          "painted": true,
+          "t": 10.58
+        },
+        {
+          "i": 2,
+          "label": "The exam",
+          "op": 0,
+          "painted": true,
+          "t": 6.773
+        },
+        {
+          "i": 3,
+          "label": "The readout",
+          "op": 0,
+          "painted": true,
+          "t": 5.993
+        },
+        {
+          "i": 4,
+          "label": "Home",
+          "op": 1,
+          "painted": true,
+          "t": 1.549
+        }
+      ],
+      "custom": [],
+      "customHold": false,
+      "seg": 4,
+      "segp": 0.9801,
+      "bg": "#e8ecf3"
+    },
+    {
+      "i": 47,
+      "y": 9115,
+      "pct": 100,
+      "settled": true,
+      "contrast": [
+        {
+          "t": "The whole workflow. One place. Create ac",
+          "dir": "dark-on-light",
+          "worst": 11.67,
+          "mean": 14.55
+        }
+      ],
+      "cues": [
+        {
+          "t": "The whole workflow. One place. Create account ",
+          "o": 1
+        }
+      ],
+      "clips": [
+        {
+          "painted": true,
+          "t": 7.99,
+          "dur": 8,
+          "vis": 1
+        },
+        {
+          "painted": true,
+          "t": 10.58,
+          "dur": 10.6,
+          "vis": 1
+        },
+        {
+          "painted": true,
+          "t": 6.77,
+          "dur": 6.8,
+          "vis": 1
+        },
+        {
+          "painted": true,
+          "t": 5.99,
+          "dur": 6,
+          "vis": 1
+        },
+        {
+          "painted": true,
+          "t": 1.59,
+          "dur": 1.6,
+          "vis": 1
+        }
+      ],
+      "rails": [],
+      "wipes": [],
+      "act": "-",
+      "stages": [],
+      "segs": [
+        {
+          "i": 0,
+          "label": "The desk",
+          "op": 0,
+          "painted": true,
+          "t": 7.988
+        },
+        {
+          "i": 1,
+          "label": "The blueprint",
+          "op": 0,
+          "painted": true,
+          "t": 10.58
+        },
+        {
+          "i": 2,
+          "label": "The exam",
+          "op": 0,
+          "painted": true,
+          "t": 6.773
+        },
+        {
+          "i": 3,
+          "label": "The readout",
+          "op": 0,
+          "painted": true,
+          "t": 5.993
+        },
+        {
+          "i": 4,
+          "label": "Home",
+          "op": 1,
+          "painted": true,
+          "t": 1.594
+        }
+      ],
+      "custom": [],
+      "customHold": false,
+      "seg": 4,
+      "segp": 0.9998,
+      "bg": "#e8ecf3"
+    }
+  ],
+  "consoleErrors": [],
+  "failed": []
+}

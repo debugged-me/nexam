@@ -1,0 +1,349 @@
+<!doctype html>
+<html lang="en" data-resolution="landscape">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1920, height=1080" />
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      html,
+      body {
+        width: 1920px;
+        height: 1080px;
+        overflow: hidden;
+        background: #e8ecf3;
+      }
+
+      #root {
+        --ink: #1a1d24;
+        --blue: #2e7cd6;
+        --blue-soft: #61a8ff;
+        --silver-hi: #fbfcfe;
+        --silver-lo: #dfe4ec;
+        position: relative;
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        isolation: isolate;
+      }
+
+      /* ——— silver studio backdrop ——— */
+      .bg {
+        position: absolute;
+        inset: 0;
+        background:
+          radial-gradient(130% 105% at 50% 22%, var(--silver-hi) 0%, #eceff5 46%, #d5dce7 100%);
+      }
+
+      /* ambient color glows */
+      .glow {
+        position: absolute;
+        border-radius: 50%;
+        filter: blur(90px);
+        pointer-events: none;
+        will-change: transform, opacity;
+      }
+      .glow-blue {
+        width: 1500px;
+        height: 700px;
+        left: 260px;
+        top: -330px;
+        background: rgba(46, 124, 214, 0.16);
+      }
+      .glow-orb {
+        width: 620px;
+        height: 620px;
+        left: -180px;
+        bottom: -300px;
+        background: rgba(97, 168, 255, 0.10);
+        filter: blur(110px);
+      }
+      .glow-orb-2 {
+        width: 520px;
+        height: 520px;
+        right: -160px;
+        top: 42%;
+        background: rgba(148, 163, 184, 0.14);
+        filter: blur(100px);
+      }
+
+      /* soft studio floor band */
+      .floor {
+        position: absolute;
+        left: 0;
+        right: 0;
+        top: 66%;
+        height: 34%;
+        background: linear-gradient(180deg, rgba(148, 163, 184, 0) 0%, rgba(148, 163, 184, 0.12) 55%, rgba(120, 135, 158, 0.16) 100%);
+      }
+
+      /* ——— perspective stage ——— */
+      .stage {
+        position: absolute;
+        inset: 0;
+        perspective: 1500px;
+      }
+      .world {
+        position: absolute;
+        inset: 0;
+        transform-style: preserve-3d;
+        will-change: transform;
+      }
+
+      /* ——— screen cards ——— */
+      .screen {
+        position: absolute;
+        left: 410px; /* card center lands at x = 1000 + rel·560 */
+        top: 191px;
+        width: 1180px;
+        height: 698px;
+        border-radius: 16px;
+        overflow: hidden;
+        background: #ffffff;
+        border: 1px solid rgba(15, 23, 42, 0.08);
+        box-shadow:
+          0 1px 2px rgba(15, 23, 42, 0.05),
+          0 24px 60px -18px rgba(30, 45, 70, 0.28);
+        transform-style: preserve-3d;
+        will-change: transform, opacity, filter;
+      }
+
+      /* minimal browser chrome strip */
+      .chrome {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        height: 34px;
+        padding: 0 16px;
+        background: linear-gradient(180deg, #fcfdff, #f4f6fa);
+        border-bottom: 1px solid rgba(15, 23, 42, 0.06);
+      }
+      .chrome .dot {
+        width: 9px;
+        height: 9px;
+        border-radius: 50%;
+        background: #d8dde6;
+      }
+      .chrome .dot:nth-child(1) { background: #f0b8b4; }
+      .chrome .dot:nth-child(2) { background: #f3dcab; }
+      .chrome .dot:nth-child(3) { background: #b9e3c1; }
+      .chrome .url {
+        flex: 1;
+        margin: 0 90px;
+        height: 20px;
+        border-radius: 6px;
+        background: rgba(15, 23, 42, 0.045);
+      }
+
+      .shot {
+        display: block;
+        width: 100%;
+        height: 664px;
+        object-fit: cover;
+        object-position: top center;
+      }
+
+      /* hero accent ring — opacity only, driven per advance */
+      .ring {
+        position: absolute;
+        inset: 0;
+        z-index: 3;
+        border: 3px solid rgba(46, 124, 214, 0.65);
+        border-radius: inherit;
+        opacity: 0;
+        pointer-events: none;
+      }
+
+      /* specular sheen band riding each card */
+      .sheen {
+        position: absolute;
+        inset: -10%;
+        z-index: 2;
+        opacity: 0;
+        background: linear-gradient(
+          105deg,
+          transparent 40%,
+          rgba(255, 255, 255, 0.04) 46%,
+          rgba(255, 255, 255, 0.5) 50%,
+          rgba(255, 255, 255, 0.05) 55%,
+          transparent 62%
+        );
+        pointer-events: none;
+        will-change: transform, opacity;
+      }
+
+      .vignette {
+        position: absolute;
+        inset: 0;
+        z-index: 5;
+        background: radial-gradient(118% 118% at 50% 42%, transparent 52%, rgba(20, 28, 44, 0.20) 100%);
+        pointer-events: none;
+      }
+    </style>
+  </head>
+  <body>
+    <div
+      id="root"
+      data-composition-id="flight"
+      data-start="0"
+      data-duration="33"
+      data-width="1920"
+      data-height="1080"
+    >
+      <div id="stage-clip" class="clip" data-start="0" data-duration="33">
+        <div class="bg"></div>
+        <div class="glow glow-blue" data-layout-allow-overflow="true"></div>
+        <div class="glow glow-orb" data-layout-allow-overflow="true"></div>
+        <div class="glow glow-orb-2" data-layout-allow-overflow="true"></div>
+        <div class="floor"></div>
+
+        <div class="stage">
+          <div class="world" id="world">
+            <!-- slots: A D T E A' D' T' E' — duplicated once so the rail wraps -->
+            <article class="screen" data-layout-allow-overflow="true"><div class="chrome"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="url"></span></div><img class="shot" src="../assets/screens/exam-analytics.png" alt="" /><span class="sheen" data-layout-allow-overflow="true"></span><span class="ring"></span></article>
+            <article class="screen" data-layout-allow-overflow="true"><div class="chrome"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="url"></span></div><img class="shot" src="../assets/screens/dashboard.png" alt="" /><span class="sheen" data-layout-allow-overflow="true"></span><span class="ring"></span></article>
+            <article class="screen" data-layout-allow-overflow="true"><div class="chrome"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="url"></span></div><img class="shot" src="../assets/screens/tos-detail.png" alt="" /><span class="sheen" data-layout-allow-overflow="true"></span><span class="ring"></span></article>
+            <article class="screen" data-layout-allow-overflow="true"><div class="chrome"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="url"></span></div><img class="shot" src="../assets/screens/exam-detail.png" alt="" /><span class="sheen" data-layout-allow-overflow="true"></span><span class="ring"></span></article>
+            <article class="screen" data-layout-allow-overflow="true"><div class="chrome"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="url"></span></div><img class="shot" src="../assets/screens/exam-analytics-b.png" alt="" /><span class="sheen" data-layout-allow-overflow="true"></span><span class="ring"></span></article>
+            <article class="screen" data-layout-allow-overflow="true"><div class="chrome"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="url"></span></div><img class="shot" src="../assets/screens/dashboard-b.png" alt="" /><span class="sheen" data-layout-allow-overflow="true"></span><span class="ring"></span></article>
+            <article class="screen" data-layout-allow-overflow="true"><div class="chrome"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="url"></span></div><img class="shot" src="../assets/screens/tos-detail-b.png" alt="" /><span class="sheen" data-layout-allow-overflow="true"></span><span class="ring"></span></article>
+            <article class="screen" data-layout-allow-overflow="true"><div class="chrome"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="url"></span></div><img class="shot" src="../assets/screens/exam-detail-b.png" alt="" /><span class="sheen" data-layout-allow-overflow="true"></span><span class="ring"></span></article>
+          </div>
+        </div>
+
+        <div class="vignette"></div>
+      </div>
+    </div>
+
+    <script>
+      (function () {
+        "use strict";
+
+        var DURATION = 33;
+        var PITCH = 560; /* px between slot centers */
+        var CENTER = 1; /* slot index centered at t = 0 */
+        var THROW = 0.48; /* whip phase (power4.out) */
+        var CATCH = 0.62; /* long-tail settle (power2.out) */
+        /* advance start times — each sits just inside the leg that owns the
+           destination pose, so leg boundaries fall inside settled dwells */
+        var HOPS = [6.4, 17.2, 24.0, 30.0];
+
+        /* dwell spans (settle start, settle end) per centered screen.
+           The world keeps pushing gently through every dwell so a scrubbed
+           frame never sits still; the blueprint leg pushes in hardest. */
+        var DWELLS = [
+          { from: 0, to: 6.4, scale: 1.012 },
+          { from: 7.5, to: 17.2, scale: 1.062 },
+          { from: 18.5, to: 24.0, scale: 1.02 },
+          { from: 25.3, to: 30.0, scale: 1.024 },
+          { from: 31.3, to: 33, scale: 1.0 },
+        ];
+
+        /* pose for a screen at signed distance `rel` from the centered slot.
+           Neighbors sit deep and dim — depth, not a second thing to read. */
+        function pose(rel) {
+          var a = Math.abs(rel);
+          var sgn = rel === 0 ? 0 : rel / a;
+          return {
+            x: rel * PITCH,
+            z: a === 0 ? 0 : a === 1 ? -210 : a === 2 ? -340 : -440,
+            rotationY: a === 0 ? 0 : sgn * (a === 1 ? 24 : a === 2 ? 34 : 40),
+            scale: a === 0 ? 1 : a === 1 ? 0.84 : a === 2 ? 0.74 : 0.66,
+            opacity: a === 0 ? 1 : a === 1 ? 0.42 : a === 2 ? 0.14 : 0,
+            brightness: a === 0 ? 1 : a === 1 ? 0.82 : 0.74,
+            ring: a === 0 ? 1 : 0,
+            sheenOpacity: a === 0 ? 0.22 : 0,
+            sheenX: -rel * 30,
+          };
+        }
+
+        var root = document.querySelector('[data-composition-id="flight"]');
+        var world = document.getElementById("world");
+        var screens = Array.prototype.slice.call(root.querySelectorAll(".screen"));
+        var rings = screens.map(function (el) { return el.querySelector(".ring"); });
+        var sheens = screens.map(function (el) { return el.querySelector(".sheen"); });
+        var glowBlue = root.querySelector(".glow-blue");
+        var orb1 = root.querySelector(".glow-orb");
+        var orb2 = root.querySelector(".glow-orb-2");
+
+        var tl = gsap.timeline({ paused: true });
+
+        /* world pose: slight downward camera tilt owned entirely by GSAP */
+        gsap.set(world, { rotationX: 3.5, transformOrigin: "50% 60%" });
+
+        /* initial slot state: screen i sits at rel = i - CENTER */
+        screens.forEach(function (el, i) {
+          var p = pose(i - CENTER);
+          gsap.set(el, {
+            x: p.x,
+            z: p.z,
+            rotationY: p.rotationY,
+            scale: p.scale,
+            opacity: p.opacity,
+            filter: "brightness(" + p.brightness + ")",
+            transformOrigin: "50% 55%",
+          });
+          gsap.set(rings[i], { opacity: p.ring });
+          gsap.set(sheens[i], { opacity: p.sheenOpacity, xPercent: p.sheenX });
+        });
+
+        /* advances — softened velocity throw: whip then long-tail catch */
+        HOPS.forEach(function (at, h) {
+          var centered = CENTER + h + 1;
+          screens.forEach(function (el, i) {
+            var p = pose(i - centered);
+            tl.to(el, { x: p.x + 56, duration: THROW, ease: "power4.out" }, at);
+            tl.to(el, { x: p.x, duration: CATCH, ease: "power2.out" }, at + THROW);
+            tl.to(
+              el,
+              {
+                z: p.z,
+                rotationY: p.rotationY,
+                scale: p.scale,
+                opacity: p.opacity,
+                filter: "brightness(" + p.brightness + ")",
+                duration: THROW + CATCH,
+                ease: "power2.inOut",
+              },
+              at
+            );
+            tl.to(rings[i], { opacity: p.ring, duration: 0.5, ease: "power1.out" }, at + THROW * 0.5);
+            tl.to(sheens[i], { opacity: p.sheenOpacity, xPercent: p.sheenX, duration: THROW + CATCH, ease: "power2.inOut" }, at);
+          });
+
+          /* specular life while the hero dwells: the arriving card's sheen
+             drifts slowly until the next advance picks it up again */
+          var hero = sheens[centered];
+          var dwell = DWELLS[h + 1];
+          if (hero && dwell) {
+            tl.to(hero, { xPercent: -18, duration: dwell.to - dwell.from, ease: "sine.inOut" }, dwell.from);
+          }
+        });
+        /* opening hero sheen drifts through the first dwell too */
+        tl.to(sheens[CENTER], { xPercent: -18, duration: DWELLS[0].to - DWELLS[0].from, ease: "sine.inOut" }, DWELLS[0].from);
+
+        /* dwell pushes — the world releases to rest through each whip, then
+           approaches through each settle, so the camera always travels */
+        DWELLS.forEach(function (d, i) {
+          var t0 = i === 0 ? 0 : DWELLS[i - 1].to;
+          tl.to(world, { scale: 1, duration: Math.max(d.from - t0, 0.001), ease: "sine.inOut" }, t0);
+          tl.to(world, { scale: d.scale, duration: d.to - d.from, ease: "sine.inOut" }, d.from);
+        });
+
+        /* ambient drift — monotonic, so scrubbing never reverses a glow */
+        tl.to(glowBlue, { scale: 1.12, opacity: 1, duration: DURATION, ease: "sine.inOut" }, 0);
+        tl.to(orb1, { x: 110, y: -40, duration: DURATION, ease: "sine.inOut" }, 0);
+        tl.to(orb2, { x: -80, y: 30, duration: DURATION, ease: "sine.inOut" }, 0);
+
+        tl.seek(0);
+        window.__timelines = window.__timelines || {};
+        window.__timelines["flight"] = tl;
+      })();
+    </script>
+  </body>
+</html>

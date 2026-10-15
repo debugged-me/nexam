@@ -1,0 +1,757 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Nexam · the whole exam workflow, in one place</title>
+<meta name="description" content="Syllabus to blueprint, blueprint to paired exam, answer sheets to analytics. Nexam keeps every step of assessment in one faculty workspace.">
+<meta property="og:title" content="Nexam · the whole exam workflow, in one place">
+<meta property="og:description" content="Syllabus to blueprint to exam to results — the product itself, in five sections.">
+<meta property="og:image" content="assets/nexam-hero-poster.jpg">
+<link rel="icon" href="assets/favicon.png" type="image/png">
+<link rel="stylesheet" href="scrollcraft.css">
+<style>
+  @font-face {
+    font-family: "Sora";
+    src: url("assets/fonts/sora-latin.woff2") format("woff2");
+    font-weight: 100 800;
+    font-display: swap;
+  }
+  @font-face {
+    font-family: "SF Pro";
+    src: url("assets/fonts/SF-Pro-Text-Regular.otf") format("opentype");
+    font-weight: 400;
+    font-display: swap;
+  }
+  @font-face {
+    font-family: "SF Pro";
+    src: url("assets/fonts/SF-Pro-Text-Medium.otf") format("opentype");
+    font-weight: 500;
+    font-display: swap;
+  }
+  @font-face {
+    font-family: "SF Pro";
+    src: url("assets/fonts/SF-Pro-Text-Semibold.otf") format("opentype");
+    font-weight: 600;
+    font-display: swap;
+  }
+  @font-face {
+    font-family: "SF Pro";
+    src: url("assets/fonts/SF-Pro-Display-Semibold.otf") format("opentype");
+    font-weight: 600 700;
+    font-display: swap;
+  }
+
+  :root {
+    --sc-canvas:     #eceff5;
+    --sc-surface:    #f7f9fc;
+    --sc-ink:        #151a24;
+    --sc-ink-soft:   #5a6474;
+    --sc-accent:     #2d93e8;
+    --sc-accent-ink: #ffffff;
+    --sc-font-display: "Sora", system-ui, sans-serif;
+    --sc-font-text:    "SF Pro", system-ui, sans-serif;
+    --sc-hairline:        color-mix(in oklab, var(--sc-ink) 12%, transparent);
+    --sc-hairline-strong: color-mix(in oklab, var(--sc-ink) 20%, transparent);
+    --sc-shadow-color: 220 45% 12%;
+  }
+
+  /* ---------------- chrome: wordmark + the one CTA ---------------- */
+  .bar {
+    position: fixed;
+    inset-inline: 0;
+    top: 0;
+    z-index: var(--sc-z-chrome);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: var(--sc-4) var(--sc-gutter);
+    pointer-events: none;
+  }
+  .bar > * { pointer-events: auto; }
+  .bar__mark {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-family: var(--sc-font-display);
+    font-weight: 700;
+    font-size: 1.05rem;
+    letter-spacing: -0.02em;
+    color: var(--sc-ink);
+    text-decoration: none;
+  }
+  .bar__mark img { width: 26px; height: 26px; }
+
+  .cta {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+    padding: 0 var(--sc-5);
+    border-radius: var(--sc-r-pill);
+    background: var(--sc-accent);
+    color: var(--sc-accent-ink);
+    font-weight: 600;
+    font-size: var(--sc-t-sm);
+    letter-spacing: 0.01em;
+    text-decoration: none;
+    box-shadow: var(--sc-e2), var(--sc-edge);
+    transition: transform var(--sc-d-fast) var(--sc-ease-out),
+                background var(--sc-d-fast) var(--sc-ease-out);
+    white-space: nowrap;
+  }
+  .cta:hover { background: #1b6ec2; }
+  .cta:active { transform: scale(0.97); }
+  .cta--lg { min-height: 56px; padding: 0 var(--sc-7); font-size: var(--sc-t-base); }
+  .cta--ghost {
+    background: transparent;
+    color: var(--sc-accent);
+    box-shadow: none;
+    padding-inline: var(--sc-2);
+  }
+  .cta--ghost:hover { background: transparent; text-decoration: underline; }
+
+  /* ---------------- route rail: the nav is the map ---------------- */
+  .rail {
+    position: fixed;
+    right: clamp(1rem, 2.4vw, 2.2rem);
+    top: 50%;
+    translate: 0 -50%;
+    z-index: var(--sc-z-chrome);
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  .rail__leg {
+    display: grid;
+    grid-template-columns: auto 10px;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 0;
+    border: 0;
+    background: none;
+    cursor: pointer;
+    color: var(--sc-ink-soft);
+    font: inherit;
+    font-size: 0.78rem;
+    letter-spacing: 0.02em;
+    text-align: right;
+  }
+  .rail__leg .rail__name {
+    opacity: 0.55;
+    transition: opacity var(--sc-d-base) var(--sc-ease-out), color var(--sc-d-base) var(--sc-ease-out);
+  }
+  .rail__dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--sc-hairline-strong);
+    transition: transform var(--sc-d-base) var(--sc-ease-out), background var(--sc-d-base) var(--sc-ease-out);
+    justify-self: center;
+  }
+  .rail__leg[aria-current="true"] { color: var(--sc-ink); }
+  .rail__leg[aria-current="true"] .rail__name { opacity: 1; }
+  .rail__leg[aria-current="true"] .rail__dot {
+    background: var(--sc-accent);
+    transform: scale(1.45);
+  }
+  @media (hover: hover) and (pointer: fine) {
+    .rail__leg:hover .rail__name { opacity: 1; }
+    .rail__leg:hover .rail__dot { background: var(--sc-accent); }
+  }
+
+  /* ---------------- shared copy atoms ---------------- */
+  .kicker {
+    font-family: var(--sc-font-display);
+    font-size: var(--sc-t-xs);
+    font-weight: 600;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--sc-accent);
+    margin: 0;
+  }
+  .lede { font-size: var(--sc-t-lg); line-height: 1.5; color: var(--sc-ink); text-wrap: pretty; margin: 0; }
+  .sub { font-size: var(--sc-t-base); color: var(--sc-ink-soft); text-wrap: pretty; margin: 0; max-width: 46ch; }
+
+  .shot {
+    border: 1px solid var(--sc-hairline);
+    border-radius: var(--sc-r-lg);
+    box-shadow: var(--sc-e3), var(--sc-edge);
+    overflow: hidden;
+    background: var(--sc-surface);
+  }
+  .shot img, .shot video { display: block; width: 100%; height: 100%; object-fit: cover; }
+
+  /* ---------------- §1 hero — calm open, living product card ------- */
+  .hero {
+    min-height: 100svh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    padding: clamp(7rem, 16vh, 11rem) var(--sc-gutter) 0;
+    gap: clamp(2.5rem, 6vh, 4.5rem);
+  }
+  .hero__copy { display: flex; flex-direction: column; align-items: center; gap: var(--sc-4); max-width: 54rem; }
+  .hero__copy h1 {
+    font-size: clamp(2.6rem, 5.6vw, 4.8rem);
+    letter-spacing: -0.025em;
+    line-height: 1.04;
+    text-wrap: balance;
+    margin: 0;
+  }
+  .hero__copy .lede { font-size: clamp(1.05rem, 1.6vw, 1.35rem); color: var(--sc-ink-soft); }
+  .hero__shot {
+    width: min(72rem, 100%);
+    aspect-ratio: 16 / 9.6;
+    margin: 0;
+    border-radius: var(--sc-r-lg) var(--sc-r-lg) 0 0;
+    border-bottom: 0;
+  }
+
+  /* ---------------- pinned act stages ---------------------------- */
+  .stage-grid {
+    display: grid;
+    align-items: center;
+    gap: clamp(2rem, 4.5vw, 5rem);
+    max-width: 76rem;
+    margin-inline: auto;
+    padding: clamp(4.5rem, 9vh, 6rem) var(--sc-gutter) clamp(3rem, 7vh, 5rem);
+  }
+
+  /* ---------------- §2 blueprint — the signature move ------------- */
+  .bp-stage { grid-template-columns: minmax(19rem, 24rem) minmax(0, 1fr); }
+  .bp-copy { display: flex; flex-direction: column; gap: var(--sc-4); }
+  .bp-copy h2 { font-size: clamp(2rem, 3.4vw, 3.2rem); margin: 0; text-wrap: balance; }
+  .bp-note {
+    font-size: var(--sc-t-sm);
+    color: var(--sc-ink-soft);
+    margin: 0;
+    border-left: 2px solid var(--sc-accent);
+    padding-left: var(--sc-3);
+    max-width: 34ch;
+  }
+
+  /* the specification matrix — a real blueprint mid-assembly.
+     JS toggles .on per row and .filled per cell off --sc-p. */
+  .bp {
+    background: var(--sc-surface);
+    border: 1px solid var(--sc-hairline);
+    border-radius: var(--sc-r-lg);
+    box-shadow: var(--sc-e3), var(--sc-edge);
+    padding: var(--sc-4) var(--sc-4) var(--sc-3);
+    font-size: 0.74rem;
+    max-height: calc(100svh - 9rem);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  .bp__scroll {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: var(--sc-hairline-strong) transparent;
+  }
+  .bp__head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--sc-3);
+    padding-bottom: var(--sc-2);
+  }
+  .bp__title { font-weight: 600; font-size: 0.85rem; margin: 0; }
+  .bp__meta { color: var(--sc-ink-soft); font-size: 0.72rem; margin: 0; white-space: nowrap; }
+  .bp table {
+    width: 100%;
+    border-collapse: collapse;
+    table-layout: fixed;
+    font-variant-numeric: tabular-nums;
+  }
+  .bp col.c-topic { width: 44%; }
+  .bp th {
+    font-family: var(--sc-font-display);
+    font-size: 0.62rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--sc-ink-soft);
+    text-align: center;
+    padding: 0 2px var(--sc-1);
+    border-bottom: 1px solid var(--sc-hairline);
+  }
+  .bp th:first-child, .bp td:first-child { text-align: left; }
+  .bp th .w { display: block; font-size: 0.58rem; color: var(--sc-accent); font-weight: 600; margin-top: 1px; }
+  .bp td {
+    padding: 2.5px 2px;
+    border-bottom: 1px solid var(--sc-hairline);
+    text-align: center;
+    vertical-align: middle;
+  }
+  .bp tbody tr:last-child td { border-bottom: 0; }
+  .bp td.topic {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-weight: 500;
+    color: var(--sc-ink);
+    padding-right: var(--sc-3);
+  }
+  .bp td.cell {
+    font-family: var(--sc-font-display);
+    font-weight: 600;
+    font-size: 0.72rem;
+    color: var(--sc-accent);
+  }
+  .bp td.cell .pit {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 1.5em;
+    height: 1.5em;
+    border-radius: 6px;
+  }
+  .bp td.cell.filled .pit {
+    background: color-mix(in oklab, var(--sc-accent) 14%, transparent);
+    box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--sc-accent) 30%, transparent);
+  }
+  .bp tbody tr { opacity: 0.45; transition: opacity 300ms var(--sc-ease-out); }
+  .bp tbody tr.on { opacity: 1; }
+  .bp td.cell .pit { opacity: 0; transform: scale(0.6); }
+  .bp td.cell.filled .pit {
+    opacity: 1;
+    transform: none;
+    transition: opacity 220ms var(--sc-ease-out), transform 220ms var(--sc-ease-out);
+  }
+  .bp__foot {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    padding-top: var(--sc-3);
+    margin-top: var(--sc-2);
+    border-top: 1px solid var(--sc-hairline);
+    font-size: 0.72rem;
+    color: var(--sc-ink-soft);
+  }
+  .bp__foot b { color: var(--sc-ink); font-weight: 600; font-variant-numeric: tabular-nums; }
+  @media (max-height: 700px) {
+    .bp { font-size: 0.62rem; }
+    .bp td { padding: 1.5px 1px; }
+    .bp td.cell .pit { min-width: 1.4em; height: 1.4em; }
+  }
+
+  /* ---------------- §3 exam — lateral rail, two forms ------------- */
+  .exam-stage { display: flex; align-items: center; overflow: hidden; }
+  .exam-rail {
+    align-items: stretch;
+    gap: clamp(1.25rem, 2.5vw, 2.25rem);
+    padding-inline: var(--sc-gutter);
+    height: 100%;
+    align-content: center;
+  }
+  .examcard {
+    flex: 0 0 auto;
+    align-self: center;
+    width: clamp(19rem, 27vw, 25rem);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: var(--sc-3);
+  }
+  .examcard--text { width: clamp(19rem, 26vw, 24rem); }
+  .examcard--text h2 { font-size: clamp(1.9rem, 3vw, 2.8rem); margin: 0; text-wrap: balance; }
+  .examcard .shot { aspect-ratio: 855 / 485; }
+  .examcard .shot--tall { aspect-ratio: 595 / 535; width: min(100%, 20rem); }
+  .examcard figcaption {
+    font-size: var(--sc-t-sm);
+    color: var(--sc-ink-soft);
+    margin-top: var(--sc-2);
+  }
+  .examcard figcaption b { color: var(--sc-ink); font-weight: 600; }
+
+  /* ---------------- §4 readout — numbers land -------------------- */
+  .ro-stage { grid-template-columns: minmax(19rem, 25rem) minmax(0, 1fr); }
+  .ro-copy { display: flex; flex-direction: column; gap: var(--sc-4); }
+  .ro-copy h2 { font-size: clamp(2rem, 3.4vw, 3.2rem); margin: 0; text-wrap: balance; }
+  .ro-stats {
+    display: flex;
+    gap: clamp(1.5rem, 3vw, 2.75rem);
+    list-style: none;
+    margin: var(--sc-2) 0 0;
+    padding: 0;
+  }
+  .ro-stats li { display: flex; flex-direction: column; gap: 4px; }
+  .ro-stats b {
+    font-family: var(--sc-font-display);
+    font-weight: 700;
+    font-size: clamp(1.7rem, 2.6vw, 2.5rem);
+    letter-spacing: -0.02em;
+    color: var(--sc-ink);
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+  .ro-stats span { font-size: var(--sc-t-xs); color: var(--sc-ink-soft); }
+  .ro-shot { margin: 0; max-height: calc(100svh - 10rem); }
+  .ro-shot img { object-fit: cover; object-position: top left; }
+
+  /* ---------------- §5 join — the close -------------------------- */
+  .close {
+    min-height: 92svh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: clamp(3rem, 9vh, 6rem);
+    padding: clamp(6rem, 12vh, 9rem) var(--sc-gutter) var(--sc-8);
+    text-align: center;
+  }
+  .close__card { display: flex; flex-direction: column; align-items: center; gap: var(--sc-5); max-width: 46rem; }
+  .close__card h2 { font-size: clamp(2.4rem, 4.6vw, 4rem); margin: 0; text-wrap: balance; }
+  .close__card .small { font-size: var(--sc-t-sm); color: var(--sc-ink-soft); margin: 0; }
+  .foot {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    color: var(--sc-ink-soft);
+    font-size: var(--sc-t-xs);
+    letter-spacing: 0.02em;
+  }
+  .foot img { width: 18px; height: 18px; opacity: 0.75; }
+
+  /* ---------------- reduced motion ------------------------------- */
+  @media (prefers-reduced-motion: reduce) {
+    .bp tbody tr, .bp td.cell .pit { transition: opacity 160ms linear; transform: none; }
+    .examcard { opacity: 1 !important; transform: none !important; }
+  }
+
+  /* ---------------- mobile ---------------------------------------- */
+  @media (max-width: 860px) {
+    .hero { padding-top: clamp(6rem, 14vh, 8rem); }
+    .hero__copy h1 { font-size: clamp(2.1rem, 9vw, 2.9rem); }
+    .hero__shot { aspect-ratio: 16 / 11; }
+
+    .stage-grid {
+      grid-template-columns: 1fr;
+      grid-template-rows: auto minmax(0, 1fr);
+      align-content: center;
+      gap: var(--sc-5);
+      padding-top: clamp(4.5rem, 10vh, 5.5rem);
+      padding-bottom: clamp(5.5rem, 12vh, 7rem);
+      max-width: none;
+    }
+    .bp-copy { text-align: left; gap: var(--sc-3); }
+    .bp { font-size: 0.6rem; padding: var(--sc-3) var(--sc-3) var(--sc-2); max-height: 100%; align-self: start; }
+    .bp td { padding: 1.5px 1px; }
+    .bp td.cell .pit { min-width: 1.35em; height: 1.35em; border-radius: 5px; }
+    .bp__foot { padding-top: var(--sc-2); margin-top: var(--sc-1); }
+
+    .examcard, .examcard--text { width: 76vw; }
+    .ro-shot { max-height: 46svh; align-self: start; width: 100%; }
+    .ro-stats { flex-wrap: wrap; gap: var(--sc-4) var(--sc-6); }
+
+    .rail {
+      top: auto;
+      right: 50%;
+      bottom: max(1rem, env(safe-area-inset-bottom));
+      translate: 50% 0;
+      flex-direction: row;
+      gap: 2px;
+    }
+    .rail__leg { grid-template-columns: 10px; padding: 8px 6px; min-height: 44px; min-width: 44px; justify-items: center; }
+    .rail__leg .rail__name {
+      position: absolute;
+      width: 1px; height: 1px;
+      overflow: hidden;
+      clip-path: inset(50%);
+      white-space: nowrap;
+    }
+  }
+</style>
+</head>
+<body>
+
+<span data-sc-progress></span>
+<div class="sc-grain" aria-hidden="true"></div>
+
+<header class="bar">
+  <a class="bar__mark" href="#top" aria-label="Nexam home">
+    <img src="assets/favicon.png" alt="" width="26" height="26">
+    nexam
+  </a>
+  <a class="cta" href="/register">Create account</a>
+</header>
+
+<nav class="rail" aria-label="Sections">
+  <button class="rail__leg" type="button" data-sec="0" aria-current="true"><span class="rail__name">Start</span><span class="rail__dot"></span></button>
+  <button class="rail__leg" type="button" data-sec="1"><span class="rail__name">Blueprint</span><span class="rail__dot"></span></button>
+  <button class="rail__leg" type="button" data-sec="2"><span class="rail__name">Exam</span><span class="rail__dot"></span></button>
+  <button class="rail__leg" type="button" data-sec="3"><span class="rail__name">Readout</span><span class="rail__dot"></span></button>
+  <button class="rail__leg" type="button" data-sec="4"><span class="rail__name">Join</span><span class="rail__dot"></span></button>
+</nav>
+
+<main id="top">
+
+  <!-- §1 — hero. Clean statement + the living product card. -->
+  <section class="hero" data-sec="0">
+    <div class="hero__copy" data-sc-in data-sc-stagger="90">
+      <h1 class="sc-display">The whole exam workflow, in one place.</h1>
+      <p class="lede">Syllabus to blueprint. Blueprint to paired exam. Answer sheets to results.</p>
+      <p><a class="cta cta--ghost" href="/register">Create account →</a></p>
+    </div>
+    <figure class="shot hero__shot" data-sc-in>
+      <video src="assets/nexam-hero.mp4" poster="assets/nexam-hero-poster.jpg" autoplay muted loop playsinline aria-label="The Nexam workspace cycling through dashboard, blueprint, exam and analytics screens"></video>
+    </figure>
+  </section>
+
+  <!-- §2 — the blueprint. Pin: the matrix assembles under the hand. -->
+  <section id="blueprint" class="sec" data-sec="1" data-sc-act="pin" data-sc-span="3.4" data-sc-drift="#e2e9f4">
+    <div data-sc-stage class="stage-grid bp-stage">
+      <div class="bp-copy">
+        <div data-sc-cue="0 0.52 0">
+          <p class="kicker">The blueprint</p>
+          <h2 class="sc-display">It assembles itself.</h2>
+        </div>
+        <p class="sub" data-sc-cue="0.14 0.8">Hours become items. Bloom weights become a matrix. Twenty topics find their cells.</p>
+        <p class="bp-note" data-sc-cue="0.55 1">Every occupied cell is an item the exam must place — no overruns, no gaps.</p>
+      </div>
+      <div class="bp" aria-label="Specification matrix: The Contemporary World">
+        <div class="bp__head">
+          <p class="bp__title">Specification matrix</p>
+          <p class="bp__meta">The Contemporary World · draft</p>
+        </div>
+        <div class="bp__scroll">
+        <table>
+          <colgroup><col class="c-topic"><col span="6"></colgroup>
+          <thead>
+            <tr>
+              <th scope="col">Topic</th>
+              <th scope="col">R<span class="w">15%</span></th>
+              <th scope="col">U<span class="w">20%</span></th>
+              <th scope="col">Ap<span class="w">20%</span></th>
+              <th scope="col">An<span class="w">20%</span></th>
+              <th scope="col">E<span class="w">15%</span></th>
+              <th scope="col">C<span class="w">10%</span></th>
+            </tr>
+          </thead>
+          <tbody id="bpRows"><!-- rows stamped by the page script --></tbody>
+        </table>
+        </div>
+        <div class="bp__foot">
+          <span><b id="bpItems">0</b> of 50 items placed</span>
+          <span>20 topics · 54 hours</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- §3 — the exam. Pan: a rail of the real set cards. -->
+  <section id="exam" class="sec" data-sec="2" data-sc-act="pan" data-sc-span="4.6" data-sc-drift="#f0f3f9">
+    <div data-sc-stage class="exam-stage">
+      <div class="exam-rail" data-sc-pan="0.06">
+        <article class="examcard examcard--text">
+          <p class="kicker">The exam</p>
+          <h2 class="sc-display">Two forms. One blueprint.</h2>
+          <p class="sub">Set A and Set B assemble to the same matrix — exam paper, answer key and a QR-linked answer sheet for each.</p>
+        </article>
+        <figure class="examcard">
+          <span class="shot"><img src="assets/screens/set-a.png" alt="Set A: exam paper PDF, answer key and QR-linked OMR sheet" loading="lazy"></span>
+          <figcaption><b>Set A</b> — paper, key, OMR sheet</figcaption>
+        </figure>
+        <figure class="examcard">
+          <span class="shot"><img src="assets/screens/set-b.png" alt="Set B: the same specification matrix, a different draw" loading="lazy"></span>
+          <figcaption><b>Set B</b> — the same matrix, a different draw</figcaption>
+        </figure>
+        <figure class="examcard">
+          <span class="shot shot--tall"><img src="assets/screens/export.png" alt="Export panel: Moodle GIFT, Canvas QTI XML, Google Forms" loading="lazy"></span>
+          <figcaption><b>Out the door</b> — Moodle, Canvas, Google Forms</figcaption>
+        </figure>
+        <article class="examcard examcard--text examcard--end">
+          <p class="lede">Regenerate the pair any time.</p>
+          <p class="sub">The matrix stays the law.</p>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <!-- §4 — the readout. Pin: numbers land over the analytics shot. -->
+  <section id="readout" class="sec" data-sec="3" data-sc-act="pin" data-sc-span="2.8" data-sc-drift="#e2e9f4">
+    <div data-sc-stage class="stage-grid ro-stage">
+      <div class="ro-copy">
+        <div data-sc-cue="0 0.55 0">
+          <p class="kicker">The readout</p>
+          <h2 class="sc-display">The numbers come back.</h2>
+        </div>
+        <ul class="ro-stats" data-sc-cue="0.12 0.85">
+          <li><b><span data-sc-count="0 26" data-sc-count-at="0.18 0.55">0</span></b><span>sheets scanned</span></li>
+          <li><b><span data-sc-count="0 55.5" data-sc-count-at="0.26 0.65">0</span>%</b><span>class average</span></li>
+          <li><b><span data-sc-count="0 2" data-sc-count-at="0.34 0.75">0</span></b><span>flagged for review</span></li>
+        </ul>
+        <p class="sub" data-sc-cue="0.52 1">Scans arrive from the phone app. Flagged sheets surface first; mastery lands per topic and per Bloom level.</p>
+      </div>
+      <figure class="shot ro-shot">
+        <img src="assets/screens/exam-analytics.png" alt="Nexam analytics: 26 students, 55.5% class average, mastery by topic and a Bloom-level radar" loading="lazy">
+      </figure>
+    </div>
+  </section>
+
+  <!-- §5 — join. The close. -->
+  <section id="join" class="close" data-sec="4">
+    <div class="close__card" data-sc-in data-sc-stagger="90">
+      <h2 class="sc-display">The whole workflow. One place.</h2>
+      <a class="cta cta--lg" href="/register">Create account</a>
+      <p class="small">Questions grounded in your own materials, never the open web.</p>
+    </div>
+    <footer class="foot">
+      <img src="assets/favicon.png" alt="" width="18" height="18">
+      nexam — the faculty exam workspace
+    </footer>
+  </section>
+
+</main>
+
+<script src="scrollcraft.js"></script>
+<script>
+  var __sc = ScrollCraft.mount(document.body);
+
+  function relayout() { dispatchEvent(new Event('resize')); }
+  addEventListener('load', relayout);
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(relayout);
+
+  var REDUCED = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  /* The hero card is a calm autoplay loop, not a scrub. Under reduced
+     motion it rests on its poster. */
+  var heroVid = document.querySelector('.hero__shot video');
+  if (REDUCED && heroVid) heroVid.pause();
+
+  /* ---- the real blueprint, assembled cell by cell ---------------------
+     Specification matrix for "The Contemporary World" (draft): 20 topics,
+     54 instructional hours, 50 items across six Bloom levels. Cell values
+     are the exact allocation the product's own preview computes: column
+     targets 8/10/10/10/7/5 from the 15/20/20/20/15/10 weight mix, filled
+     row by row against remaining need (recalcTopicItemCounts). */
+  var BP_TOPICS = [
+    ["Introduction to Contemporary World", 3.0, 3, [0,1,1,1,0,0]],
+    ["Definition and Scope of Globalization", 3.0, 3, [0,1,1,1,0,0]],
+    ["Drivers of Globalization", 3.0, 3, [1,1,1,0,0,0]],
+    ["Theories of Globalization", 3.0, 3, [1,1,0,1,0,0]],
+    ["Globalization in Everyday Life", 3.0, 3, [0,0,1,1,1,0]],
+    ["Economic Globalization", 3.0, 3, [1,1,1,0,0,0]],
+    ["Political Globalization", 3.0, 3, [1,0,0,1,1,0]],
+    ["Cultural Globalization", 3.0, 3, [0,1,1,1,0,0]],
+    ["Technological Globalization", 3.0, 3, [1,0,0,0,1,1]],
+    ["Global Inequalities", 3.0, 3, [0,1,1,1,0,0]],
+    ["Environmental Issues and Sustainability", 2.4, 2, [0,0,0,0,1,1]],
+    ["Migration and Global Labor", 2.4, 2, [1,1,0,0,0,0]],
+    ["Global Organizations", 2.4, 2, [0,0,1,1,0,0]],
+    ["Global Citizenship", 2.4, 2, [0,0,0,0,1,1]],
+    ["Human Rights", 2.4, 2, [1,1,0,0,0,0]],
+    ["Contemporary Global Issues", 2.4, 2, [0,0,1,1,0,0]],
+    ["Sustainable Development Strategies", 2.4, 2, [0,0,0,0,1,1]],
+    ["Ethics in Global Decision-Making", 2.4, 2, [1,1,0,0,0,0]],
+    ["Innovation and Global Solutions", 2.4, 2, [0,0,1,1,0,0]],
+    ["Course Synthesis", 2.4, 2, [0,0,0,0,1,1]]
+  ];
+  var bpTbody = document.getElementById('bpRows');
+  var bpItems = document.getElementById('bpItems');
+  var bpRows = [];
+
+  BP_TOPICS.forEach(function (t) {
+    var tr = document.createElement('tr');
+    var cells = '<td class="topic" title="' + t[0] + '">' + t[0] + '</td>';
+    t[3].forEach(function (n) {
+      cells += '<td class="cell' + (n ? ' will' : '') + '"><span class="pit">' + (n || '') + '</span></td>';
+    });
+    tr.innerHTML = cells;
+    bpTbody.appendChild(tr);
+    bpRows.push({ tr: tr, cells: tr.querySelectorAll('td.cell.will'), items: t[2] });
+  });
+
+  /* Fill follows the blueprint act's progress (--sc-p, published on the
+     section). Rows land top to bottom; inside a row cells stamp left to
+     right. Reversible by construction. */
+  var bpAct = document.getElementById('blueprint');
+  var bpActive = -1;
+  function bpFrame() {
+    var p = parseFloat(bpAct.style.getPropertyValue('--sc-p') || '0');
+    var fill = Math.min(1, Math.max(0, (p - 0.06) / 0.55));
+    if (fill === bpActive) { requestAnimationFrame(bpFrame); return; }
+    bpActive = fill;
+    var placed = 0;
+    bpRows.forEach(function (row, i) {
+      var rowAt = i / bpRows.length;
+      var on = fill > rowAt;
+      row.tr.classList.toggle('on', on);
+      if (!on) { row.cells.forEach(function (c) { c.classList.remove('filled'); }); return; }
+      var rowFill = Math.min(1, (fill - rowAt) * bpRows.length * 2.4);
+      row.cells.forEach(function (c, j) {
+        var lit = rowFill > (j + 0.5) / Math.max(row.cells.length, 1);
+        c.classList.toggle('filled', lit);
+        if (lit) placed++;
+      });
+    });
+    /* Every occupied cell carries exactly one item — the tally is a real
+       count of what the table shows, not an estimate. */
+    bpItems.textContent = String(placed);
+    requestAnimationFrame(bpFrame);
+  }
+  requestAnimationFrame(bpFrame);
+
+  /* Pan rail: items settle in sequence as the drawer opens. The first card
+     is exempt — it is the act's ground. Floor 0.55 so arriving reads as
+     arriving, never as failing to load. */
+  var examAct = document.getElementById('exam');
+  var railItems = Array.prototype.slice.call(document.querySelectorAll('.examcard'));
+  function railFrame() {
+    if (REDUCED) return;
+    var p = parseFloat(examAct.style.getPropertyValue('--sc-p') || '0');
+    railItems.forEach(function (card, i) {
+      if (i === 0) return;
+      var t = Math.min(1, Math.max(0, (p - 0.04 - i * 0.07) / 0.22));
+      card.style.opacity = (0.55 + 0.45 * t).toFixed(3);
+      card.style.transform = 'translate3d(0,' + ((1 - t) * 22).toFixed(1) + 'px,0)';
+    });
+    requestAnimationFrame(railFrame);
+  }
+  requestAnimationFrame(railFrame);
+
+  /* ---- the route rail: nav is the map -------------------------------- */
+  var railLegs = Array.prototype.slice.call(document.querySelectorAll('.rail__leg'));
+  var sections = Array.prototype.slice.call(document.querySelectorAll('[data-sec]'))
+    .filter(function (el) { return el.tagName === 'SECTION'; });
+
+  railLegs.forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var i = parseInt(btn.getAttribute('data-sec'), 10);
+      var el = sections[i];
+      if (!el) return;
+      var pinned = el.getAttribute('data-sc-act') === 'pin' || el.getAttribute('data-sc-act') === 'pan';
+      var y = el.getBoundingClientRect().top + scrollY + (pinned ? innerHeight * 0.45 : 0);
+      scrollTo({ top: y, behavior: REDUCED ? 'auto' : 'smooth' });
+    });
+  });
+
+  var railTick = -1;
+  function railFrame2() {
+    var mid = scrollY + innerHeight * 0.5;
+    var cur = 0;
+    sections.forEach(function (el, i) {
+      if (el.getBoundingClientRect().top + scrollY <= mid) cur = i;
+    });
+    if (cur !== railTick) {
+      railTick = cur;
+      railLegs.forEach(function (btn) {
+        btn.setAttribute('aria-current', String(+btn.getAttribute('data-sec') === cur));
+      });
+    }
+    requestAnimationFrame(railFrame2);
+  }
+  requestAnimationFrame(railFrame2);
+
+  /* Cue blocks gate pointer-events but nothing else; none of them hold
+     focusable children in this build, so Tab stays honest by inspection. */
+</script>
+</body>
+</html>

@@ -1,0 +1,29 @@
+{
+  "category": "webpage",
+  "duration_s": 8,
+  "fps": 30,
+  "canvas": { "w": 1920, "h": 1080, "aspect": "16:9" },
+  "style": "Apple-keynote silver studio; real app screens floating in shallow 3D; cover-flow advance with throw-and-catch law; specular sheen; seamlessly loopable",
+  "palette": ["#fbfcfe", "#dfe4ec", "#e8ecf3", "#2e7cd6", "#1a1d24"],
+  "font": "none (no baked text — React overlay owns all copy)",
+  "beats": [1.55, 3.55, 5.55, 7.28],
+  "export": "mp4",
+  "asset_needs": [
+    { "role": "hero-a", "kind": "image", "source": "assets/screens/dashboard.png", "treatment": "none" },
+    { "role": "hero-b", "kind": "image", "source": "assets/screens/tos-detail.png", "treatment": "none" },
+    { "role": "hero-c", "kind": "image", "source": "assets/screens/exam-detail.png", "treatment": "none" },
+    { "role": "hero-d", "kind": "image", "source": "assets/screens/exam-analytics.png", "treatment": "none" }
+  ],
+  "block": "screen-flow-carousel (forked: captions removed, pose rail looped with duplicated slots, perspective + sheen added)",
+  "customize": {
+    "screens": "8 slots = 4 unique screens duplicated once for wraparound",
+    "captions": "removed — text lives in the React layer",
+    "motion": "periodic pose function rel->x/z/rotY/scale/opacity + throw-catch hops at 1.55/3.55/5.55/7.28s",
+    "ambient": "breathing stage scale + blue glow, all loop-periodic"
+  },
+  "content": {
+    "url": "http://localhost:5173 (dev)",
+    "capture": "done — assets/screens/*.png @2x via chrome-headless-shell",
+    "highlights": []
+  }
+}

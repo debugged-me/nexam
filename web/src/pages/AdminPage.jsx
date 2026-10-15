@@ -1660,34 +1660,38 @@ function PoolKeyRows({ provider, rows, masked, sources, savedCount, removed, mod
 
 // ── Settings tab ───────────────────────────────────────
 
-const SETTINGS_OPEN_KEY = 'nexam.admin.settings.open';
-
-/** Collapsible settings card — remembers its open state per card id. */
-function SettingsCard({ id, icon, title, tag, bodyClass = '', children }) {
-  const [open, setOpen] = useState(() => {
-    try {
-      const saved = JSON.parse(localStorage.getItem(SETTINGS_OPEN_KEY) || '{}');
-      return saved[id] !== false;
-    } catch { return true; }
-  });
-  const onToggle = (e) => {
-    const next = e.currentTarget.open;
-    setOpen(next);
-    try {
-      const saved = JSON.parse(localStorage.getItem(SETTINGS_OPEN_KEY) || '{}');
-      saved[id] = next;
-      localStorage.setItem(SETTINGS_OPEN_KEY, JSON.stringify(saved));
-    } catch {}
-  };
+/** Collapsible settings card — always starts collapsed (same rule as the
+ *  account letterhead: no remembered state across page loads). */
+function SettingsCard({ icon, title, tag, bodyClass = '', children }) {
+  const [open, setOpen] = useState(false);
   return (
-    <details className="adm-card adm-collapse" open={open} onToggle={onToggle}>
+    <details className="adm-card adm-collapse" open={open}
+      onToggle={(e) => setOpen(e.currentTarget.open)}>
       <summary className="adm-card-head adm-collapse-head">
         {icon}
         <h3>{title}</h3>
         {tag}
+        <span className="adm-collapse-btn" aria-hidden="true">{open ? 'Hide details' : 'View details'}</span>
         <ChevronDown size={15} className="adm-provider-caret adm-collapse-caret" aria-hidden="true" />
       </summary>
       <div className={`adm-card-body ${bodyClass}`}>{children}</div>
+    </details>
+  );
+}
+
+/** Nested collapsible inside the AI providers card — one per vendor. */
+function ProviderCard({ title, subtitle, tag, defaultOpen = false, children }) {
+  const [open, setOpen] = useState(defaultOpen);
+  return (
+    <details className="adm-provider" open={open} onToggle={(e) => setOpen(e.currentTarget.open)}>
+      <summary className="adm-provider-head">
+        <strong>{title}</strong>
+        <small>{subtitle}</small>
+        {tag}
+        <span className="adm-collapse-btn" aria-hidden="true">{open ? 'Hide details' : 'View details'}</span>
+        <ChevronDown size={15} className="adm-provider-caret" aria-hidden="true" />
+      </summary>
+      <div className="adm-provider-body">{children}</div>
     </details>
   );
 }
@@ -1870,7 +1874,7 @@ function SettingsTab({ toast }) {
         <TableSkeleton rows={4} />
       ) : (
         <form className="adm-settings" onSubmit={save}>
-          <SettingsCard id="recaptcha" icon={<ShieldCheck size={15} />} title="reCAPTCHA v2"
+          <SettingsCard icon={<ShieldCheck size={15} />} title="reCAPTCHA v2"
             tag={data.recaptcha?.secretSet && <span className="adm-tag adm-tag-ok">configured</span>}>
             <div className="form-row">
               {field('recaptcha_site_key', 'Site key', { placeholder: 'Site key shown to visitors' })}
@@ -1882,14 +1886,14 @@ function SettingsTab({ toast }) {
             </div>
           </SettingsCard>
 
-          <SettingsCard id="selfreg" icon={<MailCheck size={15} />} title="Self-registration">
+          <SettingsCard icon={<MailCheck size={15} />} title="Self-registration">
             {field('auto_approve_domains', 'Auto-approve email domains', {
               placeholder: 'dorsu.edu.ph, deped.gov.ph',
               hint: 'Verified emails on these domains (and their subdomains) activate instantly — all others wait for admin approval. Clear the field to require approval for everyone.',
             })}
           </SettingsCard>
 
-          <SettingsCard id="google" icon={<LogIn size={15} />} title="Google sign-in"
+          <SettingsCard icon={<LogIn size={15} />} title="Google sign-in"
             tag={data.google?.clientId && <span className="adm-tag adm-tag-ok">enabled</span>}>
               {field('google_client_id', 'Web client ID', {
                 placeholder: '123-abc.apps.googleusercontent.com',
@@ -1919,19 +1923,14 @@ function SettingsTab({ toast }) {
               })}
           </SettingsCard>
 
-          <SettingsCard id="ai" icon={<Settings2 size={15} />} title="AI providers" bodyClass="adm-providers">
-              <details className="adm-provider" open={!data.ai?.geminiApiKeySet}>
-                <summary className="adm-provider-head">
-                  <strong>Gemini</strong>
-                  <small>Primary — generation + embeddings</small>
-                  {data.ai?.geminiKeyCount > 0 && (
-                    <span className="adm-tag adm-tag-ok">
-                      {data.ai.geminiKeyCount} key{data.ai.geminiKeyCount > 1 ? 's' : ''}
-                    </span>
-                  )}
-                  <ChevronDown size={15} className="adm-provider-caret" aria-hidden="true" />
-                </summary>
-                <div className="adm-provider-body">
+          <SettingsCard icon={<Settings2 size={15} />} title="AI providers" bodyClass="adm-providers">
+              <ProviderCard title="Gemini" subtitle="Primary — generation + embeddings"
+                defaultOpen={!data.ai?.geminiApiKeySet}
+                tag={data.ai?.geminiKeyCount > 0 && (
+                  <span className="adm-tag adm-tag-ok">
+                    {data.ai.geminiKeyCount} key{data.ai.geminiKeyCount > 1 ? 's' : ''}
+                  </span>
+                )}>
                   <PoolKeyRows
                     provider="gemini"
                     rows={keyRows.gemini}
@@ -1960,21 +1959,15 @@ function SettingsTab({ toast }) {
                       hint: 'Fixed — the vector space must stay consistent.',
                     })}
                   </div>
-                </div>
-              </details>
+              </ProviderCard>
 
-              <details className="adm-provider" open={!data.ai?.groqApiKeySet}>
-                <summary className="adm-provider-head">
-                  <strong>Groq</strong>
-                  <small>Fallback — generation only</small>
-                  {data.ai?.groqKeyCount > 0 && (
-                    <span className="adm-tag adm-tag-ok">
-                      {data.ai.groqKeyCount} key{data.ai.groqKeyCount > 1 ? 's' : ''}
-                    </span>
-                  )}
-                  <ChevronDown size={15} className="adm-provider-caret" aria-hidden="true" />
-                </summary>
-                <div className="adm-provider-body">
+              <ProviderCard title="Groq" subtitle="Fallback — generation only"
+                defaultOpen={!data.ai?.groqApiKeySet}
+                tag={data.ai?.groqKeyCount > 0 && (
+                  <span className="adm-tag adm-tag-ok">
+                    {data.ai.groqKeyCount} key{data.ai.groqKeyCount > 1 ? 's' : ''}
+                  </span>
+                )}>
                   <PoolKeyRows
                     provider="groq"
                     rows={keyRows.groq}
@@ -1998,17 +1991,11 @@ function SettingsTab({ toast }) {
                       hint: 'Comma-separated — each has its own free limit, and a different model family makes a more independent answer check.',
                     })}
                   </div>
-                </div>
-              </details>
+              </ProviderCard>
 
-              <details className="adm-provider" open={!data.ai?.ollamaApiKeySet}>
-                <summary className="adm-provider-head">
-                  <strong>Ollama Cloud</strong>
-                  <small>Last resort — cloud API</small>
-                  {data.ai?.ollamaApiKeySet && <span className="adm-tag adm-tag-ok">configured</span>}
-                  <ChevronDown size={15} className="adm-provider-caret" aria-hidden="true" />
-                </summary>
-                <div className="adm-provider-body">
+              <ProviderCard title="Ollama Cloud" subtitle="Last resort — cloud API"
+                defaultOpen={!data.ai?.ollamaApiKeySet}
+                tag={data.ai?.ollamaApiKeySet && <span className="adm-tag adm-tag-ok">configured</span>}>
                   <div className="form-row">
                     {field('ollama_api_key', 'API key', {
                       type: 'password',
@@ -2028,8 +2015,7 @@ function SettingsTab({ toast }) {
                     onTest={() => testProvider('ollama')}
                     result={testResults.ollama}
                   />
-                </div>
-              </details>
+              </ProviderCard>
           </SettingsCard>
 
           <div className="form-actions">

@@ -71,6 +71,7 @@
     border-bottom: 1px solid var(--line);
     border-radius: var(--radius-xl) var(--radius-xl) 0 0;
   }
+  .adm-collapse[open] > .adm-collapse-head .adm-collapse-caret { transform: rotate(180deg); }
   .adm-card-link {
     margin-left: auto;
     display: inline-flex;
@@ -338,6 +339,21 @@
 
   /* ---- Settings ----------------------------------------------------------- */
   .adm-settings { display: grid; gap: 16px; }
+  /* Sticky save bar — stays pinned to the bottom of the scroll area while
+     cards are expanded, so Save is always one click away. */
+  .adm-settings .form-actions {
+    position: sticky;
+    bottom: 0;
+    z-index: 5;
+    display: flex;
+    justify-content: flex-end;
+    margin: 0 -4px;
+    padding: 10px 4px;
+    border-top: 1px solid var(--line);
+    background: color-mix(in srgb, var(--bg, var(--surface-2)) 82%, transparent);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+  }
   .adm-settings-lead { margin: -4px 0 14px; }
   .adm-providers { display: grid; gap: 10px; }
   .adm-provider {
@@ -361,6 +377,25 @@
   .adm-provider[open] > .adm-provider-head { border-bottom: 1px solid var(--line); }
   .adm-provider-head strong { font: 600 .86rem var(--font-display); color: var(--ink); }
   .adm-provider-head small { font-size: .72rem; color: var(--ink-faint); }
+
+  /* "View details" affordance pill — same pattern as the account letterhead. */
+  .adm-collapse-btn {
+    margin-left: auto;
+    font-size: var(--text-xs);
+    font-weight: 550;
+    color: var(--ink-2);
+    padding: 5px 11px;
+    border: 1px solid var(--line);
+    border-radius: var(--radius-md);
+    background: var(--surface);
+    transition: color .15s ease, border-color .15s ease;
+  }
+  .adm-collapse-head:hover .adm-collapse-btn,
+  .adm-provider-head:hover .adm-collapse-btn { color: var(--action-600); border-color: var(--action-600); }
+  .adm-collapse-head .adm-tag ~ .adm-collapse-btn,
+  .adm-provider-head .adm-tag ~ .adm-collapse-btn { margin-left: 6px; }
+  .adm-collapse-btn + .adm-collapse-caret,
+  .adm-collapse-btn + .adm-provider-caret { margin-left: 0; }
   .adm-provider-head .adm-tag { margin-left: auto; }
   .adm-provider-caret { color: var(--ink-faint); transition: transform .18s ease; }
   .adm-provider[open] > .adm-provider-head .adm-provider-caret { transform: rotate(180deg); }

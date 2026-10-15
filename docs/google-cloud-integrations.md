@@ -95,11 +95,19 @@ system. Check items off as they ship. Effort = rough relative size
   - Console: Sheets API + Drive scope (to create the file).
   - Needs the same OAuth plumbing as Drive/Classroom — do together.
 
-- [ ] **Google Forms API (quiz export)** — effort: M
-  - Export assembled Set A/B exams as Google Forms quizzes for online
-    delivery, next to GIFT / Canvas QTI in `lmsExport.js`.
-  - Console: Forms API. Only MCQ/TF/identification map cleanly — matching
-    needs a fallback representation.
+- [x] **Google Forms API (quiz export)** — effort: M — **live**
+  - `web/src/lib/googleForms.js`: browser-side `forms.body` token →
+    `forms.create` (quiz mode) → `batchUpdate` with graded items; result
+    links stored on the exam via `PUT /api/exams/:id/google-form`
+    (`exams.google_form_id/url/edit_url`, schema.js auto-adds).
+  - Type mapping: mcq/true_false → graded RADIO, identification → graded
+    short answer, matching → ungraded short-answer (premises listed; the
+    stored model has no right-column text for a real grid).
+  - Web: exam detail → Export card → "Google Forms" row (create → copy /
+    open-edit / re-create actions once saved).
+  - Console: Forms API enabled + `.../auth/forms.body` in Data Access
+    (**sensitive** — unverified-app warning returns for non-test users;
+    owner's account proceeds via Advanced → Continue).
 
 ## Infrastructure
 

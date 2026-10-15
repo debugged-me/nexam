@@ -1011,6 +1011,45 @@ function shuffleQuestions(questions) {
   return shuffled;
 }
 
+/**
+ * PUT /api/exams/:id/google-form — record (or clear) the Google Forms quiz
+ * created from this exam. The form itself is created browser-side via the
+ * Forms API with the instructor's token; this only persists the links so
+ * the export card can show "quiz created" + the responder URL later.
+ */
+router.put('/:id/google-form', requireAuth, async (req, res, next) => {
+  try {
+    const [rows] = await pool.query(
+      `SELECT e.id FROM exams e
+       JOIN subjects s ON s.id = e.subject_id
+       WHERE e.id = :examId AND s.instructor_id = :userId`,
+      { examId: req.params.id, userId: req.user.id }
+    );
+    if (!rows.length) return res.status(404).json({ error: 'Exam not found.' });
+
+    const { form_id, url, edit_url } = req.body || {};
+    const formId = String(form_id || '').trim();
+    const formUrl = String(url || '').trim();
+    const editUrl = String(edit_url || '').trim();
+    const urlOk = (u) => !u || /^https:\/\/(docs\.google\.com\/forms|forms\.gle|forms\.google\.com)\//i.test(u);
+    if (formId && (formId.length > 100 || !/^[\w-]+$/.test(formId))) {
+      return res.status(400).json({ error: 'Invalid form ID.' });
+    }
+    if (!urlOk(formUrl) || !urlOk(editUrl)) {
+      return res.status(400).json({ error: 'Form links must be Google Forms URLs.' });
+    }
+
+    await pool.query(
+      `UPDATE exams SET google_form_id = :formId, google_form_url = :formUrl,
+        google_form_edit_url = :editUrl WHERE id = :examId`,
+      { examId: req.params.id, formId: formId || null, formUrl: formUrl || null, editUrl: editUrl || null }
+    );
+    res.json({ ok: true });
+  } catch (err) {
+    next(err);
+  }
+});
+
 /** GET /api/exams/:id/export/:format — export questions as GIFT or XML. */
 router.get('/:id/export/:format', requireAuth, async (req, res, next) => {
   try {

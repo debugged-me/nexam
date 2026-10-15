@@ -14,8 +14,12 @@ import UserAvatar from '../components/UserAvatar.jsx';
 import AvatarPickerModal from '../components/AvatarPickerModal.jsx';
 import { useLetterheadSrc, useLetterheadFootSrc } from '../lib/useLetterheadSrc.js';
 import { Mail, Check, Save, Eye, EyeOff, Camera, Trash2, Palette, ShieldCheck, ScrollText, ArrowUpRight, Loader2, Unlink, Pencil, KeyRound, ChevronDown } from 'lucide-react';
-import { loadGsi, requestDriveToken, fetchDriveUser } from '../lib/googleDrive.js';
+import { requestGoogleToken, DRIVE_SCOPE, fetchDriveUser } from '../lib/googleDrive.js';
+import { FORMS_SCOPE } from '../lib/googleForms.js';
 import Modal from '../components/Modal.jsx';
+
+/** One consent at bind time covers Drive import and Google Forms quiz export. */
+const BIND_SCOPES = `${DRIVE_SCOPE} ${FORMS_SCOPE}`;
 
 function nameFormFrom(user) {
   return {
@@ -142,13 +146,12 @@ export default function AccountPage() {
   async function handleDriveConnect() {
     setDriveBusy(true);
     try {
-      await loadGsi();
-      const token = await requestDriveToken(driveCfg.clientId, { prompt: 'consent' });
+      const token = await requestGoogleToken(driveCfg.clientId, { scope: BIND_SCOPES, prompt: 'consent' });
       const gUser = await fetchDriveUser(token);
       if (!gUser.emailAddress) throw new Error('Could not read the Google account.');
       await api.put('/auth/me/drive-account', { email: gUser.emailAddress });
       setProfile((p) => (p ? { ...p, google_drive_email: gUser.emailAddress } : p));
-      toast.success(`Connected ${gUser.emailAddress} — imports will use this account.`);
+      toast.success(`Connected ${gUser.emailAddress} — Drive imports and Forms exports will use this account.`);
     } catch (err) {
       if (err?.type !== 'popup_closed') toast.error(err?.message || 'Could not connect Google Drive.');
     } finally {
@@ -388,8 +391,8 @@ export default function AccountPage() {
             <div className="card-body">
               <p className="acc-drive-copy">
                 {profile.google_drive_email
-                  ? 'Materials imported from Drive come from this connected account — the picker skips the account chooser.'
-                  : 'Connect a Google account to import course files straight from Drive — the picker will always use this account.'}
+                  ? 'Drive imports and Google Forms quiz exports run through this account — pickers and consent skip the account chooser.'
+                  : 'Connect a Google account to import course files from Drive and export exams as Google Forms quizzes — one consent covers both.'}
               </p>
               <div className="acc-drive-row">
                 {profile.google_drive_email && (
@@ -418,7 +421,7 @@ export default function AccountPage() {
                 </span>
               </div>
               <small className="acc-drive-note">
-                Access is per-file — Nexam only reads files you pick during import, straight into your private workspace. Nothing else in your Drive is touched.
+                Access is per-file — Nexam only reads files you pick during import, straight into your private workspace. The consent screen also offers Google Forms access for quiz export; uncheck it there if you don't want it.
               </small>
             </div>
           </div>

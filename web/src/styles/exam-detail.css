@@ -168,6 +168,27 @@ button.print-pack-file {
   cursor: pointer;
 }
 button.print-pack-file > span { text-align: left; }
+button.print-pack-file:disabled { opacity: .6; cursor: wait; }
+
+/* Google Forms row — created state carries copy/open/re-create actions */
+.print-pack-file.gf-created { grid-template-columns: 18px minmax(0, 1fr) auto; cursor: default; }
+.print-pack-file.gf-created:hover { background: transparent; }
+.gf-actions { display: inline-flex; gap: 2px; }
+.gf-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border: 0;
+  border-radius: var(--radius-xs, 6px);
+  background: transparent;
+  color: var(--ink-3);
+  cursor: pointer;
+}
+.gf-action:hover { background: var(--surface-2); color: var(--ink); }
+.gf-action:disabled { opacity: .5; cursor: wait; }
+.exd-spin { animation: spin 1s linear infinite; }
 
 /* The OMR row is the scannable artefact — set off by a dashed rule and a
    real bubble strip under the label. */

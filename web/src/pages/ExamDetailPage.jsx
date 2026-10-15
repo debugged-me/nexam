@@ -11,7 +11,7 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import {
   Plus, Trash2, FileText, FileCheck, Download, Send, Printer,
   Pencil, Clock, Monitor, QrCode, ScanLine, Sparkles, Copy,
-  Eye, RefreshCw, Shuffle, Search, AlertTriangle,
+  Eye, RefreshCw, Shuffle, Search, AlertTriangle, ClipboardList, ExternalLink,
 } from 'lucide-react';
 import { useToast } from '../components/Toast.jsx';
 import EmptyStateArt from '../components/EmptyStateArt.jsx';
@@ -22,6 +22,7 @@ import ExamPaper from '../components/ExamPaper.jsx';
 import ExamQuestionList from '../components/ExamQuestionList.jsx';
 import QuestionPreview from '../components/QuestionPreview.jsx';
 import api, { ApiError, getToken } from '../lib/api.js';
+import { requestFormsToken, createFormsQuiz } from '../lib/googleForms.js';
 import AppShell from '../components/AppShell.jsx';
 import { CardsSkeleton } from '../components/Loaders.jsx';
 import { StatusPill, GroupChip, groupColor, statusOf } from '../components/Board.jsx';
@@ -300,6 +301,34 @@ export default function ExamDetailPage() {
     return `${base}/exams/${id}/export/${format}?${params.toString()}`;
   }
 
+  // Google Forms quiz export — browser-side Forms API with the instructor's
+  // token (forms.body scope); the API only stores the resulting links.
+  const [gfBusy, setGfBusy] = useState(false);
+  async function exportGoogleForm() {
+    if (gfBusy || !data) return;
+    setGfBusy(true);
+    const liveId = `gforms-${id}`;
+    toast.live(liveId, 'Waiting for Google permission…');
+    try {
+      const cfg = await api.get('/materials/drive-config');
+      if (!cfg?.clientId) throw new Error('Google sign-in is not configured — a superadmin can set it in Settings.');
+      const token = await requestFormsToken(cfg.clientId, cfg.boundEmail);
+      toast.live(liveId, `Creating quiz — ${questions.length} questions…`);
+      const res = await createFormsQuiz(token, { title: `${exam.title} — Nexam`, questions });
+      await api.put(`/exams/${id}/google-form`, {
+        form_id: res.formId, url: res.responderUri, edit_url: res.editUrl,
+      });
+      toast.settle(liveId,
+        `Quiz created — ${res.graded} auto-graded${res.manual ? `, ${res.manual} manual` : ''} item${res.total === 1 ? '' : 's'}.`);
+      load();
+    } catch (err) {
+      toast.dismiss(liveId);
+      toast.error(err?.type === 'popup_closed' ? 'Export cancelled.' : (err.message || 'Google Forms export failed.'));
+    } finally {
+      setGfBusy(false);
+    }
+  }
+
   if (!data) return <AppShell pageClass="exam-detail" activeNav="exams" pageTitle="Exam"><CardsSkeleton tiles={3} /></AppShell>;
   const { exam, questions, tos, tosMatrix, sets } = data;
   const published = exam.status === 'published';
@@ -542,6 +571,30 @@ export default function ExamDetailPage() {
               <a className="print-pack-file" href={exportUrl('xml')} target="_blank" rel="noreferrer">
                 <Download size={16} aria-hidden="true" /><span><strong>Canvas</strong><small>QTI XML</small></span><Download size={14} aria-hidden="true" />
               </a>
+              {exam.google_form_url ? (
+                <div className="print-pack-file gf-created" title={exam.google_form_url}>
+                  <ClipboardList size={16} aria-hidden="true" />
+                  <span><strong>Google Forms</strong><small>Quiz link saved — share it with students</small></span>
+                  <span className="gf-actions">
+                    <button type="button" className="gf-action" title="Copy quiz link" aria-label="Copy quiz link"
+                      onClick={() => copyText(exam.google_form_url, 'Quiz link')}><Copy size={13} /></button>
+                    <a className="gf-action" href={exam.google_form_edit_url || exam.google_form_url}
+                      target="_blank" rel="noreferrer" title="Open in Google Forms" aria-label="Open in Google Forms">
+                      <ExternalLink size={13} />
+                    </a>
+                    <button type="button" className="gf-action" title="Create a new form" aria-label="Create a new form"
+                      disabled={gfBusy} onClick={exportGoogleForm}><RefreshCw size={13} /></button>
+                  </span>
+                </div>
+              ) : (
+                <button type="button" className="print-pack-file" onClick={exportGoogleForm} disabled={gfBusy}>
+                  <ClipboardList size={16} aria-hidden="true" />
+                  <span><strong>Google Forms</strong><small>{gfBusy ? 'Creating quiz…' : 'Online quiz — auto-graded'}</small></span>
+                  {gfBusy
+                    ? <RefreshCw size={14} className="exd-spin" aria-hidden="true" />
+                    : <Send size={14} aria-hidden="true" />}
+                </button>
+              )}
             </div>
           </div>
         </aside>

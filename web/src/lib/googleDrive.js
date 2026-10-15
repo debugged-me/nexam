@@ -24,18 +24,20 @@ export function loadGsi() {
 }
 
 /**
- * Short-lived Drive access token via the GIS token client.
- * Tries silently first (prompt:'') so already-consented imports skip all UI;
+ * Short-lived Google access token via the GIS token client, for any scope.
+ * Tries silently first (prompt:'') so already-consented flows skip all UI;
  * on failure retries once with the consent prompt — unless the user closed
  * the popup, which is treated as a deliberate cancel.
  * `hint` pre-selects the bound Google account in the consent UI.
+ * Loads the GIS client itself so callers can't forget that step.
  */
-export function requestDriveToken(clientId, { hint, prompt = '' } = {}) {
+export async function requestGoogleToken(clientId, { scope, hint, prompt = '' } = {}) {
+  await loadGsi();
   return new Promise((resolve, reject) => {
     let retried = false;
     const client = window.google.accounts.oauth2.initTokenClient({
       client_id: clientId,
-      scope: DRIVE_SCOPE,
+      scope,
       hint: hint || undefined,
       callback: (res) => (res?.access_token ? resolve(res.access_token) : reject(new Error(res?.error || 'No token'))),
       error_callback: (err) => {
@@ -49,6 +51,11 @@ export function requestDriveToken(clientId, { hint, prompt = '' } = {}) {
     });
     client.requestAccessToken({ prompt, hint: hint || undefined });
   });
+}
+
+/** Drive-scoped variant of requestGoogleToken. */
+export function requestDriveToken(clientId, { hint, prompt } = {}) {
+  return requestGoogleToken(clientId, { scope: DRIVE_SCOPE, hint, prompt });
 }
 
 /** Revoke an access token (grant cleanup on mismatch/disconnect). */

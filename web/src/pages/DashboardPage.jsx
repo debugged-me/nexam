@@ -27,6 +27,7 @@ import { useAuth } from '../features/auth/AuthContext.jsx';
 import AppShell from '../components/AppShell.jsx';
 import useJobs, { isActiveJob } from '../lib/useJobs.js';
 import useJobStream from '../lib/useJobStream.js';
+import { generationSummary } from '../lib/pipelineRun.js';
 import KpiCard from '../components/KpiCard.jsx';
 import { CardsSkeleton } from '../components/Loaders.jsx';
 import { StatusPill } from '../components/Board.jsx';
@@ -110,28 +111,33 @@ function LiveRunBanner() {
   });
   const job = active || recent || null;
   const feed = useJobStream(job?.id ?? null);
-  const { status, progress, result, drafts } = feed;
+  const { status, progress, drafts } = feed;
   if (!job) return null;
 
   const running = status === 'running' || status === 'queued' || isActiveJob(job);
-  const total = Number(progress?.slotsTotal) || 0;
-  const doneCells = status === 'done' ? total : Number(progress?.slotsDone) || 0;
-  const drafted = drafts.length || Number(result?.drafted ?? progress?.drafted) || 0;
-  const adopted = Number(progress?.adopted ?? result?.adopted) || 0;
-  const skipped = Number(progress?.skipped ?? result?.skippedCells) || 0;
-  const held = Array.isArray(result?.failedSlots) ? result.failedSlots.length : 0;
+  const done = status === 'done' || (!running && job.status === 'done');
+  // Same counters the pipeline console reports — persisted result first.
+  const stats = generationSummary(job, feed);
+  const total = stats.totalCells || 0;
+  const doneCells = stats.doneCells ?? (done ? total : 0);
+  const drafted = stats.drafted;
+  const adopted = stats.adopted;
+  const skipped = stats.coveredCells;
+  const held = stats.failedSlots.length;
   const nowSlot = status === 'running' ? progress?.lastSlot : null;
   const outcomeTotal = drafted + adopted + skipped + held;
   // Run-only outcome mix — the one chart the dashboard doesn't already have
   // (segments size themselves via flexGrow; zero-growth outcomes collapse).
-  const startedAt = feed.drafts[0]?.at || job.started_at;
+  const startedAt = drafts[0]?.createdAt || job.started_at;
   const perMin = drafted && startedAt
     ? Math.round((drafted / Math.max(1, (now - new Date(startedAt).getTime()) / 60000)) * 10) / 10
     : null;
 
-  const done = status === 'done' || (!running && job.status === 'done');
-  const to = done && drafted > 0 ? '/questions/review' : '/pipeline';
-  const cta = done && drafted > 0 ? 'Review them' : 'Watch it live';
+  const to = done && drafted > 0
+    ? '/questions/review' + (job.subject_id ? '?subject_id=' + encodeURIComponent(job.subject_id) : '')
+    : '/pipeline?job=' + job.id;
+  const cta = done ? (drafted > 0 ? 'Review them' : 'Open the run') : 'Watch it live';
+  const context = job.tos_title || job.material_title || job.subject_name || null;
 
   return (
     <section className="dash-card dash-live" aria-labelledby="dash-live-title" data-tour="dash-live"
@@ -139,7 +145,7 @@ function LiveRunBanner() {
       <header className="dash-card-head">
         <h2 id="dash-live-title">
           <span className="dash-live-pill"><i />{running ? (status === 'queued' ? 'Queued' : 'Live') : status === 'done' ? 'Done' : (status || 'Idle')}</span>
-          {running ? 'Writing questions' : 'Generation run'}
+          {running ? 'Writing questions' : 'Generation run'}{context ? ` · ${context}` : ''}
         </h2>
         <Link to={to} className="dash-text-link">{cta} <ArrowRight size={14} /></Link>
       </header>
@@ -148,7 +154,9 @@ function LiveRunBanner() {
           {nowSlot
             ? `Cell ${Math.min(doneCells + 1, total || '…')}${total ? `/${total}` : ''} — ${nowSlot.topic}${nowSlot.bloom ? ` · ${nowSlot.bloom}` : ''}`
             : done
-              ? `${drafted} new question${drafted === 1 ? '' : 's'} waiting in your review queue`
+              ? drafted > 0
+                ? `${drafted} new question${drafted === 1 ? '' : 's'} waiting in your review queue`
+                : `This run saved no new questions${held ? ` — ${held} cell${held === 1 ? ' was' : 's were'} held for missing evidence` : ''}`
               : 'Warming up — the AI is reading your blueprint…'}
         </p>
         <div className="dash-live-stats">
@@ -156,12 +164,12 @@ function LiveRunBanner() {
             aria-label={`Run outcome mix: ${drafted} drafted, ${adopted} reused, ${skipped} covered, ${held} held`}
             title={`${drafted} drafted · ${adopted} reused · ${skipped} covered · ${held} held`}>
             <i className="mix-queued" style={{ flexGrow: drafted }} />
-            <i className="mix-covered" style={{ flexGrow: skipped }} />
             <i className="mix-reused" style={{ flexGrow: adopted }} />
+            <i className="mix-covered" style={{ flexGrow: skipped }} />
             <i className="mix-held" style={{ flexGrow: held }} />
           </span>
           <span><b>{drafted}</b> drafted</span>
-          <span><b>{doneCells}<i>/{total || '—'}</i></b> cells</span>
+          <span><b>{doneCells}<i>/{total || '—'}</i></b> cell{total === 1 ? '' : 's'}</span>
           {held > 0 && <span className="dash-live-held"><b>{held}</b> held</span>}
           {perMin != null && <span className="dash-live-pace"><b>{perMin}</b>/min</span>}
         </div>
@@ -176,11 +184,11 @@ function LiveRunBanner() {
                 label="Outcome mix for this run"
                 height={170}
                 centerText={String(outcomeTotal)}
-                centerSub="cells"
+                centerSub={outcomeTotal === 1 ? 'outcome' : 'outcomes'}
                 slices={[
-                  { label: 'Queued', value: drafted, var: '--blue-600' },
-                  { label: 'Covered', value: skipped, var: '--line-strong' },
+                  { label: 'Drafted', value: drafted, var: '--blue-600' },
                   { label: 'Reused', value: adopted, var: '--green-600' },
+                  { label: 'Covered', value: skipped, var: '--line-strong' },
                   { label: 'Held', value: held, var: '--red-600' },
                 ]}
               />

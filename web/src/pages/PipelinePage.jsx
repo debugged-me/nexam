@@ -501,6 +501,8 @@ export default function PipelinePage() {
                 onChange={(id) => setParams({ job: id })}
                 label="Watch a different task"
                 icon={History}
+                searchable
+                searchPlaceholder="Search tasks…"
                 options={(job && !jobs.some((item) => item.id === job.id) ? [job, ...jobs] : jobs).map((item) => ({
                   value: item.id,
                   label: `${LABELS[item.type] || item.type} · ${item.subject_code || context(item)} · ${date(item.created_at)} · ${STATES[item.status] || item.status}`,

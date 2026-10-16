@@ -1945,6 +1945,43 @@ select.form-control:not([multiple]) {
   max-height: var(--radix-select-content-available-height, 60vh);
   padding: 4px;
 }
+.nx-select-search {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 32px;
+  margin: 0 0 4px;
+  padding: 0 8px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-xs);
+  color: var(--ink-faint);
+  background: var(--surface);
+}
+.nx-select-search input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  outline: none;
+  background: transparent;
+  color: var(--ink);
+  font: 500 .8125rem var(--font-body);
+}
+.nx-select-search input::placeholder { color: var(--ink-faint); }
+.nx-select-search button {
+  display: inline-flex;
+  border: 0;
+  background: none;
+  color: var(--ink-faint);
+  cursor: pointer;
+  padding: 2px;
+}
+.nx-select-search:focus-within { border-color: var(--ink-3); }
+.nx-select-empty {
+  padding: 10px;
+  font: 500 .78rem var(--font-body);
+  color: var(--ink-faint);
+  text-align: center;
+}
 .nx-select-item {
   display: flex;
   align-items: center;

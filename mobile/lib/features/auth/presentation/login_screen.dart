@@ -258,9 +258,9 @@ class _LoginScreenState extends State<LoginScreen> {
                       60,
                 ),
                 child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
+                    const Spacer(),
                     Center(
                       child: Container(
                         width: 56,
@@ -426,6 +426,42 @@ class _LoginScreenState extends State<LoginScreen> {
                         ],
                       ),
                     ),
+                    const Spacer(),
+
+                    // Bottom link — in the scroll flow, not an overlay:
+                    // a keyboard-shrunk viewport scrolls it below the fold
+                    // instead of pinning it over the password field.
+                    Padding(
+                      padding: const EdgeInsets.only(top: 24, bottom: 14),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text(
+                            "Don't have an account? ",
+                            style: TextStyle(
+                              fontSize: 12.5,
+                              color: AppTheme.textMuted,
+                            ),
+                          ),
+                          GestureDetector(
+                            onTap: () => Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (_) =>
+                                    RegisterScreen(baseUrl: _baseUrl),
+                              ),
+                            ),
+                            child: Text(
+                              'Sign up',
+                              style: TextStyle(
+                                fontSize: 12.5,
+                                color: AppTheme.primary,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -444,45 +480,6 @@ class _LoginScreenState extends State<LoginScreen> {
                   color: AppTheme.textMuted,
                 ),
                 tooltip: 'Server: $_serverHost',
-              ),
-            ),
-
-            // Bottom link — the reference's "Don't have an account? Sign up".
-            Positioned(
-              left: 0,
-              right: 0,
-              bottom: 0,
-              child: SafeArea(
-                child: Padding(
-                  padding: const EdgeInsets.only(bottom: 14),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(
-                        "Don't have an account? ",
-                        style: TextStyle(
-                          fontSize: 12.5,
-                          color: AppTheme.textMuted,
-                        ),
-                      ),
-                      GestureDetector(
-                        onTap: () => Navigator.of(context).push(
-                          MaterialPageRoute(
-                            builder: (_) => RegisterScreen(baseUrl: _baseUrl),
-                          ),
-                        ),
-                        child: Text(
-                          'Sign up',
-                          style: TextStyle(
-                            fontSize: 12.5,
-                            color: AppTheme.primary,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
               ),
             ),
           ],

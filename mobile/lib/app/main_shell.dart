@@ -17,6 +17,8 @@ class MainShell extends StatefulWidget {
   const MainShell({
     super.key,
     required this.session,
+    required this.themeMode,
+    required this.onThemeModeChanged,
     required this.onLogout,
     required this.onSessionExpired,
     required this.onSessionChanged,
@@ -25,6 +27,11 @@ class MainShell extends StatefulWidget {
   final InstructorSession session;
   final VoidCallback onLogout;
   final VoidCallback onSessionExpired;
+
+  /// The account's appearance mode — edited from the Profile tab's
+  /// Appearance screen.
+  final ThemeMode themeMode;
+  final ValueChanged<ThemeMode> onThemeModeChanged;
 
   /// Fired when the profile is edited — the app persists the updated
   /// session and rebuilds so every screen sees the new data.
@@ -78,6 +85,8 @@ class _MainShellState extends State<MainShell> {
       ),
       ProfileScreen(
         session: widget.session,
+        themeMode: widget.themeMode,
+        onThemeModeChanged: widget.onThemeModeChanged,
         onLogout: widget.onLogout,
         onSessionChanged: widget.onSessionChanged,
         onSessionExpired: widget.onSessionExpired,

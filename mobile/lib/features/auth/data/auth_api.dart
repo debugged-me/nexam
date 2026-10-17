@@ -235,6 +235,27 @@ class AuthApi {
     );
   }
 
+  /// PUT /api/auth/appearance — persist the account's theme mode
+  /// ('light' | 'dark' | 'system') so it follows the user across the
+  /// web app and this app.
+  Future<void> updateAppearance({
+    required String baseUrl,
+    required String token,
+    required String theme,
+  }) async {
+    final response = await _safeRequest(
+      () => _client.put(
+        _uri(baseUrl, '/api/auth/appearance'),
+        headers: {
+          ..._jsonHeaders,
+          'authorization': 'Bearer $token',
+        },
+        body: jsonEncode({'theme': theme}),
+      ),
+    );
+    _decode(response);
+  }
+
   /// POST /api/auth/change-password — requires the current password.
   Future<void> changePassword({
     required String baseUrl,

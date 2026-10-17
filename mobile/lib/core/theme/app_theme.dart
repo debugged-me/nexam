@@ -20,6 +20,20 @@ class AppTheme {
   static Brightness brightness = Brightness.light;
   static bool get _dark => brightness == Brightness.dark;
 
+  /// The account's saved appearance names ('light' | 'dark' | 'system',
+  /// server column users.theme) ↔ Material [ThemeMode].
+  static ThemeMode modeFromName(String? name) => switch (name) {
+        'light' => ThemeMode.light,
+        'dark' => ThemeMode.dark,
+        _ => ThemeMode.system,
+      };
+
+  static String nameOfMode(ThemeMode mode) => switch (mode) {
+        ThemeMode.light => 'light',
+        ThemeMode.dark => 'dark',
+        ThemeMode.system => 'system',
+      };
+
   // Light/dark palette pairs — light values are the original constants;
   // dark values mirror tokens.css [data-theme="dark"] overrides.
   static const Color _lPrimary = Color(0xFF2383E2);

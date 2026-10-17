@@ -13,6 +13,7 @@ class InstructorSession {
     this.nameExt = '',
     this.hasAvatar = false,
     this.avatarV = 0,
+    this.theme = '',
   });
 
   final String baseUrl;
@@ -35,6 +36,11 @@ class InstructorSession {
   /// Avatar cache version — bump in the URL when the photo changes.
   final int avatarV;
 
+  /// The account's saved appearance mode — 'light' | 'dark' | 'system'
+  /// (server column users.theme, shared with the web app). '' means no
+  /// saved preference, treated as system.
+  final String theme;
+
   factory InstructorSession.fromApi(Map<String, dynamic> data,
       {required String baseUrl, String? fallbackToken}) {
     final user = (data['user'] as Map?)?.cast<String, dynamic>() ?? {};
@@ -56,6 +62,7 @@ class InstructorSession {
           user['has_avatar'] == true || user['has_avatar'] == 1,
       avatarV:
           int.tryParse(user['avatar_v']?.toString() ?? '') ?? 0,
+      theme: user['theme']?.toString() ?? '',
     );
   }
 
@@ -67,6 +74,7 @@ class InstructorSession {
     String? nameExt,
     bool? hasAvatar,
     int? avatarV,
+    String? theme,
   }) {
     return InstructorSession(
       baseUrl: baseUrl,
@@ -81,6 +89,7 @@ class InstructorSession {
       nameExt: nameExt ?? this.nameExt,
       hasAvatar: hasAvatar ?? this.hasAvatar,
       avatarV: avatarV ?? this.avatarV,
+      theme: theme ?? this.theme,
     );
   }
 
@@ -97,6 +106,7 @@ class InstructorSession {
         'nameExt': nameExt,
         'hasAvatar': hasAvatar,
         'avatarV': avatarV,
+        'theme': theme,
       };
 
   factory InstructorSession.fromStorage(Map<String, dynamic> data) {
@@ -113,6 +123,7 @@ class InstructorSession {
       nameExt: data['nameExt'] as String? ?? '',
       hasAvatar: data['hasAvatar'] == true,
       avatarV: data['avatarV'] is int ? data['avatarV'] as int : 0,
+      theme: data['theme'] as String? ?? '',
     );
   }
 

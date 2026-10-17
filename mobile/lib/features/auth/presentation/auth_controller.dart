@@ -125,6 +125,25 @@ class AuthController {
     await _store.saveSession(updated);
   }
 
+  /// Persist an appearance choice ('light' | 'dark' | 'system') onto the
+  /// session and to the server — the web app reads the same column, so the
+  /// preference follows the account. A server failure keeps the local copy.
+  Future<void> applyTheme(String theme) async {
+    final s = session;
+    if (s == null) return;
+    session = s.copyWith(theme: theme);
+    await _store.saveSession(session!);
+    try {
+      await _api.updateAppearance(
+        baseUrl: session!.baseUrl,
+        token: session!.token,
+        theme: theme,
+      );
+    } catch (_) {
+      // Offline — the saved session still carries the choice.
+    }
+  }
+
   /// Log out and clear the stored session.
   Future<void> logout() async {
     session = null;

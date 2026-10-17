@@ -20,6 +20,7 @@ class NexamOmrApp extends StatefulWidget {
 class _NexamOmrAppState extends State<NexamOmrApp> {
   AuthController? _controller;
   bool _bootstrapping = true;
+  ThemeMode _themeMode = ThemeMode.system;
 
   @override
   void initState() {
@@ -38,18 +39,29 @@ class _NexamOmrAppState extends State<NexamOmrApp> {
     if (mounted) {
       setState(() {
         _controller = controller;
+        _themeMode = AppTheme.modeFromName(controller.session?.theme);
         _bootstrapping = false;
       });
     }
   }
 
   void _onLoginSuccess() {
-    setState(() {});
+    setState(() {
+      _themeMode = AppTheme.modeFromName(_controller?.session?.theme);
+    });
   }
 
   void _onLogout() async {
     await _controller?.logout();
-    if (mounted) setState(() {});
+    if (mounted) setState(() => _themeMode = ThemeMode.system);
+  }
+
+  /// Appearance tab pick — applies instantly, then the controller saves it
+  /// to the session and the server (same users.theme column the web uses).
+  void _onThemeModeChanged(ThemeMode mode) {
+    if (mode == _themeMode) return;
+    setState(() => _themeMode = mode);
+    _controller?.applyTheme(AppTheme.nameOfMode(mode));
   }
 
   /// Any API call that returns 401 lands here — drop the session and
@@ -65,7 +77,7 @@ class _NexamOmrAppState extends State<NexamOmrApp> {
       debugShowCheckedModeBanner: false,
       theme: AppTheme.build(),
       darkTheme: AppTheme.buildDark(),
-      themeMode: ThemeMode.system,
+      themeMode: _themeMode,
       // Sync the static palette flag with the resolved theme so widget
       // code reading AppTheme.* getters sees the active mode's colors.
       builder: (context, child) {
@@ -143,11 +155,17 @@ class _NexamOmrAppState extends State<NexamOmrApp> {
 
     return MainShell(
       session: controller.session!,
+      themeMode: _themeMode,
+      onThemeModeChanged: _onThemeModeChanged,
       onLogout: _onLogout,
       onSessionExpired: _onSessionExpired,
       onSessionChanged: (updated) async {
         await controller.applySession(updated);
-        if (mounted) setState(() {});
+        if (mounted) {
+          setState(
+            () => _themeMode = AppTheme.modeFromName(updated.theme),
+          );
+        }
       },
     );
   }

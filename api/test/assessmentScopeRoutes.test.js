@@ -73,6 +73,12 @@ test('coverage API enforces ownership, confirmation, immutable finalized scopes,
   chunks = [];
   assert.equal((await request('/blueprint/finalize', 'POST', {})).status, 422, 'deleted sources block finalization');
   chunks = [{ id: 'c1', text: payload.sources[0].text }];
+  tos.bloom_weights = JSON.stringify({ remember: 90, create: 10 });
+  const createBlocked = await request('/blueprint/finalize', 'POST', {});
+  assert.equal(createBlocked.status, 422);
+  assert.match(createBlocked.body.error, /Create must be 0%/);
+  assert.equal(tos.status, 'draft', 'unsupported Create allocation does not finalize');
+  tos.bloom_weights = JSON.stringify({ remember: 100, create: 0 });
   const finalized = await request('/blueprint/finalize', 'POST', {});
   assert.equal(finalized.status, 200, JSON.stringify(finalized.body));
   const before = writes;

@@ -39,7 +39,7 @@ import {
   GroupChip, groupColor, statusOf, statusMeta, STATUS_ORDER,
 } from '../components/Board.jsx';
 
-const DEFAULT_BLOOM = { remember: 15, understand: 20, apply: 20, analyze: 20, evaluate: 15, create: 10 };
+const DEFAULT_BLOOM = { remember: 15, understand: 20, apply: 25, analyze: 20, evaluate: 20, create: 0 };
 const FINDER_FROM = 6; // search + filter join the toolbar once the list is this long
 
 const NEXT_ICONS = {
@@ -626,7 +626,7 @@ export default function TosPage() {
             <div className="form-section">
               <div className="form-section-title">Bloom's Taxonomy Weights</div>
               <p className="form-hint mb-2">
-                Distribute percentages across the six cognitive levels. Should total 100%.
+                Distribute percentages across the measurable objective-question levels. Create must remain 0%; original work needs a separate constructed-performance assessment. Total must be 100%.
               </p>
               <div className="bloom-grid">
                 {BLOOM_ORDER.map((k) => (

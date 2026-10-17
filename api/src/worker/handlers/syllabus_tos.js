@@ -18,16 +18,7 @@ import { recalcTopicItemCounts } from '../../services/tosTopics.js';
 import { parseTimeFrame } from '../../services/assessmentScope.js';
 
 import { prepareSyllabusBlueprint } from '../../services/syllabusBlueprint.js';
-
-/** Default Bloom distribution for a newly extracted syllabus. */
-const DEFAULT_BLOOM = {
-  remember: 15,
-  understand: 20,
-  apply: 20,
-  analyze: 20,
-  evaluate: 15,
-  create: 10,
-};
+import { DEFAULT_OBJECTIVE_BLOOM } from '../../services/objectiveBlueprint.js';
 
 export default async function syllabusTosHandler(job) {
   const { materialId, userId } = job.payload;
@@ -203,7 +194,7 @@ ${material.content}
       `INSERT INTO tos (id, subject_id, title, total_items, bloom_weights, assessment_scope, source_meta)
        VALUES (:id, :subjectId, :title, :totalItems, :bloomWeights, :scope, :sourceMeta)`,
       { id: tosId, subjectId: material.subject_id, title: tosTitle, totalItems,
-        sourceMeta: JSON.stringify(prepared.sourceMeta), bloomWeights: JSON.stringify(DEFAULT_BLOOM),
+        sourceMeta: JSON.stringify(prepared.sourceMeta), bloomWeights: JSON.stringify(DEFAULT_OBJECTIVE_BLOOM),
         scope: frame ? JSON.stringify({ ...frame, sources: [], confirmed: false }) : null }
     );
     for (const [index, topic] of parsed.topics.entries()) {

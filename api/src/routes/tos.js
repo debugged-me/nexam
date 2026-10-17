@@ -26,12 +26,16 @@ import { parseTimeFrame, validateSources, scopeKey, questionScopeSql } from '../
 import { sourceHash } from '../services/syllabusBlueprint.js';
 import { readJson } from '../services/assessmentScope.js';
 import { loadScopeChunks, ownedChunks } from '../services/assessmentScopeStore.js';
+import {
+  BLOOM_LEVELS,
+  DEFAULT_OBJECTIVE_BLOOM,
+  objectiveCreateBlockReason,
+} from '../services/objectiveBlueprint.js';
 
 const router = Router();
 router.use(requireAuth);
 
-const BLOOM_LEVELS = ['remember', 'understand', 'apply', 'analyze', 'evaluate', 'create'];
-const DEFAULT_BLOOM = { remember: 15, understand: 20, apply: 20, analyze: 20, evaluate: 15, create: 10 };
+const DEFAULT_BLOOM = DEFAULT_OBJECTIVE_BLOOM;
 
 function requireDraft(tos, res) {
   if (tos.status === 'finalized') {
@@ -485,6 +489,8 @@ router.post('/:id/finalize', async (req, res, next) => {
     if (Math.abs(weightTotal - 100) > 0.001) {
       return res.status(422).json({ error: 'Bloom taxonomy weights must total exactly 100%.' });
     }
+    const createBlock = objectiveCreateBlockReason(weights);
+    if (createBlock) return res.status(422).json({ error: createBlock });
 
     const [finalized] = await pool.query(
       `UPDATE tos SET status = 'finalized', finalized_by = :uid,

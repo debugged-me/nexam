@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 
+import '../../../core/network/server_address.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/pill_field.dart';
 import 'auth_controller.dart';
@@ -39,19 +40,11 @@ class _LoginScreenState extends State<LoginScreen> {
   /// serverClientId the SDK mints ID tokens against. Empty hides the button.
   String _googleClientId = '';
 
-  /// Sensible dev default: the Android emulator reaches the host machine
-  /// through 10.0.2.2; everything else (web included) can try localhost
-  /// first. Whatever the user last used still wins via [SessionStore].
-  static String get _platformDefaultUrl =>
-      !kIsWeb && defaultTargetPlatform == TargetPlatform.android
-      ? 'http://10.0.2.2:3000'
-      : 'http://localhost:3000';
-
   @override
   void initState() {
     super.initState();
     final saved = widget.controller.savedBaseUrl;
-    _baseUrl = saved.isNotEmpty ? saved : _platformDefaultUrl;
+    _baseUrl = initialServerUrl(saved: saved, platform: defaultTargetPlatform);
     _loadGoogleConfig();
   }
 
@@ -258,7 +251,8 @@ class _LoginScreenState extends State<LoginScreen> {
               padding: const EdgeInsets.symmetric(horizontal: 24),
               child: ConstrainedBox(
                 constraints: BoxConstraints(
-                  minHeight: MediaQuery.of(context).size.height -
+                  minHeight:
+                      MediaQuery.of(context).size.height -
                       MediaQuery.of(context).padding.top -
                       MediaQuery.of(context).padding.bottom -
                       60,
@@ -274,22 +268,18 @@ class _LoginScreenState extends State<LoginScreen> {
                         padding: const EdgeInsets.all(10),
                         decoration: BoxDecoration(
                           color: AppTheme.card,
-                          borderRadius:
-                              BorderRadius.circular(17),
-                          border:
-                              Border.all(color: AppTheme.cardBorder),
+                          borderRadius: BorderRadius.circular(17),
+                          border: Border.all(color: AppTheme.cardBorder),
                           boxShadow: AppTheme.cardShadow,
                         ),
-                        child: Image.asset(
-                            'assets/icons/nexam_logo.png'),
+                        child: Image.asset('assets/icons/nexam_logo.png'),
                       ),
                     ),
                     const SizedBox(height: 18),
                     Text(
                       'Welcome back!',
                       textAlign: TextAlign.center,
-                      style: AppTheme.display(27,
-                          weight: FontWeight.w800),
+                      style: AppTheme.display(27, weight: FontWeight.w800),
                     ),
                     const SizedBox(height: 5),
                     Text(
@@ -304,24 +294,19 @@ class _LoginScreenState extends State<LoginScreen> {
                     Form(
                       key: _formKey,
                       child: Column(
-                        crossAxisAlignment:
-                            CrossAxisAlignment.stretch,
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
                           _labeledField(
                             label: 'Email Address',
                             controller: _emailController,
                             icon: Icons.mail_outline_rounded,
                             hint: 'Enter your email',
-                            keyboardType:
-                                TextInputType.emailAddress,
+                            keyboardType: TextInputType.emailAddress,
                             textInputAction: TextInputAction.next,
-                            autofillHints: const [
-                              AutofillHints.email
-                            ],
-                            validator: (v) =>
-                                (v == null || v.trim().isEmpty)
-                                    ? 'Email is required.'
-                                    : null,
+                            autofillHints: const [AutofillHints.email],
+                            validator: (v) => (v == null || v.trim().isEmpty)
+                                ? 'Email is required.'
+                                : null,
                           ),
                           const SizedBox(height: 14),
                           _labeledField(
@@ -337,14 +322,12 @@ class _LoginScreenState extends State<LoginScreen> {
                                     : Icons.visibility_rounded,
                                 size: 19,
                               ),
-                              onPressed: () => setState(() =>
-                                  _obscurePassword =
-                                      !_obscurePassword),
+                              onPressed: () => setState(
+                                () => _obscurePassword = !_obscurePassword,
+                              ),
                             ),
                             textInputAction: TextInputAction.done,
-                            autofillHints: const [
-                              AutofillHints.password
-                            ],
+                            autofillHints: const [AutofillHints.password],
                             validator: (v) => (v == null || v.isEmpty)
                                 ? 'Password is required.'
                                 : null,
@@ -354,21 +337,18 @@ class _LoginScreenState extends State<LoginScreen> {
                           Align(
                             alignment: Alignment.centerRight,
                             child: TextButton(
-                              onPressed: () =>
-                                  Navigator.of(context).push(
+                              onPressed: () => Navigator.of(context).push(
                                 MaterialPageRoute(
                                   builder: (_) =>
-                                      ForgotPasswordScreen(
-                                          baseUrl: _baseUrl),
+                                      ForgotPasswordScreen(baseUrl: _baseUrl),
                                 ),
                               ),
                               style: TextButton.styleFrom(
                                 padding: const EdgeInsets.symmetric(
-                                    horizontal: 4),
+                                  horizontal: 4,
+                                ),
                                 minimumSize: const Size(0, 32),
-                                tapTargetSize:
-                                    MaterialTapTargetSize
-                                        .shrinkWrap,
+                                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                               ),
                               child: Text(
                                 'Forgot password?',
@@ -385,21 +365,17 @@ class _LoginScreenState extends State<LoginScreen> {
                             style: ElevatedButton.styleFrom(
                               backgroundColor: AppTheme.primary,
                               foregroundColor: Colors.white,
-                              minimumSize:
-                                  const Size(double.infinity, 54),
+                              minimumSize: const Size(double.infinity, 54),
                               shape: RoundedRectangleBorder(
-                                borderRadius:
-                                    BorderRadius.circular(16),
+                                borderRadius: BorderRadius.circular(16),
                               ),
                             ),
-                            onPressed:
-                                _submitting ? null : _submit,
+                            onPressed: _submitting ? null : _submit,
                             child: _submitting
                                 ? const SizedBox(
                                     height: 20,
                                     width: 20,
-                                    child:
-                                        CircularProgressIndicator(
+                                    child: CircularProgressIndicator(
                                       strokeWidth: 2.2,
                                       color: Colors.white,
                                     ),
@@ -411,12 +387,12 @@ class _LoginScreenState extends State<LoginScreen> {
                             Row(
                               children: [
                                 Expanded(
-                                  child: Divider(
-                                      color: AppTheme.cardBorder),
+                                  child: Divider(color: AppTheme.cardBorder),
                                 ),
                                 Padding(
                                   padding: const EdgeInsets.symmetric(
-                                      horizontal: 12),
+                                    horizontal: 12,
+                                  ),
                                   child: Text(
                                     'or',
                                     style: TextStyle(
@@ -426,8 +402,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                   ),
                                 ),
                                 Expanded(
-                                  child: Divider(
-                                      color: AppTheme.cardBorder),
+                                  child: Divider(color: AppTheme.cardBorder),
                                 ),
                               ],
                             ),
@@ -435,22 +410,16 @@ class _LoginScreenState extends State<LoginScreen> {
                             OutlinedButton(
                               style: OutlinedButton.styleFrom(
                                 foregroundColor: AppTheme.textDark,
-                                minimumSize:
-                                    const Size(double.infinity, 54),
+                                minimumSize: const Size(double.infinity, 54),
                                 shape: RoundedRectangleBorder(
-                                  borderRadius:
-                                      BorderRadius.circular(16),
+                                  borderRadius: BorderRadius.circular(16),
                                 ),
-                                side: BorderSide(
-                                    color: AppTheme.cardBorder),
+                                side: BorderSide(color: AppTheme.cardBorder),
                               ),
-                              onPressed: _submitting
-                                  ? null
-                                  : _submitGoogle,
+                              onPressed: _submitting ? null : _submitGoogle,
                               child: const Text(
                                 'Continue with Google',
-                                style: TextStyle(
-                                    fontWeight: FontWeight.w600),
+                                style: TextStyle(fontWeight: FontWeight.w600),
                               ),
                             ),
                           ],
@@ -469,8 +438,11 @@ class _LoginScreenState extends State<LoginScreen> {
               right: 4,
               child: IconButton(
                 onPressed: _editServer,
-                icon: Icon(Icons.dns_rounded,
-                    size: 20, color: AppTheme.textMuted),
+                icon: Icon(
+                  Icons.dns_rounded,
+                  size: 20,
+                  color: AppTheme.textMuted,
+                ),
                 tooltip: 'Server: $_serverHost',
               ),
             ),
@@ -496,8 +468,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       GestureDetector(
                         onTap: () => Navigator.of(context).push(
                           MaterialPageRoute(
-                            builder: (_) =>
-                                RegisterScreen(baseUrl: _baseUrl),
+                            builder: (_) => RegisterScreen(baseUrl: _baseUrl),
                           ),
                         ),
                         child: Text(

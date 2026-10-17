@@ -70,6 +70,8 @@
 	<string>nexam needs camera access to scan OMR answer sheets and decode QR codes.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>nexam needs photo library access to process captured answer sheet images.</string>
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>nexam connects to the instructor's Nexam server on the same Wi-Fi network.</string>
 	<key>NSAppTransportSecurity</key>
 	<dict>
 		<key>NSAllowsArbitraryLoadsInLocalNetworking</key>

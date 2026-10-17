@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:http/http.dart' as http;
 
@@ -49,6 +50,47 @@ class ExamApi {
     return sets
         .map((s) => ExamSet.fromJson(Map<String, dynamic>.from(s as Map)))
         .toList();
+  }
+
+  /// GET /api/exams/:id/download/:type — fetch a generated PDF as bytes
+  /// for the system print dialog or share sheet.
+  ///
+  /// [type]: 'exam' | 'answerkey' | 'omr' | 'tos-report'.
+  /// [set]: 'A' | 'B' — required for exam/answerkey/omr. Returns
+  /// (bytes, filename) so callers can name shared files without parsing
+  /// Content-Disposition.
+  Future<(Uint8List, String)> downloadExamPdf({
+    required String baseUrl,
+    required String token,
+    required String examId,
+    required String type,
+    String? set,
+  }) async {
+    final query = set != null ? '?set=$set' : '';
+    final response = await _safeRequest(
+      () => _client.get(
+        Uri.parse('$baseUrl/api/exams/$examId/download/$type$query'),
+        headers: {
+          'authorization': 'Bearer $token',
+        },
+      ),
+    );
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      try {
+        _decode(response); // throws ApiException with the server message
+      } on ApiException {
+        rethrow;
+      } catch (_) {
+        throw ApiException(
+            'Document request failed (${response.statusCode}).',
+            statusCode: response.statusCode);
+      }
+    }
+    final disposition = response.headers['content-disposition'] ?? '';
+    final match = RegExp(r'filename="?([^";]+)"?').firstMatch(disposition);
+    final name =
+        match?.group(1) ?? 'exam_${examId}_$type${set != null ? '_$set' : ''}.pdf';
+    return (response.bodyBytes, name);
   }
 
   Map<String, String> _headers(String token) => {

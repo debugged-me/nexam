@@ -2,16 +2,18 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../../core/theme/app_theme.dart';
+import '../../auth/domain/instructor_session.dart';
 import '../domain/exam.dart';
 import 'exam_detail_sheet.dart';
 
 /// Exam ledger row — blue doc tile, title + subject meta, status pill.
 /// Shared by the dashboard card and the Exams list. Tapping opens the
-/// read-only detail sheet.
+/// detail sheet (which prints documents when [session] is provided).
 class ExamRow extends StatelessWidget {
-  const ExamRow({super.key, required this.exam, this.onTap});
+  const ExamRow({super.key, required this.exam, this.session, this.onTap});
 
   final ExamSummary exam;
+  final InstructorSession? session;
 
   /// Custom tap behavior; defaults to the exam detail sheet.
   final VoidCallback? onTap;
@@ -22,7 +24,12 @@ class ExamRow extends StatelessWidget {
     return InkWell(
       onTap: () {
         HapticFeedback.selectionClick();
-        (onTap ?? () => showExamDetailSheet(context, exam))();
+        final session = this.session;
+        (onTap ??
+            () {
+              if (session == null) return;
+              showExamDetailSheet(context, exam, session: session);
+            })();
       },
       borderRadius: BorderRadius.circular(AppTheme.radiusMd),
       child: Padding(

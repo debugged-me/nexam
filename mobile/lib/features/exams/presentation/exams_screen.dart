@@ -132,7 +132,7 @@ class _ExamsScreenState extends State<ExamsScreen> {
           borderRadius: BorderRadius.circular(AppTheme.radiusMd),
           border: Border.all(color: AppTheme.cardBorder),
         ),
-        child: ExamRow(exam: exam),
+        child: ExamRow(exam: exam, session: widget.session),
       ),
     );
   }

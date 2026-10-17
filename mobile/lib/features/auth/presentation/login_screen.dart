@@ -261,18 +261,22 @@ class _LoginScreenState extends State<LoginScreen> {
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     const Spacer(),
-                    Center(
-                      child: Container(
-                        width: 56,
-                        height: 56,
-                        padding: const EdgeInsets.all(10),
-                        decoration: BoxDecoration(
-                          color: AppTheme.card,
-                          borderRadius: BorderRadius.circular(17),
-                          border: Border.all(color: AppTheme.cardBorder),
-                          boxShadow: AppTheme.cardShadow,
-                        ),
-                        child: Image.asset('assets/icons/nexam_logo.png'),
+                    // Full-width wordmark banner — always white behind
+                    // the dark-navy mark so it stays legible in dark mode.
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 18, vertical: 14),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: AppTheme.cardBorder),
+                        boxShadow: AppTheme.cardShadow,
+                      ),
+                      child: Image.asset(
+                        'assets/icons/nexam_banner.png',
+                        fit: BoxFit.fitWidth,
+                        semanticLabel: 'nexam — AI Exam Builder',
                       ),
                     ),
                     const SizedBox(height: 18),

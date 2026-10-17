@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:printing/printing.dart';
 
 import '../../../core/network/api_exception.dart';
 import '../../../core/theme/app_theme.dart';
@@ -11,6 +12,7 @@ import '../../../core/widgets/states.dart';
 import '../../auth/domain/instructor_session.dart';
 import '../data/scan_api.dart';
 import '../data/scan_outbox.dart';
+import '../data/scan_report.dart';
 import 'scan_detail_screen.dart';
 
 /// Scans tab — every scanned sheet as a ledger list, newest first,
@@ -45,6 +47,7 @@ class _ScansScreenState extends State<ScansScreen> {
   _ScanFilter _filter = _ScanFilter.all;
   bool _loading = true;
   bool _syncing = false;
+  bool _printing = false;
   String? _error;
 
   bool _isFlagged(Map<String, dynamic> s) =>
@@ -210,6 +213,39 @@ class _ScansScreenState extends State<ScansScreen> {
     await _load();
   }
 
+  /// Renders the currently visible list as a PDF and opens the system
+  /// print sheet — the records report the web offers per exam page.
+  Future<void> _printList() async {
+    final scans = _visible;
+    if (scans.isEmpty || _printing) return;
+    setState(() => _printing = true);
+    final scope = switch (_filter) {
+      _ScanFilter.all => 'All records',
+      _ScanFilter.flagged => 'Flagged for review',
+      _ScanFilter.done => 'Completed sheets',
+    };
+    try {
+      final bytes = await ScanReport.buildScanListPdf(
+        scans: scans,
+        instructorName: widget.session.fullName,
+        scope: scope,
+      );
+      if (!mounted) return;
+      await Printing.layoutPdf(
+        name: 'nexam-scan-records',
+        onLayout: (_) async => bytes,
+      );
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could not build the report.')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _printing = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -217,6 +253,21 @@ class _ScansScreenState extends State<ScansScreen> {
         title: 'Scans',
         subtitle: '${_scans.length} sheet${_scans.length == 1 ? '' : 's'}',
         actions: [
+          IconButton(
+            onPressed: (_visible.isEmpty || _printing) ? null : _printList,
+            icon: _printing
+                ? SizedBox(
+                    width: 17,
+                    height: 17,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: AppTheme.textMuted,
+                    ),
+                  )
+                : Icon(Icons.print_outlined,
+                    size: 20, color: AppTheme.textMuted),
+            tooltip: 'Print scan records',
+          ),
           IconButton(
             onPressed: _load,
             icon: Icon(Icons.refresh_rounded,
@@ -471,6 +522,7 @@ class _ScansScreenState extends State<ScansScreen> {
                   scanId: scan['id']?.toString() ?? '',
                   baseUrl: widget.session.baseUrl,
                   token: widget.session.token,
+                  instructorName: widget.session.fullName,
                   onSessionExpired: widget.onSessionExpired,
                   onReviewed: _load,
                 ),

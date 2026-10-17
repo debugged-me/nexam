@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../../../core/guide/app_tour.dart';
 import '../../../core/network/api_exception.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/motion.dart';
@@ -28,6 +29,8 @@ class DashboardScreen extends StatefulWidget {
     required this.onLogout,
     required this.onSessionExpired,
     this.onNavigate,
+    this.tourKeys,
+    this.onStartTour,
   });
 
   final InstructorSession session;
@@ -40,6 +43,10 @@ class DashboardScreen extends StatefulWidget {
   /// Switches the bottom-nav tab (0 Home, 1 Scans, 2 Exams, 3 Profile)
   /// — powers "See all" links on the dashboard sections.
   final ValueChanged<int>? onNavigate;
+
+  /// Spotlight anchors for the guided tour + the manual start callback.
+  final AppTourKeys? tourKeys;
+  final VoidCallback? onStartTour;
 
   @override
   State<DashboardScreen> createState() => _DashboardScreenState();
@@ -177,6 +184,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           scanId: scan['id']?.toString() ?? '',
           baseUrl: widget.session.baseUrl,
           token: widget.session.token,
+          instructorName: widget.session.fullName,
           onSessionExpired: widget.onSessionExpired,
           onReviewed: _loadData,
         ),
@@ -194,6 +202,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
         subtitle: _dateLine,
         showLogo: true,
         actions: [
+          if (widget.onStartTour != null)
+            IconButton(
+              onPressed: widget.onStartTour,
+              icon: Icon(Icons.help_outline_rounded,
+                  size: 20, color: AppTheme.textMuted),
+              tooltip: 'Guided tour',
+            ),
           IconButton(
             onPressed: _loadData,
             icon: Icon(Icons.refresh_rounded,
@@ -220,7 +235,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       const SizedBox(height: 26),
                       _buildSectionTitle('Recent scans', tab: 1),
                       const SizedBox(height: 10),
-                      _buildScansCard(),
+                      Container(
+                        key: widget.tourKeys?.dashboardRecent,
+                        child: _buildScansCard(),
+                      ),
                       const SizedBox(height: 26),
                       _buildSectionTitle('Your exams', tab: 2),
                       const SizedBox(height: 10),
@@ -266,6 +284,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   Widget _buildHeroCard() {
     final weekTotal = _weekCounts().fold(0, (a, b) => a + b);
     return Container(
+      key: widget.tourKeys?.dashboardHero,
       decoration: BoxDecoration(
         gradient: AppTheme.heroGradient,
         borderRadius: BorderRadius.circular(AppTheme.radiusLg),
@@ -446,6 +465,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   /// replacement for the old three-boxed-tile dashboard row.
   Widget _buildStatStrip() {
     return Container(
+      key: widget.tourKeys?.dashboardStats,
       padding: const EdgeInsets.symmetric(vertical: 14),
       decoration: BoxDecoration(
         color: AppTheme.card,
@@ -631,7 +651,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  Widget _examRow(ExamSummary exam) => ExamRow(exam: exam);
+  Widget _examRow(ExamSummary exam) =>
+      ExamRow(exam: exam, session: widget.session);
 
   Widget _buildError() =>
       ErrorState(message: _error!, onRetry: _loadData);

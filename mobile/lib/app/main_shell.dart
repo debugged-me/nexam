@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../core/guide/app_tour.dart';
 import '../core/theme/app_theme.dart';
 import '../core/widgets/session_avatar.dart';
 import '../features/auth/domain/instructor_session.dart';
@@ -47,6 +48,20 @@ class _MainShellState extends State<MainShell> {
   /// Pending-review count — fed by the Scans tab each time it loads.
   int _flagged = 0;
 
+  /// Spotlight targets for the guided tour — nav items live here; the
+  /// dashboard's keys attach inside its own widgets.
+  final _tourKeys = AppTourKeys();
+
+  /// Manual tour trigger — the only entry point (Profile → Take a tour,
+  /// dashboard help icon). Jumps Home first so the dashboard steps are
+  /// mounted before the overlay looks for them.
+  void startTour() {
+    if (_tab != 0) setState(() => _tab = 0);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) AppTour.show(context, keys: _tourKeys);
+    });
+  }
+
   void _startScan() {
     HapticFeedback.mediumImpact();
     launchScanFlow(
@@ -64,6 +79,8 @@ class _MainShellState extends State<MainShell> {
         onLogout: widget.onLogout,
         onSessionExpired: widget.onSessionExpired,
         onNavigate: (i) => setState(() => _tab = i),
+        tourKeys: _tourKeys,
+        onStartTour: startTour,
       ),
       ScansScreen(
         session: widget.session,
@@ -87,6 +104,7 @@ class _MainShellState extends State<MainShell> {
         session: widget.session,
         themeMode: widget.themeMode,
         onThemeModeChanged: widget.onThemeModeChanged,
+        onStartTour: startTour,
         onLogout: widget.onLogout,
         onSessionChanged: widget.onSessionChanged,
         onSessionExpired: widget.onSessionExpired,
@@ -99,6 +117,7 @@ class _MainShellState extends State<MainShell> {
         index: _tab,
         flagged: _flagged,
         session: widget.session,
+        tourKeys: _tourKeys,
         onTap: (i) {
           if (i == _tab) return;
           HapticFeedback.selectionClick();
@@ -117,6 +136,7 @@ class _NavBar extends StatelessWidget {
     required this.index,
     required this.flagged,
     required this.session,
+    required this.tourKeys,
     required this.onTap,
     required this.onScan,
   });
@@ -124,6 +144,7 @@ class _NavBar extends StatelessWidget {
   final int index;
   final int flagged;
   final InstructorSession session;
+  final AppTourKeys tourKeys;
   final ValueChanged<int> onTap;
   final VoidCallback onScan;
 
@@ -147,6 +168,7 @@ class _NavBar extends StatelessWidget {
                 icon: Icons.home_outlined,
                 activeIcon: Icons.home_rounded,
                 label: 'Home',
+                tourKey: tourKeys.navHome,
               ),
               _item(
                 index: 1,
@@ -154,10 +176,12 @@ class _NavBar extends StatelessWidget {
                 activeIcon: Icons.document_scanner_rounded,
                 label: 'Scans',
                 badge: flagged,
+                tourKey: tourKeys.navScans,
               ),
               // Raised center action.
               Expanded(
                 child: Center(
+                  key: tourKeys.navScanFab,
                   child: Transform.translate(
                     offset: const Offset(0, -10),
                     child: GestureDetector(
@@ -192,6 +216,7 @@ class _NavBar extends StatelessWidget {
                 icon: Icons.assignment_outlined,
                 activeIcon: Icons.assignment_rounded,
                 label: 'Exams',
+                tourKey: tourKeys.navExams,
               ),
               _profileItem(index: 3),
             ],
@@ -206,6 +231,7 @@ class _NavBar extends StatelessWidget {
   Widget _profileItem({required int index}) {
     final selected = this.index == index;
     return Expanded(
+      key: tourKeys.navProfile,
       child: InkWell(
         onTap: () => onTap(index),
         child: Column(
@@ -250,11 +276,13 @@ class _NavBar extends StatelessWidget {
     required IconData activeIcon,
     required String label,
     int badge = 0,
+    Key? tourKey,
   }) {
     final selected = this.index == index;
     final color =
         selected ? AppTheme.primary : AppTheme.textMuted;
     return Expanded(
+      key: tourKey,
       child: InkWell(
         onTap: () => onTap(index),
         child: Column(

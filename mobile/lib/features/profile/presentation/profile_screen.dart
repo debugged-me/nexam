@@ -16,6 +16,7 @@ class ProfileScreen extends StatelessWidget {
     required this.session,
     required this.themeMode,
     required this.onThemeModeChanged,
+    required this.onStartTour,
     required this.onLogout,
     required this.onSessionChanged,
     required this.onSessionExpired,
@@ -24,6 +25,7 @@ class ProfileScreen extends StatelessWidget {
   final InstructorSession session;
   final ThemeMode themeMode;
   final ValueChanged<ThemeMode> onThemeModeChanged;
+  final VoidCallback onStartTour;
   final VoidCallback onLogout;
   final ValueChanged<InstructorSession> onSessionChanged;
   final VoidCallback onSessionExpired;
@@ -93,6 +95,19 @@ class ProfileScreen extends StatelessWidget {
                   ),
                 );
               },
+            ),
+          ]),
+          const SizedBox(height: 20),
+          _section('Help'),
+          const SizedBox(height: 8),
+          _card([
+            _navRow(
+              icon: Icons.help_outline_rounded,
+              title: 'Take a tour',
+              subtitle: 'A quick walk through the app',
+              first: true,
+              last: true,
+              onTap: onStartTour,
             ),
           ]),
           const SizedBox(height: 20),

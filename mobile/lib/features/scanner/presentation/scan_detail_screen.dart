@@ -2,6 +2,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:printing/printing.dart';
 
 import '../../../core/network/api_exception.dart';
 import '../../../core/theme/app_theme.dart';
@@ -9,6 +10,7 @@ import '../../../core/widgets/nexam_app_bar.dart';
 import '../../../core/widgets/skeleton.dart';
 import '../../../core/widgets/states.dart';
 import '../data/scan_api.dart';
+import '../data/scan_report.dart';
 
 /// Scan detail screen — score hero on top, per-item ledger below. The
 /// instructor taps an item to correct it; corrections batch into one
@@ -20,6 +22,7 @@ class ScanDetailScreen extends StatefulWidget {
     required this.baseUrl,
     required this.token,
     required this.onSessionExpired,
+    this.instructorName = '',
     this.onReviewed,
   });
 
@@ -27,6 +30,9 @@ class ScanDetailScreen extends StatefulWidget {
   final String baseUrl;
   final String token;
   final VoidCallback onSessionExpired;
+
+  /// Signed-in instructor — printed on the report header.
+  final String instructorName;
 
   /// Called after a successful review so the dashboard can refresh.
   final VoidCallback? onReviewed;
@@ -41,6 +47,7 @@ class _ScanDetailScreenState extends State<ScanDetailScreen> {
   bool _loading = true;
   String? _error;
   bool _submitting = false;
+  bool _printing = false;
 
   /// item_number → corrected marked answer (canonical form).
   final Map<int, String> _corrections = {};
@@ -146,6 +153,36 @@ class _ScanDetailScreenState extends State<ScanDetailScreen> {
     }
   }
 
+  /// This student's sheet as a PDF — the printable counterpart of the
+  /// web ScanReviewModal's print view.
+  Future<void> _printReport() async {
+    final detail = _detail;
+    if (detail == null || _printing) return;
+    setState(() => _printing = true);
+    try {
+      final bytes = await ScanReport.buildScanDetailPdf(
+        scan: detail.scan,
+        answers: detail.answers,
+        instructorName: widget.instructorName,
+      );
+      if (!mounted) return;
+      final student =
+          detail.scan['student_name']?.toString() ?? 'scan';
+      await Printing.layoutPdf(
+        name: 'nexam-scan-$student',
+        onLayout: (_) async => bytes,
+      );
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could not build the report.')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _printing = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final scan = _detail?.scan;
@@ -155,6 +192,23 @@ class _ScanDetailScreenState extends State<ScanDetailScreen> {
       appBar: NexamAppBar(
         title: student,
         subtitle: 'Scan review',
+        actions: [
+          IconButton(
+            onPressed: (_detail == null || _printing) ? null : _printReport,
+            icon: _printing
+                ? SizedBox(
+                    width: 17,
+                    height: 17,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: AppTheme.textMuted,
+                    ),
+                  )
+                : Icon(Icons.print_outlined,
+                    size: 20, color: AppTheme.textMuted),
+            tooltip: 'Print this sheet',
+          ),
+        ],
       ),
       body: _loading
           ? _buildSkeleton()

@@ -20,6 +20,7 @@ import { requireAuth } from '../middleware/auth.js';
 import { generateExamPDF, generateAnswerKeyPDF, generateTOSReportPDF, STORAGE_DIR } from '../services/pdfService.js';
 import { toGIFT, toCanvasXML } from '../services/lmsExport.js';
 import { generateOMRSheet } from '../services/omrService.js';
+import { loadPrintBranding } from '../services/printBranding.js';
 import { buildTosMatrix, validateAlignedQuestions } from '../services/tosAlignment.js';
 import { logAudit } from '../services/audit.js';
 import { questionScopeSql, questionFitsScope } from '../services/assessmentScope.js';
@@ -725,6 +726,7 @@ router.post('/:id/generate-sets', requireAuth, async (req, res, next) => {
     if (alignment.error) return res.status(409).json(alignment);
     const { tos, topics, weights: bloomWeights } = alignment;
     const setCount = 2;
+    const branding = await loadPrintBranding(pool, req.user.id);
 
     // The new print run's version — stamped on the QR payload so a scanned
     // sheet is bound to this exact generation, and on the set rows so the
@@ -760,6 +762,7 @@ router.post('/:id/generate-sets', requireAuth, async (req, res, next) => {
         durationMinutes: exam.duration_minutes,
         instructions: exam.instructions,
         questions: setQuestions,
+        branding,
         filename: examFilename,
       });
 
@@ -768,6 +771,7 @@ router.post('/:id/generate-sets', requireAuth, async (req, res, next) => {
         examTitle: exam.title,
         setLabel,
         questions: setQuestions,
+        branding,
         filename: answerKeyFilename,
       });
 
@@ -856,6 +860,7 @@ router.post('/:id/generate-sets', requireAuth, async (req, res, next) => {
         tos: { ...tos, bloom_weights: bloomWeights },
         topics,
         actualDistribution,
+        branding,
         filename: tosReportFilename,
       });
       tosReportPath = tosReportFilename;
@@ -914,39 +919,108 @@ router.get('/:id/download/:type', requireAuth, async (req, res, next) => {
 
     // Ownership check (title fetched for the friendly download name)
     const [examRows] = await pool.query(
-      `SELECT e.* FROM exams e
+      `SELECT e.*, s.name AS subject_name, s.code AS subject_code FROM exams e
        JOIN subjects s ON s.id = e.subject_id
        WHERE e.id = :examId AND s.instructor_id = :userId`,
       { examId, userId: req.user.id }
     );
     if (!examRows.length) return res.status(404).json({ error: 'Exam not found.' });
-    const slug = slugifyTitle(examRows[0].title);
+    const exam = examRows[0];
+    const slug = slugifyTitle(exam.title);
+    const branding = await loadPrintBranding(pool, req.user.id);
 
-    let filename, downloadName;
+    let filename, downloadName, currentSet = null;
     if (type === 'tos-report') {
-      const [sets] = await pool.query(`SELECT COUNT(*) AS cnt FROM exam_sets WHERE exam_id = :examId AND is_current = 1`, { examId });
-      if (Number(sets[0].cnt) !== 2) {
+      const [sets] = await pool.query(
+        `SELECT id FROM exam_sets WHERE exam_id = :examId AND is_current = 1 ORDER BY set_label`,
+        { examId }
+      );
+      if (sets.length !== 2) {
         return res.status(404).json({ error: 'Generate the current Set A and Set B before downloading this report.' });
       }
       filename = `tos_report_${examId}.pdf`;
       downloadName = `${slug}_TOS_Report.pdf`;
+
+      if (exam.tos_id) {
+        const [tosRows] = await pool.query(`SELECT * FROM tos WHERE id = :tosId`, { tosId: exam.tos_id });
+        const tos = tosRows[0];
+        const questions = await loadExamSetQuestions(pool, sets[0].id);
+        if (tos && questions.length) {
+          const [topics] = await pool.query(
+            `SELECT * FROM tos_topics WHERE tos_id = :tosId ORDER BY sort_order ASC`,
+            { tosId: tos.id }
+          );
+          const bloomWeights = typeof tos.bloom_weights === 'string'
+            ? JSON.parse(tos.bloom_weights || '{}') : tos.bloom_weights || {};
+          const actualCounts = questions.reduce((counts, question) => {
+            counts[question.bloom] = (counts[question.bloom] || 0) + 1;
+            return counts;
+          }, {});
+          await generateTOSReportPDF({
+            examTitle: exam.title,
+            tos: { ...tos, bloom_weights: bloomWeights },
+            topics,
+            actualDistribution: Object.keys(bloomWeights).map((bloom) => ({
+              bloom,
+              actual: actualCounts[bloom] || 0,
+            })),
+            branding,
+            filename,
+          });
+        }
+      }
     } else if (type === 'exam' || type === 'answerkey' || type === 'omr') {
       if (!setLabel || !['A', 'B'].includes(setLabel)) {
         return res.status(400).json({ error: 'Set label A or B is required.' });
       }
       const column = type === 'exam' ? 'pdf_path' : type === 'answerkey' ? 'answer_key_path' : 'omr_sheet_path';
       const [sets] = await pool.query(
-        `SELECT ${column} AS filename FROM exam_sets WHERE exam_id = :examId AND set_label = :setLabel AND is_current = 1`,
+        `SELECT id, set_label, ${column} AS filename FROM exam_sets
+         WHERE exam_id = :examId AND set_label = :setLabel AND is_current = 1`,
         { examId, setLabel }
       );
       if (!sets.length || !sets[0].filename) {
         return res.status(404).json({ error: 'File not found. Generate the current exam sets first.' });
       }
-      filename = path.basename(sets[0].filename);
+      currentSet = sets[0];
+      filename = path.basename(currentSet.filename);
       const docLabel = { exam: 'Exam_Paper', answerkey: 'Answer_Key', omr: 'OMR_Sheet' }[type];
       downloadName = `${slug}_${docLabel}_Set_${setLabel}.pdf`;
     } else {
       return res.status(400).json({ error: 'Invalid download type.' });
+    }
+
+    // Exam papers and keys are rebuilt from their immutable set snapshots on
+    // download. This keeps the frozen question order while applying the
+    // instructor's current private letterhead and footer. Legacy sets without
+    // snapshots keep their originally saved files.
+    if (currentSet && (type === 'exam' || type === 'answerkey')) {
+      const questions = await loadExamSetQuestions(pool, currentSet.id);
+      const snapshotComplete = questions.length > 0
+        && questions.every((question) => Number(question.snapshot_version) >= 1);
+      if (snapshotComplete) {
+        if (type === 'exam') {
+          await generateExamPDF({
+            examTitle: exam.title,
+            subjectName: exam.subject_name,
+            subjectCode: exam.subject_code,
+            setLabel,
+            durationMinutes: exam.duration_minutes,
+            instructions: exam.instructions,
+            questions,
+            branding,
+            filename,
+          });
+        } else {
+          await generateAnswerKeyPDF({
+            examTitle: exam.title,
+            setLabel,
+            questions,
+            branding,
+            filename,
+          });
+        }
+      }
     }
 
     const filePath = path.join(STORAGE_DIR, filename);

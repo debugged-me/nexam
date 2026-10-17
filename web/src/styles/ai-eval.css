@@ -183,6 +183,75 @@
   color: var(--ink-3, #6F6E69);
 }
 
+/* ── Blind SME Bloom labeling ──────────────────────── */
+.ae-label-list {
+  border-top: 1px solid var(--line);
+}
+
+.ae-label-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(190px, 240px);
+  gap: 20px;
+  padding: 16px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.ae-label-question {
+  min-width: 0;
+  color: var(--ink);
+  font-size: var(--text-sm);
+  line-height: 1.55;
+}
+
+.ae-label-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 10px;
+  margin-bottom: 6px;
+  color: var(--ink-3);
+  font-size: var(--text-xs);
+  text-transform: capitalize;
+}
+
+.ae-label-options {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 3px 24px;
+  margin: 8px 0 0;
+  padding-left: 24px;
+  color: var(--ink-2);
+  font-size: var(--text-xs);
+}
+
+.ae-label-control {
+  align-self: start;
+}
+
+.ae-label-select {
+  width: 100%;
+}
+
+.ae-ai-label {
+  display: block;
+  margin-top: 6px;
+  color: var(--ink-3);
+  font-size: var(--text-xs);
+}
+
+.ae-label-result {
+  display: grid;
+  gap: 6px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  color: var(--ink-2);
+  font-size: var(--text-xs);
+}
+
+.ae-label-result small {
+  color: var(--ink-3);
+}
+
 
 
 /* ---- View tabs under the scorecard -------------------------------------- */
@@ -218,4 +287,19 @@
 }
 .ae-tab:focus-visible { outline: 2px solid var(--action-600); outline-offset: -2px; border-radius: var(--radius-xs); }
 @media (max-width: 991px) { .ae-tab { min-height: 44px; } }
+
+@media (max-width: 768px) {
+  .ae-label-row {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .ae-label-options {
+    grid-template-columns: 1fr;
+  }
+
+  .ae-label-select {
+    min-height: 44px;
+  }
+}
 }

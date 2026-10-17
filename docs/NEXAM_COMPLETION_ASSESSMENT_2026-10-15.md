@@ -24,6 +24,8 @@ The implementation is substantial and its current automated test suites pass. Th
 
 **October 16 visual follow-up:** restored the connected-node flowchart console, charts and expand view while retaining all reporting/duplicate/grounding fixes. Removed the large title/Refresh row and condensed repeated text. Constraints, independent verification and run-specific current similarity status are visible; material scans do not claim question checks passed. The web suite now has **44 passing tests**. Local responsive browser, task-switching, modal, timestamp-replay, reduced-motion, post-generation similarity polling and API-failure display checks passed. This UI-only change does not resolve the remaining project-wide blockers.
 
+**October 17 Phase 1 follow-up:** objective-only Bloom allocation now defaults to **15% Remember / 20% Understand / 25% Apply / 20% Analyze / 20% Evaluate / 0% Create**. Finalization rejects any positive Create allocation because the supported objective formats cannot validly measure original constructed work. The API and syllabus worker share one canonical default, and the web form explains the constraint. Verification: **128 API tests and 44 web tests passed**; web build, lint, syntax, and diff checks passed. The rendered authenticated form still needs a manual visual confirmation because browser control was unavailable in that verification session.
+
 ## Requirements Comparison
 
 | Requirement from the specification | Status | Current evidence | Remaining work |
@@ -32,7 +34,7 @@ The implementation is substantial and its current automated test suites pass. Th
 | PDF/DOCX syllabus upload | Implemented, real DOCX path checked | Three supplied school DOCX syllabi checked; all six DOCX/PDF files text-extracted; identical-file uploads now reuse existing material | Full PDF blueprint acceptance remains pending; cross-format semantic deduplication is not implemented |
 | Extract topics, instructional hours, and learning outcomes | Implemented, real DOCX output checked | TCW 20, PE 2 10, PE 3 25 topics, all four periods retained; course totals 54/36/36 hours; live Gemini blueprint scans completed | Instructor confirmation of proposed per-topic hours/Bloom defaults and full PDF parity |
 | Upload documents, presentations, URLs, and video transcripts | Implemented | PDF, DOCX, PPTX, text, URL, and YouTube material paths exist | Validate difficult websites and caption availability |
-| Instructor-adjustable TOS and Bloom distribution | Implemented | Editable TOS topics, weights, item allocation, and finalization | Complete acceptance testing with realistic blueprints |
+| Instructor-adjustable TOS and Bloom distribution | Implemented; objective-format constraint corrected October 17 | Editable TOS topics, weights, item allocation, and finalization; Create defaults to 0% and blocks finalization when positive | Manually confirm the updated form and complete acceptance testing with realistic blueprints |
 | Show approved-question sufficiency per topic and Bloom level | Implemented | Exact topic-by-Bloom matrix and coverage-gap calculation | Verify with a populated live question bank |
 | Mandatory question review, editing, and approval | Implemented | Draft-only AI output and explicit approval workflow | None identified in the core workflow |
 | Semantic duplicate detection | Implemented | Similarity jobs, flags, review decisions, and approval gates | Validate thresholds against a larger institutional bank |

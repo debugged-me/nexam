@@ -445,6 +445,7 @@ router.put('/:id', async (req, res, next) => {
          explanation = :explanation, status = :status,
          similarity_flag = :similarityFlag, similarity_score = :similarityScore,
          similarity_checked_at = :similarityCheckedAt, similarity_error = :similarityError,
+         sme_bloom = :smeBloom, sme_labeled_by = :smeLabeledBy, sme_labeled_at = :smeLabeledAt,
          approved_by = :approvedBy, approved_at = :approvedAt, updated_at = NOW()
        WHERE id = :id`,
       {
@@ -466,6 +467,9 @@ router.put('/:id', async (req, res, next) => {
         similarityScore: contentChanged ? null : q.similarity_score,
         similarityCheckedAt: contentChanged ? null : q.similarity_checked_at,
         similarityError: contentChanged ? null : q.similarity_error,
+        smeBloom: contentChanged ? null : q.sme_bloom,
+        smeLabeledBy: contentChanged ? null : q.sme_labeled_by,
+        smeLabeledAt: contentChanged ? null : q.sme_labeled_at,
         approvedBy: contentChanged ? null : (approving ? req.user.id : q.approved_by),
         approvedAt: contentChanged ? null : (approving ? new Date() : q.approved_at),
       }

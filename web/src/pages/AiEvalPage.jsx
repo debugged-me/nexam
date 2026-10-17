@@ -31,7 +31,7 @@ const TYPE_LABELS = { mcq: 'Multiple choice', true_false: 'True / false', matchi
 // Two views under the scorecard; ?tab=bloom deep-links the second.
 const TABS = [
   { id: 'generation', label: 'Generation & extraction' },
-  { id: 'bloom', label: 'Bloom review agreement' },
+  { id: 'bloom', label: 'Bloom evaluation' },
 ];
 
 function pct(v, digits = 1) {
@@ -42,6 +42,8 @@ export default function AiEvalPage() {
   const toast = useToast();
   const navigate = useNavigate();
   const [data, setData] = useState(() => api.peek('/ai-eval/summary') ?? null);
+  const [labelingId, setLabelingId] = useState(null);
+  const [labelDrafts, setLabelDrafts] = useState({});
   const [searchParams, setSearchParams] = useSearchParams();
   const tab = searchParams.get('tab') === 'bloom' ? 'bloom' : 'generation';
   const tabRefs = useRef({});
@@ -59,12 +61,32 @@ export default function AiEvalPage() {
   };
 
   const load = useCallback(() => {
-    api.get('/ai-eval/summary')
+    return api.get('/ai-eval/summary')
       .then(setData)
       .catch((err) => toast.error(err.message || 'Could not load AI evaluation metrics.'));
   }, [toast]);
 
   useEffect(() => { load(); }, [load]);
+
+  async function saveGroundTruth(questionId, bloom) {
+    if (!bloom) return;
+    setLabelDrafts((current) => ({ ...current, [questionId]: bloom }));
+    setLabelingId(questionId);
+    try {
+      await api.put(`/ai-eval/questions/${questionId}/ground-truth`, { bloom });
+      toast.success('SME Bloom label saved.');
+      await load();
+    } catch (err) {
+      toast.error(err.message || 'Could not save the SME label.');
+    } finally {
+      setLabelingId(null);
+      setLabelDrafts((current) => {
+        const next = { ...current };
+        delete next[questionId];
+        return next;
+      });
+    }
+  }
 
   // ── Export sheet state (printScope overrides the doc for one print run,
   // then resets via afterprint — same pattern as /scans + /analytics) ──
@@ -95,6 +117,7 @@ export default function AiEvalPage() {
   const typeDist = data.typeDistribution || [];
   const providers = data.providers || [];
   const cm = data.confusionMatrix || {};
+  const evaluationQuestions = data.evaluationQuestions || [];
   const classes = cm.classes || [];
 
   const cap = (s) => (s ? s[0].toUpperCase() + s.slice(1) : '—');
@@ -121,9 +144,9 @@ export default function AiEvalPage() {
     ['Processing success', `${pct(ext.processingSuccessRate)}%`],
     ...(cm.sampleSize > 0 ? [
       ['Bloom agreement', `${pct(cm.overall?.accuracy)}%`],
-      ['Bloom precision', `${pct(cm.overall?.precision)}%`],
-      ['Bloom recall', `${pct(cm.overall?.recall)}%`],
-      ['Bloom F1-score', `${pct(cm.overall?.f1)}%`],
+      ['Bloom macro precision', `${pct(cm.macro?.precision)}%`],
+      ['Bloom macro recall', `${pct(cm.macro?.recall)}%`],
+      ['Bloom macro F1-score', `${pct(cm.macro?.f1)}%`],
     ] : []),
   ];
   const genRows = [
@@ -390,23 +413,90 @@ export default function AiEvalPage() {
         )}
       </div>
 
+      <div className="card mb-3">
+        <div className="card-header">
+          <span className="card-title">Instructor / SME Ground-Truth Labels</span>
+          <span className="text-muted meta-sm">
+            {cm.sampleSize || 0} of {cm.eligibleCount || 0} labeled
+          </span>
+        </div>
+        <div className="card-body">
+          <p className="text-muted meta-sm mb-2">
+            Assign the cognitive level required to answer each question. The independent AI classification stays hidden until you save your label, preventing it from influencing the ground truth.
+          </p>
+          {evaluationQuestions.length === 0 ? (
+            <div className="empty-state empty-state-md">
+              <EmptyStateArt size={88} art="spark" tone={1} />
+              <p>No current quality-checked AI questions are available for SME labeling.</p>
+            </div>
+          ) : (
+            <div className="ae-label-list">
+              {evaluationQuestions.map((question) => (
+                <div className="ae-label-row" key={question.id}>
+                  <div className="ae-label-question">
+                    <div className="ae-label-meta">
+                      <span>{question.subject_name || 'Subject'}</span>
+                      {question.topic && <span>{question.topic}</span>}
+                      <span>{TYPE_LABELS[question.type] || question.type}</span>
+                      <span>{question.status}</span>
+                    </div>
+                    <strong>{question.stem}</strong>
+                    {question.options?.length > 0 && (
+                      <ol className="ae-label-options" type="A">
+                        {question.options.map((option, index) => <li key={`${question.id}-${index}`}>{String(option)}</li>)}
+                      </ol>
+                    )}
+                  </div>
+                  <div className="ae-label-control">
+                    {question.sme_bloom ? (
+                      <div className="ae-label-result">
+                        <span>SME ground truth <strong>{cap(question.sme_bloom)}</strong></span>
+                        <span>AI classified <strong>{cap(question.ai_predicted_bloom)}</strong></span>
+                        <small>Locked after reveal</small>
+                      </div>
+                    ) : (
+                      <>
+                        <label className="form-label" htmlFor={`sme-bloom-${question.id}`}>SME ground truth</label>
+                        <select
+                          id={`sme-bloom-${question.id}`}
+                          className="form-control form-select ae-label-select"
+                          value={labelDrafts[question.id] ?? ''}
+                          disabled={labelingId === question.id}
+                          onChange={(event) => saveGroundTruth(question.id, event.target.value)}
+                        >
+                          <option value="">Select level…</option>
+                          {Object.keys(BLOOM_LEVEL).map((level) => (
+                            <option value={level} key={level}>{cap(level)}</option>
+                          ))}
+                        </select>
+                        <span className="ae-ai-label">AI classification hidden</span>
+                      </>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+
       <div className="card mb-3" data-tour="aieval-matrix">
         <div className="card-header">
           <span className="card-title">Bloom's Taxonomy Classification — Confusion Matrix</span>
-          {cm.sampleSize > 0 && <span className="text-muted meta-sm">Sample size: {cm.sampleSize} reviewed questions</span>}
+          {cm.sampleSize > 0 && <span className="text-muted meta-sm">Sample size: {cm.sampleSize} SME-labeled questions</span>}
         </div>
         <div className="card-body">
           {cm.sampleSize > 0 ? (
             <>
               <div className="dash-kpis mb-3">
                 <KpiCard i={0} icon={Target} tint={3} value={Number(pct(cm.overall?.accuracy))} decimals={1} suffix="%" label="Agreement" />
-                <KpiCard i={1} icon={Crosshair} tint={2} value={Number(pct(cm.overall?.precision))} decimals={1} suffix="%" label="Precision" />
-                <KpiCard i={2} icon={Search} tint={4} value={Number(pct(cm.overall?.recall))} decimals={1} suffix="%" label="Recall" />
-                <KpiCard i={3} icon={GitMerge} tint={1} value={Number(pct(cm.overall?.f1))} decimals={1} suffix="%" label="F1-Score" />
+                <KpiCard i={1} icon={Crosshair} tint={2} value={Number(pct(cm.macro?.precision))} decimals={1} suffix="%" label="Macro precision" />
+                <KpiCard i={2} icon={Search} tint={4} value={Number(pct(cm.macro?.recall))} decimals={1} suffix="%" label="Macro recall" />
+                <KpiCard i={3} icon={GitMerge} tint={1} value={Number(pct(cm.macro?.f1))} decimals={1} suffix="%" label="Macro F1" />
               </div>
 
               <p className="text-muted meta-sm mb-2">
-                Compares independent AI review labels with instructor-approved labels. Only accepted questions with the new review are included; this selected sample is not an unbiased accuracy evaluation.
+                Compares independent AI review labels with explicit instructor/SME ground truth. Include a representative labeled sample across subjects, question types, outcomes, and Bloom levels before using these metrics in the capstone.
                 Diagonal cells show agreement; off-diagonal cells show disagreement.
               </p>
 
@@ -416,7 +506,7 @@ export default function AiEvalPage() {
                     <thead>
                       <tr>
                         <th rowSpan="2" className="cm-axis-label">AI Predicted ↓</th>
-                        <th colSpan={classes.length}>Instructor Confirmed →</th>
+                        <th colSpan={classes.length}>SME Ground Truth →</th>
                       </tr>
                       <tr>
                         {classes.map((cls) => <th key={cls} className="cm-col-header">{cls[0].toUpperCase() + cls.slice(1)}</th>)}
@@ -472,7 +562,7 @@ export default function AiEvalPage() {
           ) : (
             <div className="empty-state empty-state-md">
               <EmptyStateArt size={88} art="spark" tone={1} />
-              <p>No reviewed AI questions yet. The confusion matrix will appear once instructors review and approve or reject AI-generated questions, confirming or correcting the AI's Bloom level assignment.</p>
+              <p>No explicit SME labels yet. Label current quality-checked AI questions above to build the confusion matrix.</p>
             </div>
           )}
         </div>
@@ -561,7 +651,7 @@ export default function AiEvalPage() {
             <div className="report-section-title">Bloom confusion matrix</div>
             <table className="report-table">
               <thead>
-                <tr><th>AI predicted \ Instructor confirmed</th>{classes.map((c) => <th key={c}>{c[0].toUpperCase() + c.slice(1)}</th>)}</tr>
+                <tr><th>AI predicted \ SME ground truth</th>{classes.map((c) => <th key={c}>{c[0].toUpperCase() + c.slice(1)}</th>)}</tr>
               </thead>
               <tbody>
                 {cmRows.map((r, i) => (
@@ -570,8 +660,8 @@ export default function AiEvalPage() {
               </tbody>
             </table>
             <p className="report-note">
-              Sample size: {cm.sampleSize} reviewed questions. Diagonal cells show agreement; off-diagonal cells show disagreement.
-              Only accepted questions with the new review are included — this selected sample is not an unbiased accuracy evaluation.
+              Sample size: {cm.sampleSize} explicitly SME-labeled questions. Diagonal cells show agreement; off-diagonal cells show disagreement.
+              A representative sample is required before these metrics may be reported as capstone evaluation results.
             </p>
           </>
         )}

@@ -18,6 +18,7 @@ import useJobStream from '../lib/useJobStream.js';
 import { cancelJob } from '../lib/useJobs.js';
 import { BLOOM_LABELS } from '../lib/insights.js';
 import { SPRING_SOFT } from '../lib/motion.js';
+import { missingQuestionCount } from '../lib/pipelineRun.js';
 import Popover from './Popover.jsx';
 import RichText from './RichText.jsx';
 
@@ -79,6 +80,7 @@ export default function GenerationStream({ jobId, reviewHref, onSettled, onDismi
   const pct = status === 'done' ? 100 : total ? Math.min(100, Math.round((done / total) * 100)) : 0;
   const slot = progress?.lastSlot;
   const failedSlots = Array.isArray(result?.failedSlots) ? result.failedSlots : [];
+  const missingQuestions = missingQuestionCount(failedSlots);
 
   const knowledgeDrafts = Number(result?.knowledgeDrafted) || drafts.filter((d) => d.grounding === 'knowledge').length;
   const counts = [
@@ -104,7 +106,7 @@ export default function GenerationStream({ jobId, reviewHref, onSettled, onDismi
               : active ? 'Preparing the blueprint matrix…'
               : status === 'failed' ? (feed.error || 'The run stopped with an error. Drafts already stored are kept.')
               : counts.length ? counts.join(' · ')
-              : failedSlots.length ? `No drafts saved — ${failedSlots.length} cell${failedSlots.length === 1 ? '' : 's'} could not be supported. See why below.`
+              : failedSlots.length ? `No drafts saved — ${missingQuestions} question${missingQuestions === 1 ? '' : 's'} missing across ${failedSlots.length} unsupported cell${failedSlots.length === 1 ? '' : 's'}. See why below.`
               : 'No new drafts were needed.'}
           </span>
         </div>
@@ -172,7 +174,7 @@ export default function GenerationStream({ jobId, reviewHref, onSettled, onDismi
 
       {!active && failedSlots.length > 0 && (
         <details className="gs-failed" open={!drafts.length}>
-          <summary>{failedSlots.length} cell{failedSlots.length === 1 ? '' : 's'} could not be filled</summary>
+          <summary>{missingQuestions} question{missingQuestions === 1 ? '' : 's'} missing across {failedSlots.length} cell{failedSlots.length === 1 ? '' : 's'}</summary>
           <ul>
             {failedSlots.map((f, i) => (
               <li key={i}><b>{f.topic}</b> · {BLOOM_LABELS[f.bloom] || f.bloom} — {f.reason}</li>

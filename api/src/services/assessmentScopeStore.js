@@ -17,7 +17,7 @@ export async function loadScopeChunks(tos, userId, db = pool) {
 export async function ownedChunks(subjectId, userId, ids, db = pool) {
   if (!ids.length) return [];
   const [rows] = await db.query(
-    `SELECT c.id, c.text, c.ordinal, c.material_id AS materialId, m.title
+    `SELECT c.id, c.text, c.ordinal, c.material_id AS materialId, m.title, m.is_syllabus
      FROM material_chunks c JOIN materials m ON m.id = c.material_id
      JOIN subjects s ON s.id = m.subject_id
      WHERE c.id IN (:ids) AND c.subject_id = :sid AND m.subject_id = :sid

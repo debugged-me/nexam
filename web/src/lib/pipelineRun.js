@@ -8,6 +8,14 @@ export function selectPipelineJob(jobs, pickedId) {
   return jobs.find((j) => ['queued', 'running'].includes(j.status)) || jobs[0] || null;
 }
 
+export function missingQuestionCount(failedSlots = []) {
+  return failedSlots.reduce((sum, slot) => {
+    const count = Number.isFinite(Number(slot?.count)) ? Number(slot.count) : 0;
+    const generated = Number.isFinite(Number(slot?.generated)) ? Number(slot.generated) : 0;
+    return sum + Math.max(0, count - generated);
+  }, 0);
+}
+
 export function generationSummary(job, feed = {}) {
   const result = feed.result || jobJson(job?.result);
   const progress = feed.progress || jobJson(job?.progress);
@@ -21,7 +29,7 @@ export function generationSummary(job, feed = {}) {
     totalCells: known(result.slotsTotal ?? progress.slotsTotal),
     doneCells: known(result.slotsDone ?? progress.slotsDone),
     failedSlots,
-    missingQuestions: failedSlots.reduce((sum, s) => sum + Math.max(0, number(s.count) - number(s.generated)), 0),
+    missingQuestions: missingQuestionCount(failedSlots),
   };
 }
 

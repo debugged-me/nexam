@@ -26,6 +26,7 @@ import { parseTimeFrame, validateSources, scopeKey, questionScopeSql } from '../
 import { sourceHash } from '../services/syllabusBlueprint.js';
 import { readJson } from '../services/assessmentScope.js';
 import { loadScopeChunks, ownedChunks } from '../services/assessmentScopeStore.js';
+import { compareSyllabusCourse, generationReadiness } from '../services/generationReadiness.js';
 import {
   BLOOM_LEVELS,
   DEFAULT_OBJECTIVE_BLOOM,
@@ -260,7 +261,29 @@ router.get('/:id', async (req, res, next) => {
       plan = Object.fromEntries(topics.map((t, i) => [t.id, rows[i]]));
     } catch { plan = null; }
 
-    res.json({ tos, topics, coverage, usage, plan });
+    let readiness;
+    try {
+      const scopedChunks = await loadScopeChunks(tos, req.user.id);
+      readiness = await generationReadiness(tos, req.user.id, scopedChunks);
+    } catch (err) {
+      readiness = { ready: false, code: 'ASSESSMENT_SCOPE_REQUIRED', error: err.message };
+    }
+
+    let courseIdentity = null;
+    const sourceMeta = readJson(tos.source_meta);
+    if (sourceMeta?.materialId) {
+      const [sourceRows] = await pool.query(
+        `SELECT content FROM materials
+         WHERE id = :materialId AND subject_id = :subjectId AND created_by = :userId LIMIT 1`,
+        { materialId: sourceMeta.materialId, subjectId: tos.subject_id, userId: req.user.id }
+      );
+      courseIdentity = compareSyllabusCourse(sourceRows[0]?.content, {
+        name: tos.subject_name,
+        code: tos.subject_code,
+      });
+    }
+
+    res.json({ tos, topics, coverage, usage, plan, generationReadiness: readiness, courseIdentity });
   } catch (err) { next(err); }
 });
 

@@ -12,7 +12,7 @@ import '../styles/assessment-scope.css';
  */
 import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { Plus, Trash2, BookOpen, Sparkles, FileText, Pencil, ListOrdered, Layers, Clock, Check, X, AlertTriangle, Lock, Copy, GripVertical } from 'lucide-react';
+import { Plus, Trash2, BookOpen, Sparkles, FileText, Pencil, ListOrdered, Layers, Clock, Check, X, AlertTriangle, ArrowRight, Lock, Copy, GripVertical } from 'lucide-react';
 import { DndContext, PointerSensor, KeyboardSensor, closestCenter, useSensor, useSensors } from '@dnd-kit/core';
 import { SortableContext, arrayMove, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
@@ -550,7 +550,14 @@ export default function TosDetailPage() {
   const topicGrid = useGridTable({ data: data?.topics || [], columns: TOPIC_PAGER_COLUMNS, pageSize: TOPIC_PAGE_SIZE, storageKey: 'tos-topics' });
 
   if (!data) return <AppShell pageClass="blueprint-detail" activeNav="tos" pageTitle="Blueprint"><CardsSkeleton tiles={3} /></AppShell>;
-  const { tos, topics, coverage = {}, usage = { exams: 0, scans: 0 } } = data;
+  const {
+    tos,
+    topics,
+    coverage = {},
+    usage = { exams: 0, scans: 0 },
+    generationReadiness,
+    courseIdentity,
+  } = data;
   const finalized = tos.status === 'finalized';
   const totalHours = Number(topics.reduce((s, t) => s + (Number(t.instructional_hours) || 0), 0).toFixed(2));
 
@@ -569,6 +576,8 @@ export default function TosDetailPage() {
       });
     }
   }
+  const generationReady = generationReadiness?.ready !== false;
+  const needsLessons = finalized && missingSlots > 0 && generationReadiness?.code === 'LESSON_EVIDENCE_REQUIRED';
 
   // The topics table paginates; safeTopicPage self-heals if deletions shrink
   // the last page. Rows index into matrix.rows by ABSOLUTE position.
@@ -661,9 +670,11 @@ export default function TosDetailPage() {
             type="button"
             className="btn btn-brand btn-sm"
             onClick={handleGenerate}
-            disabled={generating || !finalized || generationActive || !matrix?.rows.length || missingSlots === 0}
+            disabled={generating || !finalized || generationActive || !generationReady || !matrix?.rows.length || missingSlots === 0}
             title={generationActive
               ? 'A generation run for this blueprint is already in progress — watch it under Background work'
+              : !generationReady
+                ? generationReadiness?.error || 'Upload processed supporting lesson materials before generating questions'
               : !matrix?.rows.length
                 ? 'Add topics to the blueprint first'
                 : missingSlots > 0
@@ -684,12 +695,41 @@ export default function TosDetailPage() {
         <StageRail steps={railSteps} />
       </div>
 
+      {courseIdentity?.mismatch && (
+        <section className="callout callout-warning mb-2" aria-label="Syllabus course mismatch warning">
+          <span className="callout-icon" aria-hidden="true"><AlertTriangle /></span>
+          <div>
+            <div className="callout-title">The syllabus appears to belong to a different course</div>
+            <p className="callout-detail">
+              This blueprint is under <strong>{courseIdentity.subjectCode ? `${courseIdentity.subjectCode} — ` : ''}{courseIdentity.subjectName}</strong>,
+              but the uploaded syllabus says <strong>{courseIdentity.syllabusCourseTitle}</strong>. Review the subject assignment before building an exam.
+            </p>
+            <p className="callout-note"><Link to="/materials">Review uploaded materials <ArrowRight size={13} /></Link></p>
+          </div>
+        </section>
+      )}
+
+      {needsLessons && (
+        <section className="callout callout-warning mb-2" aria-label="Supporting lessons required">
+          <span className="callout-icon" aria-hidden="true"><BookOpen /></span>
+          <div>
+            <div className="callout-title">Supporting lessons are required for {missingSlots} missing question{missingSlots === 1 ? '' : 's'}</div>
+            <p className="callout-detail">
+              The syllabus can build this TOS, but Nexam only writes questions from processed lesson content that contains the answers. Upload lecture notes, modules, slides, readings, or lesson links for this subject.
+            </p>
+            <p className="callout-note">
+              <Link to={`/materials?upload=1&subject_id=${encodeURIComponent(tos.subject_id)}`}>Upload supporting lessons <ArrowRight size={13} /></Link>
+            </p>
+          </div>
+        </section>
+      )}
+
       {tos.source_meta && <section className="card mb-2" aria-label="Syllabus source and planning assumptions">
         <div className="card-header"><h2 className="card-title">Syllabus source and planning assumptions</h2></div>
         <div className="card-body">
           {parseScope(tos.source_meta)?.courseHours && <p><strong>{parseScope(tos.source_meta).courseHours.value} course hours stated in the syllabus.</strong> “{parseScope(tos.source_meta).courseHours.evidence}”</p>}
           <ul>{(parseScope(tos.source_meta)?.warnings || []).map((warning) => <li key={warning}>{warning}</li>)}</ul>
-          <p>A syllabus is sufficient to build this blueprint. Factual questions need substantive supporting content; an outline alone may not provide it.</p>
+          <p><strong>The syllabus builds the blueprint only.</strong> Question generation requires separate supporting lesson content with enough evidence to answer each planned question.</p>
         </div>
       </section>}
 

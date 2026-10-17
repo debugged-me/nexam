@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { selectPipelineJob, generationSummary, syllabusTopicGroups, draftTimeline, similaritySummary } from './pipelineRun.js';
+import { selectPipelineJob, generationSummary, missingQuestionCount, syllabusTopicGroups, draftTimeline, similaritySummary } from './pipelineRun.js';
 
 describe('pipeline reports recorded work', () => {
   it('selects a requested historic run even while another task is active', () => {
@@ -8,6 +8,14 @@ describe('pipeline reports recorded work', () => {
     expect(selectPipelineJob(jobs, null)?.id).toBe('active');
     expect(selectPipelineJob([], 'missing')).toBeNull();
     expect(selectPipelineJob(jobs, 'outside-recent-window')).toBeNull();
+  });
+
+  it('counts missing questions separately from failed blueprint cells', () => {
+    expect(missingQuestionCount([
+      { count: 2, generated: 0 },
+      { count: 1, generated: 0 },
+      { count: 3, generated: 1 },
+    ])).toBe(5);
   });
   it('restores completed counts after refresh and keeps questions separate from cells', () => {
     const job = { status: 'done', progress: null, result: JSON.stringify({ generated: 7, adopted: 2, skippedCells: 1, slotsDone: 4, slotsTotal: 4, failedSlots: [{ count: 5, generated: 2 }] }) };

@@ -14,6 +14,7 @@
 import { Router } from 'express';
 import { parseTimeFrame } from '../services/assessmentScope.js';
 import { loadScopeChunks } from '../services/assessmentScopeStore.js';
+import { generationReadiness } from '../services/generationReadiness.js';
 import aiProvider from '../services/aiProvider.js';
 import jobs from '../services/jobs.js';
 import { pipelineStage } from '../services/pipelineStage.js';
@@ -331,8 +332,21 @@ router.post('/generate-questions', requireAuth, rateLimit({ name: 'ai-generate',
         error: 'Finalize the TOS after reviewing its topics, hours, outcomes, and Bloom distribution before generating questions.',
       });
     }
-    try { await loadScopeChunks(rows[0], req.user.id); }
+    let scopedChunks;
+    try { scopedChunks = await loadScopeChunks(rows[0], req.user.id); }
     catch (err) { return res.status(422).json({ error: err.message }); }
+    const readiness = await generationReadiness(rows[0], req.user.id, scopedChunks);
+    if (!readiness.ready) {
+      return res.status(422).json({
+        error: 'Upload processed supporting lesson materials before generating questions. The syllabus plans the blueprint but is not answer evidence.',
+        code: readiness.code,
+        readiness,
+        action: {
+          label: 'Upload supporting lessons',
+          href: `/materials?upload=1&subject_id=${encodeURIComponent(rows[0].subject_id)}`,
+        },
+      });
+    }
 
     // A second run for the same blueprint only makes a parallel batch of
     // duplicates. Generating a different blueprint at the same time is fine —

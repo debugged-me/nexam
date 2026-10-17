@@ -281,14 +281,14 @@ export default function PipelinePage() {
 
   /* ── Outcome mix (donut) — questions and cells labelled separately. ── */
   const outcomeData = {
-    labels: ['Drafted questions', 'Reused questions', 'Covered cells', 'Cells held'],
+    labels: ['Drafted questions', 'Reused questions', 'Covered cells', 'Missing questions'],
     datasets: [{
-      data: [stats.drafted, stats.adopted, stats.coveredCells, stats.failedSlots.length],
+      data: [stats.drafted, stats.adopted, stats.coveredCells, stats.missingQuestions],
       backgroundColor: [pal.accent, pal.green, pal.faint, pal.red],
       borderWidth: 2, borderColor: cssVar('--surface', '#fff'),
     }],
   };
-  const outcomeTotal = stats.drafted + stats.adopted + stats.coveredCells + stats.failedSlots.length;
+  const outcomeTotal = stats.drafted + stats.adopted + stats.coveredCells + stats.missingQuestions;
 
   /* ── Drafts by Bloom level (bars) ── */
   const bloomData = {
@@ -364,7 +364,7 @@ export default function PipelinePage() {
   const edges = graphMaterial ? MATERIAL_EDGES : QUESTION_EDGES;
   const stages = Object.fromEntries(related.map((task) => [task.type, task.status]).reverse());
   if (graphMaterial && job) stages[job.type] = status;
-  const outcomes = { saved: stats.drafted, held: stats.failedSlots.length, covered: stats.coveredCells, reused: stats.adopted };
+  const outcomes = { saved: stats.drafted, held: stats.missingQuestions, covered: stats.coveredCells, reused: stats.adopted };
   const graphTitle = graphMaterial ? 'Material flow' : 'Question flow';
   const flowGraph = (
     <svg className="pc-graph" viewBox="0 0 960 320" role="img" data-tour="pipe-graph"
@@ -523,7 +523,7 @@ export default function PipelinePage() {
             <div className="pc-kpi" data-tone="blue"><b>{stats.drafted}</b><span>drafted</span></div>
             <div className="pc-kpi" data-tone="green"><b>{stats.adopted}</b><span>reused</span></div>
             <div className="pc-kpi" data-tone="slate"><b>{stats.coveredCells}</b><span>covered</span></div>
-            <div className="pc-kpi" data-tone="rose"><b>{stats.failedSlots.length}</b><span>held back</span></div>
+            <div className="pc-kpi" data-tone="rose"><b>{stats.missingQuestions}</b><span>questions missing · {stats.failedSlots.length} cells</span></div>
             <div className="pc-kpi pc-kpi--wide">
               <b>{stats.doneCells ?? '—'}<em>/{stats.totalCells ?? '—'}</em></b><span>blueprint cells</span>
               <i className="pc-kpi-bar"><i style={{ width: stats.totalCells ? `${(stats.doneCells || 0) / stats.totalCells * 100}%` : (running ? '30%' : '0%') }} /></i>
@@ -565,7 +565,7 @@ export default function PipelinePage() {
                 </div>
                 <ul className="pc-legend">
                   {[['Drafted', stats.drafted, pal.accent], ['Reused', stats.adopted, pal.green],
-                    ['Covered', stats.coveredCells, pal.faint], ['Held', stats.failedSlots.length, pal.red]].map(([label, n, c]) => (
+                    ['Covered cells', stats.coveredCells, pal.faint], ['Missing questions', stats.missingQuestions, pal.red]].map(([label, n, c]) => (
                     <li key={label}>
                       <i style={{ background: c }} />
                       <span>{label}</span>

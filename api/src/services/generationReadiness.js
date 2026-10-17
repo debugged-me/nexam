@@ -25,6 +25,17 @@ export function readinessFromChunks(chunks = [], scoped = true) {
   };
 }
 
+export function syllabusFinalizationBlock(tos, readiness) {
+  if (!tos?.source_meta) return null;
+  if (!tos.assessment_scope || !tos.scope_key) {
+    return 'Review and confirm Assessment Coverage with supporting lesson passages before finalizing this syllabus blueprint.';
+  }
+  if (!readiness?.ready) {
+    return 'Select at least one processed non-syllabus lesson passage in Assessment Coverage before finalizing this syllabus blueprint.';
+  }
+  return null;
+}
+
 export async function generationReadiness(tos, userId, scopedChunks, db = pool) {
   if (Array.isArray(scopedChunks)) return readinessFromChunks(scopedChunks, true);
 

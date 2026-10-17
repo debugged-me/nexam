@@ -26,7 +26,12 @@ import { parseTimeFrame, validateSources, scopeKey, questionScopeSql } from '../
 import { sourceHash } from '../services/syllabusBlueprint.js';
 import { readJson } from '../services/assessmentScope.js';
 import { loadScopeChunks, ownedChunks } from '../services/assessmentScopeStore.js';
-import { compareSyllabusCourse, generationReadiness } from '../services/generationReadiness.js';
+import {
+  compareSyllabusCourse,
+  generationReadiness,
+  readinessFromChunks,
+  syllabusFinalizationBlock,
+} from '../services/generationReadiness.js';
 import {
   BLOOM_LEVELS,
   DEFAULT_OBJECTIVE_BLOOM,
@@ -477,8 +482,13 @@ router.post('/:id/finalize', async (req, res, next) => {
     if (!tos) return res.status(404).json({ error: 'TOS not found.' });
     if (tos.status === 'finalized') return res.json({ tos, message: 'TOS is already finalized.' });
 
-    try { await loadScopeChunks(tos, req.user.id); }
+    let scopedChunks;
+    try { scopedChunks = await loadScopeChunks(tos, req.user.id); }
     catch (err) { return res.status(422).json({ error: err.message }); }
+
+    const sourceReadiness = Array.isArray(scopedChunks) ? readinessFromChunks(scopedChunks) : null;
+    const sourceBlock = syllabusFinalizationBlock(tos, sourceReadiness);
+    if (sourceBlock) return res.status(422).json({ error: sourceBlock, code: 'ASSESSMENT_COVERAGE_REQUIRED' });
 
     await recalcTopicItemCounts(tos.id);
     const [topics] = await pool.query(

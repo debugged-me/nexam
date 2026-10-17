@@ -6,6 +6,7 @@ import {
   extractSyllabusCourseTitle,
   generationReadiness,
   readinessFromChunks,
+  syllabusFinalizationBlock,
 } from '../src/services/generationReadiness.js';
 
 after(async () => {
@@ -38,6 +39,14 @@ test('scoped supporting lesson chunks make generation ready', () => {
     lessonChunks: 2,
     code: null,
   });
+});
+
+test('syllabus blueprints require confirmed lesson coverage before finalization', () => {
+  const syllabus = { source_meta: '{}', assessment_scope: null, scope_key: null };
+  assert.match(syllabusFinalizationBlock(syllabus, null), /Review and confirm Assessment Coverage/);
+  assert.match(syllabusFinalizationBlock({ ...syllabus, assessment_scope: '{}', scope_key: 'scope' }, { ready: false }), /non-syllabus lesson passage/);
+  assert.equal(syllabusFinalizationBlock({ ...syllabus, assessment_scope: '{}', scope_key: 'scope' }, { ready: true }), null);
+  assert.equal(syllabusFinalizationBlock({ source_meta: null }, null), null, 'manual blueprints keep subject-wide finalization');
 });
 
 test('unscoped readiness uses only processed non-syllabus chunks from the owned subject', async () => {

@@ -24,8 +24,8 @@ let students;
 let insertedScans;
 let deletedScanIds;
 
-const QUESTIONS = [
-  { id: QUESTION, type: 'mcq', answer: 'Paris', options: JSON.stringify(['Mumbai', 'Paris', 'London']), sort_order: 1 },
+const SNAPSHOT_QUESTIONS = [
+  { id: QUESTION, type: 'mcq', answer: 'Paris', options: JSON.stringify(['Mumbai', 'Paris', 'London']), sort_order: 1, snapshot_version: 1 },
 ];
 
 function resetStore() {
@@ -56,8 +56,10 @@ const query = async (sql, p) => {
   if (/SELECT id FROM exam_sets WHERE id/.test(sql)) {
     return [[{ id: SET_A }]];
   }
-  if (/FROM exam_set_questions esq\s+JOIN questions/.test(sql)) {
-    return [QUESTIONS];
+  if (/FROM exam_set_questions esq\s+LEFT JOIN questions/.test(sql)) {
+    assert.match(sql, /snapshot_version/);
+    assert.match(sql, /question_answer/);
+    return [SNAPSHOT_QUESTIONS];
   }
   // findOrCreateStudent — student_number blind index first.
   if (/FROM students\s+WHERE instructor_id = :uid AND student_number_hash/.test(sql)) {
@@ -159,7 +161,7 @@ const SUBMIT = {
   answers: [{ itemNumber: 1, markedAnswer: 'B', ambiguous: false }],
 };
 
-test('a first scan for a student inserts and scores', async (t) => {
+test('a first scan scores against the frozen set snapshot', async (t) => {
   const { post } = await boot(t);
   const res = await post({ ...SUBMIT, clientScanId: 'scan-key-0001' });
   assert.equal(res.status, 201);

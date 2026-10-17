@@ -295,9 +295,9 @@ export default function ExamDetailPage() {
     }
   }
 
-  function exportUrl(format) {
+  function exportUrl(format, set = 'A') {
     const base = import.meta.env.VITE_API_BASE || '/api';
-    const params = new URLSearchParams({ token: getToken() });
+    const params = new URLSearchParams({ token: getToken(), set });
     return `${base}/exams/${id}/export/${format}?${params.toString()}`;
   }
 
@@ -313,8 +313,11 @@ export default function ExamDetailPage() {
       const cfg = await api.get('/materials/drive-config');
       if (!cfg?.clientId) throw new Error('Google sign-in is not configured — a superadmin can set it in Settings.');
       const token = await requestFormsToken(cfg.clientId, cfg.boundEmail);
-      toast.live(liveId, `Creating quiz — ${questions.length} questions…`);
-      const res = await createFormsQuiz(token, { title: `${exam.title} — Nexam`, questions });
+      toast.live(liveId, `Creating quiz — ${deliveryQuestions.length} questions…`);
+      const res = await createFormsQuiz(token, {
+        title: `${exam.title} — Nexam${hasSets ? ' — Set A' : ''}`,
+        questions: deliveryQuestions,
+      });
       await api.put(`/exams/${id}/google-form`, {
         form_id: res.formId, url: res.responderUri, edit_url: res.editUrl,
       });
@@ -336,18 +339,24 @@ export default function ExamDetailPage() {
   const totalScans = parseInt(results?.stats?.total_scans || 0, 10);
   const reviewOpen = parseInt(results?.stats?.needs_review_count || 0, 10);
   const hasSets = Array.isArray(sets) && sets.length > 0;
+  const legacySets = hasSets ? sets.filter((set) => !set.snapshot_complete) : [];
   const showDownloads = downloadsVisible || hasSets;
   const accent = groupColor(exam.subject_id || exam.subject_name);
   const setLabels = hasSets
     ? sets.map((s) => s.set_label)
     : Array.from({ length: exam.set_count }, (_, i) => String.fromCharCode(65 + i));
+  const deliveryQuestions = hasSets
+    ? (sets.find((s) => s.set_label === 'A')?.questions || questions)
+    : questions;
 
   // Print-ready questions in the chosen set's order (Set B follows the
   // generated shuffle; fall back to canonical order when no set exists).
   const printSet = printCfg.set;
   const setDef = hasSets ? sets.find((s) => s.set_label === printSet) : null;
-  const printQuestions = setDef?.question_ids?.length
-    ? setDef.question_ids.map((qid) => questions.find((q) => q.id === qid)).filter(Boolean)
+  const printQuestions = setDef?.questions?.length
+    ? setDef.questions
+    : setDef?.question_ids?.length
+      ? setDef.question_ids.map((qid) => questions.find((q) => q.id === qid)).filter(Boolean)
     : questions;
 
   function questionMenu(e, q) {
@@ -416,14 +425,25 @@ export default function ExamDetailPage() {
 
       <div className="exam-detail-layout">
         <div className="exam-detail-main">
-          {/* Outputs re-verify every AI question's quality review; say why
-              before a download link opens a refusal in a new tab. */}
+          {/* Existing snapshots remain deliverable even if the editable live
+              exam later needs a renewed AI review before regeneration. */}
           {data.outputBlock && (
             <div className="callout callout-warning mb-2" role="alert">
               <span className="callout-icon"><AlertTriangle aria-hidden="true" /></span>
               <div>
-                <div className="callout-title">Downloads and exports are blocked</div>
+                <div className="callout-title">{data.outputBlock.frozenSetsAvailable ? 'Live exam needs review before regeneration' : 'Output generation is blocked'}</div>
                 <div className="callout-detail">{data.outputBlock.message}</div>
+              </div>
+            </div>
+          )}
+          {legacySets.length > 0 && (
+            <div className="callout callout-warning mb-2" role="alert">
+              <span className="callout-icon"><AlertTriangle aria-hidden="true" /></span>
+              <div>
+                <div className="callout-title">Legacy sets are not content-frozen</div>
+                <div className="callout-detail">
+                  Set {legacySets.map((set) => set.set_label).join(' and ')} predates immutable snapshots. Its saved PDFs remain downloadable, but browser previews, LMS exports, and OMR scoring use the current question bank until you regenerate the sets.
+                </div>
               </div>
             </div>
           )}
@@ -434,7 +454,9 @@ export default function ExamDetailPage() {
                 <article key={label} className="print-pack">
                   <header className="print-pack-head">
                     <span className="print-pack-set">Set {label}</span>
-                    <span className="print-pack-meta">{questions.length} {questions.length === 1 ? 'item' : 'items'}</span>
+                    <span className="print-pack-meta">
+                      {sets.find((set) => set.set_label === label)?.questions?.length || questions.length} {(sets.find((set) => set.set_label === label)?.questions?.length || questions.length) === 1 ? 'item' : 'items'} · {sets.find((set) => set.set_label === label)?.snapshot_complete ? 'frozen' : 'legacy'}
+                    </span>
                     <QrCode size={18} className="print-pack-qr" aria-hidden="true" />
                   </header>
                   <div className="print-pack-files">
@@ -565,12 +587,14 @@ export default function ExamDetailPage() {
                   <FileText size={16} aria-hidden="true" /><span><strong>TOS report</strong><small>Blueprint coverage · PDF</small></span><Download size={14} aria-hidden="true" />
                 </a>
               )}
-              <a className="print-pack-file" href={exportUrl('gift')} target="_blank" rel="noreferrer">
-                <Download size={16} aria-hidden="true" /><span><strong>Moodle</strong><small>GIFT</small></span><Download size={14} aria-hidden="true" />
-              </a>
-              <a className="print-pack-file" href={exportUrl('xml')} target="_blank" rel="noreferrer">
-                <Download size={16} aria-hidden="true" /><span><strong>Canvas</strong><small>QTI XML</small></span><Download size={14} aria-hidden="true" />
-              </a>
+              {(hasSets ? setLabels : ['A']).flatMap((label) => ([
+                <a key={`gift-${label}`} className="print-pack-file" href={exportUrl('gift', label)} target="_blank" rel="noreferrer">
+                  <Download size={16} aria-hidden="true" /><span><strong>Moodle · Set {label}</strong><small>GIFT · {sets.find((set) => set.set_label === label)?.snapshot_complete ? 'frozen snapshot' : 'legacy live fallback'}</small></span><Download size={14} aria-hidden="true" />
+                </a>,
+                <a key={`xml-${label}`} className="print-pack-file" href={exportUrl('xml', label)} target="_blank" rel="noreferrer">
+                  <Download size={16} aria-hidden="true" /><span><strong>Canvas · Set {label}</strong><small>QTI XML · {sets.find((set) => set.set_label === label)?.snapshot_complete ? 'frozen snapshot' : 'legacy live fallback'}</small></span><Download size={14} aria-hidden="true" />
+                </a>,
+              ]))}
               {exam.google_form_url ? (
                 <div className="print-pack-file gf-created" title={exam.google_form_url}>
                   <ClipboardList size={16} aria-hidden="true" />

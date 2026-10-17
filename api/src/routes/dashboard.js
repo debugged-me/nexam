@@ -270,7 +270,7 @@ router.get('/', requireAuth, async (req, res, next) => {
     // /analytics/attention criteria: ≥3 responses, under 50% correct).
     const [[weakRow]] = await pool.query(
       `SELECT COUNT(*) AS n FROM (
-         SELECT q.id
+         SELECT COALESCE(esq.question_id, eq.question_id) AS id
          FROM scan_answers sa
          JOIN scan_results sr ON sr.id = sa.scan_result_id
          JOIN exams e ON e.id = sr.exam_id
@@ -283,9 +283,9 @@ router.get('/', requireAuth, async (req, res, next) => {
            ON sr.exam_set_id IS NULL
           AND eq.exam_id = sr.exam_id
           AND eq.sort_order = sa.item_number
-         JOIN questions q ON q.id = COALESCE(esq.question_id, eq.question_id)
+         LEFT JOIN questions q ON q.id = COALESCE(esq.question_id, eq.question_id)
          WHERE s.instructor_id = :uid
-         GROUP BY q.id
+         GROUP BY COALESCE(esq.question_id, eq.question_id)
          HAVING COUNT(*) >= 3 AND SUM(sa.is_correct) / COUNT(*) < 0.5
        ) weak`,
       { uid: userId }

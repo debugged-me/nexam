@@ -28,16 +28,28 @@ const QUESTION_JOINS = `
     ON sr.exam_set_id IS NULL
    AND eq.exam_id = sr.exam_id
    AND eq.sort_order = sa.item_number
-  JOIN questions q ON q.id = COALESCE(esq.question_id, eq.question_id)`;
+  LEFT JOIN questions q ON q.id = COALESCE(esq.question_id, eq.question_id)`;
+
+const QUESTION_TOPIC = `CASE
+  WHEN esq.snapshot_version >= 1 THEN esq.question_topic
+  ELSE q.topic
+END`;
+const QUESTION_ID = `COALESCE(esq.question_id, eq.question_id)`;
+const QUESTION_BLOOM = `CASE WHEN esq.snapshot_version >= 1 THEN esq.question_bloom ELSE q.bloom END`;
+const QUESTION_TYPE = `CASE WHEN esq.snapshot_version >= 1 THEN esq.question_type ELSE q.type END`;
+const QUESTION_STEM = `CASE WHEN esq.snapshot_version >= 1 THEN esq.question_stem ELSE q.stem END`;
+const QUESTION_OPTIONS = `CASE WHEN esq.snapshot_version >= 1 THEN esq.question_options ELSE q.options END`;
+const QUESTION_ANSWER = `CASE WHEN esq.snapshot_version >= 1 THEN esq.question_answer ELSE q.answer END`;
+const QUESTION_EXPLANATION = `CASE WHEN esq.snapshot_version >= 1 THEN esq.question_explanation ELSE q.explanation END`;
 
 /** Mastery per topic (theme) — optionally scoped to one exam. */
 async function themeBreakdown(userId, examId = null) {
   const [rows] = await pool.query(
     `SELECT
-       COALESCE(NULLIF(q.topic, ''), 'Uncategorized') AS topic,
+       COALESCE(NULLIF(${QUESTION_TOPIC}, ''), 'Uncategorized') AS topic,
        COUNT(*) AS responses,
        SUM(sa.is_correct) AS correct_count,
-       COUNT(DISTINCT q.id) AS items,
+       COUNT(DISTINCT COALESCE(esq.question_id, eq.question_id)) AS items,
        COUNT(DISTINCT sr.exam_id) AS exams
      FROM scan_answers sa
      JOIN scan_results sr ON sr.id = sa.scan_result_id
@@ -59,17 +71,17 @@ async function themeBreakdown(userId, examId = null) {
 async function bloomBreakdown(userId, examId = null) {
   const [rows] = await pool.query(
     `SELECT
-       q.bloom,
+       ${QUESTION_BLOOM} AS bloom,
        COUNT(*) AS responses,
        SUM(sa.is_correct) AS correct_count,
-       COUNT(DISTINCT q.id) AS items
+       COUNT(DISTINCT ${QUESTION_ID}) AS items
      FROM scan_answers sa
      JOIN scan_results sr ON sr.id = sa.scan_result_id
      JOIN exams e ON e.id = sr.exam_id
      JOIN subjects s ON s.id = e.subject_id
      ${QUESTION_JOINS}
      WHERE s.instructor_id = :userId ${examId ? 'AND sr.exam_id = :examId' : ''}
-     GROUP BY q.bloom`,
+     GROUP BY bloom`,
     { userId, examId }
   );
   return rows.map((r) => ({
@@ -95,7 +107,10 @@ router.get('/attention', requireAuth, async (req, res, next) => {
          e.id AS exam_id,
          e.title AS exam_title,
          s.name AS subject_name,
-         q.stem, q.bloom, q.topic, q.type,
+         ${QUESTION_STEM} AS stem,
+         ${QUESTION_BLOOM} AS bloom,
+         ${QUESTION_TOPIC} AS topic,
+         ${QUESTION_TYPE} AS type,
          COUNT(*) AS responses,
          SUM(sa.is_correct) AS correct_count,
          MIN(sa.correct_answer) AS key_answer,
@@ -106,7 +121,7 @@ router.get('/attention', requireAuth, async (req, res, next) => {
        JOIN subjects s ON s.id = e.subject_id
        ${QUESTION_JOINS}
        WHERE s.instructor_id = :userId ${examId ? 'AND e.id = :examId' : ''}
-       GROUP BY e.id, e.title, s.name, q.id, q.stem, q.bloom, q.topic, q.type
+       GROUP BY e.id, e.title, s.name, ${QUESTION_ID}, stem, bloom, topic, type
        HAVING responses >= 3
        ORDER BY (SUM(sa.is_correct) / COUNT(*)) ASC, responses DESC
        LIMIT 100`,
@@ -255,12 +270,12 @@ router.get('/exam/:examId/items', requireAuth, async (req, res, next) => {
          sa.correct_answer,
          COALESCE(sr.exam_set_id, '') AS set_id,
          MAX(es.set_label) AS set_label,
-         MIN(q.stem) AS stem,
-         MIN(q.type) AS qtype,
-         MIN(q.bloom) AS bloom,
-         MIN(q.options) AS options,
-         MIN(q.answer) AS question_answer,
-         MIN(q.explanation) AS explanation,
+         MIN(${QUESTION_STEM}) AS stem,
+         MIN(${QUESTION_TYPE}) AS qtype,
+         MIN(${QUESTION_BLOOM}) AS bloom,
+         MIN(${QUESTION_OPTIONS}) AS options,
+         MIN(${QUESTION_ANSWER}) AS question_answer,
+         MIN(${QUESTION_EXPLANATION}) AS explanation,
          COUNT(*) AS total_responses,
          SUM(sa.is_correct) AS correct_count,
          SUM(sa.ambiguous) AS ambiguous_count,
@@ -435,7 +450,7 @@ router.get('/overview', requireAuth, async (req, res, next) => {
          MIN(sa.item_number) AS item_number,
          e.id AS exam_id,
          e.title AS exam_title,
-         q.stem,
+         ${QUESTION_STEM} AS stem,
          COUNT(*) AS responses,
          SUM(sa.is_correct) AS correct_count
        FROM scan_answers sa
@@ -444,7 +459,7 @@ router.get('/overview', requireAuth, async (req, res, next) => {
        JOIN subjects s ON s.id = e.subject_id
        ${QUESTION_JOINS}
        WHERE s.instructor_id = :userId
-       GROUP BY e.id, e.title, q.id, q.stem
+       GROUP BY e.id, e.title, ${QUESTION_ID}, stem
        HAVING responses >= 3
        ORDER BY (SUM(sa.is_correct) / COUNT(*)) ASC, responses DESC
        LIMIT 5`,

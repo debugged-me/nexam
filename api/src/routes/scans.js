@@ -21,6 +21,7 @@ import { rateLimit } from '../middleware/rateLimit.js';
 import { logAudit } from '../services/audit.js';
 import { scoreItem } from '../services/scoring.js';
 import { blindIndex, protectText, unprotectText } from '../services/storageCrypto.js';
+import { examSetQuestionSelect, materializeSetQuestion } from '../services/examSetSnapshot.js';
 
 const router = Router();
 router.use(requireAuth);
@@ -71,14 +72,22 @@ async function resolveSetQuestions(conn, examId, examSetId, setLabel) {
 
   if (resolvedSetId) {
     const [setQs] = await conn.query(
-      `SELECT q.id, q.type, q.answer, q.options, esq.sort_order
+      `SELECT ${examSetQuestionSelect()}
        FROM exam_set_questions esq
-       JOIN questions q ON q.id = esq.question_id
+       LEFT JOIN questions q ON q.id = esq.question_id
        WHERE esq.exam_set_id = :examSetId
        ORDER BY esq.sort_order ASC`,
       { examSetId: resolvedSetId }
     );
-    return { examSetId: resolvedSetId, questions: setQs };
+    const questions = setQs.map(materializeSetQuestion);
+    if (!questions.length || questions.some((question) =>
+      !question.type || (question.type !== 'identification' && question.answer == null))) {
+      const err = new Error('This legacy set cannot be scored safely. Regenerate the exam sets and scan the new sheet.');
+      err.status = 409;
+      err.code = 'STALE_SET';
+      throw err;
+    }
+    return { examSetId: resolvedSetId, questions };
   }
 
   // Legacy fallback: unshuffled exam question order (pre-setId sheets).
@@ -159,7 +168,8 @@ async function loadStoredScanResult(conn, scanId) {
 
   const [answers] = scan.exam_set_id
     ? await conn.query(
-        `SELECT sa.item_number, sa.marked_answer, sa.correct_answer, sa.is_correct, sa.ambiguous, q.type
+        `SELECT sa.item_number, sa.marked_answer, sa.correct_answer, sa.is_correct, sa.ambiguous,
+                CASE WHEN esq.snapshot_version >= 1 THEN esq.question_type ELSE q.type END AS type
          FROM scan_answers sa
          LEFT JOIN exam_set_questions esq
            ON esq.exam_set_id = :setId AND esq.sort_order = sa.item_number
@@ -539,7 +549,10 @@ router.get('/:id', async (req, res, next) => {
     // exam) item ordering — item_number == sort_order.
     const [answers] = scan.exam_set_id
       ? await pool.query(
-          `SELECT sa.*, q.type AS question_type, q.stem, q.options
+          `SELECT sa.*,
+                  CASE WHEN esq.snapshot_version >= 1 THEN esq.question_type ELSE q.type END AS question_type,
+                  CASE WHEN esq.snapshot_version >= 1 THEN esq.question_stem ELSE q.stem END AS stem,
+                  CASE WHEN esq.snapshot_version >= 1 THEN esq.question_options ELSE q.options END AS options
            FROM scan_answers sa
            LEFT JOIN exam_set_questions esq
              ON esq.exam_set_id = :setId AND esq.sort_order = sa.item_number
@@ -601,8 +614,11 @@ router.post('/:id/review', async (req, res, next) => {
       const setId = scan.exam_set_id;
       const [questions] = setId
         ? await conn.query(
-            `SELECT esq.sort_order, q.type, q.answer, q.options
-             FROM exam_set_questions esq JOIN questions q ON q.id = esq.question_id
+            `SELECT esq.sort_order,
+                    CASE WHEN esq.snapshot_version >= 1 THEN esq.question_type ELSE q.type END AS type,
+                    CASE WHEN esq.snapshot_version >= 1 THEN esq.question_answer ELSE q.answer END AS answer,
+                    CASE WHEN esq.snapshot_version >= 1 THEN esq.question_options ELSE q.options END AS options
+             FROM exam_set_questions esq LEFT JOIN questions q ON q.id = esq.question_id
              WHERE esq.exam_set_id = :setId`, { setId })
         : await conn.query(
             `SELECT eq.sort_order, q.type, q.answer, q.options

@@ -24,6 +24,12 @@ import { buildTosMatrix, validateAlignedQuestions } from '../services/tosAlignme
 import { logAudit } from '../services/audit.js';
 import { questionScopeSql, questionFitsScope } from '../services/assessmentScope.js';
 import { loadScopeChunks } from '../services/assessmentScopeStore.js';
+import {
+  examSetQuestionSelect,
+  materializeSetQuestion,
+  snapshotInsertValues,
+  snapshotQuestion,
+} from '../services/examSetSnapshot.js';
 
 const router = Router();
 
@@ -229,6 +235,18 @@ async function loadExamQuestions(examId, tosId) {
     { examId, tosId }
   );
   return questions;
+}
+
+async function loadExamSetQuestions(db, setId) {
+  const [rows] = await db.query(
+    `SELECT ${examSetQuestionSelect()}
+     FROM exam_set_questions esq
+     LEFT JOIN questions q ON q.id = esq.question_id
+     WHERE esq.exam_set_id = :setId
+     ORDER BY esq.sort_order ASC`,
+    { setId }
+  );
+  return rows.map(materializeSetQuestion);
 }
 
 /** GET /api/exams — list exams for the authenticated instructor. */
@@ -443,21 +461,22 @@ router.get('/:id', requireAuth, async (req, res, next) => {
     // question_ids preserve each set's ordering (Set B is shuffled).
     const [sets] = await pool.query(
       `SELECT es.id, es.set_label, es.pdf_path, es.answer_key_path, es.omr_sheet_path,
-              esq.question_id, esq.sort_order
+              es.version
        FROM exam_sets es
-       LEFT JOIN exam_set_questions esq ON esq.exam_set_id = es.id
        WHERE es.exam_id = :id AND es.is_current = 1
-       ORDER BY es.set_label ASC, esq.sort_order ASC`,
+       ORDER BY es.set_label ASC`,
       { id: exam.id }
     );
-    const setMap = new Map();
-    for (const row of sets) {
-      let s = setMap.get(row.id);
-      if (!s) {
-        s = { id: row.id, set_label: row.set_label, pdf_path: row.pdf_path, answer_key_path: row.answer_key_path, omr_sheet_path: row.omr_sheet_path, question_ids: [] };
-        setMap.set(row.id, s);
-      }
-      if (row.question_id) s.question_ids.push(row.question_id);
+    for (const set of sets) {
+      const frozenQuestions = await loadExamSetQuestions(pool, set.id);
+      set.questions = frozenQuestions.map((question) => {
+        const publicQuestion = { ...question };
+        delete publicQuestion.generation_meta;
+        return publicQuestion;
+      });
+      set.question_ids = set.questions.map((question) => question.id);
+      set.snapshot_complete = set.questions.length > 0
+        && set.questions.every((question) => question.snapshot_version >= 1);
     }
 
     // Downloads and exports re-verify every AI question's quality proof;
@@ -469,12 +488,15 @@ router.get('/:id', requireAuth, async (req, res, next) => {
     );
     const blocked = await blockedAiQuestions(aiRows);
     const outputBlock = blocked.length ? {
-      message: `${blocked.length} AI question${blocked.length === 1 ? ' has' : 's have'} no current quality review (${blocked[0].reason}) `
-        + 'Open each in the Question Bank and re-run its AI check, or replace it, before downloading or exporting.',
+      message: `${blocked.length} live AI question${blocked.length === 1 ? ' has' : 's have'} no current quality review (${blocked[0].reason}) `
+        + (sets.length
+          ? 'The frozen generated sets remain available, but regenerate only after re-running the AI check or replacing the item.'
+          : 'Open each in the Question Bank and re-run its AI check, or replace it, before generating outputs.'),
       questionIds: blocked.map((b) => b.id),
+      frozenSetsAvailable: sets.length > 0,
     } : null;
 
-    res.json({ exam, questions, tos, tosMatrix, sets: [...setMap.values()], outputBlock });
+    res.json({ exam, questions, tos, tosMatrix, sets, outputBlock });
   } catch (err) { next(err); }
 });
 
@@ -727,6 +749,7 @@ router.post('/:id/generate-sets', requireAuth, async (req, res, next) => {
       if (setIdx > 0) {
         setQuestions = shuffleQuestions(setQuestions);
       }
+      setQuestions = setQuestions.map(snapshotQuestion);
 
       const examFilename = `exam_${examId}_set${setLabel}.pdf`;
       await generateExamPDF({
@@ -780,9 +803,15 @@ router.post('/:id/generate-sets', requireAuth, async (req, res, next) => {
         );
 
         for (let i = 0; i < plan.setQuestions.length; i++) {
+          const question = plan.setQuestions[i];
           await conn.query(
-            `INSERT INTO exam_set_questions (id, exam_set_id, question_id, sort_order) VALUES (?, ?, ?, ?)`,
-            [uuid(), plan.setId, plan.setQuestions[i].id, i + 1]
+            `INSERT INTO exam_set_questions
+               (id, exam_set_id, question_id, sort_order, snapshot_version,
+                question_type, question_stem, question_options, question_answer,
+                question_explanation, question_topic, question_bloom, question_source,
+                question_generation_meta)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            [uuid(), plan.setId, question.id, i + 1, ...snapshotInsertValues(question)]
           );
         }
       }
@@ -891,9 +920,6 @@ router.get('/:id/download/:type', requireAuth, async (req, res, next) => {
       { examId, userId: req.user.id }
     );
     if (!examRows.length) return res.status(404).json({ error: 'Exam not found.' });
-    const questions = await loadExamQuestions(examId, examRows[0].tos_id);
-    const alignment = await validateExamAlignment(examRows[0], questions);
-    if (alignment.error) return res.status(409).json(alignment);
     const slug = slugifyTitle(examRows[0].title);
 
     let filename, downloadName;
@@ -977,12 +1003,10 @@ router.post('/:id/omr/refresh', requireAuth, async (req, res, next) => {
 
     const refreshed = [];
     for (const set of sets) {
-      const [items] = await pool.query(
-        `SELECT q.* FROM exam_set_questions esq
-         JOIN questions q ON q.id = esq.question_id
-         WHERE esq.exam_set_id = :setId ORDER BY esq.sort_order`,
-        { setId: set.id }
-      );
+      const items = await loadExamSetQuestions(pool, set.id);
+      if (!items.length || items.some((item) => !item.type)) {
+        return res.status(409).json({ error: 'This legacy set cannot be reconstructed. Regenerate the exam sets first.' });
+      }
       await generateOMRSheet({
         examId,
         examSetId: set.id,
@@ -1065,31 +1089,54 @@ router.get('/:id/export/:format', requireAuth, async (req, res, next) => {
     );
     if (!examRows.length) return res.status(404).json({ error: 'Exam not found.' });
 
-    // Load questions
-    const questions = await loadExamQuestions(examId, examRows[0].tos_id);
+    const setLabel = req.query.set ? String(req.query.set).toUpperCase() : 'A';
+    if (!['A', 'B'].includes(setLabel)) {
+      return res.status(400).json({ error: 'Set label A or B is required.' });
+    }
+
+    const [setRows] = await pool.query(
+      `SELECT id FROM exam_sets
+       WHERE exam_id = :examId AND set_label = :setLabel AND is_current = 1`,
+      { examId, setLabel }
+    );
+
+    // Current generated sets export from their immutable delivered content.
+    // Exams not generated yet keep the live-question validation path.
+    let questions;
+    let frozen = false;
+    if (setRows.length) {
+      questions = await loadExamSetQuestions(pool, setRows[0].id);
+      frozen = questions.every((question) => question.snapshot_version >= 1);
+      if (questions.some((question) => !question.type || !question.stem)) {
+        return res.status(409).json({ error: 'This legacy set cannot be reconstructed. Regenerate the exam sets first.' });
+      }
+    } else {
+      questions = await loadExamQuestions(examId, examRows[0].tos_id);
+      const alignment = await validateExamAlignment(examRows[0], questions);
+      if (alignment.error) return res.status(409).json(alignment);
+    }
 
     if (questions.length === 0) {
       return res.status(400).json({ error: 'No questions to export.' });
     }
-    const alignment = await validateExamAlignment(examRows[0], questions);
-    if (alignment.error) return res.status(409).json(alignment);
 
     let content, contentType, filename;
 
     if (format === 'gift') {
       content = toGIFT(questions);
       contentType = 'text/plain; charset=utf-8';
-      filename = `${slugifyTitle(examRows[0].title)}_GIFT.gift`;
+      filename = `${slugifyTitle(examRows[0].title)}_Set_${setLabel}_GIFT.gift`;
     } else if (format === 'xml') {
       content = toCanvasXML(questions);
       contentType = 'application/xml; charset=utf-8';
-      filename = `${slugifyTitle(examRows[0].title)}_QTI.xml`;
+      filename = `${slugifyTitle(examRows[0].title)}_Set_${setLabel}_QTI.xml`;
     } else {
       return res.status(400).json({ error: 'Invalid format. Use "gift" or "xml".' });
     }
 
     res.setHeader('Content-Type', contentType);
     res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.setHeader('X-Nexam-Exam-Source', frozen ? 'immutable-snapshot' : (setRows.length ? 'legacy-live-fallback' : 'live-draft'));
     res.send(content);
   } catch (err) {
     next(err);

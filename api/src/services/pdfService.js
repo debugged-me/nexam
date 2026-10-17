@@ -73,7 +73,8 @@ const BASE_CSS = `
   .question { margin-bottom: 14px; page-break-inside: avoid; }
   .question .stem { font-weight: normal; }
   .question .num { font-weight: bold; }
-  .options { margin-left: 20px; margin-top: 4px; }
+  .options { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 18px; margin-left: 20px; margin-top: 4px; }
+  .options.options-one { grid-template-columns: 1fr; }
   .options div { margin-bottom: 2px; }
   .tf-line { margin-left: 20px; margin-top: 4px; }
   .match-list { margin-left: 20px; margin-top: 4px; }
@@ -90,6 +91,21 @@ const BASE_CSS = `
   table.tos-table .match-no { color: #dc2626; font-weight: bold; }
   .section-title { font-size: 11pt; font-weight: bold; text-decoration: underline; margin-bottom: 8px; margin-top: 16px; }
   .summary-line { font-size: 10pt; margin-bottom: 4px; }
+  body.exam-compact { font-size: 9.25pt; line-height: 1.28; padding: 36px 54px; }
+  body.exam-compact .header { margin-bottom: 10px; }
+  body.exam-compact .header .letterhead { max-height: 23mm; margin-bottom: 4px; }
+  body.exam-compact .exam-title { font-size: 13.5pt; margin-bottom: 2px; }
+  body.exam-compact .exam-subtitle { font-size: 9pt; margin-bottom: 2px; }
+  body.exam-compact .set-label { font-size: 10.5pt; margin-bottom: 5px; }
+  body.exam-compact .info-line { font-size: 9pt; margin-bottom: 6px; }
+  body.exam-compact .fields { font-size: 9pt; line-height: 1.6; margin-bottom: 7px; }
+  body.exam-compact .instructions { font-size: 9pt; margin-bottom: 8px; }
+  body.exam-compact .instructions h3 { font-size: 9pt; margin-bottom: 1px; }
+  body.exam-compact .question { margin-bottom: 7px; }
+  body.exam-compact .options { margin-top: 2px; }
+  body.exam-compact .options div { margin-bottom: 1px; }
+  body.exam-compact .footer { margin-top: 10px; padding-top: 5px; }
+  body.exam-compact .footer .footer-banner { max-height: 23mm; margin-top: 5px; }
 `;
 
 function documentHeader(branding = {}) {
@@ -142,7 +158,8 @@ export async function generateExamPDF(opts) {
 
     if (q.type === 'mcq') {
       const options = parseOptions(q.options);
-      body = `<div class="options">${options.map((opt, j) => {
+      const oneColumn = options.some((option) => cleanOption(option).length > 42);
+      body = `<div class="options${oneColumn ? ' options-one' : ''}">${options.map((opt, j) => {
         const letter = String.fromCharCode(65 + j);
         return `<div><strong>${letter})</strong> ${esc(cleanOption(opt))}</div>`;
       }).join('')}</div>`;
@@ -166,7 +183,7 @@ export async function generateExamPDF(opts) {
     .filter(Boolean).join('  |  ');
 
   const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><style>${BASE_CSS}</style></head>
-<body>
+<body class="${opts.questions.length <= 10 ? 'exam-compact' : ''}">
   ${documentHeader(opts.branding)}
   <div class="exam-title">${esc(opts.examTitle)}</div>
   ${subtitle ? `<div class="exam-subtitle">${esc(subtitle)}</div>` : ''}

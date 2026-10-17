@@ -23,7 +23,10 @@ void main() {
       for (var x = x0; x <= x1; x++) {
         final dx = x - cx;
         final dy = y - cy;
-        if (x >= 0 && x < image.width && y >= 0 && y < image.height &&
+        if (x >= 0 &&
+            x < image.width &&
+            y >= 0 &&
+            y < image.height &&
             dx * dx + dy * dy <= r * r) {
           image.setPixelRgb(x, y, 20, 20, 20);
         }
@@ -36,7 +39,8 @@ void main() {
   /// Returns PNG bytes.
   Uint8List renderSheet({
     required Map<String, List<String>> types,
-    required Map<int, List<int>> marks, // itemNumber → bubble indices per sub-row
+    required Map<int, List<int>>
+    marks, // itemNumber → bubble indices per sub-row
     double gridY = kGridY,
     double rowH = kRowH,
     int rowsPerCol = kRowsPerCol,
@@ -47,7 +51,10 @@ void main() {
     // Corner anchors (filled black squares at kAnchorOffset).
     const a = kAnchorOffset, s = kAnchorSize;
     for (final (x, y) in [
-      (a, a), (kPageW - a - s, a), (a, kPageH - a - s), (kPageW - a - s, kPageH - a - s)
+      (a, a),
+      (kPageW - a - s, a),
+      (a, kPageH - a - s),
+      (kPageW - a - s, kPageH - a - s),
     ]) {
       for (var yy = y.round(); yy < y + s; yy++) {
         for (var xx = x.round(); xx < x + s; xx++) {
@@ -63,8 +70,13 @@ void main() {
     final rows = computeSheetRows(items, rowsPerCol: rowsPerCol);
     for (final row in rows) {
       for (var c = 0; c < row.choices.length; c++) {
-        final center =
-            bubbleCenter(row.col, row.row, c, gridY: gridY, rowH: rowH);
+        final center = bubbleCenter(
+          row.col,
+          row.row,
+          c,
+          gridY: gridY,
+          rowH: rowH,
+        );
         // Outline ring (thin dark circle).
         for (var t = 0.0; t < 2 * math.pi; t += 0.05) {
           final px = (center[0] + (kBubble / 2) * math.cos(t)).round();
@@ -75,7 +87,9 @@ void main() {
         }
         // Fill if marked.
         final marked = marks[row.itemNumber];
-        if (marked != null && row.subIndex < marked.length && marked[row.subIndex] == c) {
+        if (marked != null &&
+            row.subIndex < marked.length &&
+            marked[row.subIndex] == c) {
           fillCircle(image, center[0], center[1], kBubble / 2 - 2);
         }
       }
@@ -98,7 +112,9 @@ void main() {
   test('detects MCQ + true/false marks on a synthetic anchored sheet', () {
     // 3 MCQ + 1 T/F — all in column 0.
     final bytes = renderSheet(
-      types: {'types': ['m4', 'm4', 'm4', 't']},
+      types: {
+        'types': ['m4', 'm4', 'm4', 't'],
+      },
       marks: {
         1: [1], // item 1 → B
         2: [3], // item 2 → D
@@ -110,7 +126,11 @@ void main() {
       payload: payloadFor(['m4', 'm4', 'm4', 't']),
     );
 
-    expect(out.aligned, isTrue, reason: 'anchors should be found on a clean sheet');
+    expect(
+      out.aligned,
+      isTrue,
+      reason: 'anchors should be found on a clean sheet',
+    );
     expect(out.detections[0].detectedAnswer, 'B');
     expect(out.detections[1].detectedAnswer, 'D');
     expect(out.detections[2].detectedAnswer, ''); // blank item
@@ -119,7 +139,9 @@ void main() {
 
   test('matching items read one letter per premise sub-row', () {
     final bytes = renderSheet(
-      types: {'types': ['M3']},
+      types: {
+        'types': ['M3'],
+      },
       marks: {
         1: [1, 0, 3], // 1a→B, 1b→A, 1c→D
       },
@@ -136,7 +158,9 @@ void main() {
 
   test('identification bubbles map to CORRECT/INCORRECT verdicts', () {
     final bytes = renderSheet(
-      types: {'types': ['i', 'i']},
+      types: {
+        'types': ['i', 'i'],
+      },
       marks: {
         1: [0], // C (Correct)
         2: [1], // I (Incorrect)
@@ -170,33 +194,64 @@ void main() {
     expect(out.detections[29].detectedAnswer, 'A');
   });
 
-  test('v:2 auto-fit sheet — shrunken pitch reads correctly from the ly block', () {
-    // Dense exam: 50 items incl. a 5-premise matching → 54 grid rows, so the
-    // generator packs 27/col at a 27px pitch and ships that geometry in `ly`.
-    const rowH = 27.0;
-    const rowsPerCol = 27;
-    final codes = <String>[
-      ...List<String>.filled(8, 'm4'),
-      'M5',
-      ...List<String>.filled(41, 'm4'),
-    ];
+  test('a compact five-item sheet reads its balanced three-row columns', () {
+    const codes = ['m4', 'm4', 'm4', 'm4', 'm4'];
+    const rowsPerCol = 3;
     final bytes = renderSheet(
-      types: {'types': codes},
-      rowH: rowH,
+      types: const {'types': codes},
       rowsPerCol: rowsPerCol,
       marks: {
-        9: [2, 4, 0, 1, 3], // matching → all five premises
-        50: [1],            // last item — the row v:1 sheets dropped
+        1: [2], // left column → C
+        4: [1], // first item in right column → B
+        5: [3], // second item in right column → D
       },
     );
     final out = OmrScanner().detect(
       imageBytes: bytes,
-      payload: payloadFor(codes, ly: {'gy': kGridY, 'rh': rowH, 'rpc': rowsPerCol}),
+      payload: payloadFor(
+        codes,
+        ly: const {'gy': kGridY, 'rh': kRowH, 'rpc': rowsPerCol},
+      ),
     );
 
-    expect(out.detections[8].subAnswers, ['C', 'E', 'A', 'B', 'D']);
-    expect(out.detections[49].detectedAnswer, 'B');
+    expect(out.detections[0].detectedAnswer, 'C');
+    expect(out.detections[3].detectedAnswer, 'B');
+    expect(out.detections[4].detectedAnswer, 'D');
   });
+
+  test(
+    'v:2 auto-fit sheet — shrunken pitch reads correctly from the ly block',
+    () {
+      // Dense exam: 50 items incl. a 5-premise matching → 54 grid rows, so the
+      // generator packs 27/col at a 27px pitch and ships that geometry in `ly`.
+      const rowH = 27.0;
+      const rowsPerCol = 27;
+      final codes = <String>[
+        ...List<String>.filled(8, 'm4'),
+        'M5',
+        ...List<String>.filled(41, 'm4'),
+      ];
+      final bytes = renderSheet(
+        types: {'types': codes},
+        rowH: rowH,
+        rowsPerCol: rowsPerCol,
+        marks: {
+          9: [2, 4, 0, 1, 3], // matching → all five premises
+          50: [1], // last item — the row v:1 sheets dropped
+        },
+      );
+      final out = OmrScanner().detect(
+        imageBytes: bytes,
+        payload: payloadFor(
+          codes,
+          ly: {'gy': kGridY, 'rh': rowH, 'rpc': rowsPerCol},
+        ),
+      );
+
+      expect(out.detections[8].subAnswers, ['C', 'E', 'A', 'B', 'D']);
+      expect(out.detections[49].detectedAnswer, 'B');
+    },
+  );
 
   test('matching item never splits across the column boundary', () {
     // 24 single-row items + one 3-row matching item → starts column 1.
@@ -220,7 +275,9 @@ void main() {
     // with visible background — the old expected-corner search failed
     // here because the anchors were nowhere near the image corners.
     final sheetBytes = renderSheet(
-      types: {'types': ['m4', 'm4']},
+      types: {
+        'types': ['m4', 'm4'],
+      },
       marks: {
         1: [1], // B
         2: [2], // C
@@ -238,8 +295,11 @@ void main() {
       payload: payloadFor(['m4', 'm4']),
     );
 
-    expect(out.aligned, isTrue,
-        reason: 'extreme-corner anchors should be found with margin');
+    expect(
+      out.aligned,
+      isTrue,
+      reason: 'extreme-corner anchors should be found with margin',
+    );
     expect(out.detections[0].detectedAnswer, 'B');
     expect(out.detections[1].detectedAnswer, 'C');
   });
@@ -250,7 +310,9 @@ void main() {
     // frame so the resize path is exercised, not just the small-photo
     // path the other tests cover.
     final sheetBytes = renderSheet(
-      types: {'types': ['m4', 't', 'M3', 'm4']},
+      types: {
+        'types': ['m4', 't', 'M3', 'm4'],
+      },
       marks: {
         1: [1], // B
         2: [1], // F
@@ -273,11 +335,13 @@ void main() {
     sw.stop();
     // Wall-clock ceiling far above real device time — a regression that
     // makes the resize useless (or anchoring quadratic) blows past it.
-    expect(sw.elapsedMilliseconds, lessThan(15000),
-        reason: 'phone-res scan took ${sw.elapsedMilliseconds}ms');
+    expect(
+      sw.elapsedMilliseconds,
+      lessThan(15000),
+      reason: 'phone-res scan took ${sw.elapsedMilliseconds}ms',
+    );
 
-    expect(out.aligned, isTrue,
-        reason: 'anchors should survive the downscale');
+    expect(out.aligned, isTrue, reason: 'anchors should survive the downscale');
     expect(out.detections[0].detectedAnswer, 'B');
     expect(out.detections[1].detectedAnswer, 'F');
     expect(out.detections[2].subAnswers, ['C', 'A', 'D']);
@@ -303,7 +367,9 @@ void main() {
 
   test('still detects on a slightly rotated capture', () {
     final sheetBytes = renderSheet(
-      types: {'types': ['m4', 'm4']},
+      types: {
+        'types': ['m4', 'm4'],
+      },
       marks: {
         1: [0], // A
         2: [3], // D
@@ -322,8 +388,11 @@ void main() {
       payload: payloadFor(['m4', 'm4']),
     );
 
-    expect(out.aligned, isTrue,
-        reason: 'homography should correct a modest rotation');
+    expect(
+      out.aligned,
+      isTrue,
+      reason: 'homography should correct a modest rotation',
+    );
     expect(out.detections[0].detectedAnswer, 'A');
     expect(out.detections[1].detectedAnswer, 'D');
   });

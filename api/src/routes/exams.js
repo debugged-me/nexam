@@ -783,6 +783,7 @@ router.post('/:id/generate-sets', requireAuth, async (req, res, next) => {
         examTitle: exam.title,
         setLabel,
         questions: setQuestions,
+        branding,
         filename: omrFilename,
       });
 
@@ -975,7 +976,7 @@ router.get('/:id/download/:type', requireAuth, async (req, res, next) => {
       }
       const column = type === 'exam' ? 'pdf_path' : type === 'answerkey' ? 'answer_key_path' : 'omr_sheet_path';
       const [sets] = await pool.query(
-        `SELECT id, set_label, ${column} AS filename FROM exam_sets
+        `SELECT id, set_label, version, ${column} AS filename FROM exam_sets
          WHERE exam_id = :examId AND set_label = :setLabel AND is_current = 1`,
         { examId, setLabel }
       );
@@ -990,11 +991,11 @@ router.get('/:id/download/:type', requireAuth, async (req, res, next) => {
       return res.status(400).json({ error: 'Invalid download type.' });
     }
 
-    // Exam papers and keys are rebuilt from their immutable set snapshots on
-    // download. This keeps the frozen question order while applying the
+    // Exam papers, keys, and OMR sheets are rebuilt from their immutable set
+    // snapshots on download. This keeps the frozen question order while applying the
     // instructor's current private letterhead and footer. Legacy sets without
     // snapshots keep their originally saved files.
-    if (currentSet && (type === 'exam' || type === 'answerkey')) {
+    if (currentSet && (type === 'exam' || type === 'answerkey' || type === 'omr')) {
       const questions = await loadExamSetQuestions(pool, currentSet.id);
       const snapshotComplete = questions.length > 0
         && questions.every((question) => Number(question.snapshot_version) >= 1);
@@ -1011,8 +1012,19 @@ router.get('/:id/download/:type', requireAuth, async (req, res, next) => {
             branding,
             filename,
           });
-        } else {
+        } else if (type === 'answerkey') {
           await generateAnswerKeyPDF({
+            examTitle: exam.title,
+            setLabel,
+            questions,
+            branding,
+            filename,
+          });
+        } else {
+          await generateOMRSheet({
+            examId,
+            examSetId: currentSet.id,
+            setVersion: currentSet.version,
             examTitle: exam.title,
             setLabel,
             questions,
@@ -1063,6 +1075,7 @@ router.post('/:id/omr/refresh', requireAuth, async (req, res, next) => {
     );
     if (!examRows.length) return res.status(404).json({ error: 'Exam not found.' });
     const exam = examRows[0];
+    const branding = await loadPrintBranding(pool, req.user.id);
 
     const [sets] = await pool.query(
       `SELECT id, set_label, version, omr_sheet_path FROM exam_sets
@@ -1088,6 +1101,7 @@ router.post('/:id/omr/refresh', requireAuth, async (req, res, next) => {
         examTitle: exam.title,
         setLabel: set.set_label,
         questions: items,
+        branding,
         filename: path.basename(set.omr_sheet_path || `omr_${examId}_set${set.set_label}.pdf`),
       });
       refreshed.push(set.set_label);

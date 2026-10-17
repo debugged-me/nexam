@@ -160,12 +160,17 @@ function assignRows(questions, rowsPerCol = ROWS_PER_COL) {
  * plus the row assignments — both must reach the scanner via the QR `ly`
  * block so it reads bubbles at the rendered coordinates.
  */
-function layoutFor(questions) {
-  const usableH = GRID_BOTTOM - GRID_Y;
+function layoutFor(questions, gridBottom = GRID_BOTTOM, balanceColumns = false) {
+  const usableH = gridBottom - GRID_Y;
   const maxRows = Math.floor(usableH / ROW_H_MIN);
   const rendered = (rows) => new Set(rows.map((r) => r.item)).size;
 
   let rowsPerCol = ROWS_PER_COL;
+  if (balanceColumns && questions.length) {
+    const totalRows = questions.reduce((sum, question) => sum + rowsFor(question), 0);
+    const largestItem = Math.max(...questions.map(rowsFor));
+    rowsPerCol = Math.min(ROWS_PER_COL, Math.max(largestItem, Math.ceil(totalRows / COLS)));
+  }
   let assignments = assignRows(questions, rowsPerCol);
   while (rendered(assignments) < questions.length && rowsPerCol < maxRows) {
     rowsPerCol += 1;
@@ -199,7 +204,11 @@ function rowLabel(item, sub, isMulti) {
  */
 export async function generateOMRSheet(opts) {
   const filePath = path.join(STORAGE_DIR, opts.filename);
-  const layout = layoutFor(opts.questions);
+  // A branded footer reserves a protected strip above the lower anchors.
+  // The chosen row pitch is carried in the QR payload, so the mobile scanner
+  // reads the same geometry even when a dense sheet is compacted slightly.
+  const gridBottom = opts.branding?.footer ? 995 : GRID_BOTTOM;
+  const layout = layoutFor(opts.questions, gridBottom, true);
 
   // Self-describing QR payload: exam + set id (no server lookup needed) and
   // the per-item layout so the scanner reconstructs the grid exactly. `sv`
@@ -247,6 +256,18 @@ export async function generateOMRSheet(opts) {
     ? `<div class="overflow">⚠ ${overflow} item(s) exceed sheet capacity — print a second sheet.</div>`
     : '';
 
+  const branded = Boolean(opts.branding?.letterhead);
+  const letterheadHtml = branded
+    ? `<div class="brand-head"><img src="${esc(opts.branding.letterhead)}" alt=""></div>`
+    : '';
+  const footerBrandHtml = opts.branding?.footer
+    ? `<div class="brand-foot"><img src="${esc(opts.branding.footer)}" alt=""></div>`
+    : `<div class="sheet-foot">NEXAM · Set ${esc(opts.setLabel)} · ${opts.questions.length} items</div>`;
+  const columnRanges = [0, 1].map((col) => {
+    const items = layout.assignments.filter((row) => row.col === col).map((row) => row.item);
+    return items.length ? [Math.min(...items), Math.max(...items)] : null;
+  });
+
   const css = `
     @page { margin: 0; }
     * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -264,17 +285,25 @@ export async function generateOMRSheet(opts) {
       height: ${ANCHOR_SIZE}px;
       background: #000;
     }
-    .header { position: absolute; left: 70px; top: 40px; right: 200px; }
-    .header .title { font-size: 14pt; font-weight: bold; }
-    .header .subtitle { font-size: 11pt; margin-top: 4px; }
-    .header .meta { font-size: 9pt; margin-top: 2px; color: #444; }
-    .qr { position: absolute; left: 620px; top: 36px; width: 120px; height: 120px; }
-    .qr img { width: 120px; height: 120px; }
+    .brand-head { position: absolute; left: 70px; top: 38px; width: 520px; height: 76px; }
+    .brand-head img { width: 100%; height: 100%; object-fit: contain; object-position: left center; }
+    .header { position: absolute; left: 70px; top: ${branded ? 125 : 48}px; right: 190px; }
+    .header .title { font-size: ${branded ? 12 : 14}pt; font-weight: bold; line-height: 1.2; }
+    .header .subtitle { font-size: 10pt; margin-top: 3px; font-weight: 600; }
+    .header .meta { display: inline-block; font-size: 8pt; margin-top: 3px; padding: 2px 7px; color: #444; border: 1px solid #bbb; border-radius: 10px; }
+    .qr { position: absolute; left: 624px; top: 40px; width: 116px; height: 116px; }
+    .qr img { width: 116px; height: 116px; }
     .student-info {
-      position: absolute; left: 70px; top: 190px; right: 70px;
-      font-size: 10pt; line-height: 2.1;
+      position: absolute; left: 70px; top: 194px; right: 70px;
+      padding: 9px 12px 7px; border-top: 1.5px solid #222; border-bottom: 1px solid #999;
+      font-size: 9.5pt; line-height: 1.7;
     }
-    .student-info div { margin-bottom: 4px; }
+    .student-info div { margin-bottom: 2px; }
+    .sheet-guide {
+      position: absolute; left: 70px; top: 272px; right: 70px;
+      font-size: 7.5pt; color: #555;
+    }
+    .column-label { position: absolute; top: ${GRID_Y - 18}px; font-size: 7.5pt; font-weight: bold; color: #666; text-transform: uppercase; letter-spacing: .08em; }
     .num {
       position: absolute;
       width: ${NUM_W}px;
@@ -299,11 +328,9 @@ export async function generateOMRSheet(opts) {
       position: absolute; left: 70px; top: ${GRID_Y - 24}px;
       font-size: 9pt; color: #B91C1C; font-weight: bold;
     }
-    .footer {
-      position: absolute; left: 70px; right: 70px; bottom: 14px;
-      font-size: 8pt; color: #666; font-style: italic;
-    }
-    .footer div { margin-top: 3px; }
+    .brand-foot { position: absolute; left: 88px; right: 88px; bottom: 38px; height: 72px; }
+    .brand-foot img { width: 100%; height: 100%; object-fit: contain; object-position: center; }
+    .sheet-foot { position: absolute; left: 70px; right: 70px; bottom: 42px; text-align: center; font-size: 7.5pt; color: #666; }
   `;
 
   const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><style>${css}</style></head>
@@ -314,6 +341,7 @@ export async function generateOMRSheet(opts) {
   <div class="anchor" style="left:${ANCHOR_OFFSET}px;top:${PAGE_H - ANCHOR_OFFSET - ANCHOR_SIZE}px"></div>
   <div class="anchor" style="left:${PAGE_W - ANCHOR_OFFSET - ANCHOR_SIZE}px;top:${PAGE_H - ANCHOR_OFFSET - ANCHOR_SIZE}px"></div>
 
+  ${letterheadHtml}
   <div class="header">
     <div class="title">${esc(opts.examTitle)}</div>
     <div class="subtitle">Set ${esc(opts.setLabel)} — OMR Answer Sheet</div>
@@ -326,13 +354,15 @@ export async function generateOMRSheet(opts) {
     <div>Section: ____________________&nbsp;&nbsp;&nbsp;Date: ____________________</div>
   </div>
 
+  <div class="sheet-guide">Use a dark pen. Fill one bubble completely per row. T/F = True/False · C/I = instructor-marked Correct/Incorrect.</div>
+  ${columnRanges.map((range, col) => range
+    ? `<div class="column-label" style="left:${COL_X[col]}px">Answers ${range[0]}–${range[1]}</div>`
+    : '').join('')}
+
   ${rowsHtml}
   ${overflowHtml}
 
-  <div class="footer">
-    <div>Instructions: Fill one bubble per row completely with a dark pen. For matching items, fill one bubble per sub-row (a, b, c…). For True/False: T = True, F = False.</div>
-    <div>Identification items: after grading the written answer, the instructor marks C (Correct) or I (Incorrect).</div>
-  </div>
+  ${footerBrandHtml}
 </body></html>`;
 
   let browser;

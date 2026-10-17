@@ -16,6 +16,22 @@ test('layoutFor keeps the default grid for a small exam', () => {
   assert.equal(new Set(layout.assignments.map((r) => r.item)).size, 20);
 });
 
+test('layoutFor reserves a branded footer strip and reports its tighter pitch', () => {
+  const layout = layoutFor(Array.from({ length: 50 }, mcq), 995);
+  assert.equal(layout.rowsPerCol, 25);
+  assert.equal(layout.rowH, 27);
+  assert.equal(new Set(layout.assignments.map((r) => r.item)).size, 50);
+  assert.ok(310 + layout.rowH * layout.rowsPerCol <= 995);
+});
+
+test('layoutFor balances a small branded sheet across both scanner columns', () => {
+  const layout = layoutFor(Array.from({ length: 5 }, mcq), 995, true);
+  assert.equal(layout.rowsPerCol, 3);
+  assert.deepEqual(layout.assignments.map((row) => [row.item, row.col, row.row]), [
+    [1, 0, 0], [2, 0, 1], [3, 0, 2], [4, 1, 0], [5, 1, 1],
+  ]);
+});
+
 test('layoutFor fits 50 items plus matching rows by shrinking pitch', () => {
   // 50 items where one is a 5-premise matching → 54 grid rows needed.
   const questions = Array.from({ length: 50 }, (_, i) => (i === 8 ? matching(5) : mcq()));

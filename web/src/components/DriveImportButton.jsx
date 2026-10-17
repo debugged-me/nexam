@@ -175,7 +175,7 @@ export default function DriveImportButton({ onFiles, disabled = false }) {
             <path fill="#ffba00" d="m73.4 26.5-12.7-22c-.8-1.4-1.95-2.5-3.3-3.3l-13.75 23.8 15.65 27.15h27.55c0-1.55-.4-3.1-1.2-4.5z" />
           </svg>
         )}
-        {busy ? 'Importing…' : 'Import from Google Drive'}
+        {busy ? 'Importing…' : 'Select files from Google Drive'}
       </button>
     </div>
   );

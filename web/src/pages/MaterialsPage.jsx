@@ -594,7 +594,7 @@ export default function MaterialsPage() {
               <h3>No materials yet</h3>
               <p>Upload PDFs, DOCX, PPTX, URLs, or YouTube transcripts to ground RAG question generation. You can also drag files straight onto this page.</p>
               <button className="btn btn-primary" onClick={openUpload} data-tour="materials-upload">
-                <Upload size={16} /> Upload first material
+                <Upload size={16} /> Upload course materials
               </button>
             </div>
           ) : (
@@ -633,7 +633,7 @@ export default function MaterialsPage() {
                     </button>
                   </Tooltip>
                   <button className="btn btn-primary btn-sm" onClick={openUpload} data-tour="materials-upload">
-                    <Upload size={15} /> Upload material
+                    <Upload size={15} /> Upload materials
                   </button>
                 </div>
               </div>
@@ -744,7 +744,7 @@ export default function MaterialsPage() {
         </div>
       )}
 
-      <Modal open={uploadOpen} title="Upload material" onClose={() => setUploadOpen(false)} size="lg"
+      <Modal open={uploadOpen} title="Upload course materials" onClose={() => setUploadOpen(false)} size="lg"
         footer={uploadMode === 'file' ? (
           <>
             <button className="btn" onClick={() => setUploadOpen(false)}>Close</button>
@@ -754,6 +754,14 @@ export default function MaterialsPage() {
             </button>
           </>
         ) : undefined}>
+        <div className="mat-batch-guide" role="note">
+          <Info size={18} aria-hidden="true" />
+          <div>
+            <strong>One subject, one batch</strong>
+            <span>Select the subject once, then add the syllabus and as many supporting lessons as needed. In the staged list, leave <b>Syllabus</b> on only for the actual syllabus.</span>
+          </div>
+        </div>
+
         {/* Subject + syllabus toggle (shared) */}
         <div className="form-row">
           <div className="form-group">
@@ -814,7 +822,7 @@ export default function MaterialsPage() {
               }}
             >
               <Upload size={36} className="upload-zone-icon" />
-              <div className="upload-zone-text">Click to browse or drag files here</div>
+              <div className="upload-zone-text">Choose one or more files, or drag them here</div>
               <div className="upload-zone-hint">PDF, DOCX, PPTX, TXT — max 50 MB each · multiple files allowed</div>
               <input ref={fileInput} type="file" multiple style={{ display: 'none' }}
                 accept=".pdf,.docx,.pptx,.txt,application/pdf,text/plain"
@@ -866,8 +874,8 @@ export default function MaterialsPage() {
                   ))}
                 </ul>
                 <p className="mat-queue-note">
-                  Files upload one at a time; each result is reported separately. The syllabus flag is a guess from the
-                  filename — check it before uploading.
+                  Every staged file uses the selected subject. Files upload one at a time and each result is reported separately.
+                  Keep the Syllabus flag on only for the actual course syllabus; lessons, slides and readings stay off.
                 </p>
               </div>
             )}

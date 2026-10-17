@@ -6,13 +6,14 @@ import { useConfirm } from './ConfirmDialog.jsx';
 import Modal from './Modal.jsx';
 import AssessmentTimeFrame from './AssessmentTimeFrame.jsx';
 import { parseScope, timeFrameLabel } from '../lib/assessmentScope.js';
+import { addMaterialPassages, filterAssessmentMaterials, groupAssessmentSources } from '../lib/assessmentSources.js';
 
 export default function AssessmentCoverage({ tos, topics, onSaved }) {
   const [open, setOpen] = useState(false);
   const scope = parseScope(tos.assessment_scope);
   const reviewed = Boolean(scope?.confirmed && tos.scope_key);
   const locked = tos.status === 'finalized';
-  return <section className="card assessment-coverage" aria-label="Assessment coverage">
+  return <section id="assessment-coverage" className="card assessment-coverage" aria-label="Assessment coverage">
     <div className="card-header">
       <div><h2 className="card-title"><Clock size={17} /> Assessment coverage</h2>
         <p className="card-sub">{scope ? timeFrameLabel(scope) : 'All subject materials · no period restriction'}</p></div>
@@ -60,24 +61,8 @@ function CoverageEditor({ tos, topics, onClose, onSaved }) {
     .map((s) => [timeFrameLabel(s), s])).values()], [topics]);
   const unknown = topics.filter((t) => !parseScope(t.schedule)?.weekStart).length;
   const selectedMaterial = materials.find((m) => m.id === materialId);
-  const filteredMaterials = useMemo(() => {
-    const needle = materialQuery.trim().toLowerCase();
-    if (!needle) return materials;
-    return materials.filter((material) => `${material.title} ${Number(material.is_syllabus) ? 'syllabus' : 'lesson'}`.toLowerCase().includes(needle));
-  }, [materials, materialQuery]);
-  const selectedMaterialGroups = useMemo(() => {
-    const groups = new Map();
-    for (const [chunkId, source] of sources) {
-      const key = source.materialId || `unknown:${chunkId}`;
-      if (!groups.has(key)) groups.set(key, {
-        materialId: source.materialId,
-        title: source.title || 'Selected source',
-        chunkIds: [],
-      });
-      groups.get(key).chunkIds.push(chunkId);
-    }
-    return [...groups.values()];
-  }, [sources]);
+  const filteredMaterials = useMemo(() => filterAssessmentMaterials(materials, materialQuery), [materials, materialQuery]);
+  const selectedMaterialGroups = useMemo(() => groupAssessmentSources(sources), [sources]);
 
   useEffect(() => {
     let active = true;
@@ -113,8 +98,8 @@ function CoverageEditor({ tos, topics, onClose, onSaved }) {
   function toggleCurrentMaterial() {
     setConfirmed(false);
     setError('');
-    const additions = chunks.filter((chunk) => !sources.has(chunk.id));
-    if (!allCurrentSelected && sources.size + additions.length > 100) {
+    const nextSources = addMaterialPassages(sources, chunks, selectedMaterial);
+    if (!allCurrentSelected && !nextSources) {
       setError('Assessment Coverage supports up to 100 passages. Select fewer passages or narrower excerpts.');
       return;
     }
@@ -124,12 +109,7 @@ function CoverageEditor({ tos, topics, onClose, onSaved }) {
         currentChunkIds.forEach((id) => next.delete(id));
         return next;
       }
-      additions.forEach((chunk) => next.set(chunk.id, {
-        text: chunk.text,
-        materialId: selectedMaterial?.id || null,
-        title: selectedMaterial?.title || null,
-      }));
-      return next;
+      return nextSources;
     });
   }
   function removeSelectedMaterial(group) {
@@ -165,7 +145,7 @@ function CoverageEditor({ tos, topics, onClose, onSaved }) {
     } catch (e) { setError(e.message); } finally { setSaving(false); }
   }
   return <Modal open title="Review assessment coverage" size="lg" onClose={() => !saving && onClose()}
-    subtitle="Confirm the topics and their syllabus passages. Add substantive lesson passages for questions when needed."
+    subtitle="Confirm the topics, then select the exact lesson passages this assessment may use."
     footer={<><button type="button" className="btn btn-secondary" onClick={onClose} disabled={saving}>Cancel</button>
       <button type="submit" form="assessment-coverage-form" className="btn btn-primary" disabled={saving || !confirmed || !selected.size || !sources.size || !frame.label.trim()}>{saving ? 'Saving…' : 'Save coverage'}</button></>}>
     <form id="assessment-coverage-form" className="assessment-editor" onSubmit={save}>
@@ -185,7 +165,7 @@ function CoverageEditor({ tos, topics, onClose, onSaved }) {
         })}</div>
       </fieldset>
       <fieldset><legend><BookOpen size={16} /> Supporting source passages ({sources.size})</legend>
-        <p className="form-hint">Syllabus passages are sufficient to confirm blueprint coverage. For question generation, select substantive lessons, slides, or readings when the syllabus contains only an outline. If a passage spans periods, keep only the exact excerpt taught in this assessment. A syllabus outline alone may not contain enough facts for questions.</p>
+        <p className="form-hint">The syllabus plans blueprint coverage but is not answer evidence. Select substantive lessons, slides, or readings for question generation. If a passage spans periods, keep only the exact excerpt taught in this assessment.</p>
         <label className="ds-search assessment-material-search" htmlFor="scope-material-search">
           <Search size={15} aria-hidden="true" />
           <span className="sr-only">Search supporting materials</span>

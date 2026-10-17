@@ -70,9 +70,29 @@ test('coverage API enforces ownership, confirmation, immutable finalized scopes,
   assert.equal(topics[0].item_count, 10);
   assert.equal(tos.scope_key, scopeKey(payload));
   assert.equal(JSON.parse(tos.assessment_scope).sources[0].text, payload.sources[0].text);
+
+  const confirmedScope = tos.assessment_scope;
+  const confirmedScopeKey = tos.scope_key;
+  tos.source_meta = '{}';
+  tos.assessment_scope = null;
+  tos.scope_key = null;
+  const unscopedSyllabus = await request('/blueprint/finalize', 'POST', { confirmAssumptions: true });
+  assert.equal(unscopedSyllabus.status, 422);
+  assert.equal(unscopedSyllabus.body.code, 'ASSESSMENT_COVERAGE_REQUIRED');
+  assert.match(unscopedSyllabus.body.error, /Review and confirm Assessment Coverage/);
+
+  tos.assessment_scope = confirmedScope;
+  tos.scope_key = confirmedScopeKey;
+  chunks = [{ id: 'c1', materialId: 'syllabus', title: 'Syllabus', text: payload.sources[0].text, is_syllabus: 1 }];
+  const syllabusOnlyCoverage = await request('/blueprint/finalize', 'POST', { confirmAssumptions: true });
+  assert.equal(syllabusOnlyCoverage.status, 422);
+  assert.equal(syllabusOnlyCoverage.body.code, 'ASSESSMENT_COVERAGE_REQUIRED');
+  assert.match(syllabusOnlyCoverage.body.error, /non-syllabus lesson passage/);
+
+  tos.source_meta = null;
   chunks = [];
   assert.equal((await request('/blueprint/finalize', 'POST', {})).status, 422, 'deleted sources block finalization');
-  chunks = [{ id: 'c1', text: payload.sources[0].text }];
+  chunks = [{ id: 'c1', materialId: 'lesson', title: 'Lesson', text: payload.sources[0].text, is_syllabus: 0 }];
   tos.bloom_weights = JSON.stringify({ remember: 90, create: 10 });
   const createBlocked = await request('/blueprint/finalize', 'POST', {});
   assert.equal(createBlocked.status, 422);

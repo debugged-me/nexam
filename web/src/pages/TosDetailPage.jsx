@@ -559,6 +559,8 @@ export default function TosDetailPage() {
     courseIdentity,
   } = data;
   const finalized = tos.status === 'finalized';
+  const syllabusMeta = parseScope(tos.source_meta);
+  const coverageConfirmed = Boolean(tos.assessment_scope && tos.scope_key);
   const totalHours = Number(topics.reduce((s, t) => s + (Number(t.instructional_hours) || 0), 0).toFixed(2));
 
   // Live questions already banked for a topic × Bloom cell (drafts + approved;
@@ -578,6 +580,8 @@ export default function TosDetailPage() {
   }
   const generationReady = generationReadiness?.ready !== false;
   const needsLessons = finalized && missingSlots > 0 && generationReadiness?.code === 'LESSON_EVIDENCE_REQUIRED';
+  const sourceFinalizeBlocked = !finalized && Boolean(syllabusMeta)
+    && (!coverageConfirmed || generationReadiness?.ready !== true);
 
   // The topics table paginates; safeTopicPage self-heals if deletions shrink
   // the last page. Rows index into matrix.rows by ABSOLUTE position.
@@ -662,7 +666,17 @@ export default function TosDetailPage() {
         </div>
         <div className="header-actions" data-tour="tos-detail-actions">
           {!finalized && (
-            <button type="button" className="btn btn-outline btn-sm" onClick={handleFinalize} disabled={finalizing || Boolean(tos.assessment_scope && !tos.scope_key)}>
+            <button
+              type="button"
+              className="btn btn-outline btn-sm"
+              onClick={handleFinalize}
+              disabled={finalizing || sourceFinalizeBlocked || Boolean(tos.assessment_scope && !tos.scope_key)}
+              title={sourceFinalizeBlocked
+                ? !coverageConfirmed
+                  ? 'Review Assessment Coverage and select supporting lesson passages before finalizing'
+                  : 'Select at least one processed non-syllabus lesson passage before finalizing'
+                : undefined}
+            >
               {finalizing ? <span className="btn-spinner" /> : <Lock size={14} />} Finalize TOS
             </button>
           )}
@@ -694,6 +708,22 @@ export default function TosDetailPage() {
       <div data-tour="tos-workflow">
         <StageRail steps={railSteps} />
       </div>
+
+      {sourceFinalizeBlocked && (
+        <section className="callout callout-warning mb-2" aria-label="Assessment coverage required before finalizing">
+          <span className="callout-icon" aria-hidden="true"><BookOpen /></span>
+          <div>
+            <div className="callout-title">Confirm supporting lessons before finalizing</div>
+            <p className="callout-detail">
+              A syllabus plans this blueprint, but its lesson sources must be selected while the TOS is still editable. Choose the exact lesson passages this assessment may use; unselected materials will remain excluded.
+            </p>
+            <p className="callout-note">
+              <a href="#assessment-coverage">Review assessment coverage <ArrowRight size={13} /></a>
+              {generationReadiness?.code === 'LESSON_EVIDENCE_REQUIRED' && <> · <Link to={`/materials?upload=1&subject_id=${encodeURIComponent(tos.subject_id)}`}>Upload supporting lessons</Link></>}
+            </p>
+          </div>
+        </section>
+      )}
 
       {courseIdentity?.mismatch && (
         <section className="callout callout-warning mb-2" aria-label="Syllabus course mismatch warning">
@@ -727,8 +757,8 @@ export default function TosDetailPage() {
       {tos.source_meta && <section className="card mb-2" aria-label="Syllabus source and planning assumptions">
         <div className="card-header"><h2 className="card-title">Syllabus source and planning assumptions</h2></div>
         <div className="card-body">
-          {parseScope(tos.source_meta)?.courseHours && <p><strong>{parseScope(tos.source_meta).courseHours.value} course hours stated in the syllabus.</strong> “{parseScope(tos.source_meta).courseHours.evidence}”</p>}
-          <ul>{(parseScope(tos.source_meta)?.warnings || []).map((warning) => <li key={warning}>{warning}</li>)}</ul>
+          {syllabusMeta?.courseHours && <p><strong>{syllabusMeta.courseHours.value} course hours stated in the syllabus.</strong> “{syllabusMeta.courseHours.evidence}”</p>}
+          <ul>{(syllabusMeta?.warnings || []).map((warning) => <li key={warning}>{warning}</li>)}</ul>
           <p><strong>The syllabus builds the blueprint only.</strong> Question generation requires separate supporting lesson content with enough evidence to answer each planned question.</p>
         </div>
       </section>}

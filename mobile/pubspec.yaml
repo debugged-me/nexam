@@ -1,5 +1,5 @@
 name: nexam_omr
-description: "Nexam OMR — mobile companion for OMR answer-sheet scanning and score sync."
+description: "nexam — mobile companion for OMR answer-sheet scanning and score sync."
 publish_to: 'none'
 
 version: 1.0.0+1

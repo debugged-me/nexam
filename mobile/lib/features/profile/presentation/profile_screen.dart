@@ -166,7 +166,7 @@ class ProfileScreen extends StatelessWidget {
           _infoRow(
             icon: Icons.info_outline_rounded,
             label: 'App',
-            value: 'Nexam OMR companion',
+            value: 'nexam companion',
             last: true,
           ),
         ],

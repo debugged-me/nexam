@@ -61,7 +61,7 @@ class _NexamOmrAppState extends State<NexamOmrApp> {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Nexam OMR',
+      title: 'nexam',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.build(),
       darkTheme: AppTheme.buildDark(),
